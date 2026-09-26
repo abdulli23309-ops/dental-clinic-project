@@ -142,8 +142,12 @@ reviewable and reversible in a way an ad hoc statement is not.
   them and move on, unless asked.
 - Never commit .env, .env.local, credentials, API keys, or real patient
   data, in this or any future session.
+- Never read, extract, or attempt to decrypt credentials stored by another
+  application — including this project's own tooling — without being explicitly
+  asked to do exactly that. If a password is needed, ask the user directly.
 - Never fabricate a result — a test that wasn't actually run, a check that
   wasn't actually performed, or functionality that only appears to work.
   State clearly what you verified and how.
 - When genuinely uncertain whether an action is reversible, treat it as if
   it is not, and ask first.
+

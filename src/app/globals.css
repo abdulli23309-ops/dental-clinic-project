@@ -1,27 +1,72 @@
 @import "tailwindcss";
 
 @theme {
-  --font-display: var(--font-fraunces);
-  --font-sans: var(--font-manrope);
+  --font-display: var(--font-fraunces), serif;
+  --font-sans: var(--font-manrope), sans-serif;
 
+  --color-bone: var(--color-bone);
+  --color-cream: var(--color-cream);
+  --color-sand: var(--color-sand);
+  --color-line: var(--color-line);
+  --color-ink: var(--color-ink);
+  --color-ink-soft: var(--color-ink-soft);
+  --color-forest: var(--color-forest);
+  --color-forest-deep: var(--color-forest-deep);
+  --color-clay: var(--color-clay);
+  --color-gold: var(--color-gold);
+
+  --radius-card: 4px;
+}
+
+:root {
   --color-bone: #FAF7F2;
-  --color-cream: #F3EDE3;
-  --color-sand: #E8E0D2;
+  --color-cream: #F4EFE6;
+  --color-sand: #E8DFD1;
   --color-line: #E2DACB;
-  --color-ink: #14140F;
-  --color-ink-soft: #4A4A40;
+  --color-ink: #151613;
+  --color-ink-soft: #4F5047;
   --color-forest: #1F3D34;
-  --color-forest-deep: #14251F;
+  --color-forest-deep: #12241E;
   --color-clay: #C4704F;
   --color-gold: #B8935A;
 
-  --radius-card: 4px;
+  --shadow-flat: none;
+  --shadow-subtle: 0 1px 3px rgba(20, 20, 15, 0.05), 0 1px 2px rgba(20, 20, 15, 0.03);
+  --shadow-card: 0 10px 25px -5px rgba(20, 20, 15, 0.07), 0 6px 10px -6px rgba(20, 20, 15, 0.03);
+  --shadow-elevated: 0 20px 40px -15px rgba(20, 20, 15, 0.18), 0 1px 3px rgba(20, 20, 15, 0.06);
+  --shadow-modal: 0 25px 60px -15px rgba(20, 20, 15, 0.3);
+
+  --grain-opacity: 0.035;
+}
+
+[data-theme="dark"],
+.dark {
+  --color-bone: #0B0F0D;
+  --color-cream: #121815;
+  --color-sand: #1A2420;
+  --color-line: #22302A;
+  --color-ink: #F4F1EA;
+  --color-ink-soft: #9BA7A1;
+  --color-forest: #2B5749;
+  --color-forest-deep: #070B09;
+  --color-clay: #D87D59;
+  --color-gold: #C9A266;
+
+  --shadow-flat: none;
+  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-card: 0 10px 25px -5px rgba(0, 0, 0, 0.45);
+  --shadow-elevated: 0 20px 40px -15px rgba(0, 0, 0, 0.65);
+  --shadow-modal: 0 25px 60px -15px rgba(0, 0, 0, 0.85);
+
+  --grain-opacity: 0.02;
 }
 
 @layer base {
   html {
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
+    transition: background-color 0.25s ease, color 0.25s ease;
   }
 
   body {
@@ -29,17 +74,24 @@
     color: var(--color-ink);
     font-family: var(--font-sans);
     font-feature-settings: "ss01", "cv11";
+    min-height: 100vh;
   }
 
   ::selection {
     background-color: var(--color-forest);
-    color: var(--color-bone);
+    color: #FAF7F2;
   }
 
-  h1, h2, h3, h4 {
+  h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
     font-weight: 400;
     letter-spacing: -0.02em;
+  }
+
+  /* Accessible focus indicators */
+  :focus-visible {
+    outline: 2px solid var(--color-clay);
+    outline-offset: 3px;
   }
 }
 
@@ -47,14 +99,27 @@
   .container-x {
     width: 100%;
     margin-inline: auto;
-    max-width: 84rem;
+    max-width: 82rem;
     padding-inline: 1.25rem;
   }
-  @media (min-width: 768px) {
-    .container-x { padding-inline: 2.5rem; }
+  @media (min-width: 640px) {
+    .container-x { padding-inline: 2rem; }
   }
-  @media (min-width: 1280px) {
-    .container-x { padding-inline: 3.5rem; }
+  @media (min-width: 1024px) {
+    .container-x { padding-inline: 3rem; }
+  }
+
+  /* Fluid typography utilities */
+  .fluid-h1 {
+    font-size: clamp(2.35rem, 5.5vw, 4.25rem);
+    line-height: 1.04;
+    letter-spacing: -0.03em;
+  }
+
+  .fluid-h2 {
+    font-size: clamp(1.85rem, 3.8vw, 2.75rem);
+    line-height: 1.1;
+    letter-spacing: -0.025em;
   }
 
   .eyebrow {
@@ -65,16 +130,50 @@
     text-transform: uppercase;
     color: var(--color-clay);
   }
+
+  .shadow-subtle { box-shadow: var(--shadow-subtle); }
+  .shadow-card { box-shadow: var(--shadow-card); }
+  .shadow-elevated { box-shadow: var(--shadow-elevated); }
+  .shadow-modal { box-shadow: var(--shadow-modal); }
+
+  /* Skip to content link for keyboard navigation */
+  .skip-to-content {
+    position: absolute;
+    top: -100px;
+    left: 1.5rem;
+    z-index: 100;
+    background-color: var(--color-forest);
+    color: #FAF7F2;
+    padding: 0.75rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border-radius: 9999px;
+    box-shadow: var(--shadow-elevated);
+    transition: top 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .skip-to-content:focus {
+    top: 1.5rem;
+  }
 }
 
-/* Film grain — the subtle texture that makes it feel printed, not rendered */
+/* Film grain: subtle tactile texture */
 .grain::after {
   content: "";
   position: fixed;
   inset: 0;
-  z-index: 60;
+  z-index: 9999;
   pointer-events: none;
-  opacity: 0.045;
+  opacity: var(--grain-opacity);
   mix-blend-mode: multiply;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

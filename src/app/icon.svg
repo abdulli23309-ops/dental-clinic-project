@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <rect width="64" height="64" rx="14" fill="#14251F"/>
+  <!-- Elegant minimalist dental emblem -->
+  <path d="M32 12C25.5 12 23.5 15.2 20 15.2C16 15.2 12 19 12 25.5C12 34 16.5 40.5 19 47C20.5 51.2 21.5 54.5 24.5 54.5C27.5 54.5 28 50.5 28.5 46C28.9 42.5 29.8 39.5 32 39.5C34.2 39.5 35.1 42.5 35.5 46C36 50.5 36.5 54.5 39.5 54.5C42.5 54.5 43.5 51.2 45 47C47.5 40.5 52 34 52 25.5C52 19 48 15.2 44 15.2C40.5 15.2 38.5 12 32 12Z" fill="#FAF7F2" stroke="#B8935A" stroke-width="2"/>
+  <circle cx="32" cy="27" r="4.5" fill="#1F3D34"/>
+  <path d="M26 27h12M32 21v12" stroke="#FAF7F2" stroke-width="1.8" stroke-linecap="round"/>
+</svg>

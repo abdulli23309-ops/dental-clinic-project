@@ -63,6 +63,7 @@ function BookingWizard() {
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [submittedData, setSubmittedData] = useState<{
     confirmationId: string;
     callbackWindow: string;
@@ -153,6 +154,7 @@ function BookingWizard() {
    */
   const handleFinalSubmit = async () => {
     setIsSubmitting(true);
+    setSubmitError(null);
     const utms = getStoredUtmParams();
 
     const payload: BookingPayload = {
@@ -175,12 +177,12 @@ function BookingWizard() {
         confirmationId: response.confirmationId,
         callbackWindow: response.estimatedCallbackWindow,
       });
-    } catch {
-      // Graceful fallback response
-      setSubmittedData({
-        confirmationId: "MD-REQUESTED",
-        callbackWindow: "Within 1 business hour (Mon to Thu 8:00 AM to 6:00 PM)",
-      });
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Unable to submit your appointment request. Please check your connection or contact our clinic directly.";
+      setSubmitError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -591,6 +593,25 @@ function BookingWizard() {
                       </div>
                     )}
                   </Card>
+
+                  {submitError && (
+                    <div
+                      role="alert"
+                      aria-live="polite"
+                      className="rounded-[var(--radius-card)] border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/40 p-4 text-xs text-rose-800 dark:text-rose-200 space-y-1.5"
+                    >
+                      <p className="font-semibold text-rose-900 dark:text-rose-100">
+                        Could not transmit appointment request
+                      </p>
+                      <p>{submitError}</p>
+                      <p className="text-[11px] text-rose-700 dark:text-rose-300">
+                        Please try again, or call our Lincoln Park desk directly at{" "}
+                        <a href="tel:+13125550147" className="underline font-semibold">
+                          (312) 555-0147
+                        </a>.
+                      </p>
+                    </div>
+                  )}
 
                   <div className="rounded-[var(--radius-card)] border border-line bg-bone p-4 text-xs text-ink-soft flex items-start gap-2.5">
                     <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />

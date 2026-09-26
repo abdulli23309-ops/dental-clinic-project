@@ -19,7 +19,7 @@ Domain Repository (Abstract Protocol/ABC)
        ↓
 PostgreSQL Repository (SQLAlchemy 2.0 Async + asyncpg)
        ↓
-PostgreSQL Database ("marlow_dental" / "appointments" table)
+PostgreSQL Database ("marlow_dental_dev" / "appointments" table)
 ```
 
 - **Domain isolation**: The domain layer (`domain/models/`, `domain/repositories/`) is pure Python dataclasses and enums with zero imports of FastAPI or SQLAlchemy.
@@ -71,6 +71,7 @@ backend/
 │   ├── test_health.py              # Health endpoint and DB degradation tests
 │   ├── test_domain.py              # Domain entity & status transition tests
 │   ├── test_repository.py          # Relational persistence & unique constraint tests
+│   ├── test_postgres_integration.py # Real PostgreSQL connection & constraint verification
 │   ├── test_service.py             # Service logic & collision retry tests
 │   └── test_appointments.py        # API contract, validation, CORS & PHI-logging tests
 ├── .env.example
@@ -80,7 +81,42 @@ backend/
 
 ---
 
-## 3. Environment Variables
+## 3. PostgreSQL Database Requirement & Verification
+
+A running instance of **PostgreSQL 15+ (16 recommended)** is required for local backend development.
+
+### Verifying PostgreSQL Installation
+Check whether PostgreSQL tools are available in your path or running service:
+
+```bash
+# Check client version
+psql --version
+
+# On Windows PowerShell, check running service:
+Get-Service *postgres*
+```
+
+If using a portable/local PostgreSQL instance (e.g. in `E:\pgsql\bin`):
+```powershell
+& 'E:\pgsql\bin\psql.exe' --version
+```
+
+### Creating the Local Development Database
+Connect to PostgreSQL and create the dedicated development database:
+
+```sql
+CREATE DATABASE marlow_dental_dev;
+```
+Or via CLI:
+```bash
+createdb -U postgres -h localhost marlow_dental_dev
+```
+
+*Note: Never connect to or execute destructive statements (`DROP`, `TRUNCATE`, `DELETE`) against production databases. Development and test operations must always target `marlow_dental_dev`.*
+
+---
+
+## 4. Environment Variables
 
 Copy `.env.example` to `.env`:
 
@@ -88,19 +124,19 @@ Copy `.env.example` to `.env`:
 cp .env.example .env
 ```
 
-| Variable | Default Value | Purpose |
+| Variable | Example Value | Purpose |
 | :--- | :--- | :--- |
 | `ENVIRONMENT` | `development` | Deployment environment name |
 | `DEBUG` | `false` | Disables interactive debug docs in production |
 | `APP_NAME` | `Marlow Dental API` | Service name |
 | `API_V1_PREFIX` | `/api/v1` | URL prefix for V1 endpoints |
 | `ALLOWED_ORIGINS` | `http://localhost:3000,http://127.0.0.1:3000` | Whitelisted CORS origins |
-| `DATABASE_URL` | `postgresql+asyncpg://user:password@localhost:5432/marlow_dental` | PostgreSQL async connection string |
+| `DATABASE_URL` | `postgresql+asyncpg://postgres:YOUR_PASSWORD@localhost:5432/marlow_dental_dev` | PostgreSQL async connection string |
 | `APPOINTMENTS_RATE_LIMIT` | `5/minute` | Rate limit threshold per IP |
 
 ---
 
-## 4. Setup & Running Locally
+## 5. Setup & Running Locally
 
 ### Virtual Environment & Dependencies
 
@@ -110,19 +146,18 @@ uv venv .venv --python python3.14
 uv pip install -r requirements.txt
 ```
 
-### PostgreSQL Local Setup
-1. Create a local PostgreSQL database named `marlow_dental`:
-   ```sql
-   CREATE DATABASE marlow_dental;
-   ```
-2. Set `DATABASE_URL` in `.env`.
-
 ### Schema Migrations (Alembic)
-Run migrations to create the `appointments` table and indexes:
+Run migrations to create the `appointments` table and indexes in your local database:
 
 ```bash
-# From within the backend directory:
+# Apply pending migrations to reach head:
 alembic upgrade head
+
+# Verify current revision:
+alembic current
+
+# Verify expected head:
+alembic heads
 ```
 
 ### Running the API Server
@@ -134,18 +169,18 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 ---
 
-## 5. API Endpoints
+## 6. API Endpoints
 
 ### 1. Health Status
 `GET /api/v1/health`
-- **Response (200 OK)**:
+- **Response (200 OK — Database Connected)**:
   ```json
   {
     "status": "healthy",
     "database": "connected"
   }
   ```
-- **Degraded (503 Service Unavailable)**:
+- **Degraded (503 Service Unavailable — Database Disconnected)**:
   ```json
   {
     "status": "degraded",
@@ -183,7 +218,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 ---
 
-## 6. Running Tests
+## 7. Running Tests
 
 Run the full pytest suite:
 
@@ -191,4 +226,11 @@ Run the full pytest suite:
 pytest tests -v
 ```
 
-All 17 automated tests verify health status, validation rules, unique database constraints, collision retry logic, CORS headers, rate limiting, and zero-PHI logging.
+All 20 automated tests verify:
+- Health status and database degradation handling
+- Domain status transitions and entities
+- Relational schema persistence and unique constraint enforcement
+- Real PostgreSQL async connectivity and integration (`test_postgres_integration.py`)
+- Service ID generation and collision retry logic
+- CORS headers and rate limiting
+- Zero-PHI logging compliance

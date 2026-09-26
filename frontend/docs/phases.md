@@ -46,7 +46,7 @@
 
 - [x] **Phase 6: Backend Boundary Preparation (`src/lib/api.ts`)**
   - Centralized future `fetch` calls into `src/lib/api.ts`.
-  - Clearly labeled mock datasets as mock arrays pending FastAPI + MongoDB Atlas endpoints.
+  - Clearly labeled mock datasets as mock arrays pending FastAPI + PostgreSQL endpoints.
 
 - [x] **Phase 7: Documentation Synchronization**
   - Synchronized all six files in `docs/`: `prd.md`, `architecture.md`, `design.md`, `rules.md`, `phases.md`, `memory.md`.

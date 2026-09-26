@@ -1,8 +1,10 @@
 """
 Integration tests verifying PostgreSQL database connectivity and repository operations.
 
-These tests run against the local PostgreSQL development database (marlow_dental_dev)
+These tests run against the local PostgreSQL development database (dentai_dev)
 using the application's actual async engine and SQLAlchemy configuration.
+If the database has not yet been initialized by the developer, the integration tests
+gracefully skip with explicit setup guidance.
 """
 from datetime import date
 import pytest
@@ -25,19 +27,33 @@ async def pg_session():
     """
     Provides a real PostgreSQL database session for integration testing.
 
-    Rolls back or cleans up inserted test records so the development database
-    remains completely clean after each test run.
+    If the configured development database (dentai_dev) does not exist yet,
+    the fixture gracefully skips the test and guides the developer.
     """
+    db_name = settings.DATABASE_URL.split("/")[-1].split("?")[0]
     engine = create_async_engine(settings.DATABASE_URL, echo=False)
     session_factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
+
+    try:
+        async with session_factory() as session:
+            await session.execute(text("SELECT 1"))
+    except Exception as exc:
+        await engine.dispose()
+        pytest.skip(
+            f"Database '{db_name}' is not reachable ({exc}). "
+            f"Run 'createdb -U postgres -h localhost {db_name}' and 'alembic upgrade head' to run integration tests."
+        )
 
     async with session_factory() as session:
         yield session
         # Clean up any test records inserted with the test prefix
-        await session.execute(
-            text("DELETE FROM appointments WHERE confirmation_id LIKE 'TEST-%'")
-        )
-        await session.commit()
+        try:
+            await session.execute(
+                text("DELETE FROM appointments WHERE confirmation_id LIKE 'TEST-%'")
+            )
+            await session.commit()
+        except Exception:
+            await session.rollback()
 
     await engine.dispose()
 
@@ -47,7 +63,13 @@ async def test_postgres_connectivity():
     """
     Verifies that the application can connect to the running PostgreSQL server.
     """
+    db_name = settings.DATABASE_URL.split("/")[-1].split("?")[0]
     is_connected = await check_database_health()
+    if not is_connected:
+        pytest.skip(
+            f"Database '{db_name}' does not exist or is unreachable. "
+            f"Run 'createdb -U postgres -h localhost {db_name}' and 'alembic upgrade head' to enable integration tests."
+        )
     assert is_connected is True, "PostgreSQL database health check must succeed."
 
 

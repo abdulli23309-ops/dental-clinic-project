@@ -19,7 +19,7 @@ Domain Repository (Abstract Protocol/ABC)
        ↓
 PostgreSQL Repository (SQLAlchemy 2.0 Async + asyncpg)
        ↓
-PostgreSQL Database ("marlow_dental_dev" / "appointments" table)
+PostgreSQL Database ("dentai_dev" / "appointments" table)
 ```
 
 - **Domain isolation**: The domain layer (`domain/models/`, `domain/repositories/`) is pure Python dataclasses and enums with zero imports of FastAPI or SQLAlchemy.
@@ -105,14 +105,14 @@ If using a portable/local PostgreSQL instance (e.g. in `E:\pgsql\bin`):
 Connect to PostgreSQL and create the dedicated development database:
 
 ```sql
-CREATE DATABASE marlow_dental_dev;
+CREATE DATABASE dentai_dev;
 ```
 Or via CLI:
 ```bash
-createdb -U postgres -h localhost marlow_dental_dev
+createdb -U postgres -h localhost dentai_dev
 ```
 
-*Note: Never connect to or execute destructive statements (`DROP`, `TRUNCATE`, `DELETE`) against production databases. Development and test operations must always target `marlow_dental_dev`.*
+*Note: Never connect to or execute destructive statements (`DROP`, `TRUNCATE`, `DELETE`) against production databases. Development and test operations must always target `dentai_dev`.*
 
 ---
 
@@ -131,7 +131,7 @@ cp .env.example .env
 | `APP_NAME` | `Marlow Dental API` | Service name |
 | `API_V1_PREFIX` | `/api/v1` | URL prefix for V1 endpoints |
 | `ALLOWED_ORIGINS` | `http://localhost:3000,http://127.0.0.1:3000` | Whitelisted CORS origins |
-| `DATABASE_URL` | `postgresql+asyncpg://postgres:YOUR_PASSWORD@localhost:5432/marlow_dental_dev` | PostgreSQL async connection string |
+| `DATABASE_URL` | `postgresql+asyncpg://postgres:YOUR_PASSWORD@localhost:5432/dentai_dev` | PostgreSQL async connection string |
 | `APPOINTMENTS_RATE_LIMIT` | `5/minute` | Rate limit threshold per IP |
 
 ---

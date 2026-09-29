@@ -76,9 +76,11 @@
   - Generated `backend/.env.example` and comprehensive `backend/README.md`.
 
 - [x] **Phase 11: Frontend Integration**
-  - Created `.env.local` with `NEXT_PUBLIC_API_URL=http://localhost:8000`.
-  - Updated `src/lib/api.ts` to submit live `POST` requests to `/api/v1/appointments`.
-  - Validated frontend production build (`npm run build` succeeds cleanly).
+  - Configured `frontend/.env.example` documenting `NEXT_PUBLIC_API_URL=http://localhost:8000`.
+  - Connected `/book` wizard directly to `POST /api/v1/appointments` via `submitBookingRequest` in `src/lib/api.ts`.
+  - Replaced silent/fake confirmation fallback with defensive error state and accessible announcement banner (`role="alert"` and `aria-live="polite"`).
+  - Verified Next.js Turbopack production build (`npm run build`) generates all 14 static routes without error.
+  - Verified backend payload validation parity between Pydantic DTOs and Next.js form state.
 
 ## Deferred Capabilities (Explicitly Not Built)
 

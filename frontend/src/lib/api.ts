@@ -214,14 +214,17 @@ export async function submitBookingRequest(
     let errorDetail = "Failed to submit appointment request.";
     try {
       const errJson = await response.json();
-      if (errJson.detail) {
-        errorDetail =
-          typeof errJson.detail === "string"
-            ? errJson.detail
-            : JSON.stringify(errJson.detail);
+      if (typeof errJson.detail === "string") {
+        errorDetail = errJson.detail;
+      } else if (Array.isArray(errJson.detail)) {
+        errorDetail = errJson.detail
+          .map((item: { msg?: string }) => item.msg || JSON.stringify(item))
+          .join(". ");
+      } else if (errJson.message) {
+        errorDetail = errJson.message;
       }
     } catch {
-      // Ignore parse failure
+      // Ignore parse failure; retain fallback
     }
     throw new Error(errorDetail);
   }

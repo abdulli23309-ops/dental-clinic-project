@@ -113,7 +113,7 @@ Domain Repositories (app/domain/repositories - ABC)
            ↓
 PostgreSQL Repositories (app/infrastructure/repositories)
            ↓
-      PostgreSQL ("marlow_dental" / "appointments" table)
+      PostgreSQL ("dentai_dev" / "appointments" table)
 ```
 
 ### Confirmed Stack & Verified Versions

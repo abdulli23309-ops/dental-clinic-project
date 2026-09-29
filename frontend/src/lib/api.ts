@@ -2,7 +2,7 @@
  * API Service Abstraction Layer: Marlow Dental
  *
  * This file is the single boundary where future HTTP fetch calls to the
- * FastAPI and MongoDB Atlas backend will live.
+ * FastAPI and PostgreSQL backend will live.
  *
  * Planned backend endpoints:
  * - POST /api/appointments (Booking request submission)

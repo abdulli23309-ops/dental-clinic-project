@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
 
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
-    DATABASE_URL: str = "postgresql+asyncpg://user:password@localhost:5432/marlow_dental"
+    DATABASE_URL: str = "postgresql+asyncpg://user:password@localhost:5432/dentai_dev"
     APPOINTMENTS_RATE_LIMIT: str = "5/minute"
 
     @property

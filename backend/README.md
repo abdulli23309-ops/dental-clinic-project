@@ -172,7 +172,10 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ## 6. API Endpoints
 
 ### 1. Health Status
-`GET /api/v1/health`
+`GET /health` or `GET /api/v1/health`
+```bash
+curl http://localhost:8000/health
+```
 - **Response (200 OK — Database Connected)**:
   ```json
   {
@@ -190,6 +193,24 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 ### 2. Submit Appointment Request
 `POST /api/v1/appointments`
+
+Example CLI test command:
+```bash
+curl -X POST http://localhost:8000/api/v1/appointments \
+  -H "Content-Type: application/json" \
+  -d '{
+    "serviceId": "cleanings-exams",
+    "preferredDate": "2026-10-15",
+    "preferredTime": "10:00 AM",
+    "fullName": "Jane Alvarez",
+    "phone": "(312) 555-0100",
+    "email": "jane@example.com",
+    "hasInsurance": true,
+    "insuranceProvider": "Delta Dental PPO",
+    "notes": "Sensitive lower molar"
+  }'
+```
+
 - **Request Body**:
   ```json
   {

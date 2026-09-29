@@ -10,6 +10,7 @@ from app.core.config import settings
 from app.core.database import init_db, close_db
 from app.core.logging import logger
 from app.api.v1.router import api_v1_router
+from app.api.v1.endpoints.health import health_check
 
 
 @asynccontextmanager
@@ -69,3 +70,6 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 # Mount API V1 routes
 app.include_router(api_v1_router, prefix=settings.API_V1_PREFIX)
+
+# Root health check alias
+app.add_api_route("/health", health_check, methods=["GET"], tags=["Health"], summary="Root Health Check")

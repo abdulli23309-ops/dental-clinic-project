@@ -8,6 +8,7 @@ import Link from "next/link";
 import { ArrowLeft, ShieldCheck, Lock, FileText, Phone } from "lucide-react";
 import SiteHeader from "@/components/layout/site-header";
 import Footer from "@/components/layout/footer";
+import { LegalContactBox } from "@/components/layout/legal-contact-box";
 
 export const metadata = {
   title: "HIPAA Notice of Privacy Practices | Marlow Dental",
@@ -69,7 +70,7 @@ export default function HipaaPage() {
               </p>
               <ul className="list-disc pl-5 space-y-1 text-xs sm:text-sm">
                 <li>
-                  <strong>Direct Clinical Treatment:</strong> Dr. Sarah Marlow uses your health history, dental radiographs, and periodontal measurements to plan and provide your care.
+                  <strong>Direct Clinical Treatment:</strong> Our licensed dentists and clinical personnel use your health history, dental radiographs, and periodontal measurements to plan and provide your care.
                 </li>
                 <li>
                   <strong>Payment Operations:</strong> We transmit your treatment codes and radiographs to your dental benefit plan to determine reimbursement and patient co-pay responsibility.
@@ -94,13 +95,9 @@ export default function HipaaPage() {
                 4. Contacting Our Privacy Officer
               </h2>
               <p>
-                If you have questions about our HIPAA policies or wish to file a formal inquiry, please contact our Lincoln Park office:
+                If you have questions about our HIPAA policies or wish to file a formal inquiry, please contact our office:
               </p>
-              <div className="rounded-[var(--radius-card)] border border-line bg-bone p-4 text-xs space-y-1 font-mono">
-                <p>Marlow Dental, P.C. Privacy Officer</p>
-                <p>214 Alder Street, Suite 3, Chicago, IL 60614</p>
-                <p>Phone: (312) 555-0147 · Email: privacy@marlowdental.com</p>
-              </div>
+              <LegalContactBox officerTitle="Privacy Officer" />
             </section>
           </div>
         </div>

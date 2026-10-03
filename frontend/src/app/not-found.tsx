@@ -53,10 +53,7 @@ export default function NotFound() {
               Need Immediate Assistance?
             </p>
             <p>
-              If you are looking for office hours or emergency dental care, please call our Lincoln Park desk directly at{" "}
-              <a href="tel:+13125550147" className="text-forest dark:text-emerald-400 font-semibold underline">
-                (312) 555-0147
-              </a>.
+              If you are looking for office hours or emergency dental care, please return to the homepage or book an appointment directly through our online reservation form.
             </p>
           </Card>
         </div>

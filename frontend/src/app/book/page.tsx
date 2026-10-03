@@ -12,6 +12,7 @@ import SiteHeader from "@/components/layout/site-header";
 import Footer from "@/components/layout/footer";
 import { getStoredUtmParams } from "@/lib/utm";
 import { submitBookingRequest, BookingPayload, getServices } from "@/lib/api";
+import { usePublicContent } from "@/components/providers/public-content-provider";
 
 const DEFAULT_SERVICES_OPTIONS = [
   { id: "cleanings-exams", label: "Cleaning & Comprehensive Exam", meta: "45 to 60 min · cash from $140" },
@@ -37,6 +38,10 @@ type WizardStep = 0 | 1 | 2 | 3;
  * It syncs the current step to the URL search parameters so browser back/forward buttons work naturally.
  */
 function BookingWizard() {
+  const { content, primaryLocation } = usePublicContent();
+  const phone = content.general?.phone || primaryLocation?.phone || "(312) 555-0147";
+  const cleanPhone = phone.replace(/[^0-9+]/g, "");
+  const locationName = primaryLocation?.name || "clinic desk";
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -270,9 +275,9 @@ function BookingWizard() {
               </div>
 
               <p className="text-xs text-ink-soft">
-                Have an acute toothache right now? Please call our Lincoln Park desk directly at{" "}
-                <a href="tel:+13125550147" className="text-forest font-semibold underline">
-                  (312) 555-0147
+                Have an acute toothache right now? Please call our {locationName} directly at{" "}
+                <a href={`tel:${cleanPhone}`} className="text-forest font-semibold underline">
+                  {phone}
                 </a>.
               </p>
 
@@ -627,9 +632,9 @@ function BookingWizard() {
                       </p>
                       <p>{submitError}</p>
                       <p className="text-[11px] text-rose-700 dark:text-rose-300">
-                        Please try again, or call our Lincoln Park desk directly at{" "}
-                        <a href="tel:+13125550147" className="underline font-semibold">
-                          (312) 555-0147
+                        Please try again, or call our {locationName} directly at{" "}
+                        <a href={`tel:${cleanPhone}`} className="underline font-semibold">
+                          {phone}
                         </a>.
                       </p>
                     </div>

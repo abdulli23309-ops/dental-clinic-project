@@ -1,16 +1,27 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
 import { ArrowRight, Phone, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { getSiteContent, SiteContent, DEFAULT_SITE_CONTENT } from "@/lib/api";
 
 /**
  * Renders the introductory hero section of the home page.
  * It introduces the practice's human-centered philosophy, key credentials, office direct line, and primary booking buttons.
  */
 export function Hero() {
+  const [content, setContent] = useState<SiteContent>(DEFAULT_SITE_CONTENT);
+
+  useEffect(() => {
+    getSiteContent()
+      .then((res) => {
+        if (res) setContent(res);
+      })
+      .catch(() => {});
+  }, []);
   return (
     <section className="relative overflow-hidden pt-8 pb-16 md:pt-14 md:pb-24 lg:pt-20 lg:pb-28">
       {/* Subtle Spatial Depth Ambient Glow */}
@@ -32,10 +43,10 @@ export function Hero() {
             >
               <span className="h-1.5 w-1.5 rounded-full bg-forest dark:bg-emerald-400" />
               <span className="font-semibold text-clay uppercase tracking-wider text-[10.5px]">
-                Lincoln Park, Chicago
+                {content.homepage?.heroEyebrow || "Lincoln Park, Chicago"}
               </span>
               <span className="text-ink-soft/40">·</span>
-              <span>Independent Practice Est. 2014</span>
+              <span>{content.general?.practiceName || "Marlow Dental"}</span>
             </motion.div>
 
             {/* Display Headline with gentle typographic reveal */}
@@ -45,27 +56,33 @@ export function Hero() {
               transition={{ duration: 0.5, delay: 0.08 }}
               className="fluid-h1 text-ink font-normal"
             >
-              Dentistry
-              <br />
-              without
-              <br />
-              <span className="relative inline-block text-forest dark:text-emerald-400">
-                the dread.
-                <svg
-                  viewBox="0 0 300 16"
-                  preserveAspectRatio="none"
-                  className="absolute -bottom-1 left-0 h-3 w-full text-clay/70"
-                  fill="none"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M2 10c70-7 150-7 296-3"
-                    stroke="currentColor"
-                    strokeWidth="2.8"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </span>
+              {content.homepage?.heroHeading && content.homepage.heroHeading !== "Dentistry without the dread." ? (
+                <span>{content.homepage.heroHeading}</span>
+              ) : (
+                <>
+                  Dentistry
+                  <br />
+                  without
+                  <br />
+                  <span className="relative inline-block text-forest dark:text-emerald-400">
+                    the dread.
+                    <svg
+                      viewBox="0 0 300 16"
+                      preserveAspectRatio="none"
+                      className="absolute -bottom-1 left-0 h-3 w-full text-clay/70"
+                      fill="none"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M2 10c70-7 150-7 296-3"
+                        stroke="currentColor"
+                        strokeWidth="2.8"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </span>
+                </>
+              )}
             </motion.h1>
 
             {/* Reassuring Body Copy */}
@@ -75,7 +92,8 @@ export function Hero() {
               transition={{ duration: 0.5, delay: 0.16 }}
               className="max-w-xl text-[16px] sm:text-[17px] leading-[1.65] text-ink-soft font-normal"
             >
-              Marlow Dental is a single-dentist practice on Alder Street. We run on time, walk you through every digital X-ray before we touch a tooth, and give you an itemized written estimate first. Never high-pressure sales, and no surprise bills.
+              {content.homepage?.heroDescription ||
+                "Marlow Dental is a patient-first practice on Alder Street. We run on time, walk you through every digital X-ray before we touch a tooth, and give you an itemized written estimate first. Never high-pressure sales, and no surprise bills."}
             </motion.p>
 
             {/* Action Group */}
@@ -85,22 +103,22 @@ export function Hero() {
               transition={{ duration: 0.5, delay: 0.24 }}
               className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5"
             >
-              <Button href="/book" variant="primary" size="lg">
-                <span>Book an appointment</span>
+              <Button href={content.homepage?.heroCtaLink || "/book"} variant="primary" size="lg">
+                <span>{content.homepage?.heroCtaText || "Book an appointment"}</span>
                 <ArrowRight className="h-4 w-4 ml-0.5" />
               </Button>
 
               <div className="flex items-center gap-2">
                 <Button
-                  href="tel:+13125550147"
+                  href={`tel:${(content.general?.phone || "(312) 555-0147").replace(/[^0-9+]/g, "")}`}
                   variant="outline"
                   size="lg"
                   className="flex-1 sm:flex-initial"
                 >
                   <Phone className="h-4 w-4 text-forest" />
-                  <span>Call (312) 555-0147</span>
+                  <span>Call {content.general?.phone || "(312) 555-0147"}</span>
                 </Button>
-                <CopyButton text="(312) 555-0147" label="Copy" className="h-11 px-3" />
+                <CopyButton text={content.general?.phone || "(312) 555-0147"} label="Copy" className="h-11 px-3" />
               </div>
             </motion.div>
 

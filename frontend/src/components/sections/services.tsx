@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { ArrowRight, Clock, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SectionHeading } from "@/components/ui/section-heading";
+import { getServices } from "@/lib/api";
 
 type CategoryFilter = "all" | "preventive" | "restorative" | "cosmetic" | "emergency";
 
@@ -99,12 +100,33 @@ const TABS: { id: CategoryFilter; label: string }[] = [
  * Each card displays clear cash pricing, CDT billing codes, visit duration, and a direct booking button.
  */
 export function Services() {
+  const [catalog, setCatalog] = useState<ServiceDisplay[]>(SERVICES_CATALOG);
   const [activeTab, setActiveTab] = useState<CategoryFilter>("all");
+
+  useEffect(() => {
+    getServices().then((data) => {
+      if (Array.isArray(data) && data.length > 0) {
+        setCatalog(
+          data.map((s) => ({
+            id: s.id,
+            category: s.category as CategoryFilter,
+            title: s.title,
+            shortDesc: s.shortDesc,
+            cashPrice: s.cashPrice,
+            duration: s.duration,
+            code: s.code || "",
+            insuranceNote: s.insuranceNote || "",
+            highlight: s.highlight,
+          }))
+        );
+      }
+    });
+  }, []);
 
   const filtered =
     activeTab === "all"
-      ? SERVICES_CATALOG
-      : SERVICES_CATALOG.filter((s) => s.category === activeTab);
+      ? catalog
+      : catalog.filter((s) => s.category === activeTab);
 
   return (
     <section id="services" className="border-t border-line bg-bone py-20 md:py-28">

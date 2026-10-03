@@ -1,14 +1,44 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { Award, GraduationCap, ShieldCheck } from "lucide-react";
 import { SectionHeading } from "@/components/ui/section-heading";
+import { getTeamMembers, TeamMember } from "@/lib/api";
 
-/**
- * Renders the biographical section introducing Dr. Sarah Marlow, DDS.
- * It outlines her dental education, active Illinois licensure details, professional society memberships, and clinical philosophy.
- */
+const DEFAULT_DOCTOR = {
+  name: "Dr. Sarah Marlow, DDS",
+  title: "Founder & Lead Dentist",
+  photoUrl: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80&w=1200&auto=format&fit=crop",
+  license: "#019.029811",
+  bio1: "After graduating from the University of Michigan School of Dentistry, I spent four years working in high-volume group clinics in downtown Chicago. I watched patients get passed between multiple associate dentists and hygienists, repeatedly asking who was actually performing their care.",
+  bio2: "In 2014, I established Marlow Dental on Alder Street with a clear rule: one doctor from start to finish. I personally perform your checkup, take time to listen to your concerns, clean your teeth, and complete any restorative work myself.",
+  bio3: "When you sit in our chair, we will never recommend aggressive treatments or cosmetic veneers you did not request. If a tooth can be maintained conservatively with diligent home care, that is exactly what we will recommend.",
+  education: "Doctor of Dental Surgery (DDS), University of Michigan",
+  undergrad: "B.S. in Biology, University of Illinois at Urbana-Champaign",
+};
+
 export function Doctor() {
+  const [doc, setDoc] = useState(DEFAULT_DOCTOR);
+
+  useEffect(() => {
+    getTeamMembers().then((members) => {
+      if (Array.isArray(members) && members.length > 0) {
+        const director = members.find((m) => m.role === "Director") || members[0];
+        setDoc({
+          name: director.displayName,
+          title: director.professionalTitle,
+          photoUrl: director.photoUrl || DEFAULT_DOCTOR.photoUrl,
+          license: director.licenseNumber || DEFAULT_DOCTOR.license,
+          bio1: director.biography || DEFAULT_DOCTOR.bio1,
+          bio2: DEFAULT_DOCTOR.bio2,
+          bio3: DEFAULT_DOCTOR.bio3,
+          education: director.education || DEFAULT_DOCTOR.education,
+          undergrad: DEFAULT_DOCTOR.undergrad,
+        });
+      }
+    });
+  }, []);
   return (
     <section id="about" className="border-t border-line bg-forest-deep text-[#FAF7F2] py-20 md:py-28">
       <div className="container-x">
@@ -23,14 +53,14 @@ export function Doctor() {
           >
             <div className="relative aspect-[4/5] overflow-hidden rounded-[var(--radius-card)] border border-white/10 bg-forest shadow-elevated">
               <img
-                src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80&w=1200&auto=format&fit=crop"
-                alt="Dr. Sarah Marlow, DDS in the Lincoln Park dental office"
+                src={doc.photoUrl}
+                alt={`${doc.name} in the Lincoln Park dental office`}
                 className="h-full w-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-forest-deep/80 via-transparent to-transparent pointer-events-none" />
               <div className="absolute bottom-4 left-4 right-4 text-white">
-                <p className="font-display text-lg">Dr. Sarah Marlow, DDS</p>
-                <p className="text-xs text-white/70">Solo Practitioner, Lincoln Park, Chicago</p>
+                <p className="font-display text-lg">{doc.name}</p>
+                <p className="text-xs text-white/70">{doc.title}</p>
               </div>
             </div>
 
@@ -41,7 +71,7 @@ export function Doctor() {
                 <span>State Licensure &amp; Clinical Standing</span>
               </div>
               <p>
-                Illinois Professional License: <strong className="text-white font-mono">#019.029811</strong>
+                Illinois Professional License: <strong className="text-white font-mono">{doc.license}</strong>
               </p>
               <p className="text-[11px] text-white/60">
                 Active DEA Registration. BLS and CPR Certified. Chicago Dental Society member.
@@ -72,9 +102,7 @@ export function Doctor() {
             />
 
             <div className="space-y-4 text-[15px] sm:text-[16px] leading-[1.75] text-[#FAF7F2]/85 font-normal">
-              <p>
-                After graduating from the University of Michigan School of Dentistry, I spent four years working in high-volume group clinics in downtown Chicago. I watched patients get passed between multiple associate dentists and hygienists, repeatedly asking who was actually performing their care.
-              </p>
+              <p>{doc.bio1}</p>
               <p>
                 In 2014, I established Marlow Dental on Alder Street with a clear rule: one doctor from start to finish. I personally perform your checkup, take time to listen to your concerns, clean your teeth, and complete any restorative work myself.
               </p>
@@ -90,8 +118,8 @@ export function Doctor() {
                   <GraduationCap className="h-4 w-4 text-clay" />
                   <span>Education</span>
                 </div>
-                <p>Doctor of Dental Surgery (DDS), University of Michigan</p>
-                <p>B.S. in Biology, University of Illinois at Urbana-Champaign</p>
+                <p>{doc.education}</p>
+                <p>{doc.undergrad}</p>
               </div>
 
               <div className="space-y-1.5">

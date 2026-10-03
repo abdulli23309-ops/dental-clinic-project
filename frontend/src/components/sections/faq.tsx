@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { Plus, Minus, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SectionHeading } from "@/components/ui/section-heading";
+import { getPublicFaqs } from "@/lib/api";
 
 const FAQS = [
   {
@@ -37,12 +38,17 @@ const FAQS = [
   },
 ];
 
-/**
- * Renders an accordion list of frequently asked questions regarding insurance, cash fees, anxiety accommodations, and scheduling.
- * Visitors can click any question to smoothly expand or collapse detailed answers.
- */
 export function FAQ() {
+  const [faqList, setFaqList] = useState<{ q: string; a: string }[]>(FAQS);
   const [openIndex, setOpenIndex] = useState<number | null>(0);
+
+  useEffect(() => {
+    getPublicFaqs().then((data) => {
+      if (Array.isArray(data) && data.length > 0) {
+        setFaqList(data.map((f) => ({ q: f.question, a: f.answer })));
+      }
+    });
+  }, []);
 
   const toggle = (index: number) => {
     setOpenIndex((prev) => (prev === index ? null : index));

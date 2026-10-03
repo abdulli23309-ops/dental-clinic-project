@@ -8,7 +8,10 @@ from app.core.security import hash_password
 from app.domain.models.user import User, UserRole
 from app.infrastructure.database.orm_models import Base
 from app.infrastructure.repositories.postgres_user_repo import PostgresUserRepository
-from app.main import app
+from app.main import app, limiter
+
+# Disable rate limiting in test suite so fast sequential tests aren't blocked by 429
+limiter.enabled = False
 
 
 @pytest.fixture(scope="session")

@@ -21,11 +21,16 @@ class Settings(BaseSettings):
     # Authentication & Security
     JWT_SECRET_KEY: str = "dev-marlow-dental-insecure-secret-key-change-in-production-2026"
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 7 * 24 * 60  # 7 days (10,080 minutes)
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7  # 7 days
+    REFRESH_TOKEN_ROTATE_AFTER_MINUTES: int = 35  # 35 minutes rotation window
+    REFRESH_COOKIE_NAME: str = "marlow_refresh_token"
     COOKIE_SECURE: bool = False
     COOKIE_SAMESITE: str = "lax"
     COOKIE_DOMAIN: Optional[str] = None
+    LOGIN_RATE_LIMIT: str = "5/minute"
+    REFRESH_RATE_LIMIT: str = "30/minute"
+    CONCURRENCY_GRACE_PERIOD_SECONDS: int = 30
 
     # Storage
     UPLOAD_DIR: str = "uploads"

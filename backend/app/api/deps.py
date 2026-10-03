@@ -19,7 +19,11 @@ from app.domain.repositories.cms_repo import CmsRepository
 from app.domain.repositories.organization_repo import LocationRepository, OrganizationRepository
 from app.domain.repositories.service_repo import ServiceRepository
 from app.domain.repositories.team_repo import TeamMemberRepository
-from app.domain.repositories.user_repo import RefreshTokenRepository, UserRepository
+from app.domain.repositories.user_repo import (
+    RefreshTokenRepository,
+    UserRepository,
+    UserSessionRepository,
+)
 from app.domain.services.storage_service import StorageService
 from app.infrastructure.repositories.postgres_appointment_repo import PostgresAppointmentRepository
 from app.infrastructure.repositories.postgres_cms_repo import PostgresCmsRepository
@@ -32,6 +36,7 @@ from app.infrastructure.repositories.postgres_team_repo import PostgresTeamMembe
 from app.infrastructure.repositories.postgres_user_repo import (
     PostgresRefreshTokenRepository,
     PostgresUserRepository,
+    PostgresUserSessionRepository,
 )
 from app.infrastructure.storage.local_storage import LocalStorageService
 
@@ -56,6 +61,12 @@ def get_refresh_token_repository(
     session: AsyncSession = Depends(get_db_session),
 ) -> RefreshTokenRepository:
     return PostgresRefreshTokenRepository(session)
+
+
+def get_session_repository(
+    session: AsyncSession = Depends(get_db_session),
+) -> UserSessionRepository:
+    return PostgresUserSessionRepository(session)
 
 
 def get_organization_repository(
@@ -103,8 +114,9 @@ def get_appointment_service(
 def get_auth_service(
     user_repo: UserRepository = Depends(get_user_repository),
     refresh_token_repo: RefreshTokenRepository = Depends(get_refresh_token_repository),
+    session_repo: UserSessionRepository = Depends(get_session_repository),
 ) -> AuthService:
-    return AuthService(user_repo, refresh_token_repo)
+    return AuthService(user_repo, refresh_token_repo, session_repo)
 
 
 def get_team_service(
@@ -138,9 +150,11 @@ def get_organization_service(
 async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
     user_repo: UserRepository = Depends(get_user_repository),
+    session_repo: UserSessionRepository = Depends(get_session_repository),
 ) -> User:
     """
-    Validates Bearer JWT access token and resolves the active user entity.
+    Validates Bearer JWT access token, enforces active server-side session,
+    and resolves the active user entity.
     """
     if not credentials or not credentials.credentials:
         raise HTTPException(
@@ -157,6 +171,25 @@ async def get_current_user(
             detail="Invalid or expired access token.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Server-side session verification for 7-day token security & instant revocation
+    sid_str = payload.get("sid")
+    if sid_str:
+        try:
+            sid = UUID(sid_str)
+            active_session = await session_repo.get_by_id(sid)
+            if not active_session or not active_session.is_active:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Session has been revoked or expired.",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+        except (ValueError, TypeError):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Malformed session ID in token.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
     user_id_str = payload.get("sub")
     if not user_id_str:

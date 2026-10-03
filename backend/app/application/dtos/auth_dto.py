@@ -26,8 +26,20 @@ class UserResponse(BaseModel):
     fullName: str
     role: str
     isActive: bool
+    inactivityEnabled: bool = True
+    inactivityTimeoutMinutes: int = 15
+    inactivityWarningSeconds: int = 60
 
     model_config = ConfigDict(populate_by_name=True)
+
+
+class UpdateInactivitySettingsRequest(BaseModel):
+    """Schema for updating user inactivity logout settings."""
+    inactivityEnabled: bool
+    inactivityTimeoutMinutes: int = Field(..., ge=1, le=1440, description="Inactivity timeout in minutes (1 - 1440)")
+    inactivityWarningSeconds: int = Field(..., ge=10, le=600, description="Warning countdown duration in seconds (10 - 600)")
+
+    model_config = ConfigDict(extra="ignore")
 
 
 class LoginResponse(BaseModel):
@@ -44,7 +56,8 @@ class TokenRefreshRequest(BaseModel):
 
 
 class TokenRefreshResponse(BaseModel):
-    """Returned upon successful token rotation."""
+    """Returned upon successful token refresh."""
     accessToken: str
     tokenType: str = "Bearer"
     expiresInSeconds: int
+    rotated: bool = False

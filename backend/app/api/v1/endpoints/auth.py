@@ -6,20 +6,20 @@ from app.application.dtos.auth_dto import (
     LoginResponse,
     TokenRefreshRequest,
     TokenRefreshResponse,
+    UpdateInactivitySettingsRequest,
     UserResponse,
 )
 from app.application.services.auth_service import AuthService
 from app.core.config import settings
+from app.core.limiter import limiter
 from app.domain.models.user import User
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-REFRESH_COOKIE_NAME = "refresh_token"
-
 
 def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
     response.set_cookie(
-        key=REFRESH_COOKIE_NAME,
+        key=settings.REFRESH_COOKIE_NAME,
         value=refresh_token,
         httponly=True,
         secure=settings.COOKIE_SECURE,
@@ -32,7 +32,7 @@ def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
 
 def _clear_refresh_cookie(response: Response) -> None:
     response.delete_cookie(
-        key=REFRESH_COOKIE_NAME,
+        key=settings.REFRESH_COOKIE_NAME,
         path="/",
         domain=settings.COOKIE_DOMAIN,
         httponly=True,
@@ -41,20 +41,41 @@ def _clear_refresh_cookie(response: Response) -> None:
     )
 
 
+def _map_user_response(user: User) -> UserResponse:
+    return UserResponse(
+        id=user.id,
+        email=user.email,
+        fullName=user.full_name,
+        role=user.role.value,
+        isActive=user.is_active,
+        inactivityEnabled=user.inactivity_enabled,
+        inactivityTimeoutMinutes=user.inactivity_timeout_minutes,
+        inactivityWarningSeconds=user.inactivity_warning_seconds,
+    )
+
+
 @router.post("/login", response_model=LoginResponse)
+@limiter.limit(settings.LOGIN_RATE_LIMIT)
 async def login(
+    request: Request,
     req: LoginRequest,
     response: Response,
     auth_service: AuthService = Depends(get_auth_service),
 ) -> LoginResponse:
     """
     Authenticates a user with email and password.
-    Returns a short-lived JWT access token in the response body, and sets
-    a secure HTTP-only refresh token cookie.
+    Returns a 7-day JWT access token (with session claim) in response body,
+    and sets a secure HTTP-only refresh token cookie.
+    Protected by rate limiting against brute-force attacks.
     """
+    client_ip = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent")
+
     access_token, refresh_token, user = await auth_service.authenticate_user(
         email=req.email,
         password=req.password,
+        ip_address=client_ip,
+        user_agent=user_agent,
     )
 
     _set_refresh_cookie(response, refresh_token)
@@ -63,17 +84,12 @@ async def login(
         accessToken=access_token,
         tokenType="Bearer",
         expiresInSeconds=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        user=UserResponse(
-            id=user.id,
-            email=user.email,
-            fullName=user.full_name,
-            role=user.role.value,
-            isActive=user.is_active,
-        ),
+        user=_map_user_response(user),
     )
 
 
 @router.post("/refresh", response_model=TokenRefreshResponse)
+@limiter.limit(settings.REFRESH_RATE_LIMIT)
 async def refresh_token(
     request: Request,
     response: Response,
@@ -81,10 +97,12 @@ async def refresh_token(
     auth_service: AuthService = Depends(get_auth_service),
 ) -> TokenRefreshResponse:
     """
-    Rotates the refresh token and issues a new access token.
-    Extracts the refresh token from the HTTP-only cookie, or fallback to the request body.
+    Refreshes the access token using the HTTP-only refresh cookie.
+    If the refresh token is >= 35 minutes old, rotates it silently.
+    If < 35 minutes old, reuses the valid token without creating unnecessary DB rows.
+    Supports concurrency grace period to avoid session-nuking on race conditions.
     """
-    token_str = request.cookies.get(REFRESH_COOKIE_NAME) or req_body.refreshToken
+    token_str = request.cookies.get(settings.REFRESH_COOKIE_NAME) or req_body.refreshToken
     if not token_str:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -92,17 +110,19 @@ async def refresh_token(
         )
 
     try:
-        new_access_token, new_refresh_token, _ = await auth_service.rotate_refresh_token(token_str)
+        new_access_token, new_refresh_token, user, rotated = await auth_service.rotate_refresh_token(token_str)
     except HTTPException:
         _clear_refresh_cookie(response)
         raise
 
-    _set_refresh_cookie(response, new_refresh_token)
+    if rotated:
+        _set_refresh_cookie(response, new_refresh_token)
 
     return TokenRefreshResponse(
         accessToken=new_access_token,
         tokenType="Bearer",
         expiresInSeconds=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        rotated=rotated,
     )
 
 
@@ -113,9 +133,9 @@ async def logout(
     auth_service: AuthService = Depends(get_auth_service),
 ) -> dict:
     """
-    Revokes the active refresh token and clears the HTTP-only cookie.
+    Revokes the active refresh token and server-side session, and clears the HTTP-only cookie.
     """
-    token_str = request.cookies.get(REFRESH_COOKIE_NAME)
+    token_str = request.cookies.get(settings.REFRESH_COOKIE_NAME)
     if token_str:
         await auth_service.logout(token_str)
 
@@ -128,13 +148,25 @@ async def get_current_user_profile(
     current_user: User = Depends(get_current_user),
 ) -> UserResponse:
     """
-    Returns the authenticated user's profile and active role.
-    Requires a valid JWT Bearer token in the Authorization header.
+    Returns the authenticated user's profile, role, and inactivity preferences.
+    Requires a valid JWT Bearer token with active server-side session.
     """
-    return UserResponse(
-        id=current_user.id,
-        email=current_user.email,
-        fullName=current_user.full_name,
-        role=current_user.role.value,
-        isActive=current_user.is_active,
+    return _map_user_response(current_user)
+
+
+@router.patch("/inactivity-settings", response_model=UserResponse)
+async def update_inactivity_settings(
+    req: UpdateInactivitySettingsRequest,
+    current_user: User = Depends(get_current_user),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> UserResponse:
+    """
+    Updates the authenticated user's inactivity timeout and warning settings.
+    """
+    updated_user = await auth_service.update_inactivity_settings(
+        user_id=current_user.id,
+        enabled=req.inactivityEnabled,
+        timeout_minutes=req.inactivityTimeoutMinutes,
+        warning_seconds=req.inactivityWarningSeconds,
     )
+    return _map_user_response(updated_user)

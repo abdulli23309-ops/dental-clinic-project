@@ -5,13 +5,13 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.config import settings
 from app.core.database import init_db, close_db
+from app.core.limiter import limiter
 from app.core.logging import logger
 from app.api.v1.router import api_v1_router
 from app.api.v1.endpoints.health import health_check
@@ -35,8 +35,6 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down %s", settings.APP_NAME)
     await close_db()
 
-
-limiter = Limiter(key_func=get_remote_address, default_limits=[settings.APPOINTMENTS_RATE_LIMIT])
 
 app = FastAPI(
     title=settings.APP_NAME,

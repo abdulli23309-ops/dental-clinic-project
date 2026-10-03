@@ -28,10 +28,11 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def create_access_token(
     subject: str,
     role: str,
+    session_id: Optional[str] = None,
     expires_delta: Optional[timedelta] = None,
 ) -> str:
     """
-    Creates a signed, short-lived JWT access token containing subject and role.
+    Creates a signed JWT access token containing subject, role, and session_id (sid).
     No sensitive PHI or passwords are ever placed in the payload.
     """
     now = datetime.now(timezone.utc)
@@ -47,6 +48,9 @@ def create_access_token(
         "exp": expire,
         "type": "access",
     }
+    if session_id:
+        payload["sid"] = session_id
+
     return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 

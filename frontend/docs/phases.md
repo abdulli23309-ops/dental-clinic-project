@@ -82,12 +82,23 @@
   - Verified Next.js Turbopack production build (`npm run build`) generates all 14 static routes without error.
   - Verified backend payload validation parity between Pydantic DTOs and Next.js form state.
 
+- [x] **Phase 12: Admin Authentication & Clinic CMS Foundation**
+  - Designed and executed Alembic migration `0002_admin_auth_and_clinic_cms.py` adding 8 relational tables (`users`, `refresh_tokens`, `organizations`, `locations`, `team_members`, `services`, `faq_items`, `site_sections`) while strictly preserving existing `appointments` schema and data.
+  - Implemented secure JWT access token authentication and HttpOnly refresh token rotation with server-side revocation in `auth_service.py`.
+  - Built safe local bootstrap CLI in `app/cli.py` for seeding baseline data and creating administrator accounts without committing secrets.
+  - Built abstract `StorageService` interface with `LocalStorageService` implementation, MIME verification, and 5MB upload ceilings.
+  - Created editorial staff login screen (`/login`) and full admin dashboard shell (`/admin`, `/admin/website`, `/admin/team`, `/admin/services`, `/admin/locations`, `/admin/account`).
+  - Implemented soft deletion (`is_active = false`) across all CMS resources, strictly prohibiting hard SQL deletions.
+  - Connected public frontend components (`Hero`, `Services`, `Doctor`, `FAQ`, `BookPage`) to dynamic backend endpoints with graceful offline fallbacks.
+  - Verified backend test suite with 29 passing automated tests (100% pass rate).
+  - Verified frontend production build with 21 static and dynamic routes compiled without errors.
+
 ## Deferred Capabilities (Explicitly Not Built)
 
-- [ ] **Phase 12: Staff Operations & Clinic Management (Deferred)**
-  - Staff/admin authentication and role-based access.
-  - Internal clinic dashboard for appointment triage and status transitions.
-  - Real-time operatory chair/calendar availability engine.
-  - Payments integration (Stripe / CareCredit).
-  - Automated transactional SMS (Twilio) and confirmation emails.
-  - Dynamic service catalogue CMS.
+- [ ] **Phase 13: Clinical Operations & Integrations (Deferred)**
+  - Granular multi-role permissions UI (Receptionist, Hygienist, Associate Doctor).
+  - Patient portal, login, medical intake, and electronic health records (EHR).
+  - Appointment management dashboard with calendar scheduling and status triage.
+  - Payment processing (Stripe / CareCredit).
+  - Transactional SMS (Twilio) and confirmation emails.
+  - Real-time operatory chair availability engine.

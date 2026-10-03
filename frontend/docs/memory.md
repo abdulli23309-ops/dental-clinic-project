@@ -48,3 +48,19 @@
 12. **Automatic Transaction Commit in Dependency Session Generator (September 2026)**
     - *Decision*: Configured `get_db_session()` in `app/core/database.py` to invoke `await session.commit()` upon successful yield return, retaining `await session.rollback()` on exceptions.
     - *Why*: Guarantees that appointment flushes in repository methods are persistently committed to PostgreSQL `dentai_dev` across the request lifecycle without requiring route-level commit boilerplate.
+
+13. **Dual-Token Authentication Strategy with HttpOnly Refresh Rotation (October 2026)**
+    - *Decision*: Configured short-lived JWT access tokens (15m) in memory alongside long-lived refresh tokens (7d) delivered via secure `HttpOnly`, `SameSite=Lax` cookies, persisted as SHA-256 hashes in PostgreSQL and rotated on every exchange.
+    - *Why*: Storing refresh tokens in `localStorage` leaves tokens vulnerable to XSS exfiltration. HttpOnly cookies isolate the refresh token from JavaScript execution while refresh rotation prevents replay of intercepted credentials.
+
+14. **Unified `TeamMember` Domain Model (October 2026)**
+    - *Decision*: Created a single unified `TeamMember` relational entity with `professional_title`, `role`, and `specialties` rather than fragmented tables for doctors, specialists, and dental assistants.
+    - *Why*: Eliminates arbitrary schema divergence and allows the clinic to scale from a single director into a multi-doctor, multidisciplinary medical complex without subsequent database migrations.
+
+15. **Strict Soft-Deletion Mandate for CMS Entities (October 2026)**
+    - *Decision*: Implemented `is_active = false` toggling across `TeamMember`, `Service`, and `FaqItem` models instead of SQL `DELETE` operations.
+    - *Why*: Protects referential integrity with existing appointment records, prevents accidental loss of clinical history, and allows administrators to safely archive procedures or staff temporarily without data loss.
+
+16. **Safe CLI Bootstrap Mechanism for Admin Accounts (October 2026)**
+    - *Decision*: Built `app/cli.py` accepting `--email`, `--password`, and `--name` arguments or interactive prompts, strictly disallowing hardcoded passwords in source repositories or migration scripts.
+    - *Why*: Ensures development and staging environments can be provisioned safely and securely while upholding zero-secret-in-git compliance.

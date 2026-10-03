@@ -2,16 +2,16 @@
 
 > See ../AGENTS.md for the permanent, project-wide rules that apply here too — this file adds backend-specific detail on top of those, it does not replace them.
 
-Lightweight, production-ready FastAPI service handling appointment requests for Marlow Dental. Built strictly following Domain-Driven Design, the Repository Pattern, and permanent project engineering principles (KISS, YAGNI, DRY, SOLID, PHI-Safe Logging).
+Production-ready FastAPI service handling appointment requests, authentication, and clinic CMS for Marlow Dental. Built strictly following Domain-Driven Design, the Repository Pattern, and permanent project engineering principles (KISS, YAGNI, DRY, SOLID, PHI-Safe Logging, and safe soft-deletes).
 
 ---
 
 ## 1. Architecture & Dependency Direction
 
-The service enforces a one-way dependency rule:
+The service enforces a strict one-way dependency rule:
 
 ```text
-API (Routes & DTOs)
+API (Routes, Dependencies & DTOs)
        ↓
 Application Service
        ↓
@@ -19,12 +19,14 @@ Domain Repository (Abstract Protocol/ABC)
        ↓
 PostgreSQL Repository (SQLAlchemy 2.0 Async + asyncpg)
        ↓
-PostgreSQL Database ("dentai_dev" / "appointments" table)
+PostgreSQL Database ("dentai_dev")
 ```
 
-- **Domain isolation**: The domain layer (`domain/models/`, `domain/repositories/`) is pure Python dataclasses and enums with zero imports of FastAPI or SQLAlchemy.
-- **Relational schema**: The single `appointments` table uses flat, constrained relational columns (UUID primary key, unique confirmation ID, indexed status and preferred date).
+- **Domain isolation**: The domain layer (`domain/models/`, `domain/repositories/`) consists of pure Python dataclasses and enums with zero imports of FastAPI or SQLAlchemy.
+- **Relational schema**: Flat, constrained relational columns across `appointments`, `users`, `refresh_tokens`, `organizations`, `locations`, `team_members`, `services`, `faq_items`, and `site_sections`.
+- **Soft Delete Policy**: CMS entities (team members, services, FAQs, site sections) are never hard-deleted via API calls. They utilize `is_active = false` soft-deletion toggles.
 - **PHI-Safe Logging**: Patient name, telephone, email, symptoms/notes, and insurance providers are strictly excluded from logs, error payloads, and HTTP responses.
+- **Authentication Security**: Short-lived JWT access tokens, long-lived refresh tokens stored as secure HttpOnly cookies, server-side persistence, rotation on each refresh, and instant revocation on logout.
 
 ---
 
@@ -33,47 +35,59 @@ PostgreSQL Database ("dentai_dev" / "appointments" table)
 ```text
 backend/
 ├── app/
-│   ├── main.py                     # FastAPI application factory, lifespan, CORS, rate limiting
+│   ├── main.py                     # FastAPI application factory, lifespan, CORS, rate limiting, static media mount
+│   ├── cli.py                      # Safe CLI commands (database seeding, admin creation)
 │   ├── core/
-│   │   ├── config.py               # Pydantic BaseSettings (.env configuration)
+│   │   ├── config.py               # Pydantic BaseSettings (.env configuration & token secrets)
 │   │   ├── database.py             # Async engine & session lifecycle (startup/shutdown)
-│   │   └── logging.py              # PHI-safe logger configuration (SQL echo disabled)
+│   │   ├── logging.py              # PHI-safe logger configuration (SQL echo disabled)
+│   │   └── security.py             # Bcrypt hashing, PyJWT access tokens, refresh token hashing
 │   ├── domain/
-│   │   ├── models/
-│   │   │   └── appointment.py      # Pure domain entity & AppointmentStatus enum
-│   │   └── repositories/
-│   │       └── appointment_repo.py # Abstract repository interface (Protocol/ABC)
+│   │   ├── models/                 # Pure domain entities (appointment, user, organization, team_member, service, cms)
+│   │   ├── repositories/           # Abstract repository protocols (ABC interfaces)
+│   │   └── services/               # Domain service interfaces (StorageService protocol)
 │   ├── application/
-│   │   ├── dtos/
-│   │   │   └── appointment_dto.py  # Pydantic request/response validation schemas
-│   │   └── services/
-│   │       └── appointment_service.py # Orchestrates ID generation and collision retry
+│   │   ├── dtos/                   # Pydantic request/response validation schemas
+│   │   └── services/               # Orchestration services (appointment, auth, team, service, cms, organization)
 │   ├── infrastructure/
 │   │   ├── database/
 │   │   │   └── orm_models.py       # SQLAlchemy declarative ORM mappings & table constraints
-│   │   └── repositories/
-│   │       └── postgres_appointment_repo.py # Concrete repository implementation
+│   │   ├── storage/
+│   │   │   └── local_storage.py    # Local disk media storage implementation (5MB limit, MIME checks)
+│   │   └── repositories/           # Concrete PostgreSQL repository implementations
 │   └── api/
-│       ├── deps.py                 # Dependency injection providers
+│       ├── deps.py                 # Dependency injection providers & require_admin auth guards
 │       └── v1/
 │           ├── router.py           # V1 endpoint aggregator
 │           └── endpoints/
-│               ├── health.py       # GET /api/v1/health
-│               └── appointments.py # POST /api/v1/appointments
+│               ├── health.py       # Health check
+│               ├── appointments.py # Patient appointment booking
+│               ├── auth.py         # Login, refresh, logout, me
+│               ├── public_content.py # Dynamic site content, team, services, FAQs
+│               ├── admin_cms.py    # Admin site section & FAQ editing
+│               ├── admin_team.py   # Admin team member CRUD & active toggling
+│               ├── admin_services.py # Admin services CRUD & active toggling
+│               ├── admin_organization.py # Admin organization & location management
+│               └── admin_media.py  # Local media upload with validation
 ├── alembic/
 │   ├── versions/
-│   │   └── 0001_initial_appointments.py # Initial migration creating appointments table
+│   │   ├── 0001_initial_appointments.py # Initial migration creating appointments table
+│   │   └── 0002_admin_auth_and_clinic_cms.py # Admin auth, CMS, team, services, locations
 │   ├── env.py                      # Async SQLAlchemy Alembic migration runner
 │   └── script.py.mako
 ├── alembic.ini
 ├── tests/
-│   ├── conftest.py                 # Async test client fixture
+│   ├── conftest.py                 # SQLite test client fixtures and mock session
 │   ├── test_health.py              # Health endpoint and DB degradation tests
 │   ├── test_domain.py              # Domain entity & status transition tests
 │   ├── test_repository.py          # Relational persistence & unique constraint tests
 │   ├── test_postgres_integration.py # Real PostgreSQL connection & constraint verification
 │   ├── test_service.py             # Service logic & collision retry tests
-│   └── test_appointments.py        # API contract, validation, CORS & PHI-logging tests
+│   ├── test_appointments.py        # API contract, validation, CORS & PHI-logging tests
+│   ├── test_auth.py                # Login, refresh rotation, revocation, protected routes
+│   ├── test_team.py                # Admin team CRUD and soft deletion tests
+│   ├── test_services.py            # Admin services CRUD and soft deletion tests
+│   └── test_cms.py                 # CMS site sections and FAQ management tests
 ├── .env.example
 ├── requirements.txt
 └── README.md
@@ -81,7 +95,7 @@ backend/
 
 ---
 
-## 3. PostgreSQL Database Requirement & Verification
+## 3. PostgreSQL Database Setup
 
 A running instance of **PostgreSQL 15+ (16 recommended)** is required for local backend development.
 
@@ -94,11 +108,6 @@ psql --version
 
 # On Windows PowerShell, check running service:
 Get-Service *postgres*
-```
-
-If using a portable/local PostgreSQL instance (e.g. in `E:\pgsql\bin`):
-```powershell
-& 'E:\pgsql\bin\psql.exe' --version
 ```
 
 ### Creating the Local Development Database
@@ -133,6 +142,14 @@ cp .env.example .env
 | `ALLOWED_ORIGINS` | `http://localhost:3000,http://127.0.0.1:3000` | Whitelisted CORS origins |
 | `DATABASE_URL` | `postgresql+asyncpg://postgres:YOUR_PASSWORD@localhost:5432/dentai_dev` | PostgreSQL async connection string |
 | `APPOINTMENTS_RATE_LIMIT` | `5/minute` | Rate limit threshold per IP |
+| `JWT_SECRET_KEY` | `dev-jwt-secret-key-32-chars-minimum` | Secret key for signing JWT access tokens |
+| `REFRESH_SECRET_KEY` | `dev-refresh-secret-key-32-chars-minimum` | Secret key for refresh token operations |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `15` | Lifetime of JWT access token |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | `7` | Lifetime of refresh token |
+| `REFRESH_COOKIE_NAME` | `marlow_refresh_token` | Name of the HttpOnly refresh token cookie |
+| `REFRESH_COOKIE_SECURE` | `false` | Set to true in production HTTPS |
+| `UPLOAD_DIR` | `uploads` | Local media storage directory |
+| `MAX_UPLOAD_SIZE_BYTES` | `5242880` | Maximum media upload size (5MB) |
 
 ---
 
@@ -147,95 +164,68 @@ uv pip install -r requirements.txt
 ```
 
 ### Schema Migrations (Alembic)
-Run migrations to create the `appointments` table and indexes in your local database:
+Run migrations to create the schema and all tables:
 
 ```bash
 # Apply pending migrations to reach head:
-alembic upgrade head
+uv run alembic upgrade head
 
 # Verify current revision:
-alembic current
+uv run alembic current
+```
 
-# Verify expected head:
-alembic heads
+### CLI Bootstrap Commands
+
+To safely initialize the database with baseline clinic data and create an initial admin without hardcoding credentials:
+
+```bash
+# 1. Seed initial organization, location, core services, clinical director, and FAQs:
+uv run python -m app.cli seed
+
+# 2. Safely create or update an administrator account:
+uv run python -m app.cli create-admin --email admin@marlowdental.com --password "YourSecurePassword" --name "Clinic Administrator"
 ```
 
 ### Running the API Server
 
 ```bash
 # Start development server on port 8000
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ---
 
-## 6. API Endpoints
+## 6. API Surface
 
-### 1. Health Status
-`GET /health` or `GET /api/v1/health`
-```bash
-curl http://localhost:8000/health
-```
-- **Response (200 OK — Database Connected)**:
-  ```json
-  {
-    "status": "healthy",
-    "database": "connected"
-  }
-  ```
-- **Degraded (503 Service Unavailable — Database Disconnected)**:
-  ```json
-  {
-    "status": "degraded",
-    "database": "disconnected"
-  }
-  ```
+### Authentication
+- `POST /api/v1/auth/login`: Authenticates email + password; returns JWT access token and sets HttpOnly refresh cookie.
+- `POST /api/v1/auth/refresh`: Rotates refresh token and returns a fresh JWT access token.
+- `POST /api/v1/auth/logout`: Revokes server-side refresh token and clears cookie.
+- `GET  /api/v1/auth/me`: Returns profile of current authenticated user.
 
-### 2. Submit Appointment Request
-`POST /api/v1/appointments`
+### Public Content
+- `GET /api/v1/public/content`: Consolidated dynamic CMS content for homepage, about, contact, footer, and SEO.
+- `GET /api/v1/public/services`: Active clinic services and procedure catalog.
+- `GET /api/v1/public/team`: Active team members and doctor credentials.
+- `GET /api/v1/public/faq`: Active clinic FAQ items.
+- `GET /api/v1/public/locations`: Active clinic locations.
+- `POST /api/v1/appointments`: Patient appointment request booking.
 
-Example CLI test command:
-```bash
-curl -X POST http://localhost:8000/api/v1/appointments \
-  -H "Content-Type: application/json" \
-  -d '{
-    "serviceId": "cleanings-exams",
-    "preferredDate": "2026-10-15",
-    "preferredTime": "10:00 AM",
-    "fullName": "Jane Alvarez",
-    "phone": "(312) 555-0100",
-    "email": "jane@example.com",
-    "hasInsurance": true,
-    "insuranceProvider": "Delta Dental PPO",
-    "notes": "Sensitive lower molar"
-  }'
-```
-
-- **Request Body**:
-  ```json
-  {
-    "serviceId": "cleanings-exams",
-    "preferredDate": "2026-10-15",
-    "preferredTime": "10:00 AM",
-    "fullName": "Jane Alvarez",
-    "phone": "(312) 555-0100",
-    "email": "jane@example.com",
-    "hasInsurance": true,
-    "insuranceProvider": "Delta Dental PPO",
-    "notes": "Sensitive lower molar",
-    "utmSource": "google",
-    "utmCampaign": "lincoln-park"
-  }
-  ```
-- **Response (201 Created)**:
-  ```json
-  {
-    "success": true,
-    "confirmationId": "MD-2026-4821",
-    "message": "Appointment request received for 2026-10-15 at 10:00 AM.",
-    "estimatedCallbackWindow": "Within 1 business hour (Monday to Thursday 8:00 AM to 6:00 PM Central)"
-  }
-  ```
+### Admin Management (Requires `admin` role)
+- `GET /api/v1/admin/cms/sections`: Retrieve all site sections.
+- `PUT /api/v1/admin/cms/sections/{section_key}`: Update structured section content.
+- `GET /api/v1/admin/cms/faqs`: List all FAQ items (including inactive).
+- `POST /api/v1/admin/cms/faqs`: Create a new FAQ item.
+- `PUT /api/v1/admin/cms/faqs/{faq_id}`: Edit FAQ question, answer, order, or active state.
+- `GET /api/v1/admin/services`: List all services (including inactive).
+- `POST /api/v1/admin/services`: Create service.
+- `PUT /api/v1/admin/services/{service_id}`: Update service metadata, pricing, or active state.
+- `GET /api/v1/admin/team`: List all team members.
+- `POST /api/v1/admin/team`: Create team member.
+- `PUT /api/v1/admin/team/{member_id}`: Update biography, role, titles, license, or active state.
+- `GET /api/v1/admin/organizations`: Retrieve organization data.
+- `PUT /api/v1/admin/organizations/{org_id}`: Update organization details.
+- `POST /api/v1/admin/media/upload`: Upload image/document to local storage.
 
 ---
 
@@ -244,14 +234,17 @@ curl -X POST http://localhost:8000/api/v1/appointments \
 Run the full pytest suite:
 
 ```bash
-pytest tests -v
+uv run pytest -v
 ```
 
-All 20 automated tests verify:
-- Health status and database degradation handling
-- Domain status transitions and entities
-- Relational schema persistence and unique constraint enforcement
-- Real PostgreSQL async connectivity and integration (`test_postgres_integration.py`)
-- Service ID generation and collision retry logic
-- CORS headers and rate limiting
-- Zero-PHI logging compliance
+All 29 automated tests verify:
+- Health status and database degradation handling (2 tests)
+- Domain status transitions and entities (2 tests)
+- Relational schema persistence and unique constraints (2 tests)
+- Real PostgreSQL async connectivity and integration (3 tests)
+- Service ID generation and collision retry logic (2 tests)
+- Appointment API contract, validation, CORS & PHI-logging (9 tests)
+- JWT login, password validation, refresh rotation, revocation & auth protection (6 tests)
+- Admin team member lifecycle & soft deletion (1 test)
+- Admin services lifecycle & soft deletion (1 test)
+- Admin CMS sections and FAQ lifecycle (1 test)

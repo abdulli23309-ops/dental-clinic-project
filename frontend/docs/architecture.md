@@ -74,25 +74,33 @@ dental-clinic-project/
 ## 3. Authentication & Authorization Architecture
 
 - **Token Strategy**:
-  - **Short-Lived Access Token**: Standard JSON Web Token (JWT) with HS256 signature containing user ID, subject (email), role (`admin`), and 15-minute expiration (`exp`). Kept in-memory within React `AuthProvider` state.
-  - **Long-Lived Refresh Token**: 256-bit cryptographically secure token string (`secrets.token_urlsafe(32)`), stored in the browser as a strict `HttpOnly`, `SameSite=Lax` cookie (`marlow_refresh_token`).
-  - **Server-Side Token Persistence**: SHA-256 hashed refresh tokens are stored in the `refresh_tokens` table with client IP, user agent, expiration timestamp, and revocation flag (`is_revoked`).
-  - **Refresh Rotation**: Every call to `POST /api/v1/auth/refresh` revokes the used refresh token and issues a brand-new token pair, mitigating token theft replay attacks.
-  - **Revocation**: Logging out instantly marks the refresh token record as revoked on the server and expires the client cookie.
-- **Authorization Dependency**:
-  - `require_admin` dependency inspects JWT claims and ensures `role == "admin"`. Extensible to future granular permissions (`require_permission(...)`) and role types.
+  - **7-Day Access Token (In-Memory)**: JSON Web Token (JWT) with HS256 signature containing user ID, subject (email), role (`admin`), server session ID (`sid`), and 7-day expiration (10,080 minutes). Kept exclusively in-memory within React `AuthProvider` state (`src/lib/api.ts`). Never stored in `localStorage`, `sessionStorage`, cookies, or URLs.
+  - **7-Day Refresh Token (HttpOnly Cookie)**: 256-bit cryptographically secure token string (`secrets.token_urlsafe(32)`), stored as a strict `HttpOnly`, `SameSite=Lax` cookie (`marlow_refresh_token`). Configurable via `settings.REFRESH_COOKIE_NAME`.
+  - **Server-Side Session Tracking**: Every login generates an active record in `user_sessions` with IP, user agent, expiration, and active status. On every authenticated request, `get_current_user` validates that the `sid` claim in the JWT corresponds to an active database session. Instant session revocation occurs on logout or security invalidation.
+  - **35-Minute Rotation Window**: `REFRESH_TOKEN_ROTATE_AFTER_MINUTES = 35`. Refresh requests within 35 minutes re-issue fresh access tokens while keeping the existing refresh cookie, avoiding high row churn. After 35 minutes, a new refresh token is generated, hashed, and swapped.
+  - **Concurrency & Replay Safety**:
+    - *Backend Grace Period*: A 30-second window (`CONCURRENCY_GRACE_PERIOD_SECONDS = 30`) allows concurrent requests carrying a just-rotated refresh token to succeed rather than triggering false replay-attack revocations.
+    - *Frontend Single-Flight Lock*: `isRefreshing` prevents parallel refresh calls from frontend tabs/components.
+    - *FIFO Request Replay Queue*: When multiple API calls encounter an expired access token, the first triggers `/api/v1/auth/refresh` while subsequent requests enqueue in `failedQueue`. Upon refresh success, queued requests replay in original FIFO order with the new access token.
+  - **Inactivity Security Architecture**:
+    - User activity tracking in `AuthProvider` monitors direct browser interactions (`mousemove`, `keydown`, `touchstart`, `scroll`, `click`) throttled to 3-second checks. Background network traffic does NOT reset inactivity.
+    - Configurable settings on user account (`inactivity_enabled`, `inactivity_timeout_minutes`, `inactivity_warning_seconds`).
+    - Accessible countdown warning modal ("Stay Signed In") provides affirmative extension or auto-logout upon timer expiry.
+  - **Rate Limiting**:
+    - Login: 5 requests/minute/IP.
+    - Refresh: 30 requests/minute/IP.
 
-## 4. Clinic Content Management (CMS) Foundation
+## 4. Clinic Content Management (CMS) & Dynamic Organization Foundation
 
 - **Organization & Locations**:
-  - Hierarchy: `Organization` (Marlow Dental) -> `Location` (Lincoln Park clinic, expandable to multi-location) -> `TeamMember`.
+  - Hierarchy: `Organization` (Marlow Dental Medical Complex) -> `Locations` (Lincoln Park clinic, Oak Brook center, expandable) -> `TeamMembers`.
+  - `PublicContentProvider` acts as the single frontend boundary, hydrating organization identity, locations, and clinical staff directory once and distributing to presentational components.
+- **Data-Driven Team Roles**:
+  - Unified `TeamMember` model stores roles and titles (`Director`, `Dentist`, `Orthodontist`, `Pediatric Specialist`, `Hygienist`, `Oral Surgeon`).
+  - The public website dynamically identifies the Clinical Director through role/title criteria rather than hardcoded string comparisons (e.g. `is_director` or role matching `Director`), allowing immediate updates when staff change.
 - **Soft Deletion Policy**:
-  - Deleting any team member, service, or FAQ record triggers a soft-delete (`is_active = false`). No destructive SQL `DELETE` queries are ever issued by API routes.
-  - Public endpoints (`/api/v1/public/*`) strictly query `WHERE is_active = true`.
-  - Admin endpoints allow administrators to view, filter, and toggle active status.
-- **Dynamic Public Integration with Fallbacks**:
-  - Public pages (`Hero`, `Services`, `Doctor`, `FAQ`, `BookPage`) dynamically consume backend endpoints via `src/lib/api.ts`.
-  - In the event of network disruption or initial cold boot, robust built-in fallbacks ensure that the marketing site and appointment scheduler remain fully operational and aesthetically cohesive.
+  - CMS entities (`TeamMember`, `Service`, `FaqItem`, `Location`, `SiteSection`) are never hard-deleted via API calls. Soft-deletion toggles `is_active = false`.
+  - Public endpoints (`/api/v1/public/*`) strictly filter `WHERE is_active = true`.
 
 ## 5. Media Storage Abstraction
 
@@ -104,15 +112,11 @@ dental-clinic-project/
 
 ### Database Migrations
 1. `0001_initial_appointments.py`: Created `appointments` table with UUID primary key, unique confirmation ID, and composite status/date indexes.
-2. `0002_admin_auth_and_clinic_cms.py`: Created:
-   - `users`: User accounts with bcrypt hashed passwords and role strings.
-   - `refresh_tokens`: Tracked refresh tokens with rotation and revocation support.
-   - `organizations`: Multi-location root entity.
-   - `locations`: Physical clinic offices with address and operating hours.
-   - `team_members`: Single reusable model for doctors, hygienists, specialists, and practice directors.
-   - `services`: Database-backed procedure catalog with durations, CDT codes, and pricing.
-   - `faq_items`: Categorized accordion questions and answers.
-   - `site_sections`: Structured JSON payloads for homepage, general, about, contact, footer, and SEO metadata.
+2. `0002_admin_auth_and_clinic_cms.py`: Created `users`, `refresh_tokens`, `organizations`, `locations`, `team_members`, `services`, `faq_items`, and `site_sections`.
+3. `0003_sessions_inactivity.py`: Added:
+   - `user_sessions`: Active server-side sessions table for token revocation (`id`, `user_id`, `is_active`, `expires_at`, `revoked_at`).
+   - `users`: Inactivity fields (`inactivity_enabled`, `inactivity_timeout_minutes`, `inactivity_warning_seconds`).
+   - `refresh_tokens`: Session association (`session_id`) and timestamp tracking (`revoked_at`) for concurrency grace periods.
 
 ### PHI-Safe Logging Rule
 No patient-identifiable data (name, telephone, email, clinical notes, insurance) or authentication secrets (passwords, tokens) are ever written to logs or echoed in error responses. SQL query echoing is explicitly disabled.

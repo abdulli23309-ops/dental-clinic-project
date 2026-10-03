@@ -72,7 +72,8 @@ backend/
 ├── alembic/
 │   ├── versions/
 │   │   ├── 0001_initial_appointments.py # Initial migration creating appointments table
-│   │   └── 0002_admin_auth_and_clinic_cms.py # Admin auth, CMS, team, services, locations
+│   │   ├── 0002_admin_auth_and_clinic_cms.py # Admin auth, CMS, team, services, locations
+│   │   └── 0003_sessions_inactivity.py # Server sessions, inactivity configs, rotation grace
 │   ├── env.py                      # Async SQLAlchemy Alembic migration runner
 │   └── script.py.mako
 ├── alembic.ini
@@ -84,7 +85,7 @@ backend/
 │   ├── test_postgres_integration.py # Real PostgreSQL connection & constraint verification
 │   ├── test_service.py             # Service logic & collision retry tests
 │   ├── test_appointments.py        # API contract, validation, CORS & PHI-logging tests
-│   ├── test_auth.py                # Login, refresh rotation, revocation, protected routes
+│   ├── test_auth.py                # Login, 7d tokens, 35m rotation, grace period, sessions, inactivity
 │   ├── test_team.py                # Admin team CRUD and soft deletion tests
 │   ├── test_services.py            # Admin services CRUD and soft deletion tests
 │   └── test_cms.py                 # CMS site sections and FAQ management tests
@@ -144,10 +145,14 @@ cp .env.example .env
 | `APPOINTMENTS_RATE_LIMIT` | `5/minute` | Rate limit threshold per IP |
 | `JWT_SECRET_KEY` | `dev-jwt-secret-key-32-chars-minimum` | Secret key for signing JWT access tokens |
 | `REFRESH_SECRET_KEY` | `dev-refresh-secret-key-32-chars-minimum` | Secret key for refresh token operations |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | `15` | Lifetime of JWT access token |
-| `REFRESH_TOKEN_EXPIRE_DAYS` | `7` | Lifetime of refresh token |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `10080` | Lifetime of JWT access token (7 days) |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | `7` | Lifetime of refresh token (7 days) |
+| `REFRESH_TOKEN_ROTATE_AFTER_MINUTES` | `35` | Silent rotation window threshold (35m) |
 | `REFRESH_COOKIE_NAME` | `marlow_refresh_token` | Name of the HttpOnly refresh token cookie |
 | `REFRESH_COOKIE_SECURE` | `false` | Set to true in production HTTPS |
+| `CONCURRENCY_GRACE_PERIOD_SECONDS` | `30` | Grace period for rotated refresh tokens |
+| `AUTH_LOGIN_RATE_LIMIT` | `5/minute` | Rate limit for /auth/login |
+| `AUTH_REFRESH_RATE_LIMIT` | `30/minute` | Rate limit for /auth/refresh |
 | `UPLOAD_DIR` | `uploads` | Local media storage directory |
 | `MAX_UPLOAD_SIZE_BYTES` | `5242880` | Maximum media upload size (5MB) |
 
@@ -198,15 +203,16 @@ uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ## 6. API Surface
 
 ### Authentication
-- `POST /api/v1/auth/login`: Authenticates email + password; returns JWT access token and sets HttpOnly refresh cookie.
-- `POST /api/v1/auth/refresh`: Rotates refresh token and returns a fresh JWT access token.
-- `POST /api/v1/auth/logout`: Revokes server-side refresh token and clears cookie.
-- `GET  /api/v1/auth/me`: Returns profile of current authenticated user.
+- `POST /api/v1/auth/login`: Authenticates email + password; creates server-side session, returns 7-day JWT access token (in memory) and sets HttpOnly refresh cookie.
+- `POST /api/v1/auth/refresh`: Evaluates 35-minute rotation window; rotates refresh token only if >= 35m, honors 30s concurrency grace period, and returns a fresh JWT access token.
+- `POST /api/v1/auth/logout`: Revokes server-side session, marks refresh token revoked, and clears cookie.
+- `GET  /api/v1/auth/me`: Validates session `sid` claim and returns profile of current authenticated user.
+- `PATCH /api/v1/auth/inactivity-settings`: Updates user inactivity timeout and warning preferences.
 
 ### Public Content
 - `GET /api/v1/public/content`: Consolidated dynamic CMS content for homepage, about, contact, footer, and SEO.
 - `GET /api/v1/public/services`: Active clinic services and procedure catalog.
-- `GET /api/v1/public/team`: Active team members and doctor credentials.
+- `GET /api/v1/public/team`: Active team members, specialties, and doctor credentials.
 - `GET /api/v1/public/faq`: Active clinic FAQ items.
 - `GET /api/v1/public/locations`: Active clinic locations.
 - `POST /api/v1/appointments`: Patient appointment request booking.
@@ -237,14 +243,14 @@ Run the full pytest suite:
 uv run pytest -v
 ```
 
-All 29 automated tests verify:
+All 32 automated tests verify:
 - Health status and database degradation handling (2 tests)
 - Domain status transitions and entities (2 tests)
 - Relational schema persistence and unique constraints (2 tests)
 - Real PostgreSQL async connectivity and integration (3 tests)
 - Service ID generation and collision retry logic (2 tests)
 - Appointment API contract, validation, CORS & PHI-logging (9 tests)
-- JWT login, password validation, refresh rotation, revocation & auth protection (6 tests)
+- JWT 7-day login, invalid passwords, unknown users, protected /me session validation, 35m rotation threshold, 30s concurrency grace period, session revocation on logout, and inactivity configuration updates (9 tests)
 - Admin team member lifecycle & soft deletion (1 test)
 - Admin services lifecycle & soft deletion (1 test)
 - Admin CMS sections and FAQ lifecycle (1 test)

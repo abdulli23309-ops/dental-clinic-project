@@ -4,13 +4,18 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Phone, Calendar } from "lucide-react";
 import { getOfficeStatus } from "@/lib/utils";
+import { usePublicContent } from "@/components/providers/public-content-provider";
 
 /**
  * Renders a compact floating contact bar on desktop screens in the bottom-left corner.
  * It gives patients immediate access to call the office or jump to the booking page, alongside a live open/closed indicator.
  */
 export function FloatingAction() {
+  const { content, primaryLocation } = usePublicContent();
   const [status, setStatus] = useState({ isOpen: true, statusText: "Open Now", nextEventText: "" });
+
+  const phone = content.general?.phone || primaryLocation?.phone || "(312) 555-0147";
+  const cleanPhone = phone.replace(/[^0-9+]/g, "");
 
   useEffect(() => {
     setStatus(getOfficeStatus());
@@ -24,7 +29,7 @@ export function FloatingAction() {
     >
       <div className="flex items-center gap-2 rounded-xl border border-line bg-bone/95 p-1.5 backdrop-blur-md elevation-2 transition-all hover:elevation-3">
         <a
-          href="tel:+13125550147"
+          href={`tel:${cleanPhone}`}
           className="flex items-center gap-2 rounded-lg bg-cream/80 px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-forest hover:text-bone"
           title="Direct dental line"
         >
@@ -39,7 +44,7 @@ export function FloatingAction() {
             />
           </span>
           <Phone className="h-3.5 w-3.5" />
-          <span>(312) 555-0147</span>
+          <span>{phone}</span>
         </a>
 
         <Link

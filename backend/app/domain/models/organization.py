@@ -1,0 +1,48 @@
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import Optional
+from uuid import UUID, uuid4
+
+
+@dataclass
+class Organization:
+    """
+    Pure domain representation of an organization/practice.
+    Supports future multi-clinic or multi-location expansion.
+    """
+    name: str
+    display_name: str
+    tagline: Optional[str] = None
+    description: Optional[str] = None
+    logo_url: Optional[str] = None
+    contact_email: Optional[str] = None
+    contact_phone: Optional[str] = None
+    website_url: Optional[str] = None
+    is_active: bool = True
+    id: UUID = field(default_factory=uuid4)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+@dataclass
+class Location:
+    """
+    Pure domain representation of a physical practice office / operatory site.
+    """
+    organization_id: UUID
+    name: str
+    address_line1: str
+    city: str
+    state: str
+    postal_code: str
+    address_line2: Optional[str] = None
+    country: str = "US"
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    hours_info: Optional[str] = None
+    is_primary: bool = True
+    is_active: bool = True
+    display_order: int = 0
+    id: UUID = field(default_factory=uuid4)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))

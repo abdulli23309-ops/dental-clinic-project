@@ -8,6 +8,7 @@ import Link from "next/link";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
 import SiteHeader from "@/components/layout/site-header";
 import Footer from "@/components/layout/footer";
+import { LegalContactBox } from "@/components/layout/legal-contact-box";
 
 export const metadata = {
   title: "Privacy Policy | Marlow Dental",
@@ -108,13 +109,9 @@ export default function PrivacyPage() {
                 5. Privacy Officer and Records Requests
               </h2>
               <p>
-                To request your dental records or submit an inquiry regarding privacy practices, please contact our Lincoln Park office:
+                To request your dental records or submit an inquiry regarding privacy practices, please contact our office:
               </p>
-              <div className="rounded-[var(--radius-card)] border border-line bg-bone p-4 text-xs space-y-1.5 font-mono">
-                <p>Marlow Dental, P.C. Privacy Officer</p>
-                <p>214 Alder Street, Suite 3, Chicago, IL 60614</p>
-                <p>Phone: (312) 555-0147. Email: privacy@marlowdental.com</p>
-              </div>
+              <LegalContactBox officerTitle="Privacy Officer" />
             </section>
           </div>
         </div>

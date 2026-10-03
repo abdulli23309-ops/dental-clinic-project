@@ -5,6 +5,7 @@ import Link from "next/link";
 import { X, Phone, Calendar, MapPin, Clock, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { usePublicContent } from "@/components/providers/public-content-provider";
 
 interface MobileMenuProps {
   isOpen: boolean;
@@ -14,8 +15,8 @@ interface MobileMenuProps {
 
 const navItems = [
   { label: "Treatments & Fees", href: "/#services" },
-  { label: "3D Dental Tech", href: "/#technology" },
-  { label: "About Dr. Marlow", href: "/#about" },
+  { label: "Clinical Philosophy", href: "/#commitments" },
+  { label: "Clinical Team", href: "/#about" },
   { label: "Office & Location", href: "/#visit" },
   { label: "Frequently Asked", href: "/#faq" },
 ];
@@ -25,7 +26,22 @@ const navItems = [
  * It locks background scrolling while open and provides quick links to all sections, contact actions, and theme settings.
  */
 export function MobileMenu({ isOpen, onClose, onOpenSearch }: MobileMenuProps) {
+  const { content, primaryLocation } = usePublicContent();
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const practiceName = content.general?.practiceName || "Marlow Dental";
+  const phone = content.general?.phone || primaryLocation?.phone || "(312) 555-0147";
+  const cleanPhone = phone.replace(/[^0-9+]/g, "");
+  const addressText = primaryLocation?.addressLine1 || "214 Alder St, Suite 3";
+  const cityState =
+    primaryLocation?.city && primaryLocation?.state
+      ? `${primaryLocation.city}, ${primaryLocation.state}`
+      : "Lincoln Park";
+  const hoursText = primaryLocation?.hoursInfo || "Mon–Thu 8–6 · Fri 8–2 · Sat 9–1";
+
+  const nameParts = practiceName.split(" ");
+  const firstNamePart = nameParts[0] || "Marlow";
+  const restNameParts = nameParts.slice(1).join(" ") || "Dental";
 
   useEffect(() => {
     if (isOpen) {
@@ -66,7 +82,8 @@ export function MobileMenu({ isOpen, onClose, onOpenSearch }: MobileMenuProps) {
           {/* Header */}
           <div className="flex items-center justify-between border-b border-line pb-4">
             <span className="font-display text-lg tracking-tight text-ink">
-              Marlow <span className="text-forest">Dental</span>
+              {firstNamePart}{" "}
+              <span className="text-forest dark:text-emerald-500">{restNameParts}</span>
             </span>
             <div className="flex items-center gap-2">
               <ThemeToggle />
@@ -117,17 +134,19 @@ export function MobileMenu({ isOpen, onClose, onOpenSearch }: MobileMenuProps) {
           <div className="space-y-2 text-xs text-ink-soft">
             <div className="flex items-center gap-2">
               <MapPin className="h-3.5 w-3.5 text-forest shrink-0" />
-              <span>214 Alder St, Suite 3, Lincoln Park</span>
+              <span>
+                {addressText}, {cityState}
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <Clock className="h-3.5 w-3.5 text-forest shrink-0" />
-              <span>Mon–Thu 8–6 · Fri 8–2 · Sat 9–1</span>
+              <span>{hoursText}</span>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-2 pt-2">
             <a
-              href="tel:+13125550147"
+              href={`tel:${cleanPhone}`}
               className="flex items-center justify-center gap-1.5 rounded-lg border border-line bg-cream px-3 py-2.5 text-xs font-medium text-ink hover:border-forest"
             >
               <Phone className="h-3.5 w-3.5" />

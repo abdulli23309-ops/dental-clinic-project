@@ -1,6 +1,4 @@
 from fastapi import APIRouter, Depends, Request, status
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 
 from app.api.deps import get_appointment_service
 from app.application.dtos.appointment_dto import (
@@ -9,8 +7,8 @@ from app.application.dtos.appointment_dto import (
 )
 from app.application.services.appointment_service import AppointmentService
 from app.core.config import settings
+from app.core.limiter import limiter
 
-limiter = Limiter(key_func=get_remote_address)
 router = APIRouter()
 
 

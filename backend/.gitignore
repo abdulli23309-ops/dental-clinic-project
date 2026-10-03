@@ -1,4 +1,4 @@
-﻿# Python bytecode & cache
+# Python bytecode & cache
 __pycache__/
 *.py[cod]
 *$py.class
@@ -16,3 +16,6 @@ htmlcov/
 
 # Alembic migrations are code - ensure they are tracked
 !alembic/versions/
+
+# Uploaded user files
+uploads/

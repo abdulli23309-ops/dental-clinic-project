@@ -94,6 +94,9 @@ export interface User {
   fullName: string;
   role: string;
   isActive: boolean;
+  inactivityEnabled?: boolean;
+  inactivityTimeoutMinutes?: number;
+  inactivityWarningSeconds?: number;
 }
 
 export interface SiteContent {
@@ -521,8 +524,131 @@ export async function submitBookingRequest(
 }
 
 /* -------------------------------------------------------------
- * AUTHENTICATION API METHODS
+ * AUTHENTICATION & SINGLE-FLIGHT FIFO REQUEST QUEUE
  * ------------------------------------------------------------- */
+
+let inMemoryAccessToken: string | null = null;
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (token: string) => void;
+  reject: (err: any) => void;
+}> = [];
+
+export function setMemoryAccessToken(token: string | null): void {
+  inMemoryAccessToken = token;
+}
+
+export function getMemoryAccessToken(): string | null {
+  return inMemoryAccessToken;
+}
+
+function processQueue(error: any, token: string | null = null) {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else if (token) {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+}
+
+/**
+ * Centralized authenticated request layer.
+ * Enforces single-flight refresh lock and FIFO replay queue upon 401 token expiration.
+ */
+export async function authorizedFetch(
+  endpoint: string,
+  options: RequestInit = {},
+  explicitToken?: string
+): Promise<Response> {
+  const token = explicitToken || inMemoryAccessToken;
+  const headers = new Headers(options.headers || {});
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  const reqOptions: RequestInit = {
+    ...options,
+    headers,
+    credentials: "include", // Transmit HttpOnly refresh cookie
+  };
+
+  const fullUrl = endpoint.startsWith("http") ? endpoint : `${API_BASE}${endpoint}`;
+  let response = await fetch(fullUrl, reqOptions);
+
+  // If token expired (401) and not an auth negotiation endpoint, queue and refresh
+  if (
+    response.status === 401 &&
+    !endpoint.includes("/auth/login") &&
+    !endpoint.includes("/auth/refresh")
+  ) {
+    if (isRefreshing) {
+      // 1. Refresh already in progress: queue request in FIFO order
+      return new Promise<Response>((resolve, reject) => {
+        failedQueue.push({
+          resolve: async (newToken: string) => {
+            try {
+              const retryHeaders = new Headers(options.headers || {});
+              retryHeaders.set("Authorization", `Bearer ${newToken}`);
+              if (!retryHeaders.has("Content-Type") && !(options.body instanceof FormData)) {
+                retryHeaders.set("Content-Type", "application/json");
+              }
+              const retryRes = await fetch(fullUrl, {
+                ...options,
+                headers: retryHeaders,
+                credentials: "include",
+              });
+              resolve(retryRes);
+            } catch (err) {
+              reject(err);
+            }
+          },
+          reject: (err) => {
+            reject(err);
+          },
+        });
+      });
+    }
+
+    // 2. Start single-flight refresh
+    isRefreshing = true;
+    try {
+      const refreshData = await refreshAuthToken();
+      setMemoryAccessToken(refreshData.accessToken);
+
+      // Replay all queued pending requests in original FIFO order
+      processQueue(null, refreshData.accessToken);
+
+      // Replay the triggering request
+      const retryHeaders = new Headers(options.headers || {});
+      retryHeaders.set("Authorization", `Bearer ${refreshData.accessToken}`);
+      if (!retryHeaders.has("Content-Type") && !(options.body instanceof FormData)) {
+        retryHeaders.set("Content-Type", "application/json");
+      }
+      return await fetch(fullUrl, {
+        ...options,
+        headers: retryHeaders,
+        credentials: "include",
+      });
+    } catch (refreshErr) {
+      // Refresh failed: reject all queued requests, clear memory, notify auth context
+      processQueue(refreshErr, null);
+      setMemoryAccessToken(null);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("marlow:auth:logout"));
+      }
+      throw refreshErr;
+    } finally {
+      isRefreshing = false;
+    }
+  }
+
+  return response;
+}
 
 export async function login(payload: { email: string; password: string }): Promise<{
   accessToken: string;
@@ -546,7 +672,9 @@ export async function login(payload: { email: string; password: string }): Promi
     throw new Error(msg);
   }
 
-  return res.json();
+  const data = await res.json();
+  setMemoryAccessToken(data.accessToken);
+  return data;
 }
 
 export async function refreshAuthToken(): Promise<{
@@ -565,10 +693,13 @@ export async function refreshAuthToken(): Promise<{
     throw new Error("Session expired or refresh token invalid.");
   }
 
-  return res.json();
+  const data = await res.json();
+  setMemoryAccessToken(data.accessToken);
+  return data;
 }
 
 export async function logout(): Promise<void> {
+  setMemoryAccessToken(null);
   try {
     await fetch(`${API_BASE}/api/v1/auth/logout`, {
       method: "POST",
@@ -577,64 +708,76 @@ export async function logout(): Promise<void> {
   } catch {}
 }
 
-export async function getMe(accessToken: string): Promise<User> {
-  const res = await fetch(`${API_BASE}/api/v1/auth/me`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-
+export async function getMe(accessToken?: string): Promise<User> {
+  const res = await authorizedFetch("/api/v1/auth/me", {}, accessToken);
   if (!res.ok) {
     throw new Error("Unable to retrieve user profile.");
   }
+  return res.json();
+}
 
+export async function updateInactivitySettings(
+  payload: {
+    inactivityEnabled: boolean;
+    inactivityTimeoutMinutes: number;
+    inactivityWarningSeconds: number;
+  },
+  token?: string
+): Promise<User> {
+  const res = await authorizedFetch(
+    "/api/v1/auth/inactivity-settings",
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update inactivity settings.");
+  }
   return res.json();
 }
 
 /* -------------------------------------------------------------
- * ADMIN CMS & MANAGEMENT API METHODS
+ * ADMIN CMS & MANAGEMENT API METHODS (ROUTED THROUGH FIFO QUEUE)
  * ------------------------------------------------------------- */
 
-function authHeaders(token: string) {
-  return {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  };
-}
-
-export async function adminGetCmsSection(section: string, token: string) {
-  const res = await fetch(`${API_BASE}/api/v1/admin/cms/${section}`, {
-    headers: authHeaders(token),
-  });
+export async function adminGetCmsSection(section: string, token?: string) {
+  const res = await authorizedFetch(`/api/v1/admin/cms/${section}`, {}, token);
   if (!res.ok) throw new Error(`Failed to load ${section} section.`);
   return res.json();
 }
 
-export async function adminUpdateCmsSection(section: string, data: any, token: string) {
-  const res = await fetch(`${API_BASE}/api/v1/admin/cms/${section}`, {
-    method: "PUT",
-    headers: authHeaders(token),
-    body: JSON.stringify(data),
-  });
+export async function adminUpdateCmsSection(section: string, data: any, token?: string) {
+  const res = await authorizedFetch(
+    `/api/v1/admin/cms/${section}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(data),
+    },
+    token
+  );
   if (!res.ok) throw new Error(`Failed to update ${section} section.`);
   return res.json();
 }
 
 // Services
-export async function adminGetServices(token: string) {
-  const res = await fetch(`${API_BASE}/api/v1/admin/services`, {
-    headers: authHeaders(token),
-  });
+export async function adminGetServices(token?: string) {
+  const res = await authorizedFetch(`/api/v1/admin/services`, {}, token);
   if (!res.ok) throw new Error("Failed to load services.");
   return res.json();
 }
 
-export async function adminCreateService(data: any, token: string) {
-  const res = await fetch(`${API_BASE}/api/v1/admin/services`, {
-    method: "POST",
-    headers: authHeaders(token),
-    body: JSON.stringify(data),
-  });
+export async function adminCreateService(data: any, token?: string) {
+  const res = await authorizedFetch(
+    `/api/v1/admin/services`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Failed to create service.");
@@ -642,12 +785,15 @@ export async function adminCreateService(data: any, token: string) {
   return res.json();
 }
 
-export async function adminUpdateService(id: string, data: any, token: string) {
-  const res = await fetch(`${API_BASE}/api/v1/admin/services/${id}`, {
-    method: "PUT",
-    headers: authHeaders(token),
-    body: JSON.stringify(data),
-  });
+export async function adminUpdateService(id: string, data: any, token?: string) {
+  const res = await authorizedFetch(
+    `/api/v1/admin/services/${id}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(data),
+    },
+    token
+  );
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Failed to update service.");
@@ -655,31 +801,35 @@ export async function adminUpdateService(id: string, data: any, token: string) {
   return res.json();
 }
 
-export async function adminToggleServiceStatus(id: string, isActive: boolean, token: string) {
-  const res = await fetch(`${API_BASE}/api/v1/admin/services/${id}/status`, {
-    method: "PATCH",
-    headers: authHeaders(token),
-    body: JSON.stringify({ isActive }),
-  });
+export async function adminToggleServiceStatus(id: string, isActive: boolean, token?: string) {
+  const res = await authorizedFetch(
+    `/api/v1/admin/services/${id}/status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ isActive }),
+    },
+    token
+  );
   if (!res.ok) throw new Error("Failed to update service status.");
   return res.json();
 }
 
 // Team
-export async function adminGetTeam(token: string): Promise<TeamMember[]> {
-  const res = await fetch(`${API_BASE}/api/v1/admin/team`, {
-    headers: authHeaders(token),
-  });
+export async function adminGetTeam(token?: string): Promise<TeamMember[]> {
+  const res = await authorizedFetch(`/api/v1/admin/team`, {}, token);
   if (!res.ok) throw new Error("Failed to load team members.");
   return res.json();
 }
 
-export async function adminCreateTeamMember(data: any, token: string) {
-  const res = await fetch(`${API_BASE}/api/v1/admin/team`, {
-    method: "POST",
-    headers: authHeaders(token),
-    body: JSON.stringify(data),
-  });
+export async function adminCreateTeamMember(data: any, token?: string) {
+  const res = await authorizedFetch(
+    `/api/v1/admin/team`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Failed to create team member.");
@@ -687,12 +837,15 @@ export async function adminCreateTeamMember(data: any, token: string) {
   return res.json();
 }
 
-export async function adminUpdateTeamMember(id: string, data: any, token: string) {
-  const res = await fetch(`${API_BASE}/api/v1/admin/team/${id}`, {
-    method: "PUT",
-    headers: authHeaders(token),
-    body: JSON.stringify(data),
-  });
+export async function adminUpdateTeamMember(id: string, data: any, token?: string) {
+  const res = await authorizedFetch(
+    `/api/v1/admin/team/${id}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(data),
+    },
+    token
+  );
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Failed to update team member.");
@@ -700,66 +853,77 @@ export async function adminUpdateTeamMember(id: string, data: any, token: string
   return res.json();
 }
 
-export async function adminToggleTeamMemberStatus(id: string, isActive: boolean, token: string) {
-  const res = await fetch(`${API_BASE}/api/v1/admin/team/${id}/status`, {
-    method: "PATCH",
-    headers: authHeaders(token),
-    body: JSON.stringify({ isActive }),
-  });
+export async function adminToggleTeamMemberStatus(id: string, isActive: boolean, token?: string) {
+  const res = await authorizedFetch(
+    `/api/v1/admin/team/${id}/status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ isActive }),
+    },
+    token
+  );
   if (!res.ok) throw new Error("Failed to update team member status.");
   return res.json();
 }
 
 // FAQs
-export async function adminGetFaqs(token: string): Promise<FaqItem[]> {
-  const res = await fetch(`${API_BASE}/api/v1/admin/faq`, {
-    headers: authHeaders(token),
-  });
+export async function adminGetFaqs(token?: string): Promise<FaqItem[]> {
+  const res = await authorizedFetch(`/api/v1/admin/faq`, {}, token);
   if (!res.ok) throw new Error("Failed to load FAQs.");
   return res.json();
 }
 
-export async function adminCreateFaq(data: any, token: string) {
-  const res = await fetch(`${API_BASE}/api/v1/admin/faq`, {
-    method: "POST",
-    headers: authHeaders(token),
-    body: JSON.stringify(data),
-  });
+export async function adminCreateFaq(data: any, token?: string) {
+  const res = await authorizedFetch(
+    `/api/v1/admin/faq`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
   if (!res.ok) throw new Error("Failed to create FAQ item.");
   return res.json();
 }
 
-export async function adminUpdateFaq(id: string, data: any, token: string) {
-  const res = await fetch(`${API_BASE}/api/v1/admin/faq/${id}`, {
-    method: "PUT",
-    headers: authHeaders(token),
-    body: JSON.stringify(data),
-  });
+export async function adminUpdateFaq(id: string, data: any, token?: string) {
+  const res = await authorizedFetch(
+    `/api/v1/admin/faq/${id}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(data),
+    },
+    token
+  );
   if (!res.ok) throw new Error("Failed to update FAQ item.");
   return res.json();
 }
 
-export async function adminToggleFaqStatus(id: string, isActive: boolean, token: string) {
-  const res = await fetch(`${API_BASE}/api/v1/admin/faq/${id}/status?is_active=${isActive}`, {
-    method: "PATCH",
-    headers: authHeaders(token),
-  });
+export async function adminToggleFaqStatus(id: string, isActive: boolean, token?: string) {
+  const res = await authorizedFetch(
+    `/api/v1/admin/faq/${id}/status?is_active=${isActive}`,
+    {
+      method: "PATCH",
+    },
+    token
+  );
   if (!res.ok) throw new Error("Failed to update FAQ status.");
   return res.json();
 }
 
 // Media upload
-export async function adminUploadMedia(file: File, token: string): Promise<{ url: string; filename: string }> {
+export async function adminUploadMedia(file: File, token?: string): Promise<{ url: string; filename: string }> {
   const formData = new FormData();
   formData.append("file", file);
 
-  const res = await fetch(`${API_BASE}/api/v1/admin/media/upload`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
+  const res = await authorizedFetch(
+    `/api/v1/admin/media/upload`,
+    {
+      method: "POST",
+      body: formData,
     },
-    body: formData,
-  });
+    token
+  );
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

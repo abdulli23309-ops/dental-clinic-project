@@ -8,11 +8,12 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { SearchDialog } from "@/components/ui/search-dialog";
 import { MobileMenu } from "@/components/layout/mobile-menu";
 import { getOfficeStatus, OfficeStatus } from "@/lib/utils";
+import { usePublicContent } from "@/components/providers/public-content-provider";
 
 const NAV_LINKS = [
   { label: "Treatments & Fees", href: "/#services" },
   { label: "Clinical Philosophy", href: "/#commitments" },
-  { label: "About Dr. Marlow", href: "/#about" },
+  { label: "Clinical Team", href: "/#about" },
   { label: "Location & Hours", href: "/#visit" },
   { label: "FAQ", href: "/#faq" },
 ];
@@ -26,6 +27,7 @@ export interface SiteHeaderProps {
  * It supports a full standard view for marketing pages and a minimal view for focused flows like appointment scheduling.
  */
 export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
+  const { content, primaryLocation } = usePublicContent();
   const [isScrolled, setIsScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -34,6 +36,15 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
     statusText: "Open Now",
     nextEventText: "",
   });
+
+  const practiceName = content.general?.practiceName || "Marlow Dental";
+  const phone = content.general?.phone || primaryLocation?.phone || "(312) 555-0147";
+  const cleanPhone = phone.replace(/[^0-9+]/g, "");
+  const hoursText = primaryLocation?.hoursInfo || "Mon to Thu 8 to 6, Fri 8 to 2, Sat 9 to 1";
+
+  const nameParts = practiceName.split(" ");
+  const firstNamePart = nameParts[0] || "Marlow";
+  const restNameParts = nameParts.slice(1).join(" ") || "Dental";
 
   useEffect(() => {
     setStatus(getOfficeStatus());
@@ -84,13 +95,13 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
               <span>Accepting new patients. Same-week openings.</span>
             </div>
             <div className="flex items-center gap-6">
-              <span>Mon to Thu 8 to 6, Fri 8 to 2, Sat 9 to 1</span>
+              <span>{hoursText}</span>
               <a
-                href="tel:+13125550147"
+                href={`tel:${cleanPhone}`}
                 className="flex items-center gap-1 text-[#FAF7F2]/90 hover:text-white transition-colors"
               >
                 <Phone className="h-3 w-3 text-clay" />
-                <span>(312) 555-0147</span>
+                <span>{phone}</span>
               </a>
             </div>
           </div>
@@ -110,7 +121,7 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
           <Link
             href="/"
             className="group flex items-center gap-2.5 transition-transform active:scale-[0.98]"
-            aria-label="Marlow Dental Homepage"
+            aria-label={`${practiceName} Homepage`}
           >
             <span className="grid h-8 w-8 place-items-center rounded-full bg-forest text-[#FAF7F2] shadow-subtle group-hover:bg-forest-deep transition-colors">
               <svg
@@ -124,7 +135,8 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
               </svg>
             </span>
             <span className="font-display text-[19px] tracking-tight text-ink leading-none">
-              Marlow <span className="text-forest dark:text-emerald-500">Dental</span>
+              {firstNamePart}{" "}
+              <span className="text-forest dark:text-emerald-500">{restNameParts}</span>
             </span>
           </Link>
 
@@ -165,10 +177,10 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
             {/* Book CTA or Phone Link */}
             {isMinimal ? (
               <a
-                href="tel:+13125550147"
+                href={`tel:${cleanPhone}`}
                 className="text-xs font-semibold text-ink-soft hover:text-forest transition-colors"
               >
-                Call (312) 555-0147
+                Call {phone}
               </a>
             ) : (
               <Button

@@ -11,9 +11,10 @@ import { Card } from "@/components/ui/card";
 import SiteHeader from "@/components/layout/site-header";
 import Footer from "@/components/layout/footer";
 import { getStoredUtmParams } from "@/lib/utm";
-import { submitBookingRequest, BookingPayload } from "@/lib/api";
+import { submitBookingRequest, BookingPayload, getServices } from "@/lib/api";
+import { usePublicContent } from "@/components/providers/public-content-provider";
 
-const SERVICES_OPTIONS = [
+const DEFAULT_SERVICES_OPTIONS = [
   { id: "cleanings-exams", label: "Cleaning & Comprehensive Exam", meta: "45 to 60 min · cash from $140" },
   { id: "fillings-crowns", label: "Tooth-Colored Filling or Crown", meta: "60 to 90 min · cash from $210" },
   { id: "root-canals", label: "Endodontic Root Canal Therapy", meta: "75 to 90 min · cash from $680" },
@@ -37,6 +38,10 @@ type WizardStep = 0 | 1 | 2 | 3;
  * It syncs the current step to the URL search parameters so browser back/forward buttons work naturally.
  */
 function BookingWizard() {
+  const { content, primaryLocation } = usePublicContent();
+  const phone = content.general?.phone || primaryLocation?.phone || "(312) 555-0147";
+  const cleanPhone = phone.replace(/[^0-9+]/g, "");
+  const locationName = primaryLocation?.name || "clinic desk";
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -45,10 +50,32 @@ function BookingWizard() {
   const initialStep = urlStepParam ? (Math.min(3, Math.max(0, parseInt(urlStepParam, 10))) as WizardStep) : 0;
   const preselectedService = searchParams.get("service");
 
+  const [servicesOptions, setServicesOptions] = useState(DEFAULT_SERVICES_OPTIONS);
   const [step, setStep] = useState<WizardStep>(initialStep);
   const [service, setService] = useState<string>(preselectedService || "cleanings-exams");
   const [date, setDate] = useState<string>("");
   const [time, setTime] = useState<string>("10:00 AM");
+
+  useEffect(() => {
+    getServices()
+      .then((svcs) => {
+        if (svcs && svcs.length > 0) {
+          const active = svcs.filter((s) => s.isActive !== false);
+          if (active.length > 0) {
+            setServicesOptions(
+              active.map((s) => ({
+                id: s.id,
+                label: s.title,
+                meta: `${s.duration} · cash ${s.cashPrice}`,
+              }))
+            );
+          }
+        }
+      })
+      .catch(() => {
+        // Fallback remains
+      });
+  }, []);
 
   const [form, setForm] = useState({
     name: "",
@@ -188,7 +215,7 @@ function BookingWizard() {
     }
   };
 
-  const selectedServiceObj = SERVICES_OPTIONS.find((s) => s.id === service);
+  const selectedServiceObj = servicesOptions.find((s) => s.id === service);
   const todayIso = new Date().toISOString().split("T")[0];
 
   return (
@@ -248,9 +275,9 @@ function BookingWizard() {
               </div>
 
               <p className="text-xs text-ink-soft">
-                Have an acute toothache right now? Please call our Lincoln Park desk directly at{" "}
-                <a href="tel:+13125550147" className="text-forest font-semibold underline">
-                  (312) 555-0147
+                Have an acute toothache right now? Please call our {locationName} directly at{" "}
+                <a href={`tel:${cleanPhone}`} className="text-forest font-semibold underline">
+                  {phone}
                 </a>.
               </p>
 
@@ -306,7 +333,7 @@ function BookingWizard() {
                   </div>
 
                   <div className="grid grid-cols-1 gap-3">
-                    {SERVICES_OPTIONS.map((opt) => {
+                    {servicesOptions.map((opt) => {
                       const isSelected = service === opt.id;
                       return (
                         <button
@@ -605,9 +632,9 @@ function BookingWizard() {
                       </p>
                       <p>{submitError}</p>
                       <p className="text-[11px] text-rose-700 dark:text-rose-300">
-                        Please try again, or call our Lincoln Park desk directly at{" "}
-                        <a href="tel:+13125550147" className="underline font-semibold">
-                          (312) 555-0147
+                        Please try again, or call our {locationName} directly at{" "}
+                        <a href={`tel:${cleanPhone}`} className="underline font-semibold">
+                          {phone}
                         </a>.
                       </p>
                     </div>

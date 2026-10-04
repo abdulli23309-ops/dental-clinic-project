@@ -1,19 +1,46 @@
+"use client";
+
 import Link from "next/link";
-import { Phone, Mail, MapPin, Clock, ShieldCheck } from "lucide-react";
+import { Phone, Mail, MapPin, ShieldCheck } from "lucide-react";
 import { CopyButton } from "@/components/ui/copy-button";
+import { usePublicContent } from "@/components/providers/public-content-provider";
 
 /**
  * Renders the site-wide footer with clinic contact information, office hours, links, and legal policies.
- * It provides persistent access to emergency instructions, HIPAA disclosures, and direct phone/email copy tools.
+ * Dynamically populated from CMS, multi-location records, and clinical leadership data.
  */
 export function Footer() {
+  const { content, primaryLocation, director } = usePublicContent();
   const currentYear = new Date().getFullYear();
+
+  const practiceName = content.general?.practiceName || "Marlow Dental";
+  const nameParts = practiceName.split(" ");
+  const firstNamePart = nameParts[0] || "Marlow";
+  const restNameParts = nameParts.slice(1).join(" ") || "Dental";
+
+  const phone = content.general?.phone || primaryLocation?.phone || "(312) 555-0147";
+  const cleanPhone = phone.replace(/[^0-9+]/g, "");
+  const email = content.general?.email || primaryLocation?.email || "care@marlowdental.com";
+
+  const addressLine1 = primaryLocation?.addressLine1 || "214 Alder Street, Suite 3";
+  const addressLine2 = primaryLocation?.city && primaryLocation?.state
+    ? `${primaryLocation.city}, ${primaryLocation.state} ${primaryLocation.postalCode || ""}`
+    : "Chicago, IL 60614";
+
+  const tagline =
+    content.footer?.tagline ||
+    content.general?.tagline ||
+    "Comprehensive, ethical dental care from our dedicated clinical team.";
+
+  const licenseText = director?.licenseNumber
+    ? `Clinical Director: ${director.displayName} (${director.licenseState || "IL"} License ${director.licenseNumber})`
+    : "";
 
   return (
     <footer className="border-t border-line/60 bg-forest-deep text-[#FAF7F2]">
       <div className="container-x py-16 md:py-20">
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-14">
-          {/* Clinic Brand & Doctor Continuity */}
+          {/* Clinic Brand & Summary */}
           <div className="lg:col-span-5 space-y-6">
             <div className="flex items-center gap-2.5">
               <span className="grid h-8 w-8 place-items-center rounded-full bg-[#FAF7F2] text-forest-deep">
@@ -28,28 +55,28 @@ export function Footer() {
                 </svg>
               </span>
               <span className="font-display text-[20px] tracking-tight">
-                Marlow <span className="text-clay">Dental</span>
+                {firstNamePart} <span className="text-clay">{restNameParts}</span>
               </span>
             </div>
 
             <p className="max-w-sm text-[14px] leading-relaxed text-[#FAF7F2]/75">
-              An independent dental practice in Lincoln Park, Chicago. Dr. Sarah Marlow personally conducts every examination, cleaning, and restorative procedure.
+              {tagline}
             </p>
 
             <div className="space-y-3 pt-1">
               <div className="flex items-center gap-2 text-[13.5px]">
                 <Phone className="h-4 w-4 text-clay shrink-0" />
-                <a href="tel:+13125550147" className="hover:text-white transition-colors">
-                  (312) 555-0147
+                <a href={`tel:${cleanPhone}`} className="hover:text-white transition-colors">
+                  {phone}
                 </a>
-                <CopyButton text="(312) 555-0147" label="Copy" className="border-white/10 bg-white/5 text-white/80 hover:bg-white/15" />
+                <CopyButton text={phone} label="Copy" className="border-white/10 bg-white/5 text-white/80 hover:bg-white/15" />
               </div>
               <div className="flex items-center gap-2 text-[13.5px]">
                 <Mail className="h-4 w-4 text-clay shrink-0" />
-                <a href="mailto:hello@marlowdental.com" className="hover:text-white transition-colors">
-                  hello@marlowdental.com
+                <a href={`mailto:${email}`} className="hover:text-white transition-colors">
+                  {email}
                 </a>
-                <CopyButton text="hello@marlowdental.com" label="Copy" className="border-white/10 bg-white/5 text-white/80 hover:bg-white/15" />
+                <CopyButton text={email} label="Copy" className="border-white/10 bg-white/5 text-white/80 hover:bg-white/15" />
               </div>
             </div>
           </div>
@@ -72,7 +99,7 @@ export function Footer() {
               </li>
               <li>
                 <Link href="/#about" className="hover:text-white transition-colors">
-                  About Dr. Marlow
+                  Clinical Team
                 </Link>
               </li>
               <li>
@@ -91,16 +118,16 @@ export function Footer() {
           {/* Office Location & Details */}
           <div className="lg:col-span-2">
             <p className="text-[11px] uppercase tracking-[0.16em] text-[#FAF7F2]/45 font-semibold">
-              Location
+              Primary Location
             </p>
             <address className="mt-4 not-italic space-y-2 text-[13.5px] text-[#FAF7F2]/80">
               <div className="flex items-start gap-2">
                 <MapPin className="h-4 w-4 text-clay shrink-0 mt-0.5" />
                 <div>
-                  <p>214 Alder Street, Suite 3</p>
-                  <p>Chicago, IL 60614</p>
+                  <p>{addressLine1}</p>
+                  <p>{addressLine2}</p>
                   <p className="text-[12px] text-[#FAF7F2]/60 mt-1">
-                    Ground floor. Free 4-stall patient lot in rear.
+                    Ground floor facility. Step-free wheelchair accessible.
                   </p>
                 </div>
               </div>
@@ -133,12 +160,12 @@ export function Footer() {
           </div>
         </div>
 
-        {/* Licensure & Legal Footer Strip (no dead links!) */}
+        {/* Licensure & Legal Footer Strip */}
         <div className="mt-14 border-t border-white/15 pt-8 text-[12px] text-[#FAF7F2]/60 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-center sm:text-left">
             <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
             <span>
-              &copy; {currentYear} Marlow Dental, P.C. All rights reserved. Illinois Dental License #019.029811
+              &copy; {currentYear} {practiceName}. All rights reserved. {licenseText}
             </span>
           </div>
 
@@ -161,4 +188,5 @@ export function Footer() {
     </footer>
   );
 }
+
 export default Footer;

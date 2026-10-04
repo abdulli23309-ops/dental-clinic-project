@@ -1,5 +1,5 @@
 /**
- * IMPORTANT NOTE: These Terms of Service outline Marlow Dental's scheduling,
+ * IMPORTANT NOTE: These Terms of Service outline the practice's scheduling,
  * cancellation, and financial policies. They require formal legal review and
  * finalization by qualified legal counsel prior to formal clinical deployment.
  */
@@ -8,6 +8,7 @@ import Link from "next/link";
 import { ArrowLeft, Clock } from "lucide-react";
 import SiteHeader from "@/components/layout/site-header";
 import Footer from "@/components/layout/footer";
+import { LegalContactBox } from "@/components/layout/legal-contact-box";
 
 export const metadata = {
   title: "Terms of Service & Office Policies | Marlow Dental",
@@ -17,36 +18,36 @@ export const metadata = {
 
 /**
  * Renders the Terms of Service and Clinical Policies page.
- * It explains appointment scheduling, the 48-hour cancellation policy necessary for a solo-dentist practice, and financial terms.
+ * It explains appointment scheduling, the 48-hour cancellation policy, and financial terms.
  */
 export default function TermsPage() {
   return (
     <>
       <SiteHeader variant="minimal" />
-      <main id="main-content" className="py-14 sm:py-20">
-        <div className="container-x max-w-4xl space-y-10">
+      <main id="main-content" className="py-12 md:py-20">
+        <div className="container-x max-w-3xl">
           <Link
             href="/"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-ink-soft hover:text-forest transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs text-ink-soft hover:text-forest transition-colors mb-8"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            <span>Return to Home</span>
+            <span>Return to Homepage</span>
           </Link>
 
-          <div>
-            <p className="eyebrow mb-2">Practice Guidelines</p>
-            <h1 className="text-[34px] sm:text-[44px] leading-tight text-ink font-normal">
-              Terms of Service and Clinical Policies
+          <div className="border-b border-line pb-6 mb-8">
+            <p className="eyebrow mb-1">Office Policies &amp; Agreement</p>
+            <h1 className="fluid-h2 tracking-tight text-ink font-normal">
+              Terms of Service
             </h1>
             <p className="mt-2 text-xs text-ink-soft">
-              Effective Date: January 1, 2024. Marlow Dental, P.C.
+              Effective Date: January 1, 2024. Office Administration.
             </p>
           </div>
 
-          <div className="rounded-[var(--radius-card)] border border-line bg-cream/50 p-6 shadow-card flex items-start gap-4">
+          <div className="rounded-[var(--radius-card)] border border-line bg-cream/50 p-6 shadow-card flex items-start gap-4 mb-8">
             <Clock className="h-6 w-6 text-forest dark:text-emerald-400 shrink-0 mt-1" />
             <div className="text-xs sm:text-sm leading-relaxed text-ink-soft">
-              <strong className="text-ink font-medium">Solo Doctor Practice Commitment:</strong> Because Dr. Sarah Marlow reserves her time exclusively for one patient per appointment slot with zero double-booking, our scheduling and cancellation policies are strictly observed to protect all patients&rsquo; access to timely care.
+              <strong className="text-ink font-medium">Dedicated Practitioner Scheduling Commitment:</strong> Because our clinicians reserve dedicated appointment blocks exclusively for one patient at a time with zero double-booking, our scheduling and cancellation policies are strictly observed to protect all patients&rsquo; access to timely care.
             </div>
           </div>
 
@@ -59,39 +60,40 @@ export default function TermsPage() {
                 When an appointment is scheduled, that operatory time is reserved exclusively for you. We kindly require at least <strong>48 business hours advance notice</strong> if you need to reschedule or cancel a routine appointment.
               </p>
               <p>
-                Cancellations made with less than 48 hours notice or missed appointments without notification are subject to a $50 missed reservation fee, which cannot be billed to dental insurance.
+                Late cancellations (under 48 hours) or missed appointments without notice may incur a <strong>$75 scheduling fee</strong>. We recognize medical emergencies and severe illness occur unpredictably, and our front desk evaluates those situations with compassion.
               </p>
             </section>
 
-            <section className="space-y-3">
+            <section className="space-y-3 border-t border-line/60 pt-6">
               <h2 className="font-display text-xl sm:text-2xl text-ink font-medium">
-                2. Transparent Financial Policy and Estimates
+                2. Transparent Pricing and Written Estimates
               </h2>
               <p>
-                We believe in complete price transparency. Prior to commencing any non-emergency procedure, Marlow Dental provides an itemized written estimate detailing our cash fee and the estimated insurance benefit.
+                Before undertaking any procedure outside routine preventive cleanings, we provide you with a written, itemized estimate detailing procedural CDT codes, office fees, and estimated insurance copays.
               </p>
-              <ul className="list-disc pl-5 space-y-1 text-xs sm:text-sm">
-                <li><strong>Insurance Claims:</strong> Dental insurance is an agreement between you, your employer, and your insurer. While we verify benefits and file claims as a courtesy, the patient remains responsible for any balance unpaid after 60 days.</li>
-                <li><strong>Cash and Out-of-Pocket Payment:</strong> Co-payments, deductibles, and cash fees are due at the time clinical services are rendered. We accept all major credit cards, debit cards, cash, and CareCredit.</li>
-                <li><strong>Pre-Payment Courtesy:</strong> A 5% bookkeeping adjustment is applied to restorative treatment plans over $500 when settled in full via cash or check on or before the treatment date.</li>
-              </ul>
+              <p>
+                Insurance coverage estimates are derived from verified benefits tables provided by your insurance carrier; however, your carrier makes the final adjudication upon claim processing. You remain financially responsible for any remaining balance not covered by insurance.
+              </p>
             </section>
 
-            <section className="space-y-3">
+            <section className="space-y-3 border-t border-line/60 pt-6">
               <h2 className="font-display text-xl sm:text-2xl text-ink font-medium">
-                3. Clinical Treatment Consents
+                3. Payment Terms and Financing
               </h2>
               <p>
-                Dr. Marlow discusses all treatment options, risks, benefits, and reasonable alternatives prior to starting any procedure. No treatment is performed without your informed verbal and written consent. You have the right to decline or defer any proposed procedure at any time.
+                Patient copayments, coinsurance, and non-covered procedure balances are due at the date of clinical service. We accept major credit cards (Visa, MasterCard, American Express, Discover), debit cards, and cash.
+              </p>
+              <p>
+                For balances exceeding $500, zero-interest 6-month financing is available upon approval through CareCredit. We also extend a 5% bookkeeping adjustment for balances settled in full via cash or check on the date of clinical treatment.
               </p>
             </section>
 
-            <section className="space-y-3">
+            <section className="space-y-3 border-t border-line/60 pt-6">
               <h2 className="font-display text-xl sm:text-2xl text-ink font-medium">
                 4. Emergency Care and Medical Disclaimer
               </h2>
               <p>
-                The information provided on this website is for general educational purposes and does not constitute a doctor-patient relationship until an in-person clinical examination is performed by Dr. Sarah Marlow.
+                The information provided on this website is for general educational purposes and does not constitute a doctor-patient relationship until an in-person clinical examination is performed by a licensed practitioner at our practice.
               </p>
               <p>
                 If you are experiencing life-threatening symptoms, uncontrollable facial bleeding, or severe swelling compromising your airway, please call <strong>911</strong> or report to the nearest hospital emergency room immediately.
@@ -105,11 +107,7 @@ export default function TermsPage() {
               <p>
                 If you have questions regarding our scheduling policies, financial estimates, or treatment plans, our front desk team is happy to assist:
               </p>
-              <div className="rounded-[var(--radius-card)] border border-line bg-bone p-4 text-xs space-y-1 font-mono">
-                <p>Marlow Dental, P.C.</p>
-                <p>214 Alder Street, Suite 3, Chicago, IL 60614</p>
-                <p>Office Telephone: (312) 555-0147</p>
-              </div>
+              <LegalContactBox officerTitle="Office Administration" />
             </section>
           </div>
         </div>

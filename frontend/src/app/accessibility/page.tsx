@@ -8,6 +8,7 @@ import Link from "next/link";
 import { ArrowLeft, CheckCircle2, Phone, Mail, MapPin } from "lucide-react";
 import SiteHeader from "@/components/layout/site-header";
 import Footer from "@/components/layout/footer";
+import { LegalContactBox } from "@/components/layout/legal-contact-box";
 
 export const metadata = {
   title: "Accessibility Statement | Marlow Dental",
@@ -96,12 +97,7 @@ export default function AccessibilityPage() {
               <p>
                 If you encounter any difficulty navigating our website, or if you require specific accommodations during your clinical visit, please contact our front desk team:
               </p>
-              <div className="rounded-[var(--radius-card)] border border-line bg-bone p-4 text-xs space-y-1 font-mono">
-                <p>Marlow Dental, P.C.</p>
-                <p>214 Alder Street, Suite 3, Chicago, IL 60614</p>
-                <p>Telephone: (312) 555-0147</p>
-                <p>Email: accessibility@marlowdental.com</p>
-              </div>
+              <LegalContactBox officerTitle="Accessibility Coordinator" />
             </section>
           </div>
         </div>

@@ -1,7 +1,7 @@
 # Technical Architecture — Marlow Dental
 
 ## 1. Core Framework & Build
-- **Framework**: Next.js 16.3 (App Router, Turbopack, React 19.2)
+- **Framework**: Next.js 16.3 (App Router, Webpack/Turbopack, React 19.2)
 - **Styling**: Tailwind CSS v4 with custom CSS custom properties in `src/app/globals.css`
 - **Motion Library**: `motion` (`motion/react` v12) for 2D scroll-triggered reveals, staggered entries, and layout transitions
 - **Icons**: `lucide-react`
@@ -16,142 +16,107 @@ dental-clinic-project/
 ├── frontend/                     # Next.js 16 App Router application
 │   ├── src/
 │   │   ├── app/
-│   ├── layout.tsx                # Root layout with fonts, ThemeProvider, JSON-LD
-│   ├── page.tsx                  # Home page assembling marketing sections
-│   ├── globals.css               # Design tokens, fluid type scale, warm shadow scale
-│   ├── icon.svg                  # SVG brand mark
-│   ├── opengraph-image.tsx       # Dynamic edge-free OG image generation
-│   ├── robots.ts                 # Robots.txt metadata route
-│   ├── sitemap.ts                # Sitemap.xml metadata route
-│   ├── manifest.ts               # Web application manifest
-│   ├── error.tsx                 # Route-level error boundary
-│   ├── not-found.tsx             # Custom art-directed 404 page
-│   ├── book/
-│   │   ├── layout.tsx            # Dedicated metadata for booking route
-│   │   └── page.tsx              # URL-synced multi-step booking wizard
-│   ├── privacy/
-│   │   └── page.tsx              # Privacy policy (labeled for legal review)
-│   ├── hipaa/
-│   │   └── page.tsx              # HIPAA notice of privacy practices (labeled)
-│   ├── accessibility/
-│   │   └── page.tsx              # Physical & digital accessibility statement
-│   └── terms/
-│       └── page.tsx              # Terms of service & cancellation rules (labeled)
-├── components/
-│   ├── ui/                       # Shared UI Primitives
-│   │   ├── button.tsx            # Pill button with hover lift and active press
-│   │   ├── card.tsx              # Card primitive using shadow scale and radius-card
-│   │   ├── section-heading.tsx   # Consolidated eyebrow + heading + description
-│   │   ├── text-field.tsx        # Accessible label-linked input with inline errors
-│   │   ├── skeleton.tsx          # SkeletonCard & SkeletonText loading placeholders
-│   │   ├── copy-button.tsx       # Clipboard copy with visual confirmation
-│   │   ├── theme-toggle.tsx      # Dark/light mode switcher
-│   │   ├── search-dialog.tsx     # Cmd+K search modal over existing static content
-│   │   └── cookie-banner.tsx     # Non-deceptive cookie preference banner
-│   ├── layout/                   # Global Shell Components
-│   │   ├── site-header.tsx       # Sticky header with default and minimal variants
-│   │   ├── mobile-menu.tsx       # Accessible mobile slide-over drawer
-│   │   ├── footer.tsx            # Deliberate footer with contact and legal links
-│   │   ├── scroll-progress.tsx   # Reading scroll progress bar
-│   │   ├── back-to-top.tsx       # Floating back-to-top button
-│   │   └── floating-action.tsx   # Mobile floating contact control
-│   ├── sections/                 # Home Page Content Sections
-│   │   ├── hero.tsx              # Cinematic hero with CSS perspective tilt
-│   │   ├── commitments.tsx       # Three core clinical standards
-│   │   ├── services.tsx          # Categorized procedures with tabs
-│   │   ├── doctor.tsx            # Doctor background and verified licensure
-│   │   ├── visit.tsx             # Location, directions, parking, live Chicago status
-│   │   └── faq.tsx               # Accordion with CSS grid height transition
-│   └── providers/
-│       └── theme-provider.tsx    # Theme context and localStorage persistence
-│   └── lib/
-│       ├── api.ts                # Single API boundary for FastAPI backend
-│       ├── search-index.ts       # Client search index over actual static content
-│       ├── utm.ts                # UTM parameter preservation utility
-│       └── utils.ts              # Shared styling (cn) and Chicago timezone calculator
-├── backend/                      # Backend application (FastAPI + PostgreSQL)
+│   │   │   ├── layout.tsx        # Root layout with fonts, AuthProvider, ThemeProvider, JSON-LD
+│   │   │   ├── page.tsx          # Home page assembling dynamic marketing sections
+│   │   │   ├── globals.css       # Design tokens, fluid type scale, warm shadow scale
+│   │   │   ├── icon.svg          # SVG brand mark
+│   │   │   ├── opengraph-image.tsx # Dynamic OG image generation
+│   │   │   ├── robots.ts         # Robots.txt metadata route
+│   │   │   ├── sitemap.ts        # Sitemap.xml metadata route
+│   │   │   ├── manifest.ts       # Web application manifest
+│   │   │   ├── error.tsx         # Route-level error boundary
+│   │   │   ├── not-found.tsx     # Custom art-directed 404 page
+│   │   │   ├── login/
+│   │   │   │   └── page.tsx      # Secure staff / admin login screen
+│   │   │   ├── admin/
+│   │   │   │   ├── layout.tsx    # Admin shell with navigation & auth route guard
+│   │   │   │   ├── page.tsx      # Overview dashboard
+│   │   │   │   ├── website/page.tsx # Website CMS editor (General, Homepage, About, Contact, FAQ, SEO)
+│   │   │   │   ├── team/page.tsx # Team members CRUD, credentials & soft deletion
+│   │   │   │   ├── services/page.tsx # Service catalog CRUD & soft deletion
+│   │   │   │   ├── locations/page.tsx # Multi-location overview shell
+│   │   │   │   └── account/page.tsx # Admin profile and sign-out
+│   │   │   ├── book/
+│   │   │   │   ├── layout.tsx    # Dedicated metadata for booking route
+│   │   │   │   └── page.tsx      # URL-synced multi-step booking wizard (dynamic services)
+│   │   │   ├── privacy/page.tsx  # Privacy policy
+│   │   │   ├── hipaa/page.tsx    # HIPAA notice of privacy practices
+│   │   │   ├── accessibility/page.tsx # Physical & digital accessibility statement
+│   │   │   └── terms/page.tsx    # Terms of service & cancellation rules
+│   │   ├── components/
+│   │   │   ├── ui/               # Shared UI Primitives (Button, Card, TextField, etc.)
+│   │   │   ├── layout/           # Global Shell Components (SiteHeader, Footer, MobileMenu)
+│   │   │   ├── sections/         # Home Page Content Sections (Hero, Doctor, Services, Visit, FAQ)
+│   │   │   └── providers/
+│   │   │       ├── auth-provider.tsx # Session state, JWT storage, refresh rotation, login/logout
+│   │   │       └── theme-provider.tsx # Theme context and localStorage persistence
+│   │   └── lib/
+│   │       ├── api.ts            # Single API boundary for FastAPI backend (auth, appointments, CMS)
+│   │       ├── search-index.ts   # Client search index over actual static content
+│   │       ├── utm.ts            # UTM parameter preservation utility
+│   │       └── utils.ts          # Shared styling (cn) and Chicago timezone calculator
+│   └── docs/                     # Frontend architectural documentation
+└── backend/                      # Backend application (FastAPI + PostgreSQL)
     ├── alembic/                  # Database migration scripts & env.py
+    │   └── versions/
+    │       ├── 0001_initial_appointments.py
+    │       └── 0002_admin_auth_and_clinic_cms.py
     ├── app/                      # Application layered architecture
     │   ├── api/v1/               # FastAPI endpoints & route definitions
-    │   ├── application/          # Service layer & business workflows
+    │   ├── application/          # Service layer, DTOs & business workflows
     │   ├── core/                 # Config, DB engine, logging, security
-    │   ├── domain/               # Pure business models & repository interfaces
-    │   └── infrastructure/       # SQLAlchemy models & repository implementations
-    ├── tests/                    # Pytest test suite (17 passing unit/integration tests)
-    ├── alembic.ini               # Migration configuration
-    ├── pyproject.toml            # Project metadata and dependencies
+    │   ├── domain/               # Pure business models & repository protocols
+    │   └── infrastructure/       # SQLAlchemy models, storage, & repository implementations
+    ├── tests/                    # Pytest test suite (29 passing unit/integration tests)
     └── README.md                 # Setup, local run, and CLI instructions
 ```
 
-## 3. Motion Architecture: 2D & CSS Depth (No 3D / WebGL)
-- **Library Selection**: Single motion library (`motion`). Three.js, React Three Fiber, GSAP, and WebGL were intentionally excluded because Marlow Dental represents a service and doctor continuity, not an industrial physical product.
-- **Scroll Reveals**: Each section on the home page fades and rises 8–16px when approximately 20% into view. List items stagger in at 60–80ms intervals, capped to settle in under 350ms.
-- **Elevation System**: Warm-black shadows (`rgba(20, 20, 15, ...)`) provide optical depth. Cards lift slightly (`-translate-y-1`) on hover.
-- **Hero Tilt**: The floating credential card features a subtle CSS perspective tilt on pointer hover (pointer devices only, disabled on touch and reduced motion).
-- **Reduced Motion**: All animations respect `prefers-reduced-motion: reduce`, defaulting to instant appearance or opacity fades without translation.
+## 3. Authentication & Authorization Architecture
 
-## 4. Backend Integration Boundary (`src/lib/api.ts`)
-The Next.js frontend integrates with the FastAPI + PostgreSQL backend through `src/lib/api.ts`:
-- `src/lib/api.ts` is the single module containing all data contracts and async functions.
-- The booking wizard calls `submitBookingRequest(payload)`, which executes an HTTP POST to `${NEXT_PUBLIC_API_URL}/api/v1/appointments`.
-- `NEXT_PUBLIC_API_URL` defaults to `http://localhost:8000` via `.env.local`.
+- **Token Strategy**:
+  - **7-Day Access Token (In-Memory)**: JSON Web Token (JWT) with HS256 signature containing user ID, subject (email), role (`admin`), server session ID (`sid`), and 7-day expiration (10,080 minutes). Kept exclusively in-memory within React `AuthProvider` state (`src/lib/api.ts`). Never stored in `localStorage`, `sessionStorage`, cookies, or URLs.
+  - **7-Day Refresh Token (HttpOnly Cookie)**: 256-bit cryptographically secure token string (`secrets.token_urlsafe(32)`), stored as a strict `HttpOnly`, `SameSite=Lax` cookie (`marlow_refresh_token`). Configurable via `settings.REFRESH_COOKIE_NAME`.
+  - **Server-Side Session Tracking**: Every login generates an active record in `user_sessions` with IP, user agent, expiration, and active status. On every authenticated request, `get_current_user` validates that the `sid` claim in the JWT corresponds to an active database session. Instant session revocation occurs on logout or security invalidation.
+  - **35-Minute Rotation Window**: `REFRESH_TOKEN_ROTATE_AFTER_MINUTES = 35`. Refresh requests within 35 minutes re-issue fresh access tokens while keeping the existing refresh cookie, avoiding high row churn. After 35 minutes, a new refresh token is generated, hashed, and swapped.
+  - **Concurrency & Replay Safety**:
+    - *Backend Grace Period*: A 30-second window (`CONCURRENCY_GRACE_PERIOD_SECONDS = 30`) allows concurrent requests carrying a just-rotated refresh token to succeed rather than triggering false replay-attack revocations.
+    - *Frontend Single-Flight Lock*: `isRefreshing` prevents parallel refresh calls from frontend tabs/components.
+    - *FIFO Request Replay Queue*: When multiple API calls encounter an expired access token, the first triggers `/api/v1/auth/refresh` while subsequent requests enqueue in `failedQueue`. Upon refresh success, queued requests replay in original FIFO order with the new access token.
+  - **Inactivity Security Architecture**:
+    - User activity tracking in `AuthProvider` monitors direct browser interactions (`mousemove`, `keydown`, `touchstart`, `scroll`, `click`) throttled to 3-second checks. Background network traffic does NOT reset inactivity.
+    - Configurable settings on user account (`inactivity_enabled`, `inactivity_timeout_minutes`, `inactivity_warning_seconds`).
+    - Accessible countdown warning modal ("Stay Signed In") provides affirmative extension or auto-logout upon timer expiry.
+  - **Rate Limiting**:
+    - Login: 5 requests/minute/IP.
+    - Refresh: 30 requests/minute/IP.
 
-## 5. Backend Architecture (FastAPI + PostgreSQL)
+## 4. Clinic Content Management (CMS) & Dynamic Organization Foundation
 
-*Project Note*: The project transitioned from an earlier exploratory MongoDB Atlas design to **PostgreSQL**. The relational model provides flat column typing, strict database-level unique constraints, and transaction ACID guarantees for appointment requests without document store overhead.
+- **Organization & Locations**:
+  - Hierarchy: `Organization` (Marlow Dental Medical Complex) -> `Locations` (Lincoln Park clinic, Oak Brook center, expandable) -> `TeamMembers`.
+  - `PublicContentProvider` acts as the single frontend boundary, hydrating organization identity, locations, and clinical staff directory once and distributing to presentational components.
+- **Data-Driven Team Roles**:
+  - Unified `TeamMember` model stores roles and titles (`Director`, `Dentist`, `Orthodontist`, `Pediatric Specialist`, `Hygienist`, `Oral Surgeon`).
+  - The public website dynamically identifies the Clinical Director through role/title criteria rather than hardcoded string comparisons (e.g. `is_director` or role matching `Director`), allowing immediate updates when staff change.
+- **Soft Deletion Policy**:
+  - CMS entities (`TeamMember`, `Service`, `FaqItem`, `Location`, `SiteSection`) are never hard-deleted via API calls. Soft-deletion toggles `is_active = false`.
+  - Public endpoints (`/api/v1/public/*`) strictly filter `WHERE is_active = true`.
 
-### Dependency Direction (Strictly Enforced)
+## 5. Media Storage Abstraction
 
-```text
-Next.js Frontend (src/lib/api.ts)
-           ↓ (JSON / REST over TLS)
-      FastAPI (app/api/v1)
-           ↓
-Application Services (app/application/services)
-           ↓
-Domain Repositories (app/domain/repositories - ABC)
-           ↓
-PostgreSQL Repositories (app/infrastructure/repositories)
-           ↓
-      PostgreSQL ("dentai_dev" / "appointments" table)
-```
+- **Interface**: Abstract `StorageService` domain protocol (`upload_file`, `delete_file`, `get_url`).
+- **Development Implementation**: `LocalStorageService` saving files to `uploads/` directory, validating file sizes (capped at 5MB) and permitted MIME types (`image/jpeg`, `image/png`, `image/webp`).
+- **Static File Serving**: Mounted at `/media` in FastAPI for local development, with paths stored as relative URLs ready for zero-downtime swap to AWS S3 or Cloudinary.
 
-### Confirmed Stack & Verified Versions
-- **Python**: 3.14.5 (managed via `uv`)
-- **Web Framework**: `fastapi==0.141.1`, `uvicorn[standard]==0.54.0`
-- **Settings**: `pydantic-settings==2.15.0`, `pydantic==2.13.5`
-- **ORM & Async Driver**: `sqlalchemy==2.1.1` (asyncio mode), `greenlet==3.5.6`, `asyncpg==0.31.0`
-- **Schema Migrations**: `alembic==1.20.0`
-- **Rate Limiting**: `slowapi==0.1.10`
-- **Testing**: `pytest==9.1.1`, `pytest-asyncio==1.4.0`, `httpx==0.28.1`, `aiosqlite==0.22.1`
+## 6. PostgreSQL Relational Schema
 
-### Relational Schema (`appointments` Table)
-
-| Column | Type | Constraints & Defaults |
-| :--- | :--- | :--- |
-| `id` | `UUID` | Primary Key (`default=uuid4`) |
-| `confirmation_id` | `TEXT` | `UNIQUE NOT NULL` (e.g. `MD-2026-4821`) |
-| `status` | `TEXT` | `NOT NULL`, default `'requested'` |
-| `service_id` | `TEXT` | `NOT NULL` (matches frontend catalog) |
-| `preferred_date` | `DATE` | `NOT NULL` (indexed) |
-| `preferred_time` | `TEXT` | `NOT NULL` (one of 6 allowed slots) |
-| `patient_full_name` | `TEXT` | `NOT NULL` |
-| `patient_phone` | `TEXT` | `NOT NULL` |
-| `patient_email` | `TEXT` | `NOT NULL` |
-| `has_insurance` | `BOOLEAN` | `NOT NULL`, default `false` |
-| `insurance_provider` | `TEXT` | Nullable |
-| `notes` | `TEXT` | Nullable, max 1000 characters |
-| `utm_source` | `TEXT` | Nullable |
-| `utm_campaign` | `TEXT` | Nullable |
-| `staff_notes` | `TEXT` | Nullable (internal front-desk only) |
-| `created_at` | `TIMESTAMPTZ` | `NOT NULL`, default `now()` |
-| `updated_at` | `TIMESTAMPTZ` | `NOT NULL`, default `now()`, auto-updated on write |
-
-### Database Constraints & Indexes
-1. `uq_appointments_confirmation_id`: Unique constraint on `confirmation_id`.
-2. `ix_appointments_confirmation_id`: B-Tree index for fast confirmation lookup.
-3. `ix_appointments_preferred_date`: B-Tree index supporting daily clinic schedule views.
-4. `ix_appointments_status_created_at`: Composite index on `(status, created_at DESC)` for front-desk triage queries.
+### Database Migrations
+1. `0001_initial_appointments.py`: Created `appointments` table with UUID primary key, unique confirmation ID, and composite status/date indexes.
+2. `0002_admin_auth_and_clinic_cms.py`: Created `users`, `refresh_tokens`, `organizations`, `locations`, `team_members`, `services`, `faq_items`, and `site_sections`.
+3. `0003_sessions_inactivity.py`: Added:
+   - `user_sessions`: Active server-side sessions table for token revocation (`id`, `user_id`, `is_active`, `expires_at`, `revoked_at`).
+   - `users`: Inactivity fields (`inactivity_enabled`, `inactivity_timeout_minutes`, `inactivity_warning_seconds`).
+   - `refresh_tokens`: Session association (`session_id`) and timestamp tracking (`revoked_at`) for concurrency grace periods.
 
 ### PHI-Safe Logging Rule
-No patient-identifiable data (name, telephone, email, clinical notes, insurance) is ever written to logs or echoed in API responses. SQL query echoing is explicitly disabled.
+No patient-identifiable data (name, telephone, email, clinical notes, insurance) or authentication secrets (passwords, tokens) are ever written to logs or echoed in error responses. SQL query echoing is explicitly disabled.

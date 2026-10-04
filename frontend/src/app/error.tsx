@@ -28,12 +28,12 @@ export default function ErrorBoundary({
           <Link href="/" className="font-display text-[18px] tracking-tight text-ink">
             Marlow <span className="text-forest dark:text-emerald-500">Dental</span>
           </Link>
-          <a
-            href="tel:+13125550147"
+          <Link
+            href="/"
             className="text-xs text-ink-soft hover:text-forest transition-colors"
           >
-            Office: (312) 555-0147
-          </a>
+            Practice Home
+          </Link>
         </div>
       </header>
 
@@ -62,16 +62,13 @@ export default function ErrorBoundary({
 
         <div className="pt-8 border-t border-line/60 text-xs text-ink-soft">
           <p>
-            If you need immediate scheduling or have an urgent clinical question, please call our Lincoln Park desk directly at{" "}
-            <a href="tel:+13125550147" className="text-forest font-semibold underline">
-              (312) 555-0147
-            </a>.
+            If you need immediate scheduling or have an urgent clinical inquiry, please return to our homepage or use our online appointment reservation request form.
           </p>
         </div>
       </main>
 
       <footer className="border-t border-line py-6 text-center text-xs text-ink-soft/75">
-        <p>&copy; {new Date().getFullYear()} Marlow Dental, P.C. · Lincoln Park, Chicago</p>
+        <p>&copy; {new Date().getFullYear()} Private Dental Practice Facility. All rights reserved.</p>
       </footer>
     </div>
   );

@@ -48,3 +48,43 @@
 12. **Automatic Transaction Commit in Dependency Session Generator (September 2026)**
     - *Decision*: Configured `get_db_session()` in `app/core/database.py` to invoke `await session.commit()` upon successful yield return, retaining `await session.rollback()` on exceptions.
     - *Why*: Guarantees that appointment flushes in repository methods are persistently committed to PostgreSQL `dentai_dev` across the request lifecycle without requiring route-level commit boilerplate.
+
+13. **Dual-Token Authentication Strategy with HttpOnly Refresh Rotation (October 2026)**
+    - *Decision*: Configured short-lived JWT access tokens (15m) in memory alongside long-lived refresh tokens (7d) delivered via secure `HttpOnly`, `SameSite=Lax` cookies, persisted as SHA-256 hashes in PostgreSQL and rotated on every exchange.
+    - *Why*: Storing refresh tokens in `localStorage` leaves tokens vulnerable to XSS exfiltration. HttpOnly cookies isolate the refresh token from JavaScript execution while refresh rotation prevents replay of intercepted credentials.
+
+14. **Unified `TeamMember` Domain Model (October 2026)**
+    - *Decision*: Created a single unified `TeamMember` relational entity with `professional_title`, `role`, and `specialties` rather than fragmented tables for doctors, specialists, and dental assistants.
+    - *Why*: Eliminates arbitrary schema divergence and allows the clinic to scale from a single director into a multi-doctor, multidisciplinary medical complex without subsequent database migrations.
+
+15. **Strict Soft-Deletion Mandate for CMS Entities (October 2026)**
+    - *Decision*: Implemented `is_active = false` toggling across `TeamMember`, `Service`, and `FaqItem` models instead of SQL `DELETE` operations.
+    - *Why*: Protects referential integrity with existing appointment records, prevents accidental loss of clinical history, and allows administrators to safely archive procedures or staff temporarily without data loss.
+
+16. **Safe CLI Bootstrap Mechanism for Admin Accounts (October 2026)**
+    - *Decision*: Built `app/cli.py` accepting `--email`, `--password`, and `--name` arguments or interactive prompts, strictly disallowing hardcoded passwords in source repositories or migration scripts.
+    - *Why*: Ensures development and staging environments can be provisioned safely and securely while upholding zero-secret-in-git compliance.
+
+17. **7-Day Token Lifetime with Server-Side Session Revocation (October 2026)**
+    - *Decision*: Extended access and refresh tokens to 7 days (10,080m). Issued access tokens embed a server-generated `sid` (session_id) claim, validated on every protected request against the `user_sessions` PostgreSQL table.
+    - *Why*: Eliminates the vulnerability of purely stateless 7-day JWTs. When an administrator signs out or their session is revoked, the server marks the session inactive, instantly invalidating the access token regardless of its remaining expiration.
+
+18. **35-Minute Refresh Token Rotation Threshold (October 2026)**
+    - *Decision*: Replaced per-request rotation with a 35-minute rotation window (`REFRESH_TOKEN_ROTATE_AFTER_MINUTES=35`).
+    - *Why*: Prevents high database row churn on frequent refresh requests while ensuring tokens are regularly rotated for security.
+
+19. **Backend Concurrency Grace Period & Frontend FIFO Request Queue (October 2026)**
+    - *Decision*: Added a 30-second concurrency grace period on the backend for recently rotated tokens, paired with a centralized single-flight lock (`isRefreshing`) and FIFO pending request replay queue (`failedQueue`) in `src/lib/api.ts`.
+    - *Why*: Prevents race conditions where multiple parallel expired requests triggered simultaneous refresh calls and caused false replay-attack session revocations.
+
+20. **Configurable Inactivity Timer with Visual Warning Modal (October 2026)**
+    - *Decision*: Implemented user activity tracking (mouse, key, touch, scroll) throttled to 3s in `AuthProvider`, paired with a countdown modal warning ("Stay Signed In") and configurable settings (`inactivity_enabled`, `inactivity_timeout_minutes`, `inactivity_warning_seconds`). Background network traffic is strictly excluded from resetting user activity.
+    - *Why*: Secures administrative sessions on shared workstations while avoiding disruptive sudden logouts.
+
+21. **Unified Multi-Doctor Presentation & Data-Driven Director Role (October 2026)**
+    - *Decision*: Modeled clinical leadership dynamically via `role: "Director"` or `professional_title` within `team_members` rather than hardcoding "Dr. Sarah Marlow" in frontend components. Rendered both the clinical director and the broader multidisciplinary team roster.
+    - *Why*: Marlow Dental is a medical complex/group rather than a solo practitioner clinic. CMS updates to director or specialist biographies immediately reflect on the public site without code deployments.
+
+22. **Centralized Public Content Provider & Elimination of Hardcoding (October 2026)**
+    - *Decision*: Implemented `PublicContentProvider` wrapping the root application, caching and distributing organization metadata, locations, team roster, and CMS content to presentational components.
+    - *Why*: Avoids duplicate network calls across components, eliminates hardcoded clinic copy across 15+ pages, and ensures instant synchronization when CMS content is updated.

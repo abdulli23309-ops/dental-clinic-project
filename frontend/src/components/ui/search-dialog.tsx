@@ -3,7 +3,8 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Search, X, CornerDownLeft, ArrowUpDown } from "lucide-react";
-import { searchSite, SearchResult } from "@/lib/search-index";
+import { searchSite, buildDynamicSearchIndex, SearchResult } from "@/lib/search-index";
+import { usePublicContent } from "@/components/providers/public-content-provider";
 
 interface SearchDialogProps {
   isOpen: boolean;
@@ -15,17 +16,23 @@ interface SearchDialogProps {
  * It lets patients quickly find procedures, pricing, doctor information, and office policies with full keyboard support.
  */
 export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
+  const { team, locations } = usePublicContent();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
+  const dynamicDocs = buildDynamicSearchIndex({
+    team,
+    locations,
+  });
+
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 50);
       setQuery("");
-      setResults(searchSite(""));
+      setResults(searchSite("", dynamicDocs));
       setSelectedIndex(0);
       document.body.style.overflow = "hidden";
     } else {

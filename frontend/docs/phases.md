@@ -82,12 +82,32 @@
   - Verified Next.js Turbopack production build (`npm run build`) generates all 14 static routes without error.
   - Verified backend payload validation parity between Pydantic DTOs and Next.js form state.
 
+- [x] **Phase 12: Admin Authentication, Server-Side Sessions & Inactivity Security**
+  - Designed and executed Alembic migration `0003_sessions_inactivity.py` adding `user_sessions` relational table with `sid` verification, `inactivity_*` configuration fields on `users`, and concurrency tracking on `refresh_tokens`.
+  - Upgraded authentication contract: 7-day memory-only JWT access tokens (10,080m) and 7-day HttpOnly refresh cookies (`marlow_refresh_token`, SameSite=Lax).
+  - Implemented 35-minute rotation window (`REFRESH_TOKEN_ROTATE_AFTER_MINUTES=35`): requests prior to 35m reuse valid refresh tokens to prevent unnecessary churn.
+  - Implemented 30-second backend concurrency grace period (`CONCURRENCY_GRACE_PERIOD_SECONDS=30`) protecting parallel browser tab requests from false replay-attack revocations.
+  - Built frontend single-flight refresh lock (`isRefreshing`) and FIFO request replay queue (`failedQueue`) in `src/lib/api.ts`, replaying concurrent requests cleanly in order upon token refresh.
+  - Built configurable inactivity logout architecture with countdown modal warning ("Stay Signed In"), tracking real user interaction (mouse, key, touch, scroll) while strictly excluding background network traffic.
+  - Added shared rate limiting across auth endpoints (Login 5/min, Refresh 30/min) using `slowapi`.
+  - Added Inactivity Security controls to `/admin/account` allowing administrators to toggle timeout duration (15m, 30m, 60m, 120m) and warning window.
+
+- [x] **Phase 13: Dynamic Multi-Location & Multi-Doctor Public Architecture**
+  - Built centralized `PublicContentProvider` resolving live organization identity, physical location offices, clinical staff directory, and structured CMS sections.
+  - Fully eliminated hardcoded business information, phone numbers, addresses, office hours, and clinician names across all public components (`SiteHeader`, `Footer`, `MobileMenu`, `FloatingAction`, `Hero`, `Commitments`, `Visit`, `Doctor`, `FAQ`, `/book`, `search-index`, and compliance pages).
+  - Replaced solo-dentist layout with scalable multi-doctor medical group presentation (`Doctor.tsx` rendering Clinical Director profile alongside multi-doctor clinical team roster).
+  - Implemented multi-location selector tabs in `Visit.tsx` dynamically presenting address, phone, email, hours, and navigation maps per facility.
+  - Built dynamic client search index transformation layer without stale hardcoded arrays.
+  - Built reusable `LegalContactBox` across legal pages (`/privacy`, `/terms`, `/hipaa`, `/accessibility`, `404`, `500`) dynamically referencing clinic officer contacts.
+  - Verified backend test suite with 32 passing automated tests (100% pass rate).
+  - Verified frontend production build with 21 static and dynamic routes compiled without errors.
+
 ## Deferred Capabilities (Explicitly Not Built)
 
-- [ ] **Phase 12: Staff Operations & Clinic Management (Deferred)**
-  - Staff/admin authentication and role-based access.
-  - Internal clinic dashboard for appointment triage and status transitions.
-  - Real-time operatory chair/calendar availability engine.
-  - Payments integration (Stripe / CareCredit).
-  - Automated transactional SMS (Twilio) and confirmation emails.
-  - Dynamic service catalogue CMS.
+- [ ] **Phase 14: Clinical Operations & Integrations (Deferred)**
+  - Patient portal, patient-facing login, medical intake forms, and electronic health records (EHR).
+  - Appointment calendar scheduling and triage management dashboard.
+  - Audit trail history and enterprise RBAC permissions UI.
+  - Payment processing (Stripe / CareCredit).
+  - Transactional SMS (Twilio) and confirmation emails.
+  - Real-time operatory chair availability engine.

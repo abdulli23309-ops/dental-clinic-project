@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Fraunces, Manrope } from "next/font/google";
 import { ThemeProvider } from "@/components/providers/theme-provider";
+import { AuthProvider } from "@/components/providers/auth-provider";
+import { PublicContentProvider } from "@/components/providers/public-content-provider";
 import "./globals.css";
 
 const fraunces = Fraunces({
@@ -146,7 +148,11 @@ export default function RootLayout({
         />
       </head>
       <body className="grain bg-bone text-ink antialiased">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <PublicContentProvider>{children}</PublicContentProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

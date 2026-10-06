@@ -28,7 +28,7 @@ export interface SiteHeaderProps {
  * It supports a full standard view for marketing pages and a minimal view for focused flows like appointment scheduling.
  */
 export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
-  const { content, primaryLocation } = usePublicContent();
+  const { content, primaryLocation, organization } = usePublicContent();
   const [isScrolled, setIsScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -38,12 +38,14 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
     nextEventText: "",
   });
 
-  const practiceName = content.general?.practiceName || "Marlow Dental";
+  const practiceName = content.general?.practiceName || "Marlow Dental Complex";
+  const finalName = organization?.displayName || (organization as any)?.display_name || practiceName;
+
   const phone = content.general?.phone || primaryLocation?.phone || "(312) 555-0147";
   const cleanPhone = phone.replace(/[^0-9+]/g, "");
   const hoursText = primaryLocation?.hoursInfo || "Mon to Thu 8 to 6, Fri 8 to 2, Sat 9 to 1";
 
-  const nameParts = practiceName.split(" ");
+  const nameParts = finalName.split(" ");
   const firstNamePart = nameParts[0] || "Marlow";
   const restNameParts = nameParts.slice(1).join(" ") || "Dental";
 

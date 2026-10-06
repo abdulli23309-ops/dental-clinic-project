@@ -46,7 +46,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const pathname = usePathname();
   const { user, isLoading, logout } = useAuth();
-  const [collapsed, setCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
@@ -121,15 +121,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <aside
         className={`m-4 h-[calc(100vh-2rem)] rounded-[2.5rem] shadow-2xl bg-white flex flex-col transition-all duration-300 ease-in-out border border-gray-100 overflow-hidden shrink-0 fixed md:sticky top-0 z-50 md:z-30 ${
           mobileOpen ? "left-0" : "-left-96 md:left-0"
-        } ${collapsed ? "w-24" : "w-64"}`}
+        } ${isCollapsed ? "w-24" : "w-64"}`}
       >
         {/* Top: Brand Header */}
-        <div className={`p-4 border-b border-gray-100 flex items-center ${collapsed ? "justify-center" : "justify-between"}`}>
+        <div className={`p-4 border-b border-gray-100 flex items-center ${isCollapsed ? "justify-center" : "justify-between"}`}>
           <Link href="/admin" className="flex items-center gap-3 overflow-hidden" title="Marlow Dental CMS">
             <div className="h-11 w-11 shrink-0 rounded-2xl bg-primary text-white grid place-items-center font-display font-bold text-lg shadow-md transition-transform hover:scale-105">
               M
             </div>
-            <div className={`truncate transition-opacity duration-300 ${collapsed ? "opacity-0 hidden" : "opacity-100 flex flex-col"}`}>
+            <div className={`truncate transition-opacity duration-300 ${isCollapsed ? "hidden opacity-0" : "opacity-100 flex flex-col"}`}>
               <span className="font-display text-sm font-bold text-gray-900 block leading-tight tracking-tight">
                 Marlow Dental
               </span>
@@ -138,6 +138,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </span>
             </div>
           </Link>
+
+          {/* Desktop toggle button */}
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="hidden md:inline-flex p-1.5 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {isCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+          </button>
 
           {/* Close button on mobile */}
           <button
@@ -150,7 +159,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         {/* Center: Navigation Links */}
-        <nav className={`flex-1 overflow-y-auto p-3 space-y-2 scrollbar-none ${collapsed ? "flex flex-col items-center" : ""}`}>
+        <nav className={`flex-1 overflow-y-auto p-3 space-y-2 scrollbar-none ${isCollapsed ? "flex flex-col items-center" : ""}`}>
           {NAV_ITEMS.map((item) => {
             const isActive = item.exact
               ? pathname === item.href
@@ -163,7 +172,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 href={item.href}
                 title={item.label}
                 className={`flex items-center rounded-full text-xs font-medium transition-all duration-300 ease-in-out ${
-                  collapsed
+                  isCollapsed
                     ? "h-12 w-12 justify-center p-0"
                     : "gap-3.5 px-4 py-3 w-full"
                 } ${
@@ -173,7 +182,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 }`}
               >
                 <Icon className={`h-5 w-5 shrink-0 transition-colors ${isActive ? "text-white" : "text-primary"}`} />
-                <span className={`truncate transition-opacity duration-300 ${collapsed ? "opacity-0 hidden" : "opacity-100 flex"}`}>
+                <span className={`truncate transition-opacity duration-300 ${isCollapsed ? "hidden opacity-0" : "opacity-100 flex"}`}>
                   {item.label}
                 </span>
               </Link>
@@ -186,13 +195,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div
             title={`${user.fullName} (${user.role})`}
             className={`flex items-center rounded-2xl bg-white border border-gray-100 shadow-xs ${
-              collapsed ? "p-1.5 justify-center" : "gap-2.5 p-2.5"
+              isCollapsed ? "p-1.5 justify-center" : "gap-2.5 p-2.5"
             }`}
           >
             <div className="h-9 w-9 shrink-0 rounded-full bg-primary/10 text-primary grid place-items-center text-xs font-bold">
               {user.fullName.slice(0, 2).toUpperCase()}
             </div>
-            <div className={`truncate flex-1 min-w-0 transition-opacity duration-300 ${collapsed ? "opacity-0 hidden" : "opacity-100 flex flex-col"}`}>
+            <div className={`truncate flex-1 min-w-0 transition-opacity duration-300 ${isCollapsed ? "hidden opacity-0" : "opacity-100 flex flex-col"}`}>
               <p className="text-xs font-semibold text-gray-900 truncate leading-tight">
                 {user.fullName}
               </p>
@@ -202,24 +211,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
           </div>
 
-          <div className={`flex items-center ${collapsed ? "flex-col gap-2 pt-1" : "justify-between pt-1"}`}>
-            {/* Collapse toggle (desktop only) */}
-            <button
-              onClick={() => setCollapsed(!collapsed)}
-              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              className="hidden md:inline-flex p-2 rounded-full border border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-white shadow-xs transition-colors cursor-pointer"
-              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-            </button>
+          <div className={`flex items-center ${isCollapsed ? "flex-col gap-2 pt-1" : "justify-between pt-1"}`}>
 
             <Link
               href="/"
               target="_blank"
               title="View live website"
               className={`transition-opacity duration-300 ${
-                collapsed
-                  ? "opacity-0 hidden"
+                isCollapsed
+                  ? "hidden opacity-0"
                   : "opacity-100 inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 px-3 py-1.5 rounded-full hover:bg-white shadow-xs transition-colors"
               }`}
             >

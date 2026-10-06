@@ -160,6 +160,13 @@ export function PublicContentProvider({ children }: { children: React.ReactNode 
         refreshPublicContent: loadData,
       }}
     >
+      <style jsx global>{`
+        :root {
+          --color-primary: ${organization?.primaryColor || (organization as any)?.primary_color || '#1F3D34'};
+          --color-secondary: ${organization?.secondaryColor || (organization as any)?.secondary_color || '#B8935A'};
+          --color-bg-base: ${organization?.backgroundColor || (organization as any)?.background_color || '#FAF7F2'};
+        }
+      `}</style>
       {children}
     </PublicContentContext.Provider>
   );

@@ -99,7 +99,7 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
             className="group flex items-center gap-2.5 transition-transform active:scale-[0.98]"
             aria-label={`${practiceName} Homepage`}
           >
-            <span className="grid h-8 w-8 place-items-center rounded-full bg-forest text-[#FAF7F2] shadow-subtle group-hover:bg-forest-deep transition-colors">
+            <span className="grid h-8 w-8 place-items-center rounded-full bg-primary text-[#FAF7F2] shadow-subtle group-hover:brightness-90 transition-all">
               <svg
                 viewBox="0 0 24 24"
                 className="h-4 w-4"
@@ -112,7 +112,7 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
             </span>
             <span className="font-display text-[19px] tracking-tight text-ink leading-none">
               {firstNamePart}{" "}
-              <span className="text-forest dark:text-emerald-500">{restNameParts}</span>
+              <span className="text-primary">{restNameParts}</span>
             </span>
           </Link>
 
@@ -123,7 +123,7 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
                 <Link
                   key={link.label}
                   href={link.href}
-                  className="text-[13.5px] font-medium text-ink-soft transition-colors hover:text-forest dark:hover:text-emerald-400 relative py-1"
+                  className="text-[13.5px] font-medium text-ink-soft transition-colors hover:text-primary relative py-1"
                 >
                   {link.label}
                 </Link>
@@ -136,7 +136,7 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
             {!isMinimal && (
               <button
                 onClick={() => setSearchOpen(true)}
-                className="flex items-center gap-2 rounded-full border border-line bg-cream/60 px-3 py-1.5 text-xs text-ink-soft transition-colors hover:border-forest/40 hover:text-ink hover:bg-sand/40"
+                className="flex items-center gap-2 rounded-full border border-line bg-cream/60 px-3 py-1.5 text-xs text-ink-soft transition-colors hover:border-primary/40 hover:text-ink hover:bg-sand/40"
                 aria-label="Open search dialog"
               >
                 <Search className="h-3.5 w-3.5" />
@@ -154,7 +154,7 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
             {isMinimal ? (
               <a
                 href={`tel:${cleanPhone}`}
-                className="text-xs font-semibold text-ink-soft hover:text-forest transition-colors"
+                className="text-xs font-semibold text-ink-soft hover:text-primary transition-colors"
               >
                 Call {phone}
               </a>

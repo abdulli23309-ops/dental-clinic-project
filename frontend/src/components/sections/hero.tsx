@@ -19,12 +19,6 @@ export function Hero() {
 
   return (
     <section className="relative overflow-hidden pt-8 pb-16 md:pt-14 md:pb-24 lg:pt-20 lg:pb-28">
-      {/* Subtle Spatial Depth Ambient Glow */}
-      <div
-        className="pointer-events-none absolute -top-40 left-1/2 -z-10 h-96 w-[700px] -translate-x-1/2 rounded-full bg-forest/8 blur-3xl dark:bg-emerald-500/10"
-        aria-hidden="true"
-      />
-
       <div className="container-x">
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-14 items-center">
           {/* Main Hero Copy - 7 cols */}
@@ -36,7 +30,7 @@ export function Hero() {
               transition={{ duration: 0.4 }}
               className="inline-flex items-center gap-2 rounded-full border border-line bg-cream/80 px-3.5 py-1 text-xs text-ink-soft backdrop-blur-sm"
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-forest dark:bg-emerald-400" />
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
               <span className="font-semibold text-clay uppercase tracking-wider text-[10.5px]">
                 {content.homepage?.heroEyebrow || "Private Dental Facility"}
               </span>
@@ -84,7 +78,7 @@ export function Hero() {
                   size="lg"
                   className="flex-1 sm:flex-initial"
                 >
-                  <Phone className="h-4 w-4 text-forest" />
+                  <Phone className="h-4 w-4 text-primary" />
                   <span>Call {phone}</span>
                 </Button>
                 <CopyButton text={phone} label="Copy" className="h-11 px-3" />
@@ -99,15 +93,15 @@ export function Hero() {
               className="pt-6 border-t border-line/70 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-ink-soft"
             >
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-forest dark:text-emerald-400 shrink-0" />
+                <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
                 <span>Dedicated clinician care</span>
               </div>
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-forest dark:text-emerald-400 shrink-0" />
+                <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
                 <span>Written estimates first</span>
               </div>
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-forest dark:text-emerald-400 shrink-0" />
+                <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
                 <span>Same-week openings</span>
               </div>
             </motion.div>

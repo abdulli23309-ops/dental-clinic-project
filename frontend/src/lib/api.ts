@@ -1076,3 +1076,44 @@ export async function adminDeleteAnnouncement(id: string, token?: string | null)
   }
 }
 
+// Admin Permissions Matrix
+export interface PermissionMatrixItem {
+  id: string;
+  code: string;
+  name: string;
+  module: string;
+  description: string;
+}
+
+export interface PermissionsMatrixData {
+  roles: string[];
+  permissions: PermissionMatrixItem[];
+  matrix: Record<string, string[]>;
+}
+
+export async function adminGetPermissions(token?: string | null): Promise<PermissionsMatrixData> {
+  const res = await authorizedFetch(`/api/v1/admin/permissions`, {}, token);
+  if (!res.ok) throw new Error("Failed to load permissions matrix.");
+  return res.json();
+}
+
+export async function adminUpdatePermissions(
+  matrix: Record<string, string[]>,
+  token?: string | null
+): Promise<PermissionsMatrixData> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/permissions`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ matrix }),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update permissions matrix.");
+  }
+  return res.json();
+}
+
+

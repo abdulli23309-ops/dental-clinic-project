@@ -1,329 +1,259 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Info, Lock, Shield, ShieldCheck, UserCheck, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check, Info, Lock, Save, Shield, ShieldCheck, UserCheck } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useAuth } from "@/components/providers/auth-provider";
+import {
+  adminGetPermissions,
+  adminUpdatePermissions,
+  PermissionMatrixItem,
+  PermissionsMatrixData,
+} from "@/lib/api";
 
-interface RoleDef {
-  id: string;
-  name: string;
-  badgeColor: string;
-  description: string;
-}
+const ROLES = ["Patient", "Receptionist", "Doctor", "Admin"];
 
-const ROLES: RoleDef[] = [
-  {
-    id: "platform_owner",
-    name: "Platform Owner",
-    badgeColor: "bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300 border-purple-300",
-    description: "Ultimate platform administrator with global root privileges across all clinics and multi-tenant nodes.",
+const ROLE_METADATA: Record<string, { badge: string; description: string }> = {
+  Patient: {
+    badge: "bg-blue-100 text-blue-800 border-blue-200",
+    description: "Self-service booking, personal profile management, and appointment history.",
   },
-  {
-    id: "super_admin",
-    name: "Super Admin",
-    badgeColor: "bg-indigo-100 dark:bg-indigo-950 text-indigo-800 dark:text-indigo-300 border-indigo-300",
-    description: "Organization-wide administrator managing branch directors, global branding, and staff access policies.",
+  Receptionist: {
+    badge: "bg-amber-100 text-amber-800 border-amber-200",
+    description: "Front-desk check-in, phone triage, lead management, and patient registration.",
   },
-  {
-    id: "clinic_branch_manager",
-    name: "Clinic Branch Manager",
-    badgeColor: "bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300 border-teal-300",
-    description: "Operational director for specific clinic branches, managing local practitioner schedules and patient leads.",
+  Doctor: {
+    badge: "bg-emerald-100 text-emerald-800 border-emerald-200",
+    description: "Licensed dental practitioners accessing operatory schedules, charts, and treatment records.",
   },
-  {
-    id: "doctor",
-    name: "Doctor / Clinician",
-    badgeColor: "bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border-emerald-300",
-    description: "Licensed dental practitioner with access to assigned operatories, patient history, and slot availability.",
+  Admin: {
+    badge: "bg-purple-100 text-purple-800 border-purple-200",
+    description: "Full administrative authority across clinics, staff, billing, theming, and system settings.",
   },
-  {
-    id: "receptionist",
-    name: "Receptionist / Front Desk",
-    badgeColor: "bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border-amber-300",
-    description: "Front-office staff handling patient check-ins, booking requests, callback queues, and messages.",
-  },
-];
-
-interface PermissionRow {
-  module: string;
-  code: string;
-  name: string;
-  description: string;
-  // matrix boolean mapping by role id
-  matrix: Record<string, boolean>;
-}
-
-const PERMISSIONS_MATRIX: PermissionRow[] = [
-  // Appointments & Bookings
-  {
-    module: "Appointments",
-    code: "appointments:view",
-    name: "View Appointments",
-    description: "Browse appointments and callback requests across assigned branches.",
-    matrix: { platform_owner: true, super_admin: true, clinic_branch_manager: true, doctor: true, receptionist: true },
-  },
-  {
-    module: "Appointments",
-    code: "appointments:create",
-    name: "Create Bookings",
-    description: "Manually reserve chairside slots and submit patient appointment requests.",
-    matrix: { platform_owner: true, super_admin: true, clinic_branch_manager: true, doctor: true, receptionist: true },
-  },
-  {
-    module: "Appointments",
-    code: "appointments:reschedule",
-    name: "Reschedule / Modify",
-    description: "Change booking date, operatory slot, or assigned practitioner.",
-    matrix: { platform_owner: true, super_admin: true, clinic_branch_manager: true, doctor: true, receptionist: true },
-  },
-  {
-    module: "Appointments",
-    code: "appointments:cancel",
-    name: "Cancel / Void",
-    description: "Cancel appointments and release booked slots back into available pool.",
-    matrix: { platform_owner: true, super_admin: true, clinic_branch_manager: true, doctor: true, receptionist: false },
-  },
-
-  // Patients
-  {
-    module: "Patients",
-    code: "patients:view_directory",
-    name: "View Patient Directory",
-    description: "Access contact information, appointment history, and registration details.",
-    matrix: { platform_owner: true, super_admin: true, clinic_branch_manager: true, doctor: true, receptionist: true },
-  },
-  {
-    module: "Patients",
-    code: "patients:clinical_notes",
-    name: "Manage Clinical Notes",
-    description: "Author and review confidential dental examination charts and clinical records.",
-    matrix: { platform_owner: true, super_admin: true, clinic_branch_manager: false, doctor: true, receptionist: false },
-  },
-
-  // Clinics & Branches
-  {
-    module: "Clinics",
-    code: "clinics:manage",
-    name: "Manage Branch Clinics",
-    description: "Add, edit, or toggle physical clinic locations, addresses, and hours.",
-    matrix: { platform_owner: true, super_admin: true, clinic_branch_manager: false, doctor: false, receptionist: false },
-  },
-  {
-    module: "Clinics",
-    code: "theming:customize",
-    name: "Customize Brand Theming",
-    description: "Modify organization visual colors, typography, and website palette.",
-    matrix: { platform_owner: true, super_admin: true, clinic_branch_manager: false, doctor: false, receptionist: false },
-  },
-
-  // Practitioners & Staff
-  {
-    module: "Staff",
-    code: "team:manage",
-    name: "Manage Staff & Doctors",
-    description: "Create profiles, update bios, credentials, and clinic branch assignments.",
-    matrix: { platform_owner: true, super_admin: true, clinic_branch_manager: true, doctor: false, receptionist: false },
-  },
-  {
-    module: "Staff",
-    code: "slots:configure",
-    name: "Operatory Slot Allocation",
-    description: "Open and close calendar booking availability for clinicians.",
-    matrix: { platform_owner: true, super_admin: true, clinic_branch_manager: true, doctor: true, receptionist: false },
-  },
-
-  // Marketing & Announcements
-  {
-    module: "CMS",
-    code: "announcements:crud",
-    name: "Marquee Announcements",
-    description: "Publish ticker announcements, promotion alerts, and clinic notices.",
-    matrix: { platform_owner: true, super_admin: true, clinic_branch_manager: true, doctor: false, receptionist: false },
-  },
-  {
-    module: "CMS",
-    code: "cms:edit",
-    name: "Website Content Editor",
-    description: "Edit hero copy, FAQ items, and clinical service pricing schedules.",
-    matrix: { platform_owner: true, super_admin: true, clinic_branch_manager: false, doctor: false, receptionist: false },
-  },
-
-  // System & Security
-  {
-    module: "Security",
-    code: "security:audit_logs",
-    name: "View Security Audit Trail",
-    description: "Inspect immutable activity logs, IP tracking, and session revocations.",
-    matrix: { platform_owner: true, super_admin: true, clinic_branch_manager: false, doctor: false, receptionist: false },
-  },
-  {
-    module: "Security",
-    code: "security:revoke_sessions",
-    name: "Revoke Active Sessions",
-    description: "Force logout of workstations or invalidate user refresh tokens.",
-    matrix: { platform_owner: true, super_admin: true, clinic_branch_manager: false, doctor: false, receptionist: false },
-  },
-];
+};
 
 export default function AdminPermissionsPage() {
-  const [selectedRole, setSelectedRole] = useState<string>("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  const { accessToken } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
 
-  const filteredPermissions = PERMISSIONS_MATRIX.filter((item) => {
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const match =
-        item.name.toLowerCase().includes(q) ||
-        item.code.toLowerCase().includes(q) ||
-        item.module.toLowerCase().includes(q) ||
-        item.description.toLowerCase().includes(q);
-      if (!match) return false;
-    }
-    return true;
+  const [permissions, setPermissions] = useState<PermissionMatrixItem[]>([]);
+  const [matrix, setMatrix] = useState<Record<string, string[]>>({
+    Patient: [],
+    Receptionist: [],
+    Doctor: [],
+    Admin: [],
   });
 
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const loadMatrix = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const data: PermissionsMatrixData = await adminGetPermissions(accessToken);
+      setPermissions(data.permissions);
+      setMatrix(data.matrix);
+    } catch (err: any) {
+      setError(err.message || "Failed to load permissions matrix.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadMatrix();
+  }, [accessToken]);
+
+  const handleToggle = (role: string, permCode: string) => {
+    setMatrix((prev) => {
+      const currentList = prev[role] || [];
+      const isAssigned = currentList.includes(permCode);
+      const updatedList = isAssigned
+        ? currentList.filter((c) => c !== permCode)
+        : [...currentList, permCode];
+
+      return {
+        ...prev,
+        [role]: updatedList,
+      };
+    });
+    setSuccess(false);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError("");
+    setSuccess(false);
+    try {
+      const updated = await adminUpdatePermissions(matrix, accessToken);
+      setMatrix(updated.matrix);
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3500);
+    } catch (err: any) {
+      setError(err.message || "Failed to save permissions.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const filteredPermissions = permissions.filter(
+    (p) =>
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.module.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.description.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <div className="space-y-6 max-w-7xl">
+    <div className="space-y-6 max-w-6xl">
+      {/* Page Title & Save Action */}
       <div className="border-b border-line pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <p className="eyebrow mb-1">Access Control &amp; RBAC</p>
+          <p className="eyebrow mb-1">Access Control &amp; Security</p>
           <h1 className="text-2xl sm:text-3xl font-display text-ink font-semibold">
-            Role &amp; Permissions Matrix
+            Role &amp; Permissions Assignment Matrix
           </h1>
-          <p className="mt-1 text-xs sm:text-sm text-ink-soft">
-            Visual architectural map of the 5 platform roles and functional capability boundaries.
+          <p className="text-xs text-ink-soft mt-1">
+            Configure granular access privileges across the 4 primary platform roles. Changes sync to the database.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="rounded-xl border border-line bg-cream px-3 py-1.5 text-xs text-ink-soft flex items-center gap-2">
-            <Lock className="h-3.5 w-3.5 text-forest" />
-            <span className="font-mono uppercase font-bold text-[11px] text-ink">5 Active Platform Roles</span>
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={handleSave}
+            disabled={saving || loading}
+            variant="primary"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <Save className="h-4 w-4" />
+            <span>{saving ? "Saving..." : "Save Matrix Changes"}</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* Notifications */}
+      {error && (
+        <div className="rounded-xl bg-red-50 border border-red-200 p-3.5 text-xs text-red-700">
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3.5 text-xs text-emerald-800 flex items-center gap-2">
+          <Check className="h-4 w-4 text-emerald-600 shrink-0" />
+          <span>Role permissions matrix successfully saved and synced to the database!</span>
+        </div>
+      )}
+
+      {/* Role Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {ROLES.map((role) => {
+          const meta = ROLE_METADATA[role] || {
+            badge: "bg-gray-100 text-gray-800 border-gray-200",
+            description: "Platform role",
+          };
+          const assignedCount = matrix[role]?.length || 0;
+
+          return (
+            <Card key={role} surface="cream" shadow="subtle" className="p-4 rounded-2xl border border-line">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className={`px-2.5 py-0.5 rounded-full text-[10.5px] font-mono font-bold uppercase border ${meta.badge}`}>
+                  {role}
+                </span>
+                <span className="text-[11px] font-mono text-ink-soft">
+                  {assignedCount} / {permissions.length} active
+                </span>
+              </div>
+              <p className="text-xs text-ink-soft leading-relaxed line-clamp-2">
+                {meta.description}
+              </p>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Filter and Table Container */}
+      <Card surface="bone" shadow="card" className="rounded-2xl border border-line p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-xs text-ink-soft font-mono">
+            <ShieldCheck className="h-4 w-4 text-forest" />
+            <span>Interactive Assignment Grid ({permissions.length} Capabilities)</span>
           </div>
-        </div>
-      </div>
 
-      {/* Role Summary Badges */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-        {ROLES.map((r) => (
-          <Card
-            key={r.id}
-            surface="cream"
-            shadow="card"
-            className={`p-4 transition-all cursor-pointer ${
-              selectedRole === r.id ? "ring-2 ring-forest" : "hover:border-forest/50"
-            }`}
-            onClick={() => setSelectedRole(selectedRole === r.id ? "all" : r.id)}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className={`text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded-full border ${r.badgeColor}`}>
-                Role
-              </span>
-              <ShieldCheck className="h-3.5 w-3.5 text-forest opacity-70" />
-            </div>
-            <h3 className="text-xs font-bold text-ink mb-1 truncate">{r.name}</h3>
-            <p className="text-[11px] text-ink-soft line-clamp-3 leading-snug">
-              {r.description}
-            </p>
-          </Card>
-        ))}
-      </div>
-
-      {/* Role Filter & Search */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-sand/30 p-3 rounded-2xl border border-line">
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-          <button
-            onClick={() => setSelectedRole("all")}
-            className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-              selectedRole === "all"
-                ? "bg-forest text-white"
-                : "bg-white/80 dark:bg-black/30 text-ink-soft hover:text-ink"
-            }`}
-          >
-            All Roles Matrix
-          </button>
-          {ROLES.map((r) => (
-            <button
-              key={r.id}
-              onClick={() => setSelectedRole(r.id)}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-                selectedRole === r.id
-                  ? "bg-forest text-white"
-                  : "bg-white/80 dark:bg-black/30 text-ink-soft hover:text-ink"
-              }`}
-            >
-              {r.name}
-            </button>
-          ))}
+          <input
+            type="text"
+            placeholder="Search permissions or modules..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="rounded-lg border border-line bg-cream px-3 py-1.5 text-xs text-ink placeholder:text-ink-soft/60 focus:outline-none focus:ring-1 focus:ring-forest w-full sm:w-64"
+          />
         </div>
 
-        <input
-          type="text"
-          placeholder="Filter permissions..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="rounded-lg border border-line bg-white dark:bg-black/20 px-3 py-1.5 text-xs text-ink w-full sm:w-64"
-        />
-      </div>
-
-      {/* Permissions Matrix Table */}
-      <Card surface="cream" shadow="card" className="overflow-hidden border border-line">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-line bg-sand/40">
-                <th className="py-3 px-4 font-semibold text-ink uppercase tracking-wider text-[11px]">
-                  Capability / Code
-                </th>
-                <th className="py-3 px-4 font-semibold text-ink uppercase tracking-wider text-[11px] hidden md:table-cell">
-                  Module
-                </th>
-                {ROLES.filter((r) => selectedRole === "all" || selectedRole === r.id).map((r) => (
-                  <th
-                    key={r.id}
-                    className="py-3 px-4 font-semibold text-ink uppercase tracking-wider text-[11px] text-center"
-                  >
-                    {r.name}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line/60">
-              {filteredPermissions.map((item) => (
-                <tr key={item.code} className="hover:bg-sand/30 transition-colors">
-                  <td className="py-3 px-4">
-                    <p className="font-semibold text-ink text-xs">{item.name}</p>
-                    <p className="text-[11px] text-ink-soft">{item.description}</p>
-                    <code className="text-[10px] font-mono text-forest/80 dark:text-emerald-400 mt-0.5 block">
-                      {item.code}
-                    </code>
-                  </td>
-                  <td className="py-3 px-4 hidden md:table-cell">
-                    <span className="rounded-full bg-forest/10 px-2 py-0.5 text-[10px] font-mono font-semibold text-forest">
-                      {item.module}
-                    </span>
-                  </td>
-                  {ROLES.filter((r) => selectedRole === "all" || selectedRole === r.id).map((r) => {
-                    const hasAccess = item.matrix[r.id];
-                    return (
-                      <td key={r.id} className="py-3 px-4 text-center">
-                        {hasAccess ? (
-                          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
-                            <Check className="h-3.5 w-3.5 stroke-[2.5]" />
-                          </span>
-                        ) : (
-                          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-sand/60 text-ink-soft/40">
-                            <X className="h-3.5 w-3.5" />
-                          </span>
-                        )}
-                      </td>
-                    );
-                  })}
+        {loading ? (
+          <div className="py-16 text-center text-xs text-ink-soft font-mono">
+            Loading permissions matrix from database...
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-line bg-cream/70 text-[11px] font-mono uppercase tracking-wider text-ink-soft">
+                  <th className="py-3 px-4 font-semibold w-1/3">Permission Capability</th>
+                  <th className="py-3 px-4 font-semibold">Module</th>
+                  {ROLES.map((role) => (
+                    <th key={role} className="py-3 px-4 text-center font-semibold">
+                      {role}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-line/60 text-xs">
+                {filteredPermissions.map((perm) => {
+                  return (
+                    <tr key={perm.code} className="hover:bg-sand/20 transition-colors">
+                      <td className="py-3.5 px-4 align-top">
+                        <div className="font-medium text-ink">{perm.name}</div>
+                        <div className="text-[11px] text-ink-soft mt-0.5 leading-tight">
+                          {perm.description}
+                        </div>
+                        <code className="text-[9.5px] font-mono text-ink-soft/70 block mt-1">
+                          {perm.code}
+                        </code>
+                      </td>
+
+                      <td className="py-3.5 px-4 align-top">
+                        <span className="rounded-md bg-sand/60 px-2 py-0.5 text-[10px] font-mono text-ink font-medium">
+                          {perm.module}
+                        </span>
+                      </td>
+
+                      {ROLES.map((role) => {
+                        const isChecked = (matrix[role] || []).includes(perm.code);
+                        return (
+                          <td key={role} className="py-3.5 px-4 text-center align-middle">
+                            <label className="inline-flex items-center justify-center cursor-pointer p-1">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => handleToggle(role, perm.code)}
+                                className="h-4 w-4 rounded border-line text-forest focus:ring-forest cursor-pointer accent-[#1F3D34]"
+                              />
+                            </label>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
     </div>
   );

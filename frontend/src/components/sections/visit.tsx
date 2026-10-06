@@ -215,7 +215,7 @@ export function Visit() {
           {clinics.map((clinic) => (
             <div
               key={clinic.id}
-              className="w-full rounded-2xl border border-line/80 bg-white dark:bg-neutral-900 p-4 sm:p-6 shadow-sm hover:shadow-card transition-all duration-200"
+              className="w-full rounded-2xl border border-gray-200/90 bg-white p-4 sm:p-6 shadow-sm hover:shadow-md transition-all duration-200"
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                 {/* Left: Interior Clinic Photo + Middle: Clinic Details */}
@@ -224,28 +224,28 @@ export function Visit() {
                   <img
                     src={clinic.photoUrl}
                     alt={clinic.name}
-                    className="w-full sm:w-36 md:w-44 h-36 sm:h-28 rounded-xl object-cover shrink-0 shadow-sm border border-line/50"
+                    className="w-full sm:w-36 md:w-44 h-36 sm:h-28 rounded-xl object-cover shrink-0 shadow-sm border border-gray-200/60"
                     loading="lazy"
                   />
 
                   {/* Middle Info */}
                   <div className="space-y-1.5 min-w-0">
-                    <h3 className="font-display text-lg sm:text-xl font-bold text-ink leading-snug">
+                    <h3 className="font-display text-lg sm:text-xl font-bold text-gray-900 leading-snug">
                       {clinic.name}
                     </h3>
 
-                    <p className="flex items-start gap-1.5 text-xs sm:text-sm text-ink-soft">
+                    <p className="flex items-start gap-1.5 text-xs sm:text-sm text-gray-600">
                       <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                       <span>{clinic.address}</span>
                     </p>
 
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-soft pt-1">
-                      <span className="flex items-center gap-1">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600 pt-1">
+                      <span className="flex items-center gap-1 font-medium">
                         <Phone className="h-3 w-3 text-secondary" />
                         <span>{clinic.phone}</span>
                       </span>
-                      <span className="flex items-center gap-1 text-[11px]">
-                        <Clock className="h-3 w-3 text-ink-soft/70" />
+                      <span className="flex items-center gap-1 text-[11px] text-gray-500">
+                        <Clock className="h-3 w-3 text-gray-400" />
                         <span>{clinic.hours}</span>
                       </span>
                     </div>
@@ -253,7 +253,7 @@ export function Visit() {
                 </div>
 
                 {/* Right: Get Directions Link & Book Appointment Button */}
-                <div className="flex items-center sm:flex-col sm:items-end justify-between sm:justify-center gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-line/50">
+                <div className="flex items-center sm:flex-col sm:items-end justify-between sm:justify-center gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100">
                   <a
                     href={`https://www.google.com/maps/search/?api=1&query=${clinic.mapQuery}`}
                     target="_blank"
@@ -266,7 +266,7 @@ export function Visit() {
 
                   <Link
                     href={`/book?clinic=${clinic.id}`}
-                    className="inline-flex items-center justify-center rounded-full bg-ink text-[#FAF7F2] hover:bg-primary px-5 py-2.5 text-xs sm:text-sm font-semibold shadow-subtle hover:shadow-card hover:-translate-y-0.5 transition-all"
+                    className="inline-flex items-center justify-center rounded-full bg-[#151613] text-[#FAF7F2] hover:bg-primary px-5 py-2.5 text-xs sm:text-sm font-semibold shadow-subtle hover:shadow-card hover:-translate-y-0.5 transition-all"
                   >
                     <span>Book Appointment</span>
                     <ArrowRight className="h-3.5 w-3.5 ml-1.5" />

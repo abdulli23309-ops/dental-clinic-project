@@ -119,26 +119,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Floating Pill Left Sidebar (Desktop + Mobile Drawer) */}
       <aside
-        className={`fixed md:sticky top-4 z-50 md:z-30 h-[calc(100vh-2rem)] shrink-0 my-4 ml-4 flex flex-col justify-between bg-white border border-gray-100 rounded-3xl shadow-xl transition-all duration-300 ease-in-out ${
-          mobileOpen ? "left-4 w-64" : "-left-80 md:left-4"
-        } ${collapsed ? "md:w-20" : "w-64 md:w-64"}`}
+        className={`m-4 h-[calc(100vh-2rem)] rounded-[2.5rem] shadow-2xl bg-white flex flex-col transition-all duration-300 ease-in-out border border-gray-100 overflow-hidden shrink-0 fixed md:sticky top-0 z-50 md:z-30 ${
+          mobileOpen ? "left-0" : "-left-96 md:left-0"
+        } ${collapsed ? "w-24" : "w-64"}`}
       >
         {/* Top: Brand Header */}
         <div className={`p-4 border-b border-gray-100 flex items-center ${collapsed ? "justify-center" : "justify-between"}`}>
           <Link href="/admin" className="flex items-center gap-3 overflow-hidden" title="Marlow Dental CMS">
-            <div className="h-10 w-10 shrink-0 rounded-2xl bg-primary text-white grid place-items-center font-display font-bold text-lg shadow-md transition-transform hover:scale-105">
+            <div className="h-11 w-11 shrink-0 rounded-2xl bg-primary text-white grid place-items-center font-display font-bold text-lg shadow-md transition-transform hover:scale-105">
               M
             </div>
-            {!collapsed && (
-              <div className="truncate">
-                <span className="font-display text-sm font-bold text-gray-900 block leading-tight tracking-tight">
-                  Marlow Dental
-                </span>
-                <span className="text-[10px] font-mono text-gray-500 block uppercase tracking-wider">
-                  Organization CMS
-                </span>
-              </div>
-            )}
+            <div className={`truncate transition-opacity duration-300 ${collapsed ? "opacity-0 hidden" : "opacity-100 flex flex-col"}`}>
+              <span className="font-display text-sm font-bold text-gray-900 block leading-tight tracking-tight">
+                Marlow Dental
+              </span>
+              <span className="text-[10px] font-mono text-gray-500 block uppercase tracking-wider">
+                Organization CMS
+              </span>
+            </div>
           </Link>
 
           {/* Close button on mobile */}
@@ -166,7 +164,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 title={item.label}
                 className={`flex items-center rounded-full text-xs font-medium transition-all duration-300 ease-in-out ${
                   collapsed
-                    ? "h-11 w-11 justify-center p-0"
+                    ? "h-12 w-12 justify-center p-0"
                     : "gap-3.5 px-4 py-3 w-full"
                 } ${
                   isActive
@@ -174,15 +172,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                 }`}
               >
-                <Icon className={`h-4 w-4 shrink-0 transition-colors ${isActive ? "text-white" : "text-primary"}`} />
-                {!collapsed && <span className="truncate">{item.label}</span>}
+                <Icon className={`h-5 w-5 shrink-0 transition-colors ${isActive ? "text-white" : "text-primary"}`} />
+                <span className={`truncate transition-opacity duration-300 ${collapsed ? "opacity-0 hidden" : "opacity-100 flex"}`}>
+                  {item.label}
+                </span>
               </Link>
             );
           })}
         </nav>
 
         {/* Bottom: User Info & Controls */}
-        <div className="p-3.5 border-t border-gray-100 space-y-2 bg-gray-50/60 rounded-b-3xl">
+        <div className="p-3.5 border-t border-gray-100 space-y-2 bg-gray-50/60 rounded-b-[2.5rem]">
           <div
             title={`${user.fullName} (${user.role})`}
             className={`flex items-center rounded-2xl bg-white border border-gray-100 shadow-xs ${
@@ -192,16 +192,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div className="h-9 w-9 shrink-0 rounded-full bg-primary/10 text-primary grid place-items-center text-xs font-bold">
               {user.fullName.slice(0, 2).toUpperCase()}
             </div>
-            {!collapsed && (
-              <div className="truncate flex-1 min-w-0">
-                <p className="text-xs font-semibold text-gray-900 truncate leading-tight">
-                  {user.fullName}
-                </p>
-                <p className="text-[10px] text-primary truncate uppercase font-mono tracking-wider font-semibold">
-                  {user.role}
-                </p>
-              </div>
-            )}
+            <div className={`truncate flex-1 min-w-0 transition-opacity duration-300 ${collapsed ? "opacity-0 hidden" : "opacity-100 flex flex-col"}`}>
+              <p className="text-xs font-semibold text-gray-900 truncate leading-tight">
+                {user.fullName}
+              </p>
+              <p className="text-[10px] text-primary truncate uppercase font-mono tracking-wider font-semibold">
+                {user.role}
+              </p>
+            </div>
           </div>
 
           <div className={`flex items-center ${collapsed ? "flex-col gap-2 pt-1" : "justify-between pt-1"}`}>
@@ -209,28 +207,30 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <button
               onClick={() => setCollapsed(!collapsed)}
               title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              className="hidden md:inline-flex p-2 rounded-full border border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-white shadow-xs transition-colors"
+              className="hidden md:inline-flex p-2 rounded-full border border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-white shadow-xs transition-colors cursor-pointer"
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
             </button>
 
-            {!collapsed && (
-              <Link
-                href="/"
-                target="_blank"
-                title="View live website"
-                className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 px-3 py-1.5 rounded-full hover:bg-white shadow-xs transition-colors"
-              >
-                <span>Live Site</span>
-                <ExternalLink className="h-3 w-3" />
-              </Link>
-            )}
+            <Link
+              href="/"
+              target="_blank"
+              title="View live website"
+              className={`transition-opacity duration-300 ${
+                collapsed
+                  ? "opacity-0 hidden"
+                  : "opacity-100 inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 px-3 py-1.5 rounded-full hover:bg-white shadow-xs transition-colors"
+              }`}
+            >
+              <span>Live Site</span>
+              <ExternalLink className="h-3 w-3" />
+            </Link>
 
             <button
               onClick={() => logout()}
               title="Sign out"
-              className="p-2 rounded-full border border-gray-200 text-gray-500 hover:text-red-600 hover:bg-red-50 shadow-xs transition-colors"
+              className="p-2 rounded-full border border-gray-200 text-gray-500 hover:text-red-600 hover:bg-red-50 shadow-xs transition-colors cursor-pointer"
               aria-label="Sign out"
             >
               <LogOut className="h-4 w-4" />

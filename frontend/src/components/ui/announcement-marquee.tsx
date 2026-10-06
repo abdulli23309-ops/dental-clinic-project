@@ -1,48 +1,66 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { usePublicContent } from "@/components/providers/public-content-provider";
-
-const DEFAULT_ANNOUNCEMENTS = [
-  { id: "def-1", content: "Now welcoming new patients across all nationwide clinic branches" },
-  { id: "def-2", content: "Same-day emergency dental relief available · Call your nearest clinic" },
-  { id: "def-3", content: "100% upfront fee transparency with zero hidden facility surcharges" },
-  { id: "def-4", content: "Advanced 3D digital imaging & quiet single-operatory suites" },
-];
+import { getOfficeStatus, OfficeStatus } from "@/lib/utils";
 
 export function AnnouncementMarquee() {
-  const { announcements } = usePublicContent();
+  const { announcements, content, primaryLocation } = usePublicContent();
+  const [status, setStatus] = useState<OfficeStatus>({
+    isOpen: true,
+    statusText: "Open Now",
+    nextEventText: "",
+  });
 
-  const activeItems = announcements && announcements.filter((a) => a.isActive).length > 0
-    ? announcements.filter((a) => a.isActive)
-    : DEFAULT_ANNOUNCEMENTS;
+  useEffect(() => {
+    setStatus(getOfficeStatus());
+  }, []);
 
-  // Duplicate items to form a seamless infinite loop from 0% to -50%
-  const tickerItems = [...activeItems, ...activeItems];
+  const phone = content.general?.phone || primaryLocation?.phone || "(312) 555-0147";
+  const hoursText = primaryLocation?.hoursInfo || "Mon – Thu: 8:00 AM – 6:00 PM · Fri: 8:00 AM – 2:00 PM";
+
+  const dbItems = announcements && announcements.filter((a) => a.isActive).length > 0
+    ? announcements.filter((a) => a.isActive).map((a) => a.content)
+    : [
+        "Now welcoming new patients across all nationwide clinic branches",
+        "100% upfront fee transparency with zero hidden facility surcharges",
+        "Same-day emergency dental relief & reserved triage appointments available",
+      ];
+
+  const combinedItems = [
+    `${status.statusText} (${status.nextEventText || "Walk-ins welcome"})`,
+    `Call Clinic: ${phone}`,
+    ...dbItems,
+    `Clinic Hours: ${hoursText.replace(/\n/g, " · ")}`,
+  ];
+
+  // Duplicate list to form a seamless infinite loop from 0% to -50%
+  const tickerItems = [...combinedItems, ...combinedItems];
 
   return (
     <div
       role="region"
-      aria-label="Practice Announcements"
-      className="relative z-30 w-full overflow-hidden bg-transparent border-b border-line/40 py-2.5 text-xs select-none"
+      aria-label="Practice Announcements and Status"
+      className="relative z-30 w-full overflow-hidden bg-transparent border-b border-line/40 py-2 text-xs select-none"
     >
       <div className="flex w-full overflow-hidden">
         <motion.div
-          className="flex shrink-0 items-center gap-12 whitespace-nowrap"
+          className="flex shrink-0 items-center gap-10 whitespace-nowrap"
           animate={{ x: ["0%", "-50%"] }}
           transition={{
             repeat: Infinity,
             ease: "linear",
-            duration: Math.max(25, tickerItems.length * 5),
+            duration: Math.max(30, tickerItems.length * 6),
           }}
         >
-          {tickerItems.map((item, idx) => (
+          {tickerItems.map((text, idx) => (
             <div
-              key={`${item.id}-${idx}`}
-              className="inline-flex items-center gap-3 text-ink/80 text-[12.5px] font-medium tracking-wide"
+              key={`${idx}-${text}`}
+              className="inline-flex items-center gap-3 text-ink/85 text-[12px] font-medium tracking-wide"
             >
-              <span className="text-secondary font-bold text-sm">✦</span>
-              <span>{item.content}</span>
+              <span className="text-secondary font-bold text-xs">✦</span>
+              <span>{text}</span>
             </div>
           ))}
         </motion.div>

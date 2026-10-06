@@ -170,27 +170,29 @@ export default function AdminSettingsPage() {
         </div>
 
         {/* Tab Controls */}
-        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-sand/60 border border-line w-fit">
+        <div className="bg-gray-100 p-1 rounded-full inline-flex border border-gray-200/80 gap-1 w-fit shadow-inner">
           <button
+            type="button"
             onClick={() => setActiveTab("account")}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs sm:text-sm transition-all duration-200 cursor-pointer ${
               activeTab === "account"
-                ? "bg-white dark:bg-black text-ink shadow-sm"
-                : "text-ink-soft hover:text-ink"
+                ? "bg-white shadow-md text-primary font-semibold"
+                : "text-gray-600 hover:text-gray-900 font-medium"
             }`}
           >
-            <Shield className="h-3.5 w-3.5" />
+            <Shield className="h-4 w-4" />
             <span>Account &amp; Security</span>
           </button>
           <button
+            type="button"
             onClick={() => setActiveTab("appearance")}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs sm:text-sm transition-all duration-200 cursor-pointer ${
               activeTab === "appearance"
-                ? "bg-white dark:bg-black text-ink shadow-sm"
-                : "text-ink-soft hover:text-ink"
+                ? "bg-white shadow-md text-primary font-semibold"
+                : "text-gray-600 hover:text-gray-900 font-medium"
             }`}
           >
-            <Palette className="h-3.5 w-3.5" />
+            <Palette className="h-4 w-4" />
             <span>Appearance &amp; Theming</span>
           </button>
         </div>

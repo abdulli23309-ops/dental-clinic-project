@@ -9,6 +9,7 @@ import { SearchDialog } from "@/components/ui/search-dialog";
 import { MobileMenu } from "@/components/layout/mobile-menu";
 import { getOfficeStatus, OfficeStatus } from "@/lib/utils";
 import { usePublicContent } from "@/components/providers/public-content-provider";
+import { AnnouncementMarquee } from "@/components/ui/announcement-marquee";
 
 const NAV_LINKS = [
   { label: "Treatments & Fees", href: "/#services" },
@@ -78,35 +79,8 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
         Skip to main content
       </a>
 
-      {/* Top Utility Announcement Bar */}
-      {!isMinimal && (
-        <div className="hidden border-b border-line/40 bg-forest-deep text-[#FAF7F2]/80 md:block">
-          <div className="container-x flex h-8 items-center justify-between text-[11.5px] tracking-wide">
-            <div className="flex items-center gap-3">
-              <span className="flex items-center gap-1.5 font-medium text-[#FAF7F2]">
-                <span
-                  className={`inline-block h-2 w-2 rounded-full ${
-                    status.isOpen ? "bg-emerald-400" : "bg-amber-400"
-                  }`}
-                />
-                {status.statusText} ({status.nextEventText})
-              </span>
-              <span className="text-white/30">|</span>
-              <span>Accepting new patients. Same-week openings.</span>
-            </div>
-            <div className="flex items-center gap-6">
-              <span>{hoursText}</span>
-              <a
-                href={`tel:${cleanPhone}`}
-                className="flex items-center gap-1 text-[#FAF7F2]/90 hover:text-white transition-colors"
-              >
-                <Phone className="h-3 w-3 text-clay" />
-                <span>{phone}</span>
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Single Dynamic Top Marquee Strip */}
+      {!isMinimal && <AnnouncementMarquee />}
 
       {/* Main Sticky Header */}
       <header

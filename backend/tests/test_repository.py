@@ -39,8 +39,6 @@ async def test_repository_save_and_retrieve(db_session: AsyncSession):
         patient_full_name="Jane Alvarez",
         patient_phone="(312) 555-0100",
         patient_email="jane@example.com",
-        has_insurance=True,
-        insurance_provider="Delta Dental PPO",
         notes="Slight molar sensitivity",
         utm_source="google",
         utm_campaign="lincoln-park",
@@ -57,8 +55,6 @@ async def test_repository_save_and_retrieve(db_session: AsyncSession):
     assert retrieved is not None
     assert retrieved.id == appointment.id
     assert retrieved.patient_full_name == "Jane Alvarez"
-    assert retrieved.has_insurance is True
-    assert retrieved.insurance_provider == "Delta Dental PPO"
 
     # Retrieve by UUID
     retrieved_by_id = await repo.get_by_id(appointment.id)

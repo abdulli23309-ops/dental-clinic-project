@@ -81,8 +81,6 @@ function BookingWizard() {
     name: "",
     phone: "",
     email: "",
-    hasInsurance: false,
-    insuranceProvider: "",
     notes: "",
   });
 
@@ -191,8 +189,6 @@ function BookingWizard() {
       fullName: form.name,
       phone: form.phone,
       email: form.email,
-      hasInsurance: form.hasInsurance,
-      insuranceProvider: form.insuranceProvider,
       notes: form.notes,
       utmSource: utms.utm_source,
       utmCampaign: utms.utm_campaign,
@@ -508,37 +504,6 @@ function BookingWizard() {
                       />
                     </div>
 
-                    {/* Insurance option */}
-                    <div className="rounded-[var(--radius-card)] border border-line bg-cream/50 p-4 space-y-3">
-                      <label className="flex items-center gap-2 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={form.hasInsurance}
-                          onChange={(e) =>
-                            setForm({ ...form, hasInsurance: e.target.checked })
-                          }
-                          className="h-4 w-4 rounded border-line text-forest focus:ring-forest"
-                        />
-                        <span className="text-sm font-medium text-ink">
-                          I plan to use Dental PPO Insurance
-                        </span>
-                      </label>
-
-                      {form.hasInsurance && (
-                        <div className="pt-1">
-                          <TextField
-                            id="patient-insurance"
-                            label="Insurance Provider Name"
-                            value={form.insuranceProvider}
-                            placeholder="e.g. Delta Dental PPO, Cigna, MetLife"
-                            helpText="We will check your benefits before your visit and provide an estimate."
-                            onChange={(e) =>
-                              setForm({ ...form, insuranceProvider: e.target.value })
-                            }
-                          />
-                        </div>
-                      )}
-                    </div>
 
                     {/* Clinical Notes */}
                     <TextField
@@ -607,11 +572,7 @@ function BookingWizard() {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-ink-soft">Payment / Billing:</span>
-                      <strong className="text-ink">
-                        {form.hasInsurance
-                          ? `PPO Insurance (${form.insuranceProvider || "Provided chairside"})`
-                          : "Transparent Cash Fee Schedule"}
-                      </strong>
+                      <strong className="text-ink">Transparent Fee Schedule</strong>
                     </div>
                     {form.notes && (
                       <div className="pt-3 border-t border-line/60 text-xs">

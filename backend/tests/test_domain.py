@@ -15,8 +15,6 @@ def test_appointment_domain_creation_and_defaults():
     )
     assert isinstance(apt.id, UUID)
     assert apt.status == AppointmentStatus.REQUESTED
-    assert apt.has_insurance is False
-    assert apt.insurance_provider is None
     assert apt.created_at is not None
     assert apt.updated_at is not None
 

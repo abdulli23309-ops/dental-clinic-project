@@ -1,198 +1,327 @@
 "use client";
 
-import { motion } from "motion/react";
-import { Award, GraduationCap, ShieldCheck, Users } from "lucide-react";
+import { useState, useRef } from "react";
+import { ChevronLeft, ChevronRight, User } from "lucide-react";
 import { SectionHeading } from "@/components/ui/section-heading";
-import { usePublicContent } from "@/components/providers/public-content-provider";
+
+interface DemoDoctor {
+  id: string;
+  name: string;
+  credentials: string;
+  title: string;
+  city: string;
+  photoUrl: string;
+}
+
+const CITIES = [
+  "Lahore",
+  "Rawalpindi",
+  "Islamabad",
+  "Karachi",
+  "Peshawar",
+  "Faisalabad",
+  "Multan",
+];
+
+const DOCTOR_DATA: Record<string, DemoDoctor[]> = {
+  Lahore: [
+    {
+      id: "lhr-1",
+      name: "Dr. Kinza Siddique",
+      credentials: "BDS, C-Ortho UK",
+      title: "General Dentist & Clinical Executive",
+      city: "Lahore",
+      photoUrl: "https://images.unsplash.com/photo-1594824813639-65fe002495d4?q=80&w=800&auto=format&fit=crop",
+    },
+    {
+      id: "lhr-2",
+      name: "Dr. Ayesha Mansha",
+      credentials: "BDS, RDS (Gold Medalist)",
+      title: "Clinical Executive & Aesthetic Specialist",
+      city: "Lahore",
+      photoUrl: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80&w=800&auto=format&fit=crop",
+    },
+    {
+      id: "lhr-3",
+      name: "Dr. Hamza Tariq",
+      credentials: "BDS, FCPS (Orthodontics)",
+      title: "Consultant Orthodontist",
+      city: "Lahore",
+      photoUrl: "https://images.unsplash.com/photo-1622253692010-333f2da6031d?q=80&w=800&auto=format&fit=crop",
+    },
+    {
+      id: "lhr-4",
+      name: "Dr. Mahnoor Khan",
+      credentials: "BDS, MSc Oral Surgery",
+      title: "Restorative Dental Surgeon",
+      city: "Lahore",
+      photoUrl: "https://images.unsplash.com/photo-1651008376811-b90baee60c1f?q=80&w=800&auto=format&fit=crop",
+    },
+  ],
+  Rawalpindi: [
+    {
+      id: "rwp-1",
+      name: "Dr. Zeeshan Haider",
+      credentials: "BDS, RDS",
+      title: "Senior Dental Surgeon",
+      city: "Rawalpindi",
+      photoUrl: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?q=80&w=800&auto=format&fit=crop",
+    },
+    {
+      id: "rwp-2",
+      name: "Dr. Sara Farooq",
+      credentials: "BDS, C-Implantology",
+      title: "Periodontics & Implant Associate",
+      city: "Rawalpindi",
+      photoUrl: "https://images.unsplash.com/photo-1594824813639-65fe002495d4?q=80&w=800&auto=format&fit=crop",
+    },
+    {
+      id: "rwp-3",
+      name: "Dr. Bilal Aslam",
+      credentials: "BDS, RDS",
+      title: "Clinical Executive",
+      city: "Rawalpindi",
+      photoUrl: "https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80&w=800&auto=format&fit=crop",
+    },
+  ],
+  Islamabad: [
+    {
+      id: "isb-1",
+      name: "Dr. Zainab Malik",
+      credentials: "BDS, M.Phil Oral Biology",
+      title: "Aesthetic & Restorative Clinician",
+      city: "Islamabad",
+      photoUrl: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80&w=800&auto=format&fit=crop",
+    },
+    {
+      id: "isb-2",
+      name: "Dr. Usman Rasheed",
+      credentials: "BDS, FCPS (Orthodontics)",
+      title: "Lead Orthodontics Consultant",
+      city: "Islamabad",
+      photoUrl: "https://images.unsplash.com/photo-1622253692010-333f2da6031d?q=80&w=800&auto=format&fit=crop",
+    },
+    {
+      id: "isb-3",
+      name: "Dr. Sana Javed",
+      credentials: "BDS, RDS",
+      title: "Pediatric & Preventive Specialist",
+      city: "Islamabad",
+      photoUrl: "https://images.unsplash.com/photo-1651008376811-b90baee60c1f?q=80&w=800&auto=format&fit=crop",
+    },
+  ],
+  Karachi: [
+    {
+      id: "khi-1",
+      name: "Dr. Farhan Siddiqui",
+      credentials: "BDS, MSc Prosthodontics (UK)",
+      title: "Clinical Director",
+      city: "Karachi",
+      photoUrl: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?q=80&w=800&auto=format&fit=crop",
+    },
+    {
+      id: "khi-2",
+      name: "Dr. Mariam Qureshi",
+      credentials: "BDS, RDS",
+      title: "Cosmetic Dentist",
+      city: "Karachi",
+      photoUrl: "https://images.unsplash.com/photo-1594824813639-65fe002495d4?q=80&w=800&auto=format&fit=crop",
+    },
+    {
+      id: "khi-3",
+      name: "Dr. Ali Raza",
+      credentials: "BDS, C-Endo",
+      title: "Endodontic Surgeon",
+      city: "Karachi",
+      photoUrl: "https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80&w=800&auto=format&fit=crop",
+    },
+  ],
+  Peshawar: [
+    {
+      id: "psh-1",
+      name: "Dr. Tariq Afridi",
+      credentials: "BDS, RDS",
+      title: "Senior Dental Surgeon",
+      city: "Peshawar",
+      photoUrl: "https://images.unsplash.com/photo-1622253692010-333f2da6031d?q=80&w=800&auto=format&fit=crop",
+    },
+    {
+      id: "psh-2",
+      name: "Dr. Gulalai Khattak",
+      credentials: "BDS, C-Ortho",
+      title: "General Dentist & Orthodontic Associate",
+      city: "Peshawar",
+      photoUrl: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80&w=800&auto=format&fit=crop",
+    },
+  ],
+  Faisalabad: [
+    {
+      id: "fsd-1",
+      name: "Dr. Ahmad Hassan",
+      credentials: "BDS, RDS",
+      title: "General Dentist",
+      city: "Faisalabad",
+      photoUrl: "https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80&w=800&auto=format&fit=crop",
+    },
+    {
+      id: "fsd-2",
+      name: "Dr. Hira Chaudhry",
+      credentials: "BDS, C-Aesthetics",
+      title: "Restorative Specialist",
+      city: "Faisalabad",
+      photoUrl: "https://images.unsplash.com/photo-1594824813639-65fe002495d4?q=80&w=800&auto=format&fit=crop",
+    },
+  ],
+  Multan: [
+    {
+      id: "mul-1",
+      name: "Dr. Saad Qureshi",
+      credentials: "BDS, RDS",
+      title: "Clinical Executive",
+      city: "Multan",
+      photoUrl: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?q=80&w=800&auto=format&fit=crop",
+    },
+    {
+      id: "mul-2",
+      name: "Dr. Nida Fatima",
+      credentials: "BDS, RDS",
+      title: "Aesthetic Dentist",
+      city: "Multan",
+      photoUrl: "https://images.unsplash.com/photo-1651008376811-b90baee60c1f?q=80&w=800&auto=format&fit=crop",
+    },
+  ],
+};
 
 export function Doctor() {
-  const { content, director, team } = usePublicContent();
+  const [selectedCity, setSelectedCity] = useState<string>("Lahore");
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const practiceName = content.general?.practiceName || "Marlow Dental";
-  const aboutTitle = content.about?.title || "Unhurried, conservative dental excellence.";
-  const aboutStory =
-    content.about?.storyParagraphs && content.about.storyParagraphs.length > 0
-      ? content.about.storyParagraphs
-      : [
-          director.biography ||
-            "Our clinicians provide patient-first continuity from initial checkup to treatment completion.",
-          "When you sit in our chair, we will never recommend aggressive interventions or unnecessary procedures. If a tooth can be maintained conservatively with diligent care, that is exactly what we advise.",
-        ];
+  const doctors = DOCTOR_DATA[selectedCity] || DOCTOR_DATA["Lahore"];
 
-  // Other doctors/specialists on the team besides the Director
-  const associateTeam = team.filter((m) => m.id !== director.id && m.isActive);
+  const scrollLeft = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: -320, behavior: "smooth" });
+    }
+  };
+
+  const scrollRight = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: 320, behavior: "smooth" });
+    }
+  };
 
   return (
-    <section id="about" className="border-t border-line bg-forest-deep text-[#FAF7F2] py-20 md:py-28">
-      <div className="container-x space-y-16">
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-16 items-center">
-          {/* Portrait & Credentials Column - 5 cols */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
-            transition={{ duration: 0.45 }}
-            className="lg:col-span-5 space-y-6"
-          >
-            <div className="relative aspect-[4/5] overflow-hidden rounded-[var(--radius-card)] border border-white/10 bg-forest shadow-elevated">
-              <img
-                src={
-                  director.photoUrl ||
-                  "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80&w=1200&auto=format&fit=crop"
-                }
-                alt={`${director.displayName} at ${practiceName}`}
-                className="h-full w-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-forest-deep/80 via-transparent to-transparent pointer-events-none" />
-              <div className="absolute bottom-4 left-4 right-4 text-white">
-                <span className="inline-block rounded-full bg-forest/80 backdrop-blur-sm px-2.5 py-0.5 text-[10px] font-semibold text-emerald-300 uppercase tracking-wider mb-1">
-                  {director.role || "Clinical Director"}
-                </span>
-                <p className="font-display text-lg">{director.displayName}</p>
-                <p className="text-xs text-white/70">{director.professionalTitle}</p>
-              </div>
-            </div>
-
-            {/* Licensure Box */}
-            <div className="rounded-[var(--radius-card)] border border-white/10 bg-white/5 p-4 text-xs text-[#FAF7F2]/80 space-y-2">
-              <div className="flex items-center gap-2 text-white font-medium">
-                <ShieldCheck className="h-4 w-4 text-emerald-400" />
-                <span>State Licensure &amp; Clinical Standing</span>
-              </div>
-              <p>
-                {director.licenseState || "Illinois"} Dental License:{" "}
-                <strong className="text-white font-mono">
-                  {director.licenseNumber || "Active & Verified"}
-                </strong>
-              </p>
-              <p className="text-[11px] text-white/60">
-                {content.about?.licensureText ||
-                  "Active DEA Registration. BLS and CPR Certified. Chicago Dental Society member."}
-              </p>
-            </div>
-          </motion.div>
-
-          {/* Bio & Clinical Ethics - 7 cols */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
-            transition={{ duration: 0.45, delay: 0.1 }}
-            className="lg:col-span-7 space-y-6"
-          >
+    <section id="team" className="border-t border-line bg-bone py-20 md:py-28 overflow-hidden">
+      <div className="container-x space-y-10">
+        {/* Section Header */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div>
             <SectionHeading
-              theme="dark"
-              eyebrow={content.about?.eyebrow || "Clinical Leadership"}
-              title={<>{aboutTitle}</>}
+              eyebrow="Clinical Specialists"
+              title={
+                <>
+                  Meet Our Team
+                  <br />
+                  &amp; Dental Experts
+                </>
+              }
             />
-
-            <div className="space-y-4 text-[15px] sm:text-[16px] leading-[1.75] text-[#FAF7F2]/85 font-normal">
-              {aboutStory.map((paragraph, idx) => (
-                <p key={idx}>{paragraph}</p>
-              ))}
-            </div>
-
-            {/* Verified Clinical Credentials Grid */}
-            <div className="pt-6 border-t border-white/15 grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs text-[#FAF7F2]/80">
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2 text-white font-semibold">
-                  <GraduationCap className="h-4 w-4 text-clay" />
-                  <span>Clinical Education</span>
-                </div>
-                <p>{director.education || "Doctor of Dental Surgery"}</p>
-                {director.credentials && (
-                  <p className="font-mono text-emerald-300">Credentials: {director.credentials}</p>
-                )}
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2 text-white font-semibold">
-                  <Award className="h-4 w-4 text-clay" />
-                  <span>Focus &amp; Specialties</span>
-                </div>
-                {director.specialties && director.specialties.length > 0 ? (
-                  <ul className="space-y-0.5">
-                    {director.specialties.map((spec, i) => (
-                      <li key={i} className="flex items-center gap-1.5">
-                        <span className="h-1 w-1 rounded-full bg-clay" />
-                        <span>{spec}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p>Comprehensive Preventive &amp; Restorative Dentistry</p>
-                )}
-              </div>
-            </div>
-          </motion.div>
+          </div>
+          <p className="max-w-md text-sm leading-relaxed text-ink-soft">
+            Our experienced dental surgeons, clinical executives, and orthodontic specialists provide comprehensive, gentle care across all nationwide clinics.
+          </p>
         </div>
 
-        {/* Clinical Medical Group Roster (Multi-Doctor Complex Support) */}
-        {associateTeam.length > 0 && (
-          <div className="pt-12 border-t border-white/10 space-y-6">
-            <div className="flex items-center gap-2 text-emerald-400">
-              <Users className="h-4 w-4" />
-              <p className="eyebrow tracking-widest text-[11px] text-emerald-300 uppercase">
-                Clinical Medical Complex Team
-              </p>
-            </div>
-            <h3 className="font-display text-2xl text-white">
-              Practitioners &amp; Dental Specialists
-            </h3>
+        {/* City Pill Tabs */}
+        <div className="border-b border-line pb-4 flex items-center gap-2 overflow-x-auto scrollbar-none">
+          {CITIES.map((city) => {
+            const isSelected = selectedCity === city;
+            return (
+              <button
+                key={city}
+                onClick={() => setSelectedCity(city)}
+                className={`rounded-full px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
+                  isSelected
+                    ? "bg-primary text-white shadow-subtle font-semibold"
+                    : "bg-cream text-ink-soft hover:text-ink hover:bg-sand/60 border border-line"
+                }`}
+              >
+                {city}
+              </button>
+            );
+          })}
+        </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {associateTeam.map((member) => (
-                <div
-                  key={member.id}
-                  className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4 hover:border-white/20 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    {member.photoUrl ? (
+        {/* Cards Row with Navigation Arrows */}
+        <div className="relative">
+          {/* Left Arrow */}
+          <button
+            onClick={scrollLeft}
+            aria-label="Previous doctors"
+            className="hidden md:grid absolute -left-5 top-1/2 -translate-y-1/2 z-20 h-11 w-11 rounded-full border border-line bg-white/95 dark:bg-black/90 shadow-md text-ink hover:bg-sand/40 hover:scale-105 active:scale-95 transition-all place-items-center cursor-pointer"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+
+          {/* Right Arrow */}
+          <button
+            onClick={scrollRight}
+            aria-label="Next doctors"
+            className="hidden md:grid absolute -right-5 top-1/2 -translate-y-1/2 z-20 h-11 w-11 rounded-full border border-line bg-white/95 dark:bg-black/90 shadow-md text-ink hover:bg-sand/40 hover:scale-105 active:scale-95 transition-all place-items-center cursor-pointer"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+
+          {/* Horizontally Scrollable Row of Vertical Doctor Cards */}
+          <div
+            ref={scrollRef}
+            className="flex gap-6 overflow-x-auto pb-4 scrollbar-thin snap-x snap-mandatory px-1"
+          >
+            {doctors.map((doc) => (
+              <div
+                key={doc.id}
+                className="w-[260px] sm:w-[280px] shrink-0 snap-start"
+              >
+                {/* Vertical Card with Light Gray Background */}
+                <div className="h-full rounded-2xl border border-line/80 bg-[#F8F9FA] dark:bg-white/5 p-4 flex flex-col items-center text-center shadow-subtle hover:shadow-card hover:-translate-y-1 transition-all duration-200">
+                  {/* Doctor Image */}
+                  <div className="w-full aspect-[4/5] rounded-xl overflow-hidden bg-gray-200 dark:bg-neutral-800 mb-4 relative shadow-sm">
+                    {doc.photoUrl ? (
                       <img
-                        src={member.photoUrl}
-                        alt={member.displayName}
-                        className="h-14 w-14 rounded-xl object-cover border border-white/10 shrink-0"
+                        src={doc.photoUrl}
+                        alt={doc.name}
+                        className="w-full h-full object-cover object-top"
+                        loading="lazy"
                       />
                     ) : (
-                      <div className="h-14 w-14 rounded-xl bg-forest text-emerald-200 grid place-items-center font-display text-lg shrink-0">
-                        {member.firstName[0]}
-                        {member.lastName[0]}
+                      <div className="w-full h-full grid place-items-center text-gray-400">
+                        <User className="h-12 w-12" />
                       </div>
                     )}
-                    <div>
-                      <span className="rounded-full bg-emerald-950/80 border border-emerald-800 text-emerald-300 px-2 py-0.5 text-[9.5px] font-semibold uppercase">
-                        {member.role}
-                      </span>
-                      <h4 className="font-display text-base text-white mt-1">
-                        {member.displayName}
-                      </h4>
-                      <p className="text-xs text-white/60">{member.professionalTitle}</p>
-                    </div>
                   </div>
 
-                  {member.biography && (
-                    <p className="text-xs text-white/70 line-clamp-3 leading-relaxed">
-                      {member.biography}
-                    </p>
-                  )}
-
-                  {member.specialties && member.specialties.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pt-2 border-t border-white/10">
-                      {member.specialties.map((s, idx) => (
-                        <span
-                          key={idx}
-                          className="rounded bg-white/5 px-2 py-0.5 text-[10px] text-white/80"
-                        >
-                          {s}
-                        </span>
-                      ))}
+                  {/* Doctor Info */}
+                  <div className="space-y-1.5 flex-1 flex flex-col justify-between w-full">
+                    <div>
+                      <h3 className="font-display text-base sm:text-lg font-bold text-ink leading-snug">
+                        {doc.name}
+                      </h3>
+                      <p className="text-xs font-semibold text-secondary uppercase tracking-wider mt-0.5">
+                        {doc.credentials}
+                      </p>
                     </div>
-                  )}
+
+                    <div className="pt-2 border-t border-line/50">
+                      <p className="text-xs text-ink-soft font-medium leading-relaxed">
+                        {doc.title}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
-        )}
+        </div>
       </div>
     </section>
   );

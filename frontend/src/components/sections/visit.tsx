@@ -1,240 +1,280 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { motion } from "motion/react";
-import { Car, Train, Clock, Phone, Mail, MapPin } from "lucide-react";
-import { CopyButton } from "@/components/ui/copy-button";
-import { Card } from "@/components/ui/card";
-import { getOfficeStatus, OfficeStatus } from "@/lib/utils";
-import { usePublicContent } from "@/components/providers/public-content-provider";
+import { useState } from "react";
+import Link from "next/link";
+import { ArrowRight, Clock, MapPin, Navigation, Phone } from "lucide-react";
+import { SectionHeading } from "@/components/ui/section-heading";
 
-const DEFAULT_SCHEDULE = [
-  { day: "Monday", hours: "8:00 AM to 6:00 PM" },
-  { day: "Tuesday", hours: "8:00 AM to 6:00 PM" },
-  { day: "Wednesday", hours: "8:00 AM to 6:00 PM" },
-  { day: "Thursday", hours: "8:00 AM to 6:00 PM" },
-  { day: "Friday", hours: "8:00 AM to 2:00 PM" },
-  { day: "Saturday", hours: "9:00 AM to 1:00 PM" },
-  { day: "Sunday", hours: "Closed" },
+interface DemoClinic {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  phone: string;
+  hours: string;
+  photoUrl: string;
+  mapQuery: string;
+}
+
+const CITIES = [
+  "Lahore",
+  "Rawalpindi",
+  "Islamabad",
+  "Karachi",
+  "Peshawar",
+  "Faisalabad",
+  "Multan",
 ];
 
-/**
- * Renders office locations, transit directions, parking availability, and weekly hours.
- * Dynamically populated from CMS and multi-location backend data.
- */
+const CLINICS_DATA: Record<string, DemoClinic[]> = {
+  Lahore: [
+    {
+      id: "lhr-gulberg",
+      name: "DentoCorrect Gulberg",
+      address: "14-C, Main Boulevard, Gulberg III, Lahore",
+      city: "Lahore",
+      phone: "+92 42 3578 9101",
+      hours: "Mon – Sat: 11:00 AM – 9:00 PM",
+      photoUrl: "https://images.unsplash.com/photo-1629909613654-28e377c37b09?q=80&w=800&auto=format&fit=crop",
+      mapQuery: "14-C+Main+Boulevard+Gulberg+III+Lahore",
+    },
+    {
+      id: "lhr-johar",
+      name: "DentoCorrect Johar Town",
+      address: "42-G, Main Boulevard, Johar Town, Lahore",
+      city: "Lahore",
+      phone: "+92 42 3531 4455",
+      hours: "Mon – Sat: 11:00 AM – 9:00 PM",
+      photoUrl: "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?q=80&w=800&auto=format&fit=crop",
+      mapQuery: "Johar+Town+Main+Boulevard+Lahore",
+    },
+    {
+      id: "lhr-dha",
+      name: "DentoCorrect DHA Phase 5",
+      address: "Plaza 18, CCA, Sector C, DHA Phase 5, Lahore",
+      city: "Lahore",
+      phone: "+92 42 3718 2233",
+      hours: "Mon – Sat: 11:00 AM – 9:00 PM",
+      photoUrl: "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?q=80&w=800&auto=format&fit=crop",
+      mapQuery: "DHA+Phase+5+CCA+Lahore",
+    },
+  ],
+  Rawalpindi: [
+    {
+      id: "rwp-bahria",
+      name: "DentoCorrect Bahria Town",
+      address: "Civic Center, Phase 4, Bahria Town, Rawalpindi",
+      city: "Rawalpindi",
+      phone: "+92 51 5730 112",
+      hours: "Mon – Sat: 11:00 AM – 9:00 PM",
+      photoUrl: "https://images.unsplash.com/photo-1629909613654-28e377c37b09?q=80&w=800&auto=format&fit=crop",
+      mapQuery: "Civic+Center+Phase+4+Bahria+Town+Rawalpindi",
+    },
+    {
+      id: "rwp-saddar",
+      name: "DentoCorrect Saddar",
+      address: "32 Haider Road, Saddar, Rawalpindi",
+      city: "Rawalpindi",
+      phone: "+92 51 5562 889",
+      hours: "Mon – Sat: 11:00 AM – 9:00 PM",
+      photoUrl: "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?q=80&w=800&auto=format&fit=crop",
+      mapQuery: "Haider+Road+Saddar+Rawalpindi",
+    },
+  ],
+  Islamabad: [
+    {
+      id: "isb-f7",
+      name: "DentoCorrect F-7 Markaz",
+      address: "Jinnah Super Market, F-7 Markaz, Islamabad",
+      city: "Islamabad",
+      phone: "+92 51 2654 321",
+      hours: "Mon – Sat: 11:00 AM – 9:00 PM",
+      photoUrl: "https://images.unsplash.com/photo-1629909613654-28e377c37b09?q=80&w=800&auto=format&fit=crop",
+      mapQuery: "F-7+Markaz+Jinnah+Super+Islamabad",
+    },
+    {
+      id: "isb-bluearea",
+      name: "DentoCorrect Blue Area",
+      address: "Executive Heights, Fazl-ul-Haq Road, Blue Area, Islamabad",
+      city: "Islamabad",
+      phone: "+92 51 2801 990",
+      hours: "Mon – Sat: 11:00 AM – 9:00 PM",
+      photoUrl: "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?q=80&w=800&auto=format&fit=crop",
+      mapQuery: "Blue+Area+Islamabad",
+    },
+  ],
+  Karachi: [
+    {
+      id: "khi-clifton",
+      name: "DentoCorrect Clifton",
+      address: "Block 4, Near Bilawal Chowrangi, Clifton, Karachi",
+      city: "Karachi",
+      phone: "+92 21 3587 6543",
+      hours: "Mon – Sat: 12:00 PM – 9:30 PM",
+      photoUrl: "https://images.unsplash.com/photo-1629909613654-28e377c37b09?q=80&w=800&auto=format&fit=crop",
+      mapQuery: "Clifton+Block+4+Karachi",
+    },
+    {
+      id: "khi-dha6",
+      name: "DentoCorrect DHA Phase 6",
+      address: "Plot 24-C, Shahbaz Commercial, DHA Phase 6, Karachi",
+      city: "Karachi",
+      phone: "+92 21 3534 8877",
+      hours: "Mon – Sat: 12:00 PM – 9:30 PM",
+      photoUrl: "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?q=80&w=800&auto=format&fit=crop",
+      mapQuery: "Shahbaz+Commercial+DHA+Phase+6+Karachi",
+    },
+  ],
+  Peshawar: [
+    {
+      id: "psh-univ",
+      name: "DentoCorrect University Road",
+      address: "Aman Plaza, Main University Road, Peshawar",
+      city: "Peshawar",
+      phone: "+92 91 5841 234",
+      hours: "Mon – Sat: 11:00 AM – 8:30 PM",
+      photoUrl: "https://images.unsplash.com/photo-1629909613654-28e377c37b09?q=80&w=800&auto=format&fit=crop",
+      mapQuery: "University+Road+Peshawar",
+    },
+  ],
+  Faisalabad: [
+    {
+      id: "fsd-kohinoor",
+      name: "DentoCorrect Kohinoor City",
+      address: "Civic Center, Jaranwala Road, Kohinoor City, Faisalabad",
+      city: "Faisalabad",
+      phone: "+92 41 8540 765",
+      hours: "Mon – Sat: 11:00 AM – 9:00 PM",
+      photoUrl: "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?q=80&w=800&auto=format&fit=crop",
+      mapQuery: "Kohinoor+City+Faisalabad",
+    },
+  ],
+  Multan: [
+    {
+      id: "mul-bosan",
+      name: "DentoCorrect Bosan Road",
+      address: "Gulgasht Colony, Near Gol Bagh, Bosan Road, Multan",
+      city: "Multan",
+      phone: "+92 61 6523 998",
+      hours: "Mon – Sat: 11:00 AM – 9:00 PM",
+      photoUrl: "https://images.unsplash.com/photo-1629909613654-28e377c37b09?q=80&w=800&auto=format&fit=crop",
+      mapQuery: "Gulgasht+Colony+Bosan+Road+Multan",
+    },
+  ],
+};
+
 export function Visit() {
-  const { content, locations, primaryLocation } = usePublicContent();
-  const [selectedLocationId, setSelectedLocationId] = useState<string>(primaryLocation.id);
+  const [selectedCity, setSelectedCity] = useState<string>("Lahore");
 
-  const [status, setStatus] = useState<OfficeStatus>({
-    isOpen: true,
-    statusText: "Open Now",
-    nextEventText: "",
-  });
-
-  useEffect(() => {
-    setStatus(getOfficeStatus());
-  }, []);
-
-  const activeLocations = locations.filter((l) => l.isActive);
-  const activeLoc =
-    activeLocations.find((l) => l.id === selectedLocationId) ||
-    primaryLocation ||
-    activeLocations[0];
-
-  const fullAddress = `${activeLoc.addressLine1}${
-    activeLoc.addressLine2 ? `, ${activeLoc.addressLine2}` : ""
-  }, ${activeLoc.city}, ${activeLoc.state} ${activeLoc.postalCode || ""}`;
-
-  const phone = activeLoc.phone || content.general?.phone || "(312) 555-0147";
-  const cleanPhone = phone.replace(/[^0-9+]/g, "");
-  const email = activeLoc.email || content.general?.email || "care@marlowdental.com";
+  const clinics = CLINICS_DATA[selectedCity] || CLINICS_DATA["Lahore"];
 
   return (
     <section id="visit" className="border-t border-line bg-bone py-20 md:py-28">
-      <div className="container-x">
-        {/* Multi-Location Switcher Tabs if practice has multiple locations */}
-        {activeLocations.length > 1 && (
-          <div className="mb-10 flex flex-wrap gap-2 border-b border-line pb-4">
-            <span className="text-xs text-ink-soft flex items-center gap-1.5 mr-2">
-              <MapPin className="h-3.5 w-3.5 text-forest" />
-              Practice Locations:
-            </span>
-            {activeLocations.map((loc) => (
+      <div className="container-x space-y-10">
+        {/* Section Header */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div>
+            <SectionHeading
+              eyebrow="Nationwide Network"
+              title={
+                <>
+                  Our Nationwide Clinics
+                  <br />
+                  &amp; Modern Facilities
+                </>
+              }
+            />
+          </div>
+          <p className="max-w-md text-sm leading-relaxed text-ink-soft">
+            Explore dedicated branch clinics designed with state-of-the-art sterilizers, private operatory suites, and dedicated on-site parking.
+          </p>
+        </div>
+
+        {/* City Pill Tabs */}
+        <div className="border-b border-line pb-4 flex items-center gap-2 overflow-x-auto scrollbar-none">
+          {CITIES.map((city) => {
+            const isSelected = selectedCity === city;
+            return (
               <button
-                key={loc.id}
-                onClick={() => setSelectedLocationId(loc.id)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
-                  activeLoc.id === loc.id
-                    ? "bg-forest text-white shadow-sm"
-                    : "bg-cream text-ink-soft hover:bg-sand/60 hover:text-ink"
+                key={city}
+                onClick={() => setSelectedCity(city)}
+                className={`rounded-full px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
+                  isSelected
+                    ? "bg-primary text-white shadow-subtle font-semibold"
+                    : "bg-cream text-ink-soft hover:text-ink hover:bg-sand/60 border border-line"
                 }`}
               >
-                {loc.name} {loc.isPrimary && "(Primary)"}
+                {city}
               </button>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
 
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-16">
-          {/* Practice Location & Transit Info - 5 cols */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
-            transition={{ duration: 0.4 }}
-            className="lg:col-span-5 space-y-8"
-          >
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <p className="eyebrow">{activeLoc.name || "Location & Hours"}</p>
-                <span
-                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10.5px] font-semibold ${
-                    status.isOpen
-                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                      : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
-                  }`}
-                >
-                  <span
-                    className={`h-1.5 w-1.5 rounded-full ${
-                      status.isOpen ? "bg-emerald-500" : "bg-amber-500"
-                    }`}
+        {/* Full-Width Horizontal Clinic Cards */}
+        <div className="space-y-4">
+          {clinics.map((clinic) => (
+            <div
+              key={clinic.id}
+              className="w-full rounded-2xl border border-gray-200/90 bg-white p-4 sm:p-6 shadow-sm hover:shadow-md transition-all duration-200"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                {/* Left: Interior Clinic Photo + Middle: Clinic Details */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 min-w-0">
+                  {/* Photo */}
+                  <img
+                    src={clinic.photoUrl}
+                    alt={clinic.name}
+                    className="w-full sm:w-36 md:w-44 h-36 sm:h-28 rounded-xl object-cover shrink-0 shadow-sm border border-gray-200/60"
+                    loading="lazy"
                   />
-                  {status.statusText}
-                </span>
-              </div>
-              <h2 className="fluid-h2 tracking-[-0.02em] text-ink font-normal">
-                Easy to find,
-                <br />
-                easy to park,
-                <br />
-                easy to enter.
-              </h2>
-            </div>
 
-            {/* Address */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-soft/70">
-                  Facility Address
-                </p>
-                <CopyButton text={fullAddress} label="Copy Address" />
-              </div>
-              <p className="font-display text-[20px] leading-snug text-ink">
-                {activeLoc.addressLine1}
-                {activeLoc.addressLine2 && <><br />{activeLoc.addressLine2}</>}
-                <br />
-                {activeLoc.city}, {activeLoc.state} {activeLoc.postalCode}
-              </p>
-              <p className="text-xs sm:text-[13px] leading-relaxed text-ink-soft">
-                Ground-floor private practice with step-free, wheelchair accessible entrance directly from the sidewalk.
-              </p>
-            </div>
+                  {/* Middle Info */}
+                  <div className="space-y-1.5 min-w-0">
+                    <h3 className="font-display text-lg sm:text-xl font-bold text-gray-900 leading-snug">
+                      {clinic.name}
+                    </h3>
 
-            {/* Parking */}
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2 text-ink font-medium text-sm">
-                <Car className="h-4 w-4 text-forest dark:text-emerald-400" />
-                <span>Dedicated Patient Parking</span>
-              </div>
-              <p className="text-xs sm:text-[13px] leading-relaxed text-ink-soft">
-                Free patient parking stalls behind the building (first-come, first-served), plus ample street parking.
-              </p>
-            </div>
+                    <p className="flex items-start gap-1.5 text-xs sm:text-sm text-gray-600">
+                      <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                      <span>{clinic.address}</span>
+                    </p>
 
-            {/* Public Transit */}
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2 text-ink font-medium text-sm">
-                <Train className="h-4 w-4 text-forest dark:text-emerald-400" />
-                <span>Transit Access</span>
-              </div>
-              <p className="text-xs sm:text-[13px] leading-relaxed text-ink-soft">
-                {content.contact?.transitNote ||
-                  "Convenient access via nearby rapid transit stations and major metropolitan bus lines."}
-              </p>
-            </div>
-
-            {/* Direct Contact */}
-            <div className="pt-2 border-t border-line/60 flex flex-wrap gap-4 text-sm">
-              <a
-                href={`tel:${cleanPhone}`}
-                className="flex items-center gap-1.5 text-forest dark:text-emerald-400 font-medium hover:underline"
-              >
-                <Phone className="h-3.5 w-3.5" />
-                <span>{phone}</span>
-              </a>
-              <a
-                href={`mailto:${email}`}
-                className="flex items-center gap-1.5 text-forest dark:text-emerald-400 font-medium hover:underline"
-              >
-                <Mail className="h-3.5 w-3.5" />
-                <span>{email}</span>
-              </a>
-            </div>
-          </motion.div>
-
-          {/* Map & Office Hours Schedule - 7 cols */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
-            className="lg:col-span-7 space-y-8"
-          >
-            {/* Map Frame */}
-            <div className="aspect-[16/10] w-full overflow-hidden rounded-[var(--radius-card)] border border-line bg-cream shadow-subtle">
-              <iframe
-                title={`${activeLoc.name} Location Map`}
-                src={`https://www.google.com/maps?q=${encodeURIComponent(
-                  fullAddress
-                )}&output=embed`}
-                className="h-full w-full border-0"
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-              />
-            </div>
-
-            {/* Office Hours Table */}
-            <Card surface="cream" shadow="subtle" className="p-6">
-              <div className="flex items-center justify-between border-b border-line pb-3">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-clay" />
-                  <h3 className="font-display text-base text-ink font-medium">
-                    Office Hours Schedule
-                  </h3>
-                </div>
-                <span className="text-xs text-ink-soft">
-                  {activeLoc.hoursInfo ? "Published Schedule" : "Central Time"}
-                </span>
-              </div>
-
-              {activeLoc.hoursInfo ? (
-                <div className="mt-4 p-4 rounded-xl bg-bone border border-line/60 text-xs text-ink leading-relaxed">
-                  {activeLoc.hoursInfo}
-                </div>
-              ) : (
-                <dl className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2.5">
-                  {DEFAULT_SCHEDULE.map((item) => (
-                    <div
-                      key={item.day}
-                      className="flex items-center justify-between border-b border-line/60 py-1.5 text-xs sm:text-[13px]"
-                    >
-                      <dt className="text-ink-soft">{item.day}</dt>
-                      <dd
-                        className={`font-mono ${
-                          item.hours === "Closed"
-                            ? "text-ink-soft/60"
-                            : "font-medium text-ink"
-                        }`}
-                      >
-                        {item.hours}
-                      </dd>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600 pt-1">
+                      <span className="flex items-center gap-1 font-medium">
+                        <Phone className="h-3 w-3 text-secondary" />
+                        <span>{clinic.phone}</span>
+                      </span>
+                      <span className="flex items-center gap-1 text-[11px] text-gray-500">
+                        <Clock className="h-3 w-3 text-gray-400" />
+                        <span>{clinic.hours}</span>
+                      </span>
                     </div>
-                  ))}
-                </dl>
-              )}
-            </Card>
-          </motion.div>
+                  </div>
+                </div>
+
+                {/* Right: Get Directions Link & Book Appointment Button */}
+                <div className="flex items-center sm:flex-col sm:items-end justify-between sm:justify-center gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100">
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${clinic.mapQuery}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline hover:text-forest-deep transition-colors"
+                  >
+                    <Navigation className="h-3.5 w-3.5" />
+                    <span>Get Directions</span>
+                  </a>
+
+                  <Link
+                    href={`/book?clinic=${clinic.id}`}
+                    className="inline-flex items-center justify-center rounded-full bg-[#151613] text-[#FAF7F2] hover:bg-primary px-5 py-2.5 text-xs sm:text-sm font-semibold shadow-subtle hover:shadow-card hover:-translate-y-0.5 transition-all"
+                  >
+                    <span>Book Appointment</span>
+                    <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </section>

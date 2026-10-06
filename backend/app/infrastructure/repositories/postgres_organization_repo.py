@@ -27,6 +27,11 @@ class PostgresOrganizationRepository(OrganizationRepository):
             contact_email=orm.contact_email,
             contact_phone=orm.contact_phone,
             website_url=orm.website_url,
+            primary_color=getattr(orm, "primary_color", None),
+            secondary_color=getattr(orm, "secondary_color", None),
+            background_color=getattr(orm, "background_color", None),
+            primary_font=getattr(orm, "primary_font", None),
+            secondary_font=getattr(orm, "secondary_font", None),
             is_active=orm.is_active,
             created_at=orm.created_at,
             updated_at=orm.updated_at,
@@ -53,6 +58,11 @@ class PostgresOrganizationRepository(OrganizationRepository):
             existing.contact_email = org.contact_email
             existing.contact_phone = org.contact_phone
             existing.website_url = org.website_url
+            existing.primary_color = org.primary_color
+            existing.secondary_color = org.secondary_color
+            existing.background_color = org.background_color
+            existing.primary_font = org.primary_font
+            existing.secondary_font = org.secondary_font
             existing.is_active = org.is_active
             existing.updated_at = org.updated_at
             await self._session.flush()
@@ -68,6 +78,11 @@ class PostgresOrganizationRepository(OrganizationRepository):
                 contact_email=org.contact_email,
                 contact_phone=org.contact_phone,
                 website_url=org.website_url,
+                primary_color=org.primary_color,
+                secondary_color=org.secondary_color,
+                background_color=org.background_color,
+                primary_font=org.primary_font,
+                secondary_font=org.secondary_font,
                 is_active=org.is_active,
                 created_at=org.created_at,
                 updated_at=org.updated_at,

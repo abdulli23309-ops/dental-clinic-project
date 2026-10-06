@@ -66,6 +66,11 @@ class AuthService:
         now = datetime.now(timezone.utc)
         session_expires = now + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
 
+        # Strict Single Session ("One PC at a time"):
+        # Query and revoke/invalidate ALL existing active sessions and refresh tokens for this user
+        await self.session_repo.revoke_all_for_user(user.id)
+        await self.refresh_token_repo.revoke_all_for_user(user.id)
+
         # 1. Create and persist user session
         session = UserSession(
             user_id=user.id,

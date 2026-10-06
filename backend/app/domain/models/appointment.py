@@ -30,14 +30,13 @@ class Appointment:
     patient_email: str
     id: UUID = field(default_factory=uuid4)
     status: AppointmentStatus = AppointmentStatus.REQUESTED
-    has_insurance: bool = False
-    insurance_provider: Optional[str] = None
     notes: Optional[str] = None
     utm_source: Optional[str] = None
     utm_campaign: Optional[str] = None
     staff_notes: Optional[str] = None
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
 
     def confirm(self, staff_note: Optional[str] = None) -> None:
         """Marks the appointment as officially confirmed by clinic staff and records any internal notes."""

@@ -54,12 +54,11 @@ class AppointmentService:
                 patient_full_name=request.fullName,
                 patient_phone=request.phone,
                 patient_email=request.email,
-                has_insurance=request.hasInsurance,
-                insurance_provider=request.insuranceProvider,
                 notes=request.notes,
                 utm_source=request.utmSource,
                 utm_campaign=request.utmCampaign,
             )
+
 
             try:
                 saved = await self._repository.save(appointment)

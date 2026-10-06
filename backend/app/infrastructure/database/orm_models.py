@@ -11,81 +11,29 @@ class Base(DeclarativeBase):
     pass
 
 
-class AppointmentORM(Base):
-    """
-    Defines the exact structure of the 'appointments' table in the PostgreSQL database.
-
-    Each attribute corresponds to a database column with specific data types, indexes,
-    and rules to keep records organized and fast to search.
-    """
-
-    __tablename__ = "appointments"
+class RoleORM(Base):
+    """Stores platform and clinic roles."""
+    __tablename__ = "roles"
 
     id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),
         primary_key=True,
         default=uuid4,
     )
-    confirmation_id: Mapped[str] = mapped_column(
-        Text,
+    name: Mapped[str] = mapped_column(
+        String(100),
         unique=True,
         nullable=False,
         index=True,
     )
-    status: Mapped[str] = mapped_column(
+    description: Mapped[Optional[str]] = mapped_column(
         Text,
-        nullable=False,
-        default="requested",
+        nullable=True,
     )
-    service_id: Mapped[str] = mapped_column(
-        Text,
-        nullable=False,
-    )
-    preferred_date: Mapped[date] = mapped_column(
-        Date,
-        nullable=False,
-        index=True,
-    )
-    preferred_time: Mapped[str] = mapped_column(
-        Text,
-        nullable=False,
-    )
-    patient_full_name: Mapped[str] = mapped_column(
-        Text,
-        nullable=False,
-    )
-    patient_phone: Mapped[str] = mapped_column(
-        Text,
-        nullable=False,
-    )
-    patient_email: Mapped[str] = mapped_column(
-        Text,
-        nullable=False,
-    )
-    has_insurance: Mapped[bool] = mapped_column(
+    is_system: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
         default=False,
-    )
-    insurance_provider: Mapped[Optional[str]] = mapped_column(
-        Text,
-        nullable=True,
-    )
-    notes: Mapped[Optional[str]] = mapped_column(
-        Text,
-        nullable=True,
-    )
-    utm_source: Mapped[Optional[str]] = mapped_column(
-        Text,
-        nullable=True,
-    )
-    utm_campaign: Mapped[Optional[str]] = mapped_column(
-        Text,
-        nullable=True,
-    )
-    staff_notes: Mapped[Optional[str]] = mapped_column(
-        Text,
-        nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -99,12 +47,317 @@ class AppointmentORM(Base):
         onupdate=func.now(),
     )
 
-    __table_args__ = (
-        Index(
-            "ix_appointments_status_created_at",
-            "status",
-            created_at.desc(),
-        ),
+
+class PermissionORM(Base):
+    """Stores system capabilities and permissions."""
+    __tablename__ = "permissions"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    code: Mapped[str] = mapped_column(
+        String(100),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+    module: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+    )
+    description: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+
+class RolePermissionORM(Base):
+    """Join table associating roles with permissions."""
+    __tablename__ = "role_permissions"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    role_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("roles.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    permission_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("permissions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+
+class OrganizationORM(Base):
+    """
+    Stores top-level practice/organization details including dynamic theming.
+    """
+    __tablename__ = "organizations"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+    display_name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+    tagline: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    description: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    logo_url: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    contact_email: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+    contact_phone: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+    website_url: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    # Theming & Branding Columns
+    primary_color: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+    secondary_color: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+    background_color: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+    primary_font: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+    secondary_font: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class ClinicORM(Base):
+    """
+    Stores nationwide practice clinics / branches per ERD.
+    """
+    __tablename__ = "clinics"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    organization_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+    address_line1: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+    address_line2: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+    city: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        index=True,
+    )
+    state: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+    )
+    postal_code: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+    )
+    country: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="US",
+    )
+    phone: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+    email: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+    hours_info: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    is_primary: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+    display_order: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class LocationORM(Base):
+    """
+    Stores practice locations/offices (retained for backward compatibility).
+    """
+    __tablename__ = "locations"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    organization_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+    address_line1: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+    address_line2: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+    city: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+    )
+    state: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+    )
+    postal_code: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+    )
+    country: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="US",
+    )
+    phone: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+    email: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+    hours_info: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    is_primary: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+    display_order: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
     )
 
 
@@ -137,6 +390,12 @@ class UserORM(Base):
         String(50),
         nullable=False,
         default="admin",
+    )
+    clinic_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("clinics.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     is_active: Mapped[bool] = mapped_column(
         Boolean,
@@ -269,139 +528,58 @@ class RefreshTokenORM(Base):
     )
 
 
-class OrganizationORM(Base):
+class PatientORM(Base):
     """
-    Stores top-level practice/organization details.
+    Stores patient records. Zero insurance fields.
     """
-    __tablename__ = "organizations"
+    __tablename__ = "patients"
 
     id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),
         primary_key=True,
         default=uuid4,
     )
-    name: Mapped[str] = mapped_column(
-        String(255),
-        nullable=False,
-    )
-    display_name: Mapped[str] = mapped_column(
-        String(255),
-        nullable=False,
-    )
-    tagline: Mapped[Optional[str]] = mapped_column(
-        Text,
-        nullable=True,
-    )
-    description: Mapped[Optional[str]] = mapped_column(
-        Text,
-        nullable=True,
-    )
-    logo_url: Mapped[Optional[str]] = mapped_column(
-        Text,
-        nullable=True,
-    )
-    contact_email: Mapped[Optional[str]] = mapped_column(
-        String(255),
-        nullable=True,
-    )
-    contact_phone: Mapped[Optional[str]] = mapped_column(
-        String(50),
-        nullable=True,
-    )
-    website_url: Mapped[Optional[str]] = mapped_column(
-        Text,
-        nullable=True,
-    )
-    is_active: Mapped[bool] = mapped_column(
-        Boolean,
-        nullable=False,
-        default=True,
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=func.now(),
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=func.now(),
-        onupdate=func.now(),
-    )
-
-
-class LocationORM(Base):
-    """
-    Stores practice locations/offices.
-    """
-    __tablename__ = "locations"
-
-    id: Mapped[UUID] = mapped_column(
+    organization_id: Mapped[Optional[UUID]] = mapped_column(
         Uuid(as_uuid=True),
-        primary_key=True,
-        default=uuid4,
+        ForeignKey("organizations.id", ondelete="SET NULL"),
+        nullable=True,
     )
-    organization_id: Mapped[UUID] = mapped_column(
+    clinic_id: Mapped[Optional[UUID]] = mapped_column(
         Uuid(as_uuid=True),
-        ForeignKey("organizations.id", ondelete="CASCADE"),
-        nullable=False,
+        ForeignKey("clinics.id", ondelete="SET NULL"),
+        nullable=True,
         index=True,
     )
-    name: Mapped[str] = mapped_column(
-        String(255),
-        nullable=False,
-    )
-    address_line1: Mapped[str] = mapped_column(
-        String(255),
-        nullable=False,
-    )
-    address_line2: Mapped[Optional[str]] = mapped_column(
-        String(255),
-        nullable=True,
-    )
-    city: Mapped[str] = mapped_column(
+    first_name: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
     )
-    state: Mapped[str] = mapped_column(
-        String(50),
+    last_name: Mapped[str] = mapped_column(
+        String(100),
         nullable=False,
     )
-    postal_code: Mapped[str] = mapped_column(
-        String(20),
-        nullable=False,
-    )
-    country: Mapped[str] = mapped_column(
+    phone: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
-        default="US",
-    )
-    phone: Mapped[Optional[str]] = mapped_column(
-        String(50),
-        nullable=True,
+        index=True,
     )
     email: Mapped[Optional[str]] = mapped_column(
         String(255),
         nullable=True,
+        index=True,
     )
-    hours_info: Mapped[Optional[str]] = mapped_column(
-        Text,
+    date_of_birth: Mapped[Optional[date]] = mapped_column(
+        Date,
         nullable=True,
     )
-    is_primary: Mapped[bool] = mapped_column(
-        Boolean,
-        nullable=False,
-        default=True,
+    notes: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
     )
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
         default=True,
-    )
-    display_order: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-        default=0,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -436,6 +614,12 @@ class TeamMemberORM(Base):
     location_id: Mapped[Optional[UUID]] = mapped_column(
         Uuid(as_uuid=True),
         ForeignKey("locations.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    clinic_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("clinics.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
@@ -600,6 +784,453 @@ class ServiceORM(Base):
     )
 
 
+class SlotORM(Base):
+    """
+    Stores scheduled bookable appointment slots.
+    """
+    __tablename__ = "slots"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    clinic_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("clinics.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    team_member_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("team_members.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    start_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        index=True,
+    )
+    end_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    is_booked: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+
+class LeadSourceORM(Base):
+    """
+    Stores acquisition channels.
+    """
+    __tablename__ = "lead_sources"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    name: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+    )
+    utm_source: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+
+class LeadORM(Base):
+    """
+    Stores leads and inquiries. Zero insurance fields.
+    """
+    __tablename__ = "leads"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    organization_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    clinic_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("clinics.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    patient_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("patients.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    lead_source_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("lead_sources.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    full_name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+    phone: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+    )
+    email: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+    status: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="new",
+    )
+    notes: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    utm_source: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+    utm_campaign: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class BookingORM(Base):
+    """
+    Stores appointment bookings. Zero insurance fields.
+    """
+    __tablename__ = "bookings"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    confirmation_id: Mapped[str] = mapped_column(
+        String(50),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+    clinic_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("clinics.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    patient_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("patients.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    service_id: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+    team_member_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("team_members.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    slot_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("slots.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    preferred_date: Mapped[date] = mapped_column(
+        Date,
+        nullable=False,
+        index=True,
+    )
+    preferred_time: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+    )
+    status: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="requested",
+    )
+    patient_full_name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+    patient_phone: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+    )
+    patient_email: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+    notes: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    utm_source: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+    utm_campaign: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+    staff_notes: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class TaskORM(Base):
+    """
+    Stores administrative and clinical tasks.
+    """
+    __tablename__ = "tasks"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    clinic_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("clinics.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    assigned_to_user_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    title: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+    description: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    due_date: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    status: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="pending",
+    )
+    priority: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="medium",
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class MessageORM(Base):
+    """
+    Stores patient communications and reminders.
+    """
+    __tablename__ = "messages"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    sender_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    recipient_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    phone: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+    email: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+    content: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+    channel: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="sms",
+    )
+    status: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="sent",
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+
+class ActivityLogORM(Base):
+    """
+    Audit log of actions across the platform.
+    """
+    __tablename__ = "activity_logs"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    user_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    action: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+    )
+    entity_type: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+    )
+    entity_id: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+    details_json: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    ip_address: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+
+class WorkflowRunORM(Base):
+    """
+    Records automated workflows and background triggers.
+    """
+    __tablename__ = "workflow_runs"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    workflow_name: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        index=True,
+    )
+    status: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="completed",
+    )
+    trigger_event: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+    )
+    payload_json: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    error_message: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    completed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+
 class FaqItemORM(Base):
     """
     Stores FAQ items for public display and admin management.
@@ -665,4 +1296,126 @@ class SiteSectionORM(Base):
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
+    )
+
+
+class AnnouncementORM(Base):
+    """
+    Stores website marquee announcement messages per ERD.
+    """
+    __tablename__ = "announcements"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    content: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+    display_order: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class AppointmentORM(Base):
+    """
+    Defines the structure of the 'appointments' table in the PostgreSQL database.
+    """
+    __tablename__ = "appointments"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    confirmation_id: Mapped[str] = mapped_column(
+        Text,
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+    status: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default="requested",
+    )
+    service_id: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+    preferred_date: Mapped[date] = mapped_column(
+        Date,
+        nullable=False,
+        index=True,
+    )
+    preferred_time: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+    patient_full_name: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+    patient_phone: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+    patient_email: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+    notes: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    utm_source: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    utm_campaign: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    staff_notes: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_appointments_status_created_at",
+            "status",
+            created_at.desc(),
+        ),
     )

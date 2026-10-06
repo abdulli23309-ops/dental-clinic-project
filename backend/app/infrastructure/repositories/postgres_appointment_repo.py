@@ -34,8 +34,6 @@ class PostgresAppointmentRepository(AppointmentRepository):
             patient_full_name=entity.patient_full_name,
             patient_phone=entity.patient_phone,
             patient_email=entity.patient_email,
-            has_insurance=entity.has_insurance,
-            insurance_provider=entity.insurance_provider,
             notes=entity.notes,
             utm_source=entity.utm_source,
             utm_campaign=entity.utm_campaign,
@@ -57,8 +55,6 @@ class PostgresAppointmentRepository(AppointmentRepository):
             patient_full_name=orm.patient_full_name,
             patient_phone=orm.patient_phone,
             patient_email=orm.patient_email,
-            has_insurance=orm.has_insurance,
-            insurance_provider=orm.insurance_provider,
             notes=orm.notes,
             utm_source=orm.utm_source,
             utm_campaign=orm.utm_campaign,
@@ -66,6 +62,7 @@ class PostgresAppointmentRepository(AppointmentRepository):
             created_at=orm.created_at,
             updated_at=orm.updated_at,
         )
+
 
     async def save(self, appointment: Appointment) -> Appointment:
         """Saves or updates an appointment in the database and flushes changes immediately."""

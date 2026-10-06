@@ -74,8 +74,6 @@ export interface BookingPayload {
   fullName: string;
   phone: string;
   email: string;
-  hasInsurance: boolean;
-  insuranceProvider?: string;
   notes?: string;
   utmSource?: string;
   utmCampaign?: string;
@@ -165,6 +163,37 @@ export interface LocationItem {
   isActive: boolean;
   displayOrder: number;
 }
+
+export interface Organization {
+  id: string;
+  name: string;
+  displayName: string;
+  tagline?: string | null;
+  description?: string | null;
+  logoUrl?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  websiteUrl?: string | null;
+  primaryColor?: string | null;
+  secondaryColor?: string | null;
+  backgroundColor?: string | null;
+  primaryFont?: string | null;
+  secondaryFont?: string | null;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface Announcement {
+  id: string;
+  content: string;
+  isActive: boolean;
+  displayOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type ClinicItem = LocationItem;
 
 /* -------------------------------------------------------------
  * DEFAULT / FALLBACK DATA ARRAYS
@@ -560,7 +589,7 @@ function processQueue(error: any, token: string | null = null) {
 export async function authorizedFetch(
   endpoint: string,
   options: RequestInit = {},
-  explicitToken?: string
+  explicitToken?: string | null
 ): Promise<Response> {
   const token = explicitToken || inMemoryAccessToken;
   const headers = new Headers(options.headers || {});
@@ -932,3 +961,159 @@ export async function adminUploadMedia(file: File, token?: string): Promise<{ ur
 
   return res.json();
 }
+
+// Public Organization & Theming
+export async function fetchPublicOrganization(): Promise<Organization | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/public/organization`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+// Public Announcements (Marquee ticker)
+export async function fetchPublicAnnouncements(): Promise<Announcement[]> {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/public/announcements`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
+
+// Public Clinics / Locations
+export async function fetchPublicClinics(): Promise<ClinicItem[]> {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/public/clinics`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
+
+// Admin Organization
+export async function adminGetOrganization(token?: string | null): Promise<Organization> {
+  const res = await authorizedFetch(`/api/v1/admin/organization`, {}, token);
+  if (!res.ok) throw new Error("Failed to load organization settings.");
+  return res.json();
+}
+
+export async function adminUpdateOrganization(data: Partial<Organization>, token?: string | null): Promise<Organization> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/organization`,
+    {
+      method: "PUT",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update organization settings.");
+  }
+  return res.json();
+}
+
+// Admin Announcements
+export async function adminGetAnnouncements(token?: string | null): Promise<Announcement[]> {
+  const res = await authorizedFetch(`/api/v1/admin/announcements`, {}, token);
+  if (!res.ok) throw new Error("Failed to load announcements.");
+  return res.json();
+}
+
+export async function adminCreateAnnouncement(data: { content: string; isActive?: boolean; displayOrder?: number }, token?: string | null): Promise<Announcement> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/announcements`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to create announcement.");
+  }
+  return res.json();
+}
+
+export async function adminUpdateAnnouncement(id: string, data: { content?: string; isActive?: boolean; displayOrder?: number }, token?: string | null): Promise<Announcement> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/announcements/${id}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update announcement.");
+  }
+  return res.json();
+}
+
+export async function adminDeleteAnnouncement(id: string, token?: string | null): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/announcements/${id}`,
+    {
+      method: "DELETE",
+    },
+    token
+  );
+  if (!res.ok && res.status !== 204) {
+    throw new Error("Failed to delete announcement.");
+  }
+}
+
+// Admin Permissions Matrix
+export interface PermissionMatrixItem {
+  id: string;
+  code: string;
+  name: string;
+  module: string;
+  description: string;
+}
+
+export interface PermissionsMatrixData {
+  roles: string[];
+  permissions: PermissionMatrixItem[];
+  matrix: Record<string, string[]>;
+}
+
+export async function adminGetPermissions(token?: string | null): Promise<PermissionsMatrixData> {
+  const res = await authorizedFetch(`/api/v1/admin/permissions`, {}, token);
+  if (!res.ok) throw new Error("Failed to load permissions matrix.");
+  return res.json();
+}
+
+export async function adminUpdatePermissions(
+  matrix: Record<string, string[]>,
+  token?: string | null
+): Promise<PermissionsMatrixData> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/permissions`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ matrix }),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update permissions matrix.");
+  }
+  return res.json();
+}
+
+

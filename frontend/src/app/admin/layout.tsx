@@ -1,42 +1,64 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  Bell,
+  ChevronLeft,
+  ChevronRight,
   ExternalLink,
   Globe,
   Home,
   Layers,
   LogOut,
   MapPin,
-  Shield,
+  Menu,
+  Settings,
+  ShieldCheck,
   UserCheck,
   Users,
+  X,
 } from "lucide-react";
 
 import { useAuth } from "@/components/providers/auth-provider";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
-const NAV_ITEMS = [
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  exact?: boolean;
+}
+
+const NAV_ITEMS: NavItem[] = [
   { href: "/admin", label: "Overview", icon: Home, exact: true },
-  { href: "/admin/website", label: "Website Content", icon: Globe },
-  { href: "/admin/team", label: "Team Members", icon: Users },
+  { href: "/admin/locations", label: "Clinics & Branches", icon: MapPin },
   { href: "/admin/services", label: "Services & Fees", icon: Layers },
-  { href: "/admin/locations", label: "Locations", icon: MapPin },
-  { href: "/admin/account", label: "Account", icon: Shield },
+  { href: "/admin/team", label: "Team Members", icon: Users },
+  { href: "/admin/announcements", label: "Announcements", icon: Bell },
+  { href: "/admin/website", label: "Website CMS", icon: Globe },
+  { href: "/admin/permissions", label: "Role Permissions", icon: ShieldCheck },
+  { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, isLoading, logout } = useAuth();
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !user) {
       router.push("/login");
     }
   }, [user, isLoading, router]);
+
+  // Close mobile drawer on route transition
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
   if (isLoading) {
     return (
@@ -56,53 +78,79 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="min-h-screen bg-bone flex flex-col">
-      {/* Admin Sticky Navigation Header */}
-      <header className="sticky top-0 z-40 border-b border-line/80 bg-cream/90 backdrop-blur-md">
-        <div className="container-x py-3 flex items-center justify-between gap-4">
-          {/* Practice Branding & Admin Label */}
-          <div className="flex items-center gap-3">
-            <Link href="/admin" className="flex items-center gap-2.5">
-              <span className="font-display text-lg text-ink font-semibold tracking-tight">
-                Marlow Dental
-              </span>
-              <span className="rounded-full bg-forest/10 dark:bg-emerald-950/50 border border-forest/20 px-2.5 py-0.5 text-[10.5px] font-mono uppercase font-bold text-forest dark:text-emerald-400">
-                CMS · Admin
-              </span>
-            </Link>
-          </div>
-
-          {/* Right Header Controls: Public site link, User badge, Theme, Logout */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Link
-              href="/"
-              target="_blank"
-              className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-line bg-sand/40 px-3 py-1 text-xs text-ink-soft hover:text-ink transition-colors cursor-pointer"
-            >
-              <span>View Live Website</span>
-              <ExternalLink className="h-3 w-3" />
-            </Link>
-
-            <div className="hidden sm:flex items-center gap-2 rounded-full border border-line bg-sand/30 px-3 py-1 text-xs">
-              <UserCheck className="h-3.5 w-3.5 text-forest dark:text-emerald-400" />
-              <span className="font-medium text-ink truncate max-w-[140px]">{user.fullName}</span>
-            </div>
-
-            <ThemeToggle />
-
-            <button
-              onClick={() => logout()}
-              title="Sign out"
-              className="inline-flex items-center gap-1 rounded-full border border-line/80 bg-white/50 dark:bg-black/20 p-2 text-ink-soft hover:text-red-700 hover:border-red-300 dark:hover:text-red-400 transition-colors cursor-pointer"
-            >
-              <LogOut className="h-3.5 w-3.5" />
-              <span className="sr-only">Sign out</span>
-            </button>
-          </div>
+    <div className="min-h-screen bg-bone flex flex-col md:flex-row">
+      {/* Mobile Top App Bar */}
+      <div className="md:hidden sticky top-0 z-40 flex items-center justify-between border-b border-line bg-cream/95 px-4 py-3 backdrop-blur-md">
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => setMobileOpen(true)}
+            className="p-1.5 rounded-lg border border-line text-ink hover:bg-sand/60"
+            aria-label="Open navigation sidebar"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <span className="font-display font-semibold text-ink text-base tracking-tight">
+            Marlow Dental
+          </span>
+          <span className="rounded-full bg-forest/10 px-2 py-0.5 text-[10px] font-mono uppercase font-bold text-forest">
+            Admin
+          </span>
         </div>
 
-        {/* Horizontal Navigation Tabs */}
-        <div className="container-x flex items-center gap-1 sm:gap-2 overflow-x-auto py-2 scrollbar-none">
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <button
+            onClick={() => logout()}
+            title="Sign out"
+            className="p-1.5 rounded-full border border-line text-ink-soft hover:text-red-600"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Drawer Backdrop */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden backdrop-blur-sm transition-opacity"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Floating Pill Left Sidebar (Desktop + Mobile Drawer) */}
+      <aside
+        className={`m-4 h-[calc(100vh-2rem)] rounded-[2.5rem] shadow-2xl bg-white flex flex-col transition-all duration-300 ease-in-out border border-gray-100 overflow-hidden shrink-0 fixed md:sticky top-0 z-50 md:z-30 ${
+          mobileOpen ? "left-0" : "-left-96 md:left-0"
+        } ${collapsed ? "w-24" : "w-64"}`}
+      >
+        {/* Top: Brand Header */}
+        <div className={`p-4 border-b border-gray-100 flex items-center ${collapsed ? "justify-center" : "justify-between"}`}>
+          <Link href="/admin" className="flex items-center gap-3 overflow-hidden" title="Marlow Dental CMS">
+            <div className="h-11 w-11 shrink-0 rounded-2xl bg-primary text-white grid place-items-center font-display font-bold text-lg shadow-md transition-transform hover:scale-105">
+              M
+            </div>
+            <div className={`truncate transition-opacity duration-300 ${collapsed ? "opacity-0 hidden" : "opacity-100 flex flex-col"}`}>
+              <span className="font-display text-sm font-bold text-gray-900 block leading-tight tracking-tight">
+                Marlow Dental
+              </span>
+              <span className="text-[10px] font-mono text-gray-500 block uppercase tracking-wider">
+                Organization CMS
+              </span>
+            </div>
+          </Link>
+
+          {/* Close button on mobile */}
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="md:hidden p-1.5 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+            aria-label="Close sidebar"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Center: Navigation Links */}
+        <nav className={`flex-1 overflow-y-auto p-3 space-y-2 scrollbar-none ${collapsed ? "flex flex-col items-center" : ""}`}>
           {NAV_ITEMS.map((item) => {
             const isActive = item.exact
               ? pathname === item.href
@@ -113,24 +161,111 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <Link
                 key={item.href}
                 href={item.href}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium whitespace-nowrap transition-all cursor-pointer ${
+                title={item.label}
+                className={`flex items-center rounded-full text-xs font-medium transition-all duration-300 ease-in-out ${
+                  collapsed
+                    ? "h-12 w-12 justify-center p-0"
+                    : "gap-3.5 px-4 py-3 w-full"
+                } ${
                   isActive
-                    ? "bg-forest text-[#FAF7F2] shadow-subtle"
-                    : "bg-transparent text-ink-soft hover:text-ink hover:bg-sand/60"
+                    ? "bg-primary text-white shadow-md font-semibold"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                 }`}
               >
-                <Icon className="h-3.5 w-3.5" />
-                <span>{item.label}</span>
+                <Icon className={`h-5 w-5 shrink-0 transition-colors ${isActive ? "text-white" : "text-primary"}`} />
+                <span className={`truncate transition-opacity duration-300 ${collapsed ? "opacity-0 hidden" : "opacity-100 flex"}`}>
+                  {item.label}
+                </span>
               </Link>
             );
           })}
-        </div>
-      </header>
+        </nav>
 
-      {/* Main Admin Workspace Area */}
-      <main className="flex-1 container-x py-8 md:py-10">
-        {children}
-      </main>
+        {/* Bottom: User Info & Controls */}
+        <div className="p-3.5 border-t border-gray-100 space-y-2 bg-gray-50/60 rounded-b-[2.5rem]">
+          <div
+            title={`${user.fullName} (${user.role})`}
+            className={`flex items-center rounded-2xl bg-white border border-gray-100 shadow-xs ${
+              collapsed ? "p-1.5 justify-center" : "gap-2.5 p-2.5"
+            }`}
+          >
+            <div className="h-9 w-9 shrink-0 rounded-full bg-primary/10 text-primary grid place-items-center text-xs font-bold">
+              {user.fullName.slice(0, 2).toUpperCase()}
+            </div>
+            <div className={`truncate flex-1 min-w-0 transition-opacity duration-300 ${collapsed ? "opacity-0 hidden" : "opacity-100 flex flex-col"}`}>
+              <p className="text-xs font-semibold text-gray-900 truncate leading-tight">
+                {user.fullName}
+              </p>
+              <p className="text-[10px] text-primary truncate uppercase font-mono tracking-wider font-semibold">
+                {user.role}
+              </p>
+            </div>
+          </div>
+
+          <div className={`flex items-center ${collapsed ? "flex-col gap-2 pt-1" : "justify-between pt-1"}`}>
+            {/* Collapse toggle (desktop only) */}
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              className="hidden md:inline-flex p-2 rounded-full border border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-white shadow-xs transition-colors cursor-pointer"
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+            </button>
+
+            <Link
+              href="/"
+              target="_blank"
+              title="View live website"
+              className={`transition-opacity duration-300 ${
+                collapsed
+                  ? "opacity-0 hidden"
+                  : "opacity-100 inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 px-3 py-1.5 rounded-full hover:bg-white shadow-xs transition-colors"
+              }`}
+            >
+              <span>Live Site</span>
+              <ExternalLink className="h-3 w-3" />
+            </Link>
+
+            <button
+              onClick={() => logout()}
+              title="Sign out"
+              className="p-2 rounded-full border border-gray-200 text-gray-500 hover:text-red-600 hover:bg-red-50 shadow-xs transition-colors cursor-pointer"
+              aria-label="Sign out"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Admin Content Workspace */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Desktop Sticky Header */}
+        <header className="hidden md:flex sticky top-0 z-20 h-14 items-center justify-between border-b border-line bg-cream/80 px-8 backdrop-blur-md">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-mono uppercase tracking-wider text-ink-soft">
+              Organization Management Portal
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              target="_blank"
+              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-sand/40 px-3 py-1 text-xs text-ink-soft hover:text-ink transition-colors"
+            >
+              <span>View Live Website</span>
+              <ExternalLink className="h-3 w-3" />
+            </Link>
+            <ThemeToggle />
+          </div>
+        </header>
+
+        <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

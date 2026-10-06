@@ -125,28 +125,28 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       >
         {/* Top: Brand Header */}
         <div className={`p-4 border-b border-gray-100 flex items-center ${isCollapsed ? "justify-center" : "justify-between"}`}>
-          <Link href="/admin" className="flex items-center gap-3 overflow-hidden" title="Marlow Dental CMS">
-            <div className="h-11 w-11 shrink-0 rounded-2xl bg-primary text-white grid place-items-center font-display font-bold text-lg shadow-md transition-transform hover:scale-105">
-              M
-            </div>
-            <div className={`truncate transition-opacity duration-300 ${isCollapsed ? "hidden opacity-0" : "opacity-100 flex flex-col"}`}>
-              <span className="font-display text-sm font-bold text-gray-900 block leading-tight tracking-tight">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <button 
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="h-11 w-11 shrink-0 rounded-2xl bg-primary text-white flex items-center justify-center font-display font-bold text-lg shadow-md transition-all hover:scale-105 relative group cursor-pointer"
+              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              <span className={`transition-opacity duration-200 ${isCollapsed ? "opacity-0" : "group-hover:opacity-0"}`}>M</span>
+              <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 ${isCollapsed ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+                {isCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+              </div>
+            </button>
+            <Link href="/admin" className={`truncate transition-opacity duration-300 ${isCollapsed ? "hidden opacity-0" : "opacity-100 flex flex-col"}`}>
+              <span className="font-display text-sm font-bold text-gray-900 block leading-tight tracking-tight hover:text-primary transition-colors">
                 Marlow Dental
               </span>
               <span className="text-[10px] font-mono text-gray-500 block uppercase tracking-wider">
                 Organization CMS
               </span>
-            </div>
-          </Link>
+            </Link>
+          </div>
 
-          {/* Desktop toggle button */}
-          <button
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="hidden md:inline-flex p-1.5 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
-            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {isCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
-          </button>
+
 
           {/* Close button on mobile */}
           <button

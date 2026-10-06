@@ -23,10 +23,6 @@
 }
 
 :root {
-  --color-primary: #1F3D34;
-  --color-secondary: #B8935A;
-  --color-bg-base: #FAF7F2;
-
   --color-bone: var(--color-bg-base);
   --color-cream: #F4EFE6;
   --color-sand: #E8DFD1;

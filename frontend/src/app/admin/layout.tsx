@@ -119,13 +119,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Left Sidebar (Desktop + Mobile Drawer) */}
       <aside
-        className={`fixed md:sticky top-0 z-50 md:z-30 h-screen flex flex-col justify-between border-r border-line bg-cream transition-all duration-300 ${
-          mobileOpen ? "left-0" : "-left-72 md:left-0"
-        } ${collapsed ? "md:w-20" : "w-64 md:w-64"}`}
+        className={`fixed md:sticky top-0 z-50 md:z-30 h-screen shrink-0 flex flex-col justify-between border-r border-line bg-cream transition-all duration-200 ${
+          mobileOpen ? "left-0 w-64" : "-left-72 md:left-0"
+        } ${collapsed ? "md:w-16" : "w-64 md:w-64"}`}
       >
         {/* Top: Brand Header */}
-        <div className="p-4 border-b border-line/70 flex items-center justify-between">
-          <Link href="/admin" className="flex items-center gap-2.5 overflow-hidden">
+        <div className={`p-3.5 border-b border-line/70 flex items-center ${collapsed ? "justify-center" : "justify-between"}`}>
+          <Link href="/admin" className="flex items-center gap-2.5 overflow-hidden" title="Marlow Dental CMS">
             <div className="h-9 w-9 shrink-0 rounded-xl bg-forest text-[#FAF7F2] grid place-items-center font-display font-bold text-base shadow-subtle">
               M
             </div>
@@ -145,13 +145,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <button
             onClick={() => setMobileOpen(false)}
             className="md:hidden p-1 rounded-lg text-ink-soft hover:text-ink"
+            aria-label="Close sidebar"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Center: Navigation Links */}
-        <nav className="flex-1 overflow-y-auto p-3 space-y-1 scrollbar-none">
+        <nav className={`flex-1 overflow-y-auto p-2.5 space-y-1.5 scrollbar-none ${collapsed ? "flex flex-col items-center" : ""}`}>
           {NAV_ITEMS.map((item) => {
             const isActive = item.exact
               ? pathname === item.href
@@ -162,12 +163,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <Link
                 key={item.href}
                 href={item.href}
-                title={collapsed ? item.label : undefined}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
+                title={item.label}
+                className={`flex items-center rounded-xl text-xs font-medium transition-all ${
+                  collapsed
+                    ? "h-10 w-10 justify-center p-0"
+                    : "gap-3 px-3 py-2.5 w-full"
+                } ${
                   isActive
                     ? "bg-forest text-[#FAF7F2] shadow-subtle font-semibold"
                     : "text-ink-soft hover:text-ink hover:bg-sand/60"
-                } ${collapsed ? "justify-center px-2" : ""}`}
+                }`}
               >
                 <Icon className={`h-4 w-4 shrink-0 ${isActive ? "text-[#FAF7F2]" : "text-forest"}`} />
                 {!collapsed && <span className="truncate">{item.label}</span>}
@@ -177,8 +182,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
 
         {/* Bottom: User Info & Controls */}
-        <div className="p-3 border-t border-line/70 space-y-2 bg-sand/20">
-          <div className={`flex items-center gap-2.5 p-2 rounded-xl bg-white/60 dark:bg-black/20 border border-line/50 ${collapsed ? "justify-center" : ""}`}>
+        <div className="p-2.5 border-t border-line/70 space-y-2 bg-sand/20">
+          <div
+            title={`${user.fullName} (${user.role})`}
+            className={`flex items-center rounded-xl bg-white/60 dark:bg-black/20 border border-line/50 ${
+              collapsed ? "p-1.5 justify-center" : "gap-2.5 p-2"
+            }`}
+          >
             <div className="h-8 w-8 shrink-0 rounded-full bg-forest/10 dark:bg-emerald-950 text-forest dark:text-emerald-300 grid place-items-center text-xs font-bold">
               {user.fullName.slice(0, 2).toUpperCase()}
             </div>
@@ -194,12 +204,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             )}
           </div>
 
-          <div className="flex items-center justify-between pt-1">
+          <div className={`flex items-center ${collapsed ? "flex-col gap-2 pt-1" : "justify-between pt-1"}`}>
             {/* Collapse toggle (desktop only) */}
             <button
               onClick={() => setCollapsed(!collapsed)}
               title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
               className="hidden md:inline-flex p-1.5 rounded-lg border border-line text-ink-soft hover:text-ink hover:bg-sand/60 transition-colors"
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
             </button>
@@ -220,6 +231,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               onClick={() => logout()}
               title="Sign out"
               className="p-1.5 rounded-lg border border-line text-ink-soft hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+              aria-label="Sign out"
             >
               <LogOut className="h-4 w-4" />
             </button>

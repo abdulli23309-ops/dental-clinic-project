@@ -4,6 +4,10 @@
   --font-display: var(--font-primary, var(--font-fraunces)), Georgia, serif;
   --font-sans: var(--font-secondary, var(--font-manrope)), system-ui, sans-serif;
 
+  --color-primary: var(--color-primary);
+  --color-secondary: var(--color-secondary);
+  --color-bg-base: var(--color-bg-base);
+
   --color-bone: var(--color-bone);
   --color-cream: var(--color-cream);
   --color-sand: var(--color-sand);

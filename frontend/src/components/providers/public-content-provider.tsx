@@ -105,24 +105,32 @@ export function PublicContentProvider({ children }: { children: React.ReactNode 
 
   // Dynamically inject CSS variables from database Organization theming settings
   useEffect(() => {
-    if (typeof document !== "undefined" && organization) {
+    if (typeof document !== "undefined") {
+      const org = organization;
+      const primary = org?.primaryColor || (org as any)?.primary_color;
+      const secondary = org?.secondaryColor || (org as any)?.secondary_color;
+      const bg = org?.backgroundColor || (org as any)?.background_color;
+      const pFont = org?.primaryFont || (org as any)?.primary_font;
+      const sFont = org?.secondaryFont || (org as any)?.secondary_font;
+
       const root = document.documentElement;
-      if (organization.primaryColor) {
-        root.style.setProperty("--color-primary", organization.primaryColor);
-        root.style.setProperty("--color-forest", organization.primaryColor);
+      if (primary) {
+        root.style.setProperty("--color-primary", primary);
+        root.style.setProperty("--color-forest", primary);
       }
-      if (organization.secondaryColor) {
-        root.style.setProperty("--color-secondary", organization.secondaryColor);
-        root.style.setProperty("--color-gold", organization.secondaryColor);
+      if (secondary) {
+        root.style.setProperty("--color-secondary", secondary);
+        root.style.setProperty("--color-gold", secondary);
       }
-      if (organization.backgroundColor) {
-        root.style.setProperty("--color-bg-base", organization.backgroundColor);
+      if (bg) {
+        root.style.setProperty("--color-bg-base", bg);
+        root.style.setProperty("--color-bone", bg);
       }
-      if (organization.primaryFont) {
-        root.style.setProperty("--font-primary", organization.primaryFont);
+      if (pFont) {
+        root.style.setProperty("--font-primary", pFont);
       }
-      if (organization.secondaryFont) {
-        root.style.setProperty("--font-secondary", organization.secondaryFont);
+      if (sFont) {
+        root.style.setProperty("--font-secondary", sFont);
       }
     }
   }, [organization]);

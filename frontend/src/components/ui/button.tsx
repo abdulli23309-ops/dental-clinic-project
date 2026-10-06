@@ -36,13 +36,13 @@ export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, Bu
 
     const variantStyles = {
       primary:
-        "bg-forest text-[#FAF7F2] border border-transparent shadow-subtle hover:bg-forest-deep hover:-translate-y-0.5 hover:shadow-card active:translate-y-0 active:scale-[0.98] focus-visible:ring-forest",
+        "bg-primary text-[#FAF7F2] border border-transparent shadow-subtle hover:brightness-90 hover:-translate-y-0.5 hover:shadow-card active:translate-y-0 active:scale-[0.98] focus-visible:ring-primary",
       secondary:
-        "bg-cream text-ink border border-line hover:bg-sand/70 hover:-translate-y-0.5 hover:shadow-subtle active:translate-y-0 active:scale-[0.98] focus-visible:ring-forest",
+        "bg-cream text-ink border border-line hover:bg-sand/70 hover:-translate-y-0.5 hover:shadow-subtle active:translate-y-0 active:scale-[0.98] focus-visible:ring-primary",
       outline:
-        "bg-transparent text-ink border border-line hover:border-forest hover:text-forest hover:-translate-y-0.5 hover:shadow-subtle active:translate-y-0 active:scale-[0.98] focus-visible:ring-forest",
+        "bg-transparent text-ink border border-line hover:border-primary hover:text-primary hover:-translate-y-0.5 hover:shadow-subtle active:translate-y-0 active:scale-[0.98] focus-visible:ring-primary",
       ghost:
-        "bg-transparent text-ink-soft hover:text-forest hover:bg-sand/30 active:scale-[0.98] focus-visible:ring-forest",
+        "bg-transparent text-ink-soft hover:text-primary hover:bg-sand/30 active:scale-[0.98] focus-visible:ring-primary",
     };
 
     const sizeStyles = {

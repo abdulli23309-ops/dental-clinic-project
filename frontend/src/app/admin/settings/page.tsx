@@ -126,6 +126,27 @@ export default function AdminSettingsPage() {
         accessToken
       );
       setOrg(updated);
+      if (typeof document !== "undefined") {
+        const root = document.documentElement;
+        if (primaryColor.trim()) {
+          root.style.setProperty("--color-primary", primaryColor.trim());
+          root.style.setProperty("--color-forest", primaryColor.trim());
+        }
+        if (secondaryColor.trim()) {
+          root.style.setProperty("--color-secondary", secondaryColor.trim());
+          root.style.setProperty("--color-gold", secondaryColor.trim());
+        }
+        if (backgroundColor.trim()) {
+          root.style.setProperty("--color-bg-base", backgroundColor.trim());
+          root.style.setProperty("--color-bone", backgroundColor.trim());
+        }
+        if (primaryFont.trim()) {
+          root.style.setProperty("--font-primary", primaryFont.trim());
+        }
+        if (secondaryFont.trim()) {
+          root.style.setProperty("--font-secondary", secondaryFont.trim());
+        }
+      }
       setThemingSuccess(true);
       setTimeout(() => setThemingSuccess(false), 3000);
     } catch (err: any) {

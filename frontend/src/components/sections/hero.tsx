@@ -140,30 +140,6 @@ export function Hero() {
                 </p>
               </div>
             </motion.div>
-
-            {/* Dynamic Clinical Leadership Credential Card */}
-            <div
-              className="group/card absolute -bottom-6 -left-2 sm:-left-6 max-w-[240px] rounded-[var(--radius-card)] border border-line bg-bone p-4 shadow-elevated backdrop-blur-md transition-transform duration-300 md:hover:-translate-y-1"
-              style={{ perspective: "600px" }}
-            >
-              <div className="flex items-center gap-1.5 text-clay">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                <p className="text-[10px] font-bold uppercase tracking-widest">
-                  {director.role || "Clinical Director"}
-                </p>
-              </div>
-              <p className="mt-1 font-display text-[16px] leading-tight text-ink font-medium">
-                {director.displayName}
-              </p>
-              <p className="mt-1 text-[11.5px] leading-tight text-ink-soft">
-                {director.education || director.professionalTitle}
-              </p>
-              {director.licenseNumber && (
-                <p className="mt-1 text-[10.5px] text-forest dark:text-emerald-400 font-mono">
-                  {director.licenseState || "IL"} License {director.licenseNumber}
-                </p>
-              )}
-            </div>
           </div>
         </div>
       </div>

@@ -2,18 +2,26 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import {
+  Announcement,
   DEFAULT_SITE_CONTENT,
+  fetchPublicAnnouncements,
+  fetchPublicClinics,
+  fetchPublicOrganization,
   getLocations,
   getSiteContent,
   getTeamMembers,
   LocationItem,
+  Organization,
   SiteContent,
   TeamMember,
 } from "@/lib/api";
 
 interface PublicContentContextType {
   content: SiteContent;
+  organization: Organization | null;
+  announcements: Announcement[];
   locations: LocationItem[];
+  clinics: LocationItem[];
   primaryLocation: LocationItem;
   team: TeamMember[];
   director: TeamMember;
@@ -65,19 +73,25 @@ const PublicContentContext = createContext<PublicContentContextType | undefined>
 
 export function PublicContentProvider({ children }: { children: React.ReactNode }) {
   const [content, setContent] = useState<SiteContent>(DEFAULT_SITE_CONTENT);
+  const [organization, setOrganization] = useState<Organization | null>(null);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [locations, setLocations] = useState<LocationItem[]>([DEFAULT_PRIMARY_LOCATION]);
   const [team, setTeam] = useState<TeamMember[]>([DEFAULT_DIRECTOR]);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadData = async () => {
     try {
-      const [contentData, locationsData, teamData] = await Promise.all([
+      const [contentData, orgData, announcementsData, locationsData, teamData] = await Promise.all([
         getSiteContent().catch(() => DEFAULT_SITE_CONTENT),
+        fetchPublicOrganization().catch(() => null),
+        fetchPublicAnnouncements().catch(() => []),
         getLocations().catch(() => [DEFAULT_PRIMARY_LOCATION]),
         getTeamMembers().catch(() => [DEFAULT_DIRECTOR]),
       ]);
 
       if (contentData) setContent(contentData);
+      if (orgData) setOrganization(orgData);
+      if (announcementsData) setAnnouncements(announcementsData);
       if (locationsData && locationsData.length > 0) setLocations(locationsData);
       if (teamData && teamData.length > 0) setTeam(teamData);
     } finally {
@@ -88,6 +102,30 @@ export function PublicContentProvider({ children }: { children: React.ReactNode 
   useEffect(() => {
     loadData();
   }, []);
+
+  // Dynamically inject CSS variables from database Organization theming settings
+  useEffect(() => {
+    if (typeof document !== "undefined" && organization) {
+      const root = document.documentElement;
+      if (organization.primaryColor) {
+        root.style.setProperty("--color-primary", organization.primaryColor);
+        root.style.setProperty("--color-forest", organization.primaryColor);
+      }
+      if (organization.secondaryColor) {
+        root.style.setProperty("--color-secondary", organization.secondaryColor);
+        root.style.setProperty("--color-gold", organization.secondaryColor);
+      }
+      if (organization.backgroundColor) {
+        root.style.setProperty("--color-bg-base", organization.backgroundColor);
+      }
+      if (organization.primaryFont) {
+        root.style.setProperty("--font-primary", organization.primaryFont);
+      }
+      if (organization.secondaryFont) {
+        root.style.setProperty("--font-secondary", organization.secondaryFont);
+      }
+    }
+  }, [organization]);
 
   const primaryLocation =
     locations.find((l) => l.isPrimary && l.isActive) ||
@@ -103,7 +141,10 @@ export function PublicContentProvider({ children }: { children: React.ReactNode 
     <PublicContentContext.Provider
       value={{
         content,
+        organization,
+        announcements,
         locations,
+        clinics: locations,
         primaryLocation,
         team,
         director,

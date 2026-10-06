@@ -36,13 +36,12 @@ class AppointmentCreateRequest(BaseModel):
     fullName: str = Field(..., min_length=2, max_length=100, description="Full legal name")
     phone: str = Field(..., min_length=10, max_length=30, description="Patient contact telephone")
     email: str = Field(..., min_length=5, max_length=150, description="Patient email address")
-    hasInsurance: bool = Field(default=False, description="Whether patient intends to use PPO insurance")
-    insuranceProvider: Optional[str] = Field(default=None, max_length=100, description="PPO Insurance provider name")
     notes: Optional[str] = Field(default=None, max_length=1000, description="Optional patient notes or symptoms")
     utmSource: Optional[str] = Field(default=None, max_length=100, description="Marketing source attribution")
     utmCampaign: Optional[str] = Field(default=None, max_length=100, description="Marketing campaign attribution")
 
     model_config = ConfigDict(extra="ignore")
+
 
     @field_validator("serviceId")
     @classmethod
@@ -103,18 +102,6 @@ class AppointmentCreateRequest(BaseModel):
             raise ValueError("email must be a valid email address.")
         return clean
 
-    @model_validator(mode="after")
-    def normalize_insurance(self) -> "AppointmentCreateRequest":
-        """
-        Cleans up insurance details based on whether the patient indicated they have coverage.
-
-        If the patient checked that they do not have insurance, any leftover provider name is cleared out.
-        """
-        if not self.hasInsurance:
-            self.insuranceProvider = None
-        elif self.insuranceProvider:
-            self.insuranceProvider = self.insuranceProvider.strip() or None
-        return self
 
 
 class AppointmentCreateResponse(BaseModel):

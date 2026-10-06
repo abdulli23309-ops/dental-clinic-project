@@ -5,6 +5,7 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.services.announcement_service import AnnouncementService
 from app.application.services.appointment_service import AppointmentService
 from app.application.services.auth_service import AuthService
 from app.application.services.cms_service import CmsService
@@ -14,6 +15,7 @@ from app.application.services.team_service import TeamService
 from app.core.database import get_db_session
 from app.core.security import decode_access_token
 from app.domain.models.user import User, UserRole
+from app.domain.repositories.announcement_repo import AnnouncementRepository
 from app.domain.repositories.appointment_repo import AppointmentRepository
 from app.domain.repositories.cms_repo import CmsRepository
 from app.domain.repositories.organization_repo import LocationRepository, OrganizationRepository
@@ -25,6 +27,7 @@ from app.domain.repositories.user_repo import (
     UserSessionRepository,
 )
 from app.domain.services.storage_service import StorageService
+from app.infrastructure.repositories.postgres_announcement_repo import PostgresAnnouncementRepository
 from app.infrastructure.repositories.postgres_appointment_repo import PostgresAppointmentRepository
 from app.infrastructure.repositories.postgres_cms_repo import PostgresCmsRepository
 from app.infrastructure.repositories.postgres_organization_repo import (
@@ -99,6 +102,12 @@ def get_cms_repository(
     return PostgresCmsRepository(session)
 
 
+def get_announcement_repository(
+    session: AsyncSession = Depends(get_db_session),
+) -> AnnouncementRepository:
+    return PostgresAnnouncementRepository(session)
+
+
 def get_storage_service() -> StorageService:
     return LocalStorageService()
 
@@ -143,6 +152,12 @@ def get_organization_service(
     location_repo: LocationRepository = Depends(get_location_repository),
 ) -> OrganizationService:
     return OrganizationService(org_repo, location_repo)
+
+
+def get_announcement_service(
+    repo: AnnouncementRepository = Depends(get_announcement_repository),
+) -> AnnouncementService:
+    return AnnouncementService(repo)
 
 
 # --- Authentication & Authorization Dependencies ---

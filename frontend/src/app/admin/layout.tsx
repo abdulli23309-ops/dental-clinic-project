@@ -1,42 +1,64 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  Bell,
+  ChevronLeft,
+  ChevronRight,
   ExternalLink,
   Globe,
   Home,
   Layers,
   LogOut,
   MapPin,
-  Shield,
+  Menu,
+  Settings,
+  ShieldCheck,
   UserCheck,
   Users,
+  X,
 } from "lucide-react";
 
 import { useAuth } from "@/components/providers/auth-provider";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
-const NAV_ITEMS = [
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  exact?: boolean;
+}
+
+const NAV_ITEMS: NavItem[] = [
   { href: "/admin", label: "Overview", icon: Home, exact: true },
-  { href: "/admin/website", label: "Website Content", icon: Globe },
-  { href: "/admin/team", label: "Team Members", icon: Users },
+  { href: "/admin/locations", label: "Clinics & Branches", icon: MapPin },
   { href: "/admin/services", label: "Services & Fees", icon: Layers },
-  { href: "/admin/locations", label: "Locations", icon: MapPin },
-  { href: "/admin/account", label: "Account", icon: Shield },
+  { href: "/admin/team", label: "Team Members", icon: Users },
+  { href: "/admin/announcements", label: "Announcements", icon: Bell },
+  { href: "/admin/website", label: "Website CMS", icon: Globe },
+  { href: "/admin/permissions", label: "Role Permissions", icon: ShieldCheck },
+  { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, isLoading, logout } = useAuth();
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !user) {
       router.push("/login");
     }
   }, [user, isLoading, router]);
+
+  // Close mobile drawer on route transition
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
   if (isLoading) {
     return (
@@ -56,53 +78,80 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="min-h-screen bg-bone flex flex-col">
-      {/* Admin Sticky Navigation Header */}
-      <header className="sticky top-0 z-40 border-b border-line/80 bg-cream/90 backdrop-blur-md">
-        <div className="container-x py-3 flex items-center justify-between gap-4">
-          {/* Practice Branding & Admin Label */}
-          <div className="flex items-center gap-3">
-            <Link href="/admin" className="flex items-center gap-2.5">
-              <span className="font-display text-lg text-ink font-semibold tracking-tight">
-                Marlow Dental
-              </span>
-              <span className="rounded-full bg-forest/10 dark:bg-emerald-950/50 border border-forest/20 px-2.5 py-0.5 text-[10.5px] font-mono uppercase font-bold text-forest dark:text-emerald-400">
-                CMS · Admin
-              </span>
-            </Link>
-          </div>
-
-          {/* Right Header Controls: Public site link, User badge, Theme, Logout */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Link
-              href="/"
-              target="_blank"
-              className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-line bg-sand/40 px-3 py-1 text-xs text-ink-soft hover:text-ink transition-colors cursor-pointer"
-            >
-              <span>View Live Website</span>
-              <ExternalLink className="h-3 w-3" />
-            </Link>
-
-            <div className="hidden sm:flex items-center gap-2 rounded-full border border-line bg-sand/30 px-3 py-1 text-xs">
-              <UserCheck className="h-3.5 w-3.5 text-forest dark:text-emerald-400" />
-              <span className="font-medium text-ink truncate max-w-[140px]">{user.fullName}</span>
-            </div>
-
-            <ThemeToggle />
-
-            <button
-              onClick={() => logout()}
-              title="Sign out"
-              className="inline-flex items-center gap-1 rounded-full border border-line/80 bg-white/50 dark:bg-black/20 p-2 text-ink-soft hover:text-red-700 hover:border-red-300 dark:hover:text-red-400 transition-colors cursor-pointer"
-            >
-              <LogOut className="h-3.5 w-3.5" />
-              <span className="sr-only">Sign out</span>
-            </button>
-          </div>
+    <div className="min-h-screen bg-bone flex flex-col md:flex-row">
+      {/* Mobile Top App Bar */}
+      <div className="md:hidden sticky top-0 z-40 flex items-center justify-between border-b border-line bg-cream/95 px-4 py-3 backdrop-blur-md">
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => setMobileOpen(true)}
+            className="p-1.5 rounded-lg border border-line text-ink hover:bg-sand/60"
+            aria-label="Open navigation sidebar"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <span className="font-display font-semibold text-ink text-base tracking-tight">
+            Marlow Dental
+          </span>
+          <span className="rounded-full bg-forest/10 px-2 py-0.5 text-[10px] font-mono uppercase font-bold text-forest">
+            Admin
+          </span>
         </div>
 
-        {/* Horizontal Navigation Tabs */}
-        <div className="container-x flex items-center gap-1 sm:gap-2 overflow-x-auto py-2 scrollbar-none">
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <button
+            onClick={() => logout()}
+            title="Sign out"
+            className="p-1.5 rounded-full border border-line text-ink-soft hover:text-red-600"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Drawer Backdrop */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden backdrop-blur-sm transition-opacity"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Left Sidebar (Desktop + Mobile Drawer) */}
+      <aside
+        className={`fixed md:sticky top-0 z-50 md:z-30 h-screen flex flex-col justify-between border-r border-line bg-cream transition-all duration-300 ${
+          mobileOpen ? "left-0" : "-left-72 md:left-0"
+        } ${collapsed ? "md:w-20" : "w-64 md:w-64"}`}
+      >
+        {/* Top: Brand Header */}
+        <div className="p-4 border-b border-line/70 flex items-center justify-between">
+          <Link href="/admin" className="flex items-center gap-2.5 overflow-hidden">
+            <div className="h-9 w-9 shrink-0 rounded-xl bg-forest text-[#FAF7F2] grid place-items-center font-display font-bold text-base shadow-subtle">
+              M
+            </div>
+            {!collapsed && (
+              <div className="truncate">
+                <span className="font-display text-sm font-bold text-ink block leading-tight tracking-tight">
+                  Marlow Dental
+                </span>
+                <span className="text-[10px] font-mono text-ink-soft block uppercase tracking-wider">
+                  Organization CMS
+                </span>
+              </div>
+            )}
+          </Link>
+
+          {/* Close button on mobile */}
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="md:hidden p-1 rounded-lg text-ink-soft hover:text-ink"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Center: Navigation Links */}
+        <nav className="flex-1 overflow-y-auto p-3 space-y-1 scrollbar-none">
           {NAV_ITEMS.map((item) => {
             const isActive = item.exact
               ? pathname === item.href
@@ -113,24 +162,98 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <Link
                 key={item.href}
                 href={item.href}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium whitespace-nowrap transition-all cursor-pointer ${
+                title={collapsed ? item.label : undefined}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
                   isActive
-                    ? "bg-forest text-[#FAF7F2] shadow-subtle"
-                    : "bg-transparent text-ink-soft hover:text-ink hover:bg-sand/60"
-                }`}
+                    ? "bg-forest text-[#FAF7F2] shadow-subtle font-semibold"
+                    : "text-ink-soft hover:text-ink hover:bg-sand/60"
+                } ${collapsed ? "justify-center px-2" : ""}`}
               >
-                <Icon className="h-3.5 w-3.5" />
-                <span>{item.label}</span>
+                <Icon className={`h-4 w-4 shrink-0 ${isActive ? "text-[#FAF7F2]" : "text-forest"}`} />
+                {!collapsed && <span className="truncate">{item.label}</span>}
               </Link>
             );
           })}
-        </div>
-      </header>
+        </nav>
 
-      {/* Main Admin Workspace Area */}
-      <main className="flex-1 container-x py-8 md:py-10">
-        {children}
-      </main>
+        {/* Bottom: User Info & Controls */}
+        <div className="p-3 border-t border-line/70 space-y-2 bg-sand/20">
+          <div className={`flex items-center gap-2.5 p-2 rounded-xl bg-white/60 dark:bg-black/20 border border-line/50 ${collapsed ? "justify-center" : ""}`}>
+            <div className="h-8 w-8 shrink-0 rounded-full bg-forest/10 dark:bg-emerald-950 text-forest dark:text-emerald-300 grid place-items-center text-xs font-bold">
+              {user.fullName.slice(0, 2).toUpperCase()}
+            </div>
+            {!collapsed && (
+              <div className="truncate flex-1 min-w-0">
+                <p className="text-xs font-semibold text-ink truncate leading-tight">
+                  {user.fullName}
+                </p>
+                <p className="text-[10px] text-forest truncate uppercase font-mono tracking-wider font-semibold">
+                  {user.role}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between pt-1">
+            {/* Collapse toggle (desktop only) */}
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              className="hidden md:inline-flex p-1.5 rounded-lg border border-line text-ink-soft hover:text-ink hover:bg-sand/60 transition-colors"
+            >
+              {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+            </button>
+
+            {!collapsed && (
+              <Link
+                href="/"
+                target="_blank"
+                title="View live website"
+                className="inline-flex items-center gap-1 text-[11px] text-ink-soft hover:text-ink px-2 py-1 rounded-md hover:bg-sand/60 transition-colors"
+              >
+                <span>Live Site</span>
+                <ExternalLink className="h-3 w-3" />
+              </Link>
+            )}
+
+            <button
+              onClick={() => logout()}
+              title="Sign out"
+              className="p-1.5 rounded-lg border border-line text-ink-soft hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Admin Content Workspace */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Desktop Sticky Header */}
+        <header className="hidden md:flex sticky top-0 z-20 h-14 items-center justify-between border-b border-line bg-cream/80 px-8 backdrop-blur-md">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-mono uppercase tracking-wider text-ink-soft">
+              Organization Management Portal
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              target="_blank"
+              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-sand/40 px-3 py-1 text-xs text-ink-soft hover:text-ink transition-colors"
+            >
+              <span>View Live Website</span>
+              <ExternalLink className="h-3 w-3" />
+            </Link>
+            <ThemeToggle />
+          </div>
+        </header>
+
+        <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

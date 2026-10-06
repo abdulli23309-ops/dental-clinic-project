@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
+    admin_announcements,
     admin_cms,
     admin_media,
     admin_organization,
@@ -22,6 +23,7 @@ api_v1_router.include_router(public_content.router, tags=["Public Content"])
 
 # Admin CMS & Clinic Management routes
 api_v1_router.include_router(admin_cms.router, tags=["Admin CMS"])
+api_v1_router.include_router(admin_announcements.router, tags=["Admin Announcements"])
 api_v1_router.include_router(admin_team.router, tags=["Admin Team"])
 api_v1_router.include_router(admin_services.router, tags=["Admin Services"])
 api_v1_router.include_router(admin_organization.router, tags=["Admin Organization"])

@@ -4,6 +4,8 @@ import getpass
 import sys
 from uuid import UUID
 
+from sqlalchemy import select
+
 from app.core.database import close_db, get_session_factory
 from app.core.security import hash_password
 from app.domain.models.cms import FaqItem
@@ -11,6 +13,7 @@ from app.domain.models.organization import Location, Organization
 from app.domain.models.service import Service
 from app.domain.models.team_member import TeamMember
 from app.domain.models.user import User, UserRole
+from app.infrastructure.database.orm_models import RoleORM, PermissionORM, RolePermissionORM
 from app.infrastructure.repositories.postgres_cms_repo import PostgresCmsRepository
 from app.infrastructure.repositories.postgres_organization_repo import (
     PostgresLocationRepository,
@@ -269,6 +272,21 @@ async def seed_data_cmd():
                     )
                 )
                 print(f"Seeded FAQ: {faq_data['question'][:30]}...")
+
+        # 6. Platform Roles
+        platform_roles = [
+            ("Platform Owner", "Full platform administration across all clinics and organizations"),
+            ("Super Admin", "High-level organization and branch management"),
+            ("Clinic Branch Manager", "Operational branch manager with team, slot, and lead management"),
+            ("Doctor", "Clinical practitioner with appointment, slot, and patient access"),
+            ("Receptionist", "Front-desk personnel with lead, booking, and check-in access"),
+        ]
+        for role_name, description in platform_roles:
+            stmt = select(RoleORM).where(RoleORM.name == role_name)
+            res = await session.execute(stmt)
+            if not res.scalar_one_or_none():
+                session.add(RoleORM(name=role_name, description=description, is_system=True))
+                print(f"Seeded Platform Role: {role_name}")
 
         await session.commit()
         print("Initial database seed completed successfully.")

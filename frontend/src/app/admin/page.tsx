@@ -82,9 +82,15 @@ export default function AdminOverviewPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button href="/admin/announcements" variant="outline" size="sm">
+            <span>Announcements</span>
+          </Button>
+          <Button href="/admin/settings" variant="outline" size="sm">
+            <span>Settings &amp; Theming</span>
+          </Button>
           <Button href="/admin/website" variant="primary" size="sm">
-            <span>Edit website content</span>
+            <span>Website CMS</span>
             <ArrowRight className="h-3.5 w-3.5" />
           </Button>
         </div>

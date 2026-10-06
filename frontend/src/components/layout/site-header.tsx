@@ -9,6 +9,7 @@ import { SearchDialog } from "@/components/ui/search-dialog";
 import { MobileMenu } from "@/components/layout/mobile-menu";
 import { getOfficeStatus, OfficeStatus } from "@/lib/utils";
 import { usePublicContent } from "@/components/providers/public-content-provider";
+import { AnnouncementMarquee } from "@/components/ui/announcement-marquee";
 
 const NAV_LINKS = [
   { label: "Treatments & Fees", href: "/#services" },
@@ -77,6 +78,9 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
       <a href="#main-content" className="skip-to-content">
         Skip to main content
       </a>
+
+      {/* Dynamic Marquee Announcements Ticker */}
+      {!isMinimal && <AnnouncementMarquee />}
 
       {/* Top Utility Announcement Bar */}
       {!isMinimal && (

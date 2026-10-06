@@ -2,9 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { Car, Train, Clock, Phone, Mail, MapPin } from "lucide-react";
+import {
+  ArrowRight,
+  Car,
+  Clock,
+  Compass,
+  Mail,
+  MapPin,
+  Phone,
+  Sparkles,
+  Train,
+} from "lucide-react";
 import { CopyButton } from "@/components/ui/copy-button";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { getOfficeStatus, OfficeStatus } from "@/lib/utils";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 
@@ -18,13 +30,10 @@ const DEFAULT_SCHEDULE = [
   { day: "Sunday", hours: "Closed" },
 ];
 
-/**
- * Renders office locations, transit directions, parking availability, and weekly hours.
- * Dynamically populated from CMS and multi-location backend data.
- */
 export function Visit() {
-  const { content, locations, primaryLocation } = usePublicContent();
-  const [selectedLocationId, setSelectedLocationId] = useState<string>(primaryLocation.id);
+  const { content, clinics, primaryLocation } = usePublicContent();
+  const [selectedCity, setSelectedCity] = useState<string>("All Cities");
+  const [selectedClinicId, setSelectedClinicId] = useState<string>(primaryLocation.id);
 
   const [status, setStatus] = useState<OfficeStatus>({
     isOpen: true,
@@ -36,58 +45,165 @@ export function Visit() {
     setStatus(getOfficeStatus());
   }, []);
 
-  const activeLocations = locations.filter((l) => l.isActive);
-  const activeLoc =
-    activeLocations.find((l) => l.id === selectedLocationId) ||
+  const activeClinics = clinics.filter((l) => l.isActive);
+
+  // Extract unique cities
+  const uniqueCities = Array.from(
+    new Set(activeClinics.map((c) => c.city).filter(Boolean))
+  );
+  const cityTabs = ["All Cities", ...uniqueCities];
+
+  const filteredClinics =
+    selectedCity === "All Cities"
+      ? activeClinics
+      : activeClinics.filter((c) => c.city.toLowerCase() === selectedCity.toLowerCase());
+
+  const activeClinic =
+    activeClinics.find((l) => l.id === selectedClinicId) ||
+    filteredClinics[0] ||
     primaryLocation ||
-    activeLocations[0];
+    activeClinics[0];
 
-  const fullAddress = `${activeLoc.addressLine1}${
-    activeLoc.addressLine2 ? `, ${activeLoc.addressLine2}` : ""
-  }, ${activeLoc.city}, ${activeLoc.state} ${activeLoc.postalCode || ""}`;
+  const fullAddress = `${activeClinic.addressLine1}${
+    activeClinic.addressLine2 ? `, ${activeClinic.addressLine2}` : ""
+  }, ${activeClinic.city}, ${activeClinic.state} ${activeClinic.postalCode || ""}`;
 
-  const phone = activeLoc.phone || content.general?.phone || "(312) 555-0147";
+  const phone = activeClinic.phone || content.general?.phone || "(312) 555-0147";
   const cleanPhone = phone.replace(/[^0-9+]/g, "");
-  const email = activeLoc.email || content.general?.email || "care@marlowdental.com";
+  const email = activeClinic.email || content.general?.email || "care@marlowdental.com";
 
   return (
     <section id="visit" className="border-t border-line bg-bone py-20 md:py-28">
-      <div className="container-x">
-        {/* Multi-Location Switcher Tabs if practice has multiple locations */}
-        {activeLocations.length > 1 && (
-          <div className="mb-10 flex flex-wrap gap-2 border-b border-line pb-4">
-            <span className="text-xs text-ink-soft flex items-center gap-1.5 mr-2">
-              <MapPin className="h-3.5 w-3.5 text-forest" />
-              Practice Locations:
+      <div className="container-x space-y-12">
+        {/* Section Header */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <SectionHeading
+            eyebrow="Nationwide Network"
+            title={
+              <>
+                Our Nationwide Clinics
+                <br />
+                &amp; Modern Facilities
+              </>
+            }
+          />
+          <p className="max-w-md text-sm leading-relaxed text-ink-soft">
+            Explore dedicated branch clinics designed with quiet single-chair operatory suites, ground-floor accessibility, and dedicated parking.
+          </p>
+        </div>
+
+        {/* Dynamic City Filter Tabs */}
+        {cityTabs.length > 1 && (
+          <div className="border-b border-line pb-4 flex items-center gap-2 overflow-x-auto scrollbar-none">
+            <span className="text-xs font-semibold text-ink-soft uppercase tracking-wider font-mono mr-1">
+              Cities:
             </span>
-            {activeLocations.map((loc) => (
-              <button
-                key={loc.id}
-                onClick={() => setSelectedLocationId(loc.id)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
-                  activeLoc.id === loc.id
-                    ? "bg-forest text-white shadow-sm"
-                    : "bg-cream text-ink-soft hover:bg-sand/60 hover:text-ink"
-                }`}
-              >
-                {loc.name} {loc.isPrimary && "(Primary)"}
-              </button>
-            ))}
+            {cityTabs.map((city) => {
+              const isSelected = selectedCity === city;
+              return (
+                <button
+                  key={city}
+                  onClick={() => setSelectedCity(city)}
+                  className={`rounded-full px-4 py-1.5 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
+                    isSelected
+                      ? "bg-forest text-white shadow-subtle font-semibold"
+                      : "bg-cream text-ink-soft hover:text-ink hover:bg-sand/60 border border-line"
+                  }`}
+                >
+                  {city}
+                </button>
+              );
+            })}
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-16">
+        {/* Horizontal Cards for Clinics in Selected City */}
+        <div className="flex gap-6 overflow-x-auto pb-4 scrollbar-thin snap-x snap-mandatory">
+          {filteredClinics.map((clinic) => {
+            const isCurrent = activeClinic.id === clinic.id;
+            const clinicFullAddr = `${clinic.addressLine1}${
+              clinic.addressLine2 ? `, ${clinic.addressLine2}` : ""
+            }, ${clinic.city}, ${clinic.state}`;
+
+            return (
+              <div
+                key={clinic.id}
+                className="w-[300px] sm:w-[340px] md:w-[380px] shrink-0 snap-start"
+              >
+                <Card
+                  surface={isCurrent ? "cream" : "bone"}
+                  shadow={isCurrent ? "card" : "subtle"}
+                  hoverLift={true}
+                  className={`h-full flex flex-col justify-between p-6 rounded-2xl border transition-all ${
+                    isCurrent ? "ring-2 ring-forest border-forest" : "border-line"
+                  }`}
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-2 border-b border-line/60 pb-3">
+                      <span className="rounded-full bg-forest/10 px-2.5 py-0.5 text-[10.5px] font-mono font-bold text-forest uppercase">
+                        {clinic.city}
+                      </span>
+                      {clinic.isPrimary && (
+                        <span className="rounded-full bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 px-2 py-0.5 text-[10px] font-semibold">
+                          Primary Headquarters
+                        </span>
+                      )}
+                    </div>
+
+                    <h3 className="font-display text-lg sm:text-xl font-bold text-ink leading-snug">
+                      {clinic.name}
+                    </h3>
+
+                    <p className="text-xs text-ink-soft leading-relaxed">
+                      {clinicFullAddr}
+                    </p>
+
+                    <div className="pt-2 text-xs text-ink-soft space-y-1">
+                      {clinic.phone && (
+                        <p className="flex items-center gap-1.5 font-medium text-ink">
+                          <Phone className="h-3 w-3 text-forest" />
+                          <span>{clinic.phone}</span>
+                        </p>
+                      )}
+                      {clinic.hoursInfo && (
+                        <p className="flex items-center gap-1.5 text-[11px] text-ink-soft line-clamp-2">
+                          <Clock className="h-3 w-3 text-clay shrink-0" />
+                          <span>{clinic.hoursInfo}</span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-5 pt-3 border-t border-line/60 flex items-center gap-2">
+                    <Button
+                      href={`/book?clinic=${clinic.id}`}
+                      variant="primary"
+                      size="sm"
+                      className="flex-1 justify-center text-xs"
+                    >
+                      <span>Book Here</span>
+                      <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                    </Button>
+                    <button
+                      onClick={() => setSelectedClinicId(clinic.id)}
+                      className="px-3 py-1.5 rounded-lg border border-line bg-white/70 dark:bg-black/30 text-xs text-ink hover:bg-sand/60 transition-colors"
+                    >
+                      View Map
+                    </button>
+                  </div>
+                </Card>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Selected Clinic Map & Detailed Information */}
+        <div className="pt-6 grid grid-cols-1 gap-10 lg:grid-cols-12 lg:gap-14 items-start">
           {/* Practice Location & Transit Info - 5 cols */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
-            transition={{ duration: 0.4 }}
-            className="lg:col-span-5 space-y-8"
-          >
+          <div className="lg:col-span-5 space-y-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <p className="eyebrow">{activeLoc.name || "Location & Hours"}</p>
+                <span className="eyebrow">{activeClinic.name}</span>
                 <span
                   className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10.5px] font-semibold ${
                     status.isOpen
@@ -103,88 +219,63 @@ export function Visit() {
                   {status.statusText}
                 </span>
               </div>
-              <h2 className="fluid-h2 tracking-[-0.02em] text-ink font-normal">
-                Easy to find,
-                <br />
-                easy to park,
-                <br />
-                easy to enter.
-              </h2>
+              <h3 className="font-display text-2xl text-ink font-bold leading-tight">
+                {activeClinic.name}
+              </h3>
             </div>
 
             {/* Address */}
-            <div className="space-y-2">
+            <div className="space-y-2 rounded-2xl bg-cream/60 border border-line p-5">
               <div className="flex items-center justify-between">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-soft/70">
                   Facility Address
                 </p>
                 <CopyButton text={fullAddress} label="Copy Address" />
               </div>
-              <p className="font-display text-[20px] leading-snug text-ink">
-                {activeLoc.addressLine1}
-                {activeLoc.addressLine2 && <><br />{activeLoc.addressLine2}</>}
+              <p className="font-display text-base text-ink">
+                {activeClinic.addressLine1}
+                {activeClinic.addressLine2 && <><br />{activeClinic.addressLine2}</>}
                 <br />
-                {activeLoc.city}, {activeLoc.state} {activeLoc.postalCode}
-              </p>
-              <p className="text-xs sm:text-[13px] leading-relaxed text-ink-soft">
-                Ground-floor private practice with step-free, wheelchair accessible entrance directly from the sidewalk.
+                {activeClinic.city}, {activeClinic.state} {activeClinic.postalCode}
               </p>
             </div>
 
-            {/* Parking */}
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2 text-ink font-medium text-sm">
-                <Car className="h-4 w-4 text-forest dark:text-emerald-400" />
-                <span>Dedicated Patient Parking</span>
+            {/* Parking & Transit */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-ink font-medium text-xs">
+                <Car className="h-4 w-4 text-forest" />
+                <span>Dedicated Patient Parking Available</span>
               </div>
-              <p className="text-xs sm:text-[13px] leading-relaxed text-ink-soft">
-                Free patient parking stalls behind the building (first-come, first-served), plus ample street parking.
-              </p>
-            </div>
-
-            {/* Public Transit */}
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2 text-ink font-medium text-sm">
-                <Train className="h-4 w-4 text-forest dark:text-emerald-400" />
-                <span>Transit Access</span>
+              <div className="flex items-center gap-2 text-ink font-medium text-xs">
+                <Train className="h-4 w-4 text-forest" />
+                <span>Nearby Rapid Transit &amp; Metropolitan Bus Lines</span>
               </div>
-              <p className="text-xs sm:text-[13px] leading-relaxed text-ink-soft">
-                {content.contact?.transitNote ||
-                  "Convenient access via nearby rapid transit stations and major metropolitan bus lines."}
-              </p>
             </div>
 
             {/* Direct Contact */}
-            <div className="pt-2 border-t border-line/60 flex flex-wrap gap-4 text-sm">
+            <div className="pt-2 border-t border-line/60 flex flex-wrap gap-4 text-xs font-medium">
               <a
                 href={`tel:${cleanPhone}`}
-                className="flex items-center gap-1.5 text-forest dark:text-emerald-400 font-medium hover:underline"
+                className="flex items-center gap-1.5 text-forest hover:underline"
               >
                 <Phone className="h-3.5 w-3.5" />
                 <span>{phone}</span>
               </a>
               <a
                 href={`mailto:${email}`}
-                className="flex items-center gap-1.5 text-forest dark:text-emerald-400 font-medium hover:underline"
+                className="flex items-center gap-1.5 text-forest hover:underline"
               >
                 <Mail className="h-3.5 w-3.5" />
                 <span>{email}</span>
               </a>
             </div>
-          </motion.div>
+          </div>
 
-          {/* Map & Office Hours Schedule - 7 cols */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
-            className="lg:col-span-7 space-y-8"
-          >
-            {/* Map Frame */}
-            <div className="aspect-[16/10] w-full overflow-hidden rounded-[var(--radius-card)] border border-line bg-cream shadow-subtle">
+          {/* Interactive Map & Hours Schedule - 7 cols */}
+          <div className="lg:col-span-7 space-y-6">
+            <div className="aspect-[16/10] w-full overflow-hidden rounded-2xl border border-line bg-cream shadow-subtle">
               <iframe
-                title={`${activeLoc.name} Location Map`}
+                title={`${activeClinic.name} Map`}
                 src={`https://www.google.com/maps?q=${encodeURIComponent(
                   fullAddress
                 )}&output=embed`}
@@ -194,47 +285,39 @@ export function Visit() {
               />
             </div>
 
-            {/* Office Hours Table */}
-            <Card surface="cream" shadow="subtle" className="p-6">
+            {/* Office Hours */}
+            <Card surface="cream" shadow="subtle" className="p-5 rounded-2xl border border-line">
               <div className="flex items-center justify-between border-b border-line pb-3">
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4 text-clay" />
-                  <h3 className="font-display text-base text-ink font-medium">
-                    Office Hours Schedule
-                  </h3>
+                  <h4 className="font-display text-sm font-bold text-ink">
+                    Operating Schedule
+                  </h4>
                 </div>
                 <span className="text-xs text-ink-soft">
-                  {activeLoc.hoursInfo ? "Published Schedule" : "Central Time"}
+                  {activeClinic.hoursInfo ? "Published Schedule" : "Central Time"}
                 </span>
               </div>
 
-              {activeLoc.hoursInfo ? (
-                <div className="mt-4 p-4 rounded-xl bg-bone border border-line/60 text-xs text-ink leading-relaxed">
-                  {activeLoc.hoursInfo}
+              {activeClinic.hoursInfo ? (
+                <div className="mt-3 p-3 rounded-xl bg-bone border border-line/60 text-xs text-ink leading-relaxed whitespace-pre-line">
+                  {activeClinic.hoursInfo}
                 </div>
               ) : (
-                <dl className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2.5">
+                <dl className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
                   {DEFAULT_SCHEDULE.map((item) => (
                     <div
                       key={item.day}
-                      className="flex items-center justify-between border-b border-line/60 py-1.5 text-xs sm:text-[13px]"
+                      className="flex items-center justify-between border-b border-line/40 py-1 text-xs"
                     >
                       <dt className="text-ink-soft">{item.day}</dt>
-                      <dd
-                        className={`font-mono ${
-                          item.hours === "Closed"
-                            ? "text-ink-soft/60"
-                            : "font-medium text-ink"
-                        }`}
-                      >
-                        {item.hours}
-                      </dd>
+                      <dd className="font-mono text-ink font-medium">{item.hours}</dd>
                     </div>
                   ))}
                 </dl>
               )}
             </Card>
-          </motion.div>
+          </div>
         </div>
       </div>
     </section>

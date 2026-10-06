@@ -92,8 +92,6 @@ async def test_postgres_appointment_persistence(pg_session: AsyncSession):
         patient_full_name="Integration Test Patient",
         patient_phone="(312) 555-0999",
         patient_email="integration.test@example.com",
-        has_insurance=True,
-        insurance_provider="Delta Dental PPO",
         notes="Integration test notes",
         utm_source="test_runner",
         utm_campaign="dev_test",
@@ -111,8 +109,6 @@ async def test_postgres_appointment_persistence(pg_session: AsyncSession):
     assert retrieved.id == appointment.id
     assert retrieved.patient_full_name == "Integration Test Patient"
     assert retrieved.service_id == "cleanings-exams"
-    assert retrieved.has_insurance is True
-    assert retrieved.insurance_provider == "Delta Dental PPO"
 
 
 @pytest.mark.asyncio

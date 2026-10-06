@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme {
-  --font-display: var(--font-fraunces), serif;
-  --font-sans: var(--font-manrope), sans-serif;
+  --font-display: var(--font-primary, var(--font-fraunces)), Georgia, serif;
+  --font-sans: var(--font-secondary, var(--font-manrope)), system-ui, sans-serif;
 
   --color-bone: var(--color-bone);
   --color-cream: var(--color-cream);
@@ -19,16 +19,20 @@
 }
 
 :root {
-  --color-bone: #FAF7F2;
+  --color-primary: #1F3D34;
+  --color-secondary: #B8935A;
+  --color-bg-base: #FAF7F2;
+
+  --color-bone: var(--color-bg-base);
   --color-cream: #F4EFE6;
   --color-sand: #E8DFD1;
   --color-line: #E2DACB;
   --color-ink: #151613;
   --color-ink-soft: #4F5047;
-  --color-forest: #1F3D34;
+  --color-forest: var(--color-primary);
   --color-forest-deep: #12241E;
   --color-clay: #C4704F;
-  --color-gold: #B8935A;
+  --color-gold: var(--color-secondary);
 
   --shadow-flat: none;
   --shadow-subtle: 0 1px 3px rgba(20, 20, 15, 0.05), 0 1px 2px rgba(20, 20, 15, 0.03);
@@ -153,6 +157,18 @@
   }
   .skip-to-content:focus {
     top: 1.5rem;
+  }
+
+  /* Marquee ticker animation */
+  @keyframes marquee {
+    0% { transform: translateX(0%); }
+    100% { transform: translateX(-50%); }
+  }
+
+  .animate-marquee {
+    display: flex;
+    width: max-content;
+    animation: marquee 35s linear infinite;
   }
 }
 

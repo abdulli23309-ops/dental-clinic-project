@@ -125,7 +125,7 @@ export function PublicContentProvider({ children }: { children: React.ReactNode 
         css += `:root:not(.dark) {`;
         if (primary) css += `--color-primary: ${primary}; --color-forest: ${primary};`;
         if (secondary) css += `--color-secondary: ${secondary}; --color-gold: ${secondary};`;
-        if (bg) css += `--color-bg-base: ${bg}; --color-bone: ${bg};`;
+        if (bg) css += `--color-bg-base: ${bg};`;
         if (pFont) css += `--font-primary: '${pFont}', Georgia, serif;`;
         if (sFont) css += `--font-secondary: '${sFont}', system-ui, sans-serif;`;
         css += `}\n`;

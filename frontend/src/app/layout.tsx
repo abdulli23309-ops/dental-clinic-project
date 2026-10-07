@@ -147,7 +147,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body className="grain bg-bone text-ink antialiased">
+      <body className="grain bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 antialiased">
         <ThemeProvider>
           <AuthProvider>
             <PublicContentProvider>{children}</PublicContentProvider>

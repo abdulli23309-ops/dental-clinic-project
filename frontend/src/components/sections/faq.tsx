@@ -57,7 +57,7 @@ export function FAQ() {
   };
 
   return (
-    <section id="faq" className="border-t border-line bg-cream/40 py-20 md:py-28">
+    <section id="faq" className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 py-20 md:py-28">
       <div className="container-x">
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-16">
           {/* Section Introduction - 4 cols */}
@@ -82,7 +82,7 @@ export function FAQ() {
 
             <div className="pt-2">
               <Button href={`tel:${cleanPhone}`} variant="secondary" size="sm">
-                <Phone className="h-3.5 w-3.5 text-forest" />
+                <Phone className="h-3.5 w-3.5 text-primary" />
                 <span>Call {phone}</span>
               </Button>
             </div>
@@ -90,20 +90,20 @@ export function FAQ() {
 
           {/* FAQ Accordion List - 8 cols */}
           <div className="lg:col-span-8">
-            <div className="divide-y divide-line border-y border-line">
+            <div className="divide-y divide-gray-200 dark:divide-gray-800 border-y border-gray-200 dark:border-gray-800">
               {faqList.map((faq, idx) => {
                 const isOpen = openIndex === idx;
                 return (
                   <div key={idx} className="py-4 sm:py-5">
                     <button
                       onClick={() => toggle(idx)}
-                      className="flex w-full items-start justify-between gap-4 text-left transition-colors hover:text-forest"
+                      className="flex w-full items-start justify-between gap-4 text-left transition-colors hover:text-primary cursor-pointer"
                       aria-expanded={isOpen}
                     >
-                      <span className="font-display text-[16px] sm:text-[17px] text-ink font-normal leading-snug">
+                      <span className="font-display text-[16px] sm:text-[17px] text-gray-900 dark:text-white font-normal leading-snug">
                         {faq.q}
                       </span>
-                      <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border border-line bg-bone text-ink-soft">
+                      <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
                         {isOpen ? <Minus className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
                       </span>
                     </button>
@@ -114,7 +114,7 @@ export function FAQ() {
                       }`}
                     >
                       <div className="overflow-hidden">
-                        <p className="text-xs sm:text-[14px] leading-relaxed text-ink-soft">
+                        <p className="text-xs sm:text-[14px] leading-relaxed text-gray-600 dark:text-gray-400">
                           {faq.a}
                         </p>
                       </div>

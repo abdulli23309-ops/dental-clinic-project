@@ -58,21 +58,29 @@ export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
       if (e.key === "Escape") {
         e.preventDefault();
         handleClose();
-      } else if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setSelectedIndex((prev) => (results.length > 0 ? (prev + 1) % results.length : 0));
-      } else if (e.key === "ArrowUp") {
+        return;
+      }
+
+      if (e.key === "ArrowDown") {
         e.preventDefault();
         setSelectedIndex((prev) =>
-          results.length > 0 ? (prev - 1 + results.length) % results.length : 0
+          results.length === 0 ? 0 : (prev + 1) % results.length
         );
-      } else if (e.key === "Enter") {
+        return;
+      }
+
+      if (e.key === "ArrowUp") {
         e.preventDefault();
-        if (results[selectedIndex]) {
-          const target = results[selectedIndex].href;
-          handleClose();
-          router.push(target);
-        }
+        setSelectedIndex((prev) =>
+          results.length === 0 ? 0 : (prev - 1 + results.length) % results.length
+        );
+        return;
+      }
+
+      if (e.key === "Enter" && results[selectedIndex]) {
+        e.preventDefault();
+        handleClose();
+        router.push(results[selectedIndex].href);
       }
     };
 
@@ -101,16 +109,16 @@ export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
     >
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-forest-deep/60 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
         onClick={onClose}
         aria-hidden="true"
       />
 
       {/* Modal Surface */}
-      <div className="relative w-full max-w-2xl overflow-hidden rounded-xl border border-line bg-bone elevation-4">
+      <div className="relative w-full max-w-2xl overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-2xl">
         {/* Search Header */}
-        <div className="flex items-center border-b border-line px-4 py-3 sm:px-5">
-          <Search className="h-5 w-5 text-ink-soft shrink-0" />
+        <div className="flex items-center border-b border-gray-200 dark:border-gray-800 px-4 py-3 sm:px-5">
+          <Search className="h-5 w-5 text-gray-500 dark:text-gray-400 shrink-0" />
           <input
             ref={inputRef}
             type="search"
@@ -118,20 +126,20 @@ export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
             value={query}
             onChange={(e) => handleQueryChange(e.target.value)}
             placeholder="Search procedures, cash fees, insurance, or doctor info..."
-            className="ml-3.5 flex-1 bg-transparent text-[15px] sm:text-[16px] text-ink outline-none placeholder:text-ink-soft/60"
+            className="ml-3.5 flex-1 bg-transparent text-[15px] sm:text-[16px] text-gray-900 dark:text-white outline-none placeholder:text-gray-400"
             autoComplete="off"
             spellCheck={false}
           />
           {query ? (
             <button
               onClick={() => handleQueryChange("")}
-              className="p-1 text-ink-soft hover:text-ink"
+              className="p-1 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white cursor-pointer"
               aria-label="Clear query"
             >
               <X className="h-4 w-4" />
             </button>
           ) : (
-            <kbd className="hidden sm:inline-block rounded border border-line bg-cream px-1.5 py-0.5 text-[11px] text-ink-soft">
+            <kbd className="hidden sm:inline-block rounded border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-[11px] text-gray-500 dark:text-gray-400">
               ESC
             </kbd>
           )}
@@ -141,7 +149,7 @@ export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
         <div className="max-h-[60vh] overflow-y-auto p-2 sm:p-3">
           {query.trim() === "" ? (
             <div className="py-8 text-center">
-              <p className="text-[13px] font-medium text-ink-soft">Quick suggestions</p>
+              <p className="text-[13px] font-medium text-gray-600 dark:text-gray-400">Quick suggestions</p>
               <div className="mt-3 flex flex-wrap justify-center gap-2">
                 {[
                   "Cash rates",
@@ -154,7 +162,7 @@ export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
                   <button
                     key={term}
                     onClick={() => handleQueryChange(term)}
-                    className="rounded-md border border-line bg-cream/70 px-3 py-1.5 text-xs text-ink-soft hover:border-forest hover:text-forest"
+                    className="rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 hover:border-primary hover:text-primary cursor-pointer"
                   >
                     {term}
                   </button>
@@ -163,8 +171,8 @@ export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
             </div>
           ) : results.length === 0 ? (
             <div className="py-12 text-center">
-              <p className="font-display text-lg text-ink">No exact matches found</p>
-              <p className="mt-1 text-sm text-ink-soft">
+              <p className="font-display text-lg text-gray-900 dark:text-white">No exact matches found</p>
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                 Try searching for general terms like &ldquo;cleaning&rdquo;, &ldquo;crown&rdquo;, or &ldquo;insurance&rdquo;.
               </p>
             </div>
@@ -179,27 +187,27 @@ export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
                     aria-selected={isSelected}
                     onClick={() => handleSelect(r.href)}
                     onMouseEnter={() => setSelectedIndex(idx)}
-                    className={`flex cursor-pointer items-start justify-between rounded-lg p-3 transition-colors ${
+                    className={`flex cursor-pointer items-start justify-between rounded-xl p-3 transition-colors ${
                       isSelected
-                        ? "bg-cream border border-forest/30"
-                        : "hover:bg-cream/60 border border-transparent"
+                        ? "bg-primary/10 dark:bg-primary/20 border border-primary/30"
+                        : "hover:bg-gray-50 dark:hover:bg-gray-800/60 border border-transparent"
                     }`}
                   >
                     <div className="pr-4">
                       <div className="flex items-center gap-2">
-                        <span className="font-display text-[15px] font-medium text-ink">
+                        <span className="font-display text-[15px] font-medium text-gray-900 dark:text-white">
                           {r.title}
                         </span>
-                        <span className="rounded bg-sand/60 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-forest">
+                        <span className="rounded bg-primary/10 text-primary px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider">
                           {r.category}
                         </span>
                       </div>
-                      <p className="mt-1 text-[13px] leading-relaxed text-ink-soft line-clamp-2">
+                      <p className="mt-1 text-[13px] leading-relaxed text-gray-600 dark:text-gray-400 line-clamp-2">
                         {r.snippet}
                       </p>
                     </div>
                     {isSelected && (
-                      <CornerDownLeft className="mt-1 h-4 w-4 text-forest shrink-0" />
+                      <CornerDownLeft className="mt-1 h-4 w-4 text-primary shrink-0" />
                     )}
                   </li>
                 );
@@ -209,7 +217,7 @@ export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
         </div>
 
         {/* Footer shortcuts */}
-        <div className="hidden sm:flex items-center justify-between border-t border-line bg-cream/50 px-4 py-2.5 text-[11.5px] text-ink-soft">
+        <div className="hidden sm:flex items-center justify-between border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 px-4 py-2.5 text-[11.5px] text-gray-500 dark:text-gray-400">
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1">
               <ArrowUpDown className="h-3 w-3" /> Navigate
@@ -224,3 +232,5 @@ export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
     </div>
   );
 }
+
+export default SearchDialog;

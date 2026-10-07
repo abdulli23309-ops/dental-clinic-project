@@ -25,7 +25,7 @@ export function Visit() {
         );
 
   return (
-    <section id="visit" className="border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 py-20 md:py-28 overflow-hidden">
+    <section id="visit" className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 py-20 md:py-28 overflow-hidden">
       <div className="container-x space-y-10">
         {/* Section Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">

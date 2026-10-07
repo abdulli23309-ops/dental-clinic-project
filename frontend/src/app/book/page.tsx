@@ -215,7 +215,7 @@ function BookingWizard() {
   const todayIso = new Date().toISOString().split("T")[0];
 
   return (
-    <div className="min-h-screen bg-bone flex flex-col justify-between">
+    <div className="min-h-screen bg-white dark:bg-gray-950 flex flex-col justify-between">
       {/* Reused SiteHeader with minimal variant */}
       <SiteHeader variant="minimal" />
 

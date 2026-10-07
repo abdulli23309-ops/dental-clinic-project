@@ -16,7 +16,6 @@ import {
   Menu,
   Settings,
   ShieldCheck,
-  UserCheck,
   Users,
   X,
 } from "lucide-react";
@@ -62,10 +61,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-bone flex items-center justify-center p-6">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center p-6">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-forest border-t-transparent" />
-          <p className="text-xs font-mono uppercase tracking-wider text-ink-soft">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <p className="text-xs font-mono uppercase tracking-wider text-gray-500 dark:text-gray-400">
             Verifying staff credentials...
           </p>
         </div>
@@ -78,21 +77,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="min-h-screen bg-bone flex flex-col md:flex-row">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col md:flex-row">
       {/* Mobile Top App Bar */}
-      <div className="md:hidden sticky top-0 z-40 flex items-center justify-between border-b border-line bg-cream/95 px-4 py-3 backdrop-blur-md">
+      <div className="md:hidden sticky top-0 z-40 flex items-center justify-between border-b border-gray-200 dark:border-gray-800 bg-white/95 dark:bg-gray-950/95 px-4 py-3 backdrop-blur-md">
         <div className="flex items-center gap-2.5">
           <button
             onClick={() => setMobileOpen(true)}
-            className="p-1.5 rounded-lg border border-line text-ink hover:bg-sand/60"
+            className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800"
             aria-label="Open navigation sidebar"
           >
             <Menu className="h-5 w-5" />
           </button>
-          <span className="font-display font-semibold text-ink text-base tracking-tight">
+          <span className="font-display font-semibold text-gray-900 dark:text-gray-100 text-base tracking-tight">
             Marlow Dental
           </span>
-          <span className="rounded-full bg-forest/10 px-2 py-0.5 text-[10px] font-mono uppercase font-bold text-forest">
+          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-mono uppercase font-bold text-primary">
             Admin
           </span>
         </div>
@@ -102,7 +101,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <button
             onClick={() => logout()}
             title="Sign out"
-            className="p-1.5 rounded-full border border-line text-ink-soft hover:text-red-600"
+            className="p-1.5 rounded-full border border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:text-red-600"
           >
             <LogOut className="h-4 w-4" />
           </button>
@@ -119,12 +118,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Floating Pill Left Sidebar (Desktop + Mobile Drawer) */}
       <aside
-        className={`m-4 h-[calc(100vh-2rem)] rounded-[2.5rem] shadow-2xl bg-white dark:bg-gray-900 flex flex-col transition-all duration-300 ease-in-out border border-gray-100 dark:border-gray-800 overflow-hidden shrink-0 fixed md:sticky top-0 z-50 md:z-30 ${
+        className={`m-4 h-[calc(100vh-2rem)] rounded-[2.5rem] shadow-2xl bg-white dark:bg-gray-950 border-r border-gray-200 dark:border-gray-800 border border-gray-200 dark:border-gray-800 flex flex-col transition-all duration-300 ease-in-out overflow-hidden shrink-0 fixed md:sticky top-0 z-50 md:z-30 ${
           mobileOpen ? "left-0" : "-left-96 md:left-0"
         } ${isCollapsed ? "w-24" : "w-64"}`}
       >
         {/* Top: Brand Header */}
-        <div className={`p-4 border-b border-gray-100 dark:border-gray-800 flex items-center ${isCollapsed ? "justify-center" : "justify-between"}`}>
+        <div className={`p-4 border-b border-gray-200 dark:border-gray-800 flex items-center ${isCollapsed ? "justify-center" : "justify-between"}`}>
           <div className="flex items-center gap-3 overflow-hidden">
             <button 
               onClick={() => setIsCollapsed(!isCollapsed)}
@@ -137,7 +136,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </div>
             </button>
             <Link href="/admin" className={`truncate transition-opacity duration-300 ${isCollapsed ? "hidden opacity-0" : "opacity-100 flex flex-col"}`}>
-              <span className="font-display text-sm font-bold text-gray-900 dark:text-white block leading-tight tracking-tight hover:text-primary transition-colors">
+              <span className="font-display text-sm font-bold text-gray-900 dark:text-gray-100 block leading-tight tracking-tight hover:text-primary transition-colors">
                 Marlow Dental
               </span>
               <span className="text-[10px] font-mono text-gray-500 dark:text-gray-400 block uppercase tracking-wider">
@@ -176,7 +175,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 } ${
                   isActive
                     ? "bg-primary text-white shadow-md font-semibold"
-                    : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
+                    : "text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800"
                 }`}
               >
                 <Icon className={`h-5 w-5 shrink-0 transition-colors ${isActive ? "text-white" : "text-primary"}`} />
@@ -189,10 +188,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
 
         {/* Bottom: User Info & Controls */}
-        <div className="p-3.5 border-t border-gray-100 dark:border-gray-800 space-y-2 bg-gray-50/60 dark:bg-gray-900/60 rounded-b-[2.5rem]">
+        <div className="p-3.5 border-t border-gray-200 dark:border-gray-800 space-y-2 bg-gray-50/60 dark:bg-gray-900/60 rounded-b-[2.5rem]">
           <div
             title={`${user.fullName} (${user.role})`}
-            className={`flex items-center rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-xs ${
+            className={`flex items-center rounded-2xl bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-800 shadow-xs ${
               isCollapsed ? "p-1.5 justify-center" : "gap-2.5 p-2.5"
             }`}
           >
@@ -250,7 +249,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Link
               href="/"
               target="_blank"
-              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-gray-700 bg-gray-100/60 dark:bg-gray-800/60 px-3 py-1 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-gray-700 bg-gray-100/60 dark:bg-gray-800/60 px-3 py-1 text-xs text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
             >
               <span>View Live Website</span>
               <ExternalLink className="h-3 w-3" />

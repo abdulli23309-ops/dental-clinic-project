@@ -46,7 +46,7 @@ export function AnnouncementMarquee() {
     <div
       role="region"
       aria-label="Practice Announcements"
-      className="relative z-30 w-full overflow-hidden bg-primary/5 dark:bg-primary/10 border-b border-line/40 py-2.5 text-xs select-none"
+      className="relative z-30 w-full overflow-hidden bg-white/90 dark:bg-black/90 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 py-2.5 text-xs select-none"
     >
       <div className="flex w-full overflow-hidden">
         <motion.div
@@ -61,7 +61,7 @@ export function AnnouncementMarquee() {
           {tickerItems.map((text, idx) => (
             <div
               key={`${idx}-${text}`}
-              className="inline-flex items-center gap-3 text-gray-900 dark:text-gray-100 text-[12.5px] font-medium tracking-wide"
+              className="inline-flex items-center gap-3 text-black dark:text-white text-[12.5px] font-medium tracking-wide"
             >
               <span className="text-primary font-bold text-xs">✦</span>
               <span>{text}</span>

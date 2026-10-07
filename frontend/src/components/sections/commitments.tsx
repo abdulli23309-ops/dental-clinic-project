@@ -23,7 +23,7 @@ export function Commitments() {
       icon: UserCheck,
       title: "Direct Clinician Continuity",
       subtitle: "Dedicated doctor care without handoffs",
-      description: `${director.displayName || "Our lead clinician"} and our team personally conduct your examination, explain diagnostic imaging chairside, and complete your restorative treatment. You never have to wonder which practitioner is overseeing your dental health.`,
+      description: `${director?.displayName || "Our lead clinician"} and our team personally conduct your examination, explain diagnostic imaging chairside, and complete your restorative treatment. You never have to wonder which practitioner is overseeing your dental health.`,
     },
     {
       num: "02",

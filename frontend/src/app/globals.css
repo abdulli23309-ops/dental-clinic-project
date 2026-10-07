@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *, .dark, .dark *));
+
 @theme {
   --font-display: var(--font-primary, var(--font-fraunces)), Georgia, serif;
   --font-sans: var(--font-secondary, var(--font-manrope)), system-ui, sans-serif;

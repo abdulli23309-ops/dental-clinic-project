@@ -127,7 +127,7 @@ export function Hero() {
 
               <div className="absolute bottom-4 left-4 right-4 text-white">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-200">
-                  {primaryLocation.name}
+                  {primaryLocation?.name || practiceName}
                 </p>
                 <p className="text-sm font-medium mt-0.5">
                   Natural daylight, quiet single-chair suites, unhurried care

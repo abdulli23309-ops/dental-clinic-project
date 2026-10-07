@@ -424,7 +424,7 @@ export default function AdminTeamPage() {
                       id="member-role"
                       value={form.role}
                       onChange={(e) => setForm({ ...form, role: e.target.value })}
-                      className="w-full rounded-2xl border border-line dark:border-gray-700 bg-cream/70 dark:bg-gray-800/80 px-4 py-3 text-xs text-ink dark:text-bone outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      className="w-full rounded-2xl border border-line dark:border-gray-700 bg-cream/70 dark:bg-gray-800/80 px-4 py-3 text-xs text-ink dark:text-white outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                     >
                       {ROLES.map((r) => (
                         <option key={r} value={r}>
@@ -460,7 +460,7 @@ export default function AdminTeamPage() {
                       id="member-location"
                       value={form.locationId || ""}
                       onChange={(e) => setForm({ ...form, locationId: e.target.value || null })}
-                      className="w-full rounded-2xl border border-line dark:border-gray-700 bg-cream/70 dark:bg-gray-800/80 px-4 py-3 text-xs text-ink dark:text-bone outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      className="w-full rounded-2xl border border-line dark:border-gray-700 bg-cream/70 dark:bg-gray-800/80 px-4 py-3 text-xs text-ink dark:text-white outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                     >
                       <option value="">Practice-wide / All Facilities</option>
                       {locations.map((loc) => (
@@ -481,7 +481,7 @@ export default function AdminTeamPage() {
                     rows={4}
                     value={form.biography}
                     onChange={(e) => setForm({ ...form, biography: e.target.value })}
-                    className="w-full rounded-2xl border border-line dark:border-gray-700 bg-cream/70 dark:bg-gray-800/80 px-4 py-3 text-xs text-ink dark:text-bone outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    className="w-full rounded-2xl border border-line dark:border-gray-700 bg-cream/70 dark:bg-gray-800/80 px-4 py-3 text-xs text-ink dark:text-white outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
 
@@ -513,7 +513,7 @@ export default function AdminTeamPage() {
                   />
 
                   <div className="flex items-center gap-3">
-                    <label className="inline-flex items-center gap-1.5 rounded-full border border-line dark:border-gray-700 bg-sand/60 dark:bg-gray-800 px-3 py-1.5 text-xs font-medium text-ink dark:text-bone cursor-pointer hover:bg-sand dark:hover:bg-gray-700 transition-colors">
+                    <label className="inline-flex items-center gap-1.5 rounded-full border border-line dark:border-gray-700 bg-sand/60 dark:bg-gray-800 px-3 py-1.5 text-xs font-medium text-ink dark:text-gray-200 cursor-pointer hover:bg-sand dark:hover:bg-gray-700 transition-colors">
                       <Upload className="h-3.5 w-3.5" />
                       <span>{isUploading ? "Uploading..." : "Upload photo file"}</span>
                       <input

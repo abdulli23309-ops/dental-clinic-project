@@ -267,7 +267,7 @@ export default function AdminLocationsPage() {
                 <div className="flex items-center gap-2.5 flex-wrap">
                   <h3 className="font-display text-lg text-ink font-semibold">{loc.name}</h3>
                   {loc.isPrimary && (
-                    <span className="rounded-full bg-forest text-bone px-2.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wider">
+                    <span className="rounded-full bg-forest text-white px-2.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wider">
                       Primary Clinic
                     </span>
                   )}
@@ -469,7 +469,7 @@ export default function AdminLocationsPage() {
                     value={form.hoursInfo}
                     onChange={(e) => setForm({ ...form, hoursInfo: e.target.value })}
                     placeholder="Mon – Thu: 8:00 AM – 6:00 PM&#10;Fri: 8:00 AM – 2:00 PM&#10;Sat–Sun: Closed"
-                    className="w-full rounded-2xl border border-line dark:border-gray-700 bg-cream/70 dark:bg-gray-800/80 px-4 py-3 text-xs text-ink dark:text-bone placeholder:text-ink-soft/40 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none"
+                    className="w-full rounded-2xl border border-line dark:border-gray-700 bg-cream/70 dark:bg-gray-800/80 px-4 py-3 text-xs text-ink dark:text-white placeholder:text-ink-soft/40 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none"
                   />
                 </div>
 

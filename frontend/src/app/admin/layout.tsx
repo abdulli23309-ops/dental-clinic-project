@@ -189,7 +189,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
 
         {/* Bottom: User Info & Controls */}
-        <div className="p-3.5 border-t border-gray-100 dark:border-gray-800 space-y-2 bg-gray-50/60 dark:bg-gray-950/40 rounded-b-[2.5rem]">
+        <div className="p-3.5 border-t border-gray-100 dark:border-gray-800 space-y-2 bg-gray-50/60 dark:bg-gray-900/60 rounded-b-[2.5rem]">
           <div
             title={`${user.fullName} (${user.role})`}
             className={`flex items-center rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-xs ${
@@ -239,9 +239,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Main Admin Content Workspace */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Desktop Sticky Header */}
-        <header className="hidden md:flex sticky top-0 z-20 h-14 items-center justify-between border-b border-line bg-cream/80 px-8 backdrop-blur-md">
+        <header className="hidden md:flex sticky top-0 z-20 h-14 items-center justify-between border-b border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 px-8 backdrop-blur-md">
           <div className="flex items-center gap-3">
-            <span className="text-xs font-mono uppercase tracking-wider text-ink-soft">
+            <span className="text-xs font-mono uppercase tracking-wider text-gray-500 dark:text-gray-400">
               Organization Management Portal
             </span>
           </div>
@@ -250,7 +250,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Link
               href="/"
               target="_blank"
-              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-sand/40 px-3 py-1 text-xs text-ink-soft hover:text-ink transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-gray-700 bg-gray-100/60 dark:bg-gray-800/60 px-3 py-1 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
             >
               <span>View Live Website</span>
               <ExternalLink className="h-3 w-3" />

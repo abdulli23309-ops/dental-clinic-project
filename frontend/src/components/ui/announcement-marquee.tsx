@@ -61,7 +61,7 @@ export function AnnouncementMarquee() {
           {tickerItems.map((text, idx) => (
             <div
               key={`${idx}-${text}`}
-              className="inline-flex items-center gap-3 text-ink/90 dark:text-bone text-[12.5px] font-medium tracking-wide"
+              className="inline-flex items-center gap-3 text-gray-900 dark:text-gray-100 text-[12.5px] font-medium tracking-wide"
             >
               <span className="text-primary font-bold text-xs">✦</span>
               <span>{text}</span>

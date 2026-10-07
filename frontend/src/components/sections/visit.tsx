@@ -90,7 +90,7 @@ export function Visit() {
         {isLoading ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="flex flex-col md:flex-row w-full bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm p-4 gap-6 animate-pulse">
+              <div key={i} className="flex flex-col md:flex-row w-full bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 gap-6 animate-pulse">
                 <div className="w-full md:w-56 h-36 rounded-xl bg-gray-200 dark:bg-gray-800 shrink-0" />
                 <div className="flex-1 space-y-3 py-2">
                   <div className="h-5 bg-gray-200 dark:bg-gray-800 rounded w-1/3" />
@@ -140,10 +140,10 @@ export function Visit() {
               return (
                 <div
                   key={loc.id}
-                  className="flex flex-col md:flex-row w-full bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm p-4 gap-6 items-stretch md:items-center justify-between hover:border-primary/40 transition-all"
+                  className="flex flex-col md:flex-row w-full bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 gap-6 items-stretch md:items-center justify-between hover:border-primary/40 transition-all"
                 >
                   {/* Left Side: Clinic Image */}
-                  <div className="w-full md:w-56 h-40 md:h-36 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 shrink-0 relative">
+                  <div className="w-full md:w-56 h-40 md:h-36 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0 relative">
                     <img
                       src={clinicImage}
                       alt={loc.name}
@@ -160,20 +160,20 @@ export function Visit() {
                   {/* Middle: Clinic Name, Map Pin Icon + Address */}
                   <div className="flex-1 space-y-1.5">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-display text-lg sm:text-xl text-ink font-semibold leading-snug">
+                      <h3 className="font-display text-lg sm:text-xl text-gray-900 dark:text-gray-100 font-semibold leading-snug">
                         {loc.name}
                       </h3>
-                      <span className="rounded-full bg-gray-100 dark:bg-gray-800 px-2.5 py-0.5 text-[11px] font-semibold text-clay">
+                      <span className="rounded-full bg-gray-100 dark:bg-gray-700 px-2.5 py-0.5 text-[11px] font-semibold text-gray-600 dark:text-gray-400">
                         {loc.city}, {loc.state}
                       </span>
                     </div>
 
-                    <div className="flex items-start gap-1.5 text-xs text-ink-soft">
+                    <div className="flex items-start gap-1.5 text-xs text-gray-600 dark:text-gray-400">
                       <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                       <span className="leading-relaxed">{fullAddress}</span>
                     </div>
 
-                    <div className="flex items-center gap-4 text-xs text-ink-soft pt-1">
+                    <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-gray-400 pt-1">
                       <div className="flex items-center gap-1.5">
                         <Phone className="h-3.5 w-3.5 text-primary shrink-0" />
                         <a href={`tel:${cleanPhone}`} className="hover:text-primary font-medium">
@@ -190,7 +190,7 @@ export function Visit() {
                   </div>
 
                   {/* Right Side: Get Directions text link + Dark rounded Book Appointment button */}
-                  <div className="flex items-center gap-4 shrink-0 justify-end pt-2 md:pt-0 border-t md:border-t-0 border-gray-100 dark:border-gray-800">
+                  <div className="flex items-center gap-4 shrink-0 justify-end pt-2 md:pt-0 border-t md:border-t-0 border-gray-100 dark:border-gray-700">
                     <a
                       href={mapUrl}
                       target="_blank"

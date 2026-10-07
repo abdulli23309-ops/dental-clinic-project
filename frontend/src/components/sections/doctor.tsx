@@ -122,7 +122,7 @@ export function Doctor() {
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="bg-gray-100 dark:bg-gray-800/60 rounded-2xl p-4 h-96 animate-pulse flex flex-col justify-between">
+              <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl p-4 h-96 animate-pulse flex flex-col justify-between border border-gray-200 dark:border-gray-700">
                 <div className="w-full aspect-[4/5] rounded-xl bg-gray-200 dark:bg-gray-700 mb-4" />
                 <div className="space-y-2">
                   <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-3/4 mx-auto" />
@@ -179,7 +179,7 @@ export function Doctor() {
                   key={doc.id}
                   className="w-[280px] sm:w-[300px] shrink-0 snap-start"
                 >
-                  <div className="h-full rounded-2xl bg-gray-100 dark:bg-gray-800/80 border border-line/60 p-4 flex flex-col justify-between hover:shadow-md transition-all">
+                  <div className="h-full rounded-2xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 flex flex-col justify-between hover:shadow-md transition-all">
                     <div>
                       {/* Doctor Image at Top */}
                       <div className="w-full aspect-[4/5] rounded-xl overflow-hidden bg-gray-200 dark:bg-gray-700 mb-3.5 relative shadow-xs">
@@ -205,7 +205,7 @@ export function Doctor() {
 
                       {/* Name, Credentials, and Title Below */}
                       <div className="space-y-1">
-                        <h3 className="font-display text-base sm:text-lg text-ink font-semibold leading-snug">
+                        <h3 className="font-display text-base sm:text-lg text-gray-900 dark:text-gray-100 font-semibold leading-snug">
                           {doc.displayName}
                         </h3>
 
@@ -216,13 +216,13 @@ export function Doctor() {
                             </span>
                           )}
                           {doc.credentials && <span className="text-ink-soft/40">·</span>}
-                          <span className="text-xs text-ink-soft font-medium">
+                          <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">
                             {doc.professionalTitle || doc.role}
                           </span>
                         </div>
 
                         {/* Location */}
-                        <div className="flex items-center gap-1 text-[11.5px] text-ink-soft/80 pt-1">
+                        <div className="flex items-center gap-1 text-[11.5px] text-gray-500 dark:text-gray-400 pt-1">
                           <MapPin className="h-3 w-3 text-primary shrink-0" />
                           <span className="truncate">{doc.locationName}</span>
                         </div>

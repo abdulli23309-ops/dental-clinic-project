@@ -124,7 +124,7 @@ export function Services() {
 
         {/* Loading State Skeleton */}
         {isLoading ? (
-          <div className="flex flex-row overflow-x-auto snap-x snap-mandatory gap-4 py-4 hide-scrollbar">
+          <div className="flex flex-row overflow-x-auto snap-x snap-mandatory gap-4 py-4 hide-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             {[1, 2, 3, 4].map((i) => (
               <div
                 key={i}
@@ -150,7 +150,7 @@ export function Services() {
           </Card>
         ) : (
           /* Slim & Horizontal Scrollable Row */
-          <div className="flex flex-row overflow-x-auto snap-x snap-mandatory gap-4 py-4 hide-scrollbar">
+          <div className="flex flex-row overflow-x-auto snap-x snap-mandatory gap-4 py-4 hide-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             {filtered.map((service) => {
               return (
                 <div

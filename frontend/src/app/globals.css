@@ -174,6 +174,33 @@
     width: max-content;
     animation: marquee 35s linear infinite;
   }
+
+  /* Hide scrollbar for clean horizontal scroll containers */
+  .hide-scrollbar,
+  .scrollbar-none {
+    -ms-overflow-style: none;  /* IE/Edge */
+    scrollbar-width: none;     /* Firefox */
+  }
+  .hide-scrollbar::-webkit-scrollbar,
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;             /* Chrome/Safari/Opera */
+  }
+
+  /* Thin scrollbar variant (used on team carousel) */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    height: 4px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: var(--color-line);
+    border-radius: 9999px;
+  }
 }
 
 /* Film grain: subtle tactile texture */

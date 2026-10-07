@@ -3,7 +3,7 @@
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
-import { ArrowRight, Phone, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { ArrowRight, Phone, CheckCircle2 } from "lucide-react";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 
 /**
@@ -11,7 +11,7 @@ import { usePublicContent } from "@/components/providers/public-content-provider
  * It introduces the practice's human-centered philosophy, key credentials, office direct line, and primary booking buttons.
  */
 export function Hero() {
-  const { content, director, primaryLocation } = usePublicContent();
+  const { content, primaryLocation } = usePublicContent();
 
   const practiceName = content.general?.practiceName || "Marlow Dental";
   const phone = content.general?.phone || primaryLocation?.phone || "(312) 555-0147";

@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Search, X, CornerDownLeft, ArrowUpDown } from "lucide-react";
-import { searchSite, buildDynamicSearchIndex, SearchResult } from "@/lib/search-index";
+import { searchSite, buildDynamicSearchIndex } from "@/lib/search-index";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 
 interface SearchDialogProps {
@@ -18,30 +18,38 @@ interface SearchDialogProps {
 export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
   const { team, locations } = usePublicContent();
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
-  const dynamicDocs = buildDynamicSearchIndex({
-    team,
-    locations,
-  });
+  const dynamicDocs = useMemo(
+    () => buildDynamicSearchIndex({ team, locations }),
+    [team, locations]
+  );
+
+  const results = useMemo(
+    () => searchSite(query, dynamicDocs),
+    [query, dynamicDocs]
+  );
 
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 50);
-      setQuery("");
-      setResults(searchSite("", dynamicDocs));
-      setSelectedIndex(0);
+      const timer = setTimeout(() => inputRef.current?.focus(), 50);
       document.body.style.overflow = "hidden";
+      return () => {
+        clearTimeout(timer);
+        document.body.style.overflow = "";
+      };
     } else {
       document.body.style.overflow = "";
     }
-    return () => {
-      document.body.style.overflow = "";
-    };
   }, [isOpen]);
+
+  const handleClose = useCallback(() => {
+    setQuery("");
+    setSelectedIndex(0);
+    onClose();
+  }, [onClose]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -49,7 +57,7 @@ export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
 
       if (e.key === "Escape") {
         e.preventDefault();
-        onClose();
+        handleClose();
       } else if (e.key === "ArrowDown") {
         e.preventDefault();
         setSelectedIndex((prev) => (results.length > 0 ? (prev + 1) % results.length : 0));
@@ -62,7 +70,7 @@ export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
         e.preventDefault();
         if (results[selectedIndex]) {
           const target = results[selectedIndex].href;
-          onClose();
+          handleClose();
           router.push(target);
         }
       }
@@ -70,17 +78,15 @@ export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, results, selectedIndex, onClose, router]);
+  }, [isOpen, results, selectedIndex, router, handleClose]);
 
   const handleQueryChange = (val: string) => {
     setQuery(val);
-    const searchRes = searchSite(val);
-    setResults(searchRes);
     setSelectedIndex(0);
   };
 
   const handleSelect = (href: string) => {
-    onClose();
+    handleClose();
     router.push(href);
   };
 

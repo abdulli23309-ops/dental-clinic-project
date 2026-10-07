@@ -119,12 +119,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Floating Pill Left Sidebar (Desktop + Mobile Drawer) */}
       <aside
-        className={`m-4 h-[calc(100vh-2rem)] rounded-[2.5rem] shadow-2xl bg-white flex flex-col transition-all duration-300 ease-in-out border border-gray-100 overflow-hidden shrink-0 fixed md:sticky top-0 z-50 md:z-30 ${
+        className={`m-4 h-[calc(100vh-2rem)] rounded-[2.5rem] shadow-2xl bg-white dark:bg-gray-900 flex flex-col transition-all duration-300 ease-in-out border border-gray-100 dark:border-gray-800 overflow-hidden shrink-0 fixed md:sticky top-0 z-50 md:z-30 ${
           mobileOpen ? "left-0" : "-left-96 md:left-0"
         } ${isCollapsed ? "w-24" : "w-64"}`}
       >
         {/* Top: Brand Header */}
-        <div className={`p-4 border-b border-gray-100 flex items-center ${isCollapsed ? "justify-center" : "justify-between"}`}>
+        <div className={`p-4 border-b border-gray-100 dark:border-gray-800 flex items-center ${isCollapsed ? "justify-center" : "justify-between"}`}>
           <div className="flex items-center gap-3 overflow-hidden">
             <button 
               onClick={() => setIsCollapsed(!isCollapsed)}
@@ -137,21 +137,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </div>
             </button>
             <Link href="/admin" className={`truncate transition-opacity duration-300 ${isCollapsed ? "hidden opacity-0" : "opacity-100 flex flex-col"}`}>
-              <span className="font-display text-sm font-bold text-gray-900 block leading-tight tracking-tight hover:text-primary transition-colors">
+              <span className="font-display text-sm font-bold text-gray-900 dark:text-white block leading-tight tracking-tight hover:text-primary transition-colors">
                 Marlow Dental
               </span>
-              <span className="text-[10px] font-mono text-gray-500 block uppercase tracking-wider">
+              <span className="text-[10px] font-mono text-gray-500 dark:text-gray-400 block uppercase tracking-wider">
                 Organization CMS
               </span>
             </Link>
           </div>
 
-
-
           {/* Close button on mobile */}
           <button
             onClick={() => setMobileOpen(false)}
-            className="md:hidden p-1.5 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+            className="md:hidden p-1.5 rounded-xl text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             aria-label="Close sidebar"
           >
             <X className="h-5 w-5" />
@@ -178,7 +176,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 } ${
                   isActive
                     ? "bg-primary text-white shadow-md font-semibold"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                    : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
                 }`}
               >
                 <Icon className={`h-5 w-5 shrink-0 transition-colors ${isActive ? "text-white" : "text-primary"}`} />
@@ -191,10 +189,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
 
         {/* Bottom: User Info & Controls */}
-        <div className="p-3.5 border-t border-gray-100 space-y-2 bg-gray-50/60 rounded-b-[2.5rem]">
+        <div className="p-3.5 border-t border-gray-100 dark:border-gray-800 space-y-2 bg-gray-50/60 dark:bg-gray-950/40 rounded-b-[2.5rem]">
           <div
             title={`${user.fullName} (${user.role})`}
-            className={`flex items-center rounded-2xl bg-white border border-gray-100 shadow-xs ${
+            className={`flex items-center rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-xs ${
               isCollapsed ? "p-1.5 justify-center" : "gap-2.5 p-2.5"
             }`}
           >
@@ -202,7 +200,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               {user.fullName.slice(0, 2).toUpperCase()}
             </div>
             <div className={`truncate flex-1 min-w-0 transition-opacity duration-300 ${isCollapsed ? "hidden opacity-0" : "opacity-100 flex flex-col"}`}>
-              <p className="text-xs font-semibold text-gray-900 truncate leading-tight">
+              <p className="text-xs font-semibold text-gray-900 dark:text-white truncate leading-tight">
                 {user.fullName}
               </p>
               <p className="text-[10px] text-primary truncate uppercase font-mono tracking-wider font-semibold">
@@ -212,7 +210,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
 
           <div className={`flex items-center ${isCollapsed ? "flex-col gap-2 pt-1" : "justify-between pt-1"}`}>
-
             <Link
               href="/"
               target="_blank"
@@ -220,7 +217,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               className={`transition-opacity duration-300 ${
                 isCollapsed
                   ? "hidden opacity-0"
-                  : "opacity-100 inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 px-3 py-1.5 rounded-full hover:bg-white shadow-xs transition-colors"
+                  : "opacity-100 inline-flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white px-3 py-1.5 rounded-full hover:bg-white dark:hover:bg-gray-800 shadow-xs transition-colors"
               }`}
             >
               <span>Live Site</span>
@@ -230,7 +227,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <button
               onClick={() => logout()}
               title="Sign out"
-              className="p-2 rounded-full border border-gray-200 text-gray-500 hover:text-red-600 hover:bg-red-50 shadow-xs transition-colors cursor-pointer"
+              className="p-2 rounded-full border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 shadow-xs transition-colors cursor-pointer"
               aria-label="Sign out"
             >
               <LogOut className="h-4 w-4" />

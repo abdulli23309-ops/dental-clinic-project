@@ -376,22 +376,48 @@ export async function getServices(): Promise<ServiceItem[]> {
   try {
     const res = await fetch(`${API_BASE}/api/v1/public/services`, { cache: "no-store" });
     if (!res.ok) throw new Error("Failed to fetch public services");
-    const data = await res.json();
-    return data.map((s: any) => ({
-      id: s.slug,
-      category: s.category,
-      title: s.title,
-      shortDesc: s.shortDesc,
-      fullDesc: s.fullDesc || s.shortDesc,
-      duration: s.duration,
-      cashPrice: s.cashPrice,
-      insuranceNote: s.insuranceNote || "",
-      code: s.code || "",
-      recommendedInterval: s.recommendedInterval || "",
-      highlight: s.isHighlighted,
-      isActive: s.isActive,
-      displayOrder: s.displayOrder,
-    }));
+    const data = (await res.json()) as Array<{
+      slug: string;
+      category: string;
+      title: string;
+      shortDesc: string;
+      fullDesc?: string;
+      duration: string;
+      cashPrice: number | string;
+      insuranceNote?: string;
+      code?: string;
+      recommendedInterval?: string;
+      isHighlighted: boolean;
+      isActive: boolean;
+      displayOrder: number;
+    }>;
+    return data.map((s) => {
+      const validCategories: Array<"preventive" | "restorative" | "cosmetic" | "emergency"> = [
+        "preventive",
+        "restorative",
+        "cosmetic",
+        "emergency",
+      ];
+      const category = validCategories.includes(s.category as "preventive" | "restorative" | "cosmetic" | "emergency")
+        ? (s.category as "preventive" | "restorative" | "cosmetic" | "emergency")
+        : "preventive";
+
+      return {
+        id: s.slug,
+        category,
+        title: s.title,
+        shortDesc: s.shortDesc,
+        fullDesc: s.fullDesc || s.shortDesc,
+        duration: s.duration,
+        cashPrice: typeof s.cashPrice === "number" ? `$${s.cashPrice}` : String(s.cashPrice),
+        insuranceNote: s.insuranceNote || "",
+        code: s.code || "",
+        recommendedInterval: s.recommendedInterval || "",
+        highlight: s.isHighlighted,
+        isActive: s.isActive,
+        displayOrder: s.displayOrder,
+      };
+    });
   } catch {
     return MOCK_SERVICES;
   }
@@ -560,7 +586,7 @@ let inMemoryAccessToken: string | null = null;
 let isRefreshing = false;
 let failedQueue: Array<{
   resolve: (token: string) => void;
-  reject: (err: any) => void;
+  reject: (err: unknown) => void;
 }> = [];
 
 export function setMemoryAccessToken(token: string | null): void {
@@ -571,7 +597,7 @@ export function getMemoryAccessToken(): string | null {
   return inMemoryAccessToken;
 }
 
-function processQueue(error: any, token: string | null = null) {
+function processQueue(error: unknown, token: string | null = null) {
   failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
@@ -607,7 +633,7 @@ export async function authorizedFetch(
   };
 
   const fullUrl = endpoint.startsWith("http") ? endpoint : `${API_BASE}${endpoint}`;
-  let response = await fetch(fullUrl, reqOptions);
+  const response = await fetch(fullUrl, reqOptions);
 
   // If token expired (401) and not an auth negotiation endpoint, queue and refresh
   if (
@@ -778,7 +804,7 @@ export async function adminGetCmsSection(section: string, token?: string) {
   return res.json();
 }
 
-export async function adminUpdateCmsSection(section: string, data: any, token?: string) {
+export async function adminUpdateCmsSection(section: string, data: Record<string, unknown>, token?: string) {
   const res = await authorizedFetch(
     `/api/v1/admin/cms/${section}`,
     {
@@ -798,7 +824,7 @@ export async function adminGetServices(token?: string) {
   return res.json();
 }
 
-export async function adminCreateService(data: any, token?: string) {
+export async function adminCreateService(data: Record<string, unknown>, token?: string) {
   const res = await authorizedFetch(
     `/api/v1/admin/services`,
     {
@@ -814,7 +840,7 @@ export async function adminCreateService(data: any, token?: string) {
   return res.json();
 }
 
-export async function adminUpdateService(id: string, data: any, token?: string) {
+export async function adminUpdateService(id: string, data: Record<string, unknown>, token?: string) {
   const res = await authorizedFetch(
     `/api/v1/admin/services/${id}`,
     {
@@ -850,7 +876,7 @@ export async function adminGetTeam(token?: string): Promise<TeamMember[]> {
   return res.json();
 }
 
-export async function adminCreateTeamMember(data: any, token?: string) {
+export async function adminCreateTeamMember(data: Record<string, unknown>, token?: string) {
   const res = await authorizedFetch(
     `/api/v1/admin/team`,
     {
@@ -866,7 +892,7 @@ export async function adminCreateTeamMember(data: any, token?: string) {
   return res.json();
 }
 
-export async function adminUpdateTeamMember(id: string, data: any, token?: string) {
+export async function adminUpdateTeamMember(id: string, data: Record<string, unknown>, token?: string) {
   const res = await authorizedFetch(
     `/api/v1/admin/team/${id}`,
     {
@@ -902,7 +928,7 @@ export async function adminGetFaqs(token?: string): Promise<FaqItem[]> {
   return res.json();
 }
 
-export async function adminCreateFaq(data: any, token?: string) {
+export async function adminCreateFaq(data: Record<string, unknown>, token?: string) {
   const res = await authorizedFetch(
     `/api/v1/admin/faq`,
     {
@@ -915,7 +941,7 @@ export async function adminCreateFaq(data: any, token?: string) {
   return res.json();
 }
 
-export async function adminUpdateFaq(id: string, data: any, token?: string) {
+export async function adminUpdateFaq(id: string, data: Record<string, unknown>, token?: string) {
   const res = await authorizedFetch(
     `/api/v1/admin/faq/${id}`,
     {
@@ -1021,6 +1047,84 @@ export async function adminUpdateOrganization(data: Partial<Organization>, token
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Failed to update organization settings.");
   }
+  return res.json();
+}
+
+// Admin Locations
+export async function adminGetLocations(token?: string | null): Promise<LocationItem[]> {
+  const res = await authorizedFetch(`/api/v1/admin/locations`, {}, token);
+  if (!res.ok) throw new Error("Failed to load locations.");
+  return res.json();
+}
+
+export async function adminCreateLocation(data: {
+  name: string;
+  addressLine1: string;
+  addressLine2?: string | null;
+  city: string;
+  state: string;
+  postalCode: string;
+  country?: string;
+  phone?: string | null;
+  email?: string | null;
+  hoursInfo?: string | null;
+  isPrimary?: boolean;
+  displayOrder?: number;
+}, token?: string | null): Promise<LocationItem> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/locations`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to create location.");
+  }
+  return res.json();
+}
+
+export async function adminUpdateLocation(id: string, data: {
+  name?: string;
+  addressLine1?: string;
+  addressLine2?: string | null;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
+  phone?: string | null;
+  email?: string | null;
+  hoursInfo?: string | null;
+  isPrimary?: boolean;
+  displayOrder?: number;
+}, token?: string | null): Promise<LocationItem> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/locations/${id}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update location.");
+  }
+  return res.json();
+}
+
+export async function adminToggleLocationStatus(id: string, isActive: boolean, token?: string | null): Promise<LocationItem> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/locations/${id}/status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ isActive }),
+    },
+    token
+  );
+  if (!res.ok) throw new Error("Failed to update location status.");
   return res.json();
 }
 

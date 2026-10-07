@@ -5,7 +5,6 @@ import {
   Announcement,
   DEFAULT_SITE_CONTENT,
   fetchPublicAnnouncements,
-  fetchPublicClinics,
   fetchPublicOrganization,
   getLocations,
   getSiteContent,
@@ -103,35 +102,43 @@ export function PublicContentProvider({ children }: { children: React.ReactNode 
     loadData();
   }, []);
 
-  // Dynamically inject CSS variables from database Organization theming settings
+  // Dynamically inject CSS variables from database Organization theming settings safely
   useEffect(() => {
     if (typeof document !== "undefined") {
       const org = organization;
-      const primary = org?.primaryColor || (org as any)?.primary_color;
-      const secondary = org?.secondaryColor || (org as any)?.secondary_color;
-      const bg = org?.backgroundColor || (org as any)?.background_color;
-      const pFont = org?.primaryFont || (org as any)?.primary_font;
-      const sFont = org?.secondaryFont || (org as any)?.secondary_font;
+      const primary = org?.primaryColor;
+      const secondary = org?.secondaryColor;
+      const bg = org?.backgroundColor;
+      const pFont = org?.primaryFont;
+      const sFont = org?.secondaryFont;
 
-      const root = document.documentElement;
-      if (primary) {
-        root.style.setProperty("--color-primary", primary);
-        root.style.setProperty("--color-forest", primary);
+      let styleTag = document.getElementById("org-brand-theme") as HTMLStyleElement | null;
+      if (!styleTag) {
+        styleTag = document.createElement("style");
+        styleTag.id = "org-brand-theme";
+        document.head.appendChild(styleTag);
       }
-      if (secondary) {
-        root.style.setProperty("--color-secondary", secondary);
-        root.style.setProperty("--color-gold", secondary);
+
+      let css = "";
+      if (primary || secondary || bg || pFont || sFont) {
+        // In Light Mode: apply custom brand palette
+        css += `:root:not(.dark) {`;
+        if (primary) css += `--color-primary: ${primary}; --color-forest: ${primary};`;
+        if (secondary) css += `--color-secondary: ${secondary}; --color-gold: ${secondary};`;
+        if (bg) css += `--color-bg-base: ${bg}; --color-bone: ${bg};`;
+        if (pFont) css += `--font-primary: '${pFont}', Georgia, serif;`;
+        if (sFont) css += `--font-secondary: '${sFont}', system-ui, sans-serif;`;
+        css += `}\n`;
+
+        // In Dark Mode: keep brand accents, but preserve dark mode background & surface tokens
+        css += `.dark {`;
+        if (primary) css += `--color-primary: ${primary};`;
+        if (secondary) css += `--color-secondary: ${secondary};`;
+        if (pFont) css += `--font-primary: '${pFont}', Georgia, serif;`;
+        if (sFont) css += `--font-secondary: '${sFont}', system-ui, sans-serif;`;
+        css += `}\n`;
       }
-      if (bg) {
-        root.style.setProperty("--color-bg-base", bg);
-        root.style.setProperty("--color-bone", bg);
-      }
-      if (pFont) {
-        root.style.setProperty("--font-primary", pFont);
-      }
-      if (sFont) {
-        root.style.setProperty("--font-secondary", sFont);
-      }
+      styleTag.textContent = css;
     }
   }, [organization]);
 
@@ -160,18 +167,7 @@ export function PublicContentProvider({ children }: { children: React.ReactNode 
         refreshPublicContent: loadData,
       }}
     >
-      <div
-        style={{
-          '--color-primary': organization?.primaryColor || (organization as any)?.primary_color || '#1F3D34',
-          '--color-secondary': organization?.secondaryColor || (organization as any)?.secondary_color || '#B8935A',
-          '--color-bg-base': organization?.backgroundColor || (organization as any)?.background_color || '#FAF7F2',
-          '--color-forest': organization?.primaryColor || (organization as any)?.primary_color || '#1F3D34',
-          '--color-gold': organization?.secondaryColor || (organization as any)?.secondary_color || '#B8935A',
-          '--color-bone': organization?.backgroundColor || (organization as any)?.background_color || '#FAF7F2',
-        } as React.CSSProperties}
-      >
-        {children}
-      </div>
+      {children}
     </PublicContentContext.Provider>
   );
 }

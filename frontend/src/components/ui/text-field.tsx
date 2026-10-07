@@ -39,11 +39,11 @@ export const TextField = React.forwardRef<
     const helpId = `${inputId}-help`;
 
     const commonClasses = cn(
-      "w-full rounded-[var(--radius-card)] border bg-cream/70 px-4 py-3 text-[15px] text-ink outline-none transition-colors",
-      "focus:border-forest focus:ring-1 focus:ring-forest/30",
+      "w-full rounded-2xl border bg-cream/70 dark:bg-gray-800/80 px-4 py-3 text-[14px] text-ink dark:text-bone outline-none transition-colors",
+      "focus:border-primary focus:ring-2 focus:ring-primary/20",
       error
         ? "border-red-600 focus:border-red-600 focus:ring-red-600/20"
-        : "border-line hover:border-line/80",
+        : "border-line dark:border-gray-700 hover:border-line/80 dark:hover:border-gray-600",
       className
     );
 

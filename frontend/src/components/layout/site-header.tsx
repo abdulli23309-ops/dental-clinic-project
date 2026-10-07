@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Search, Menu, Phone, Calendar } from "lucide-react";
+import { Search, Menu, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { SearchDialog } from "@/components/ui/search-dialog";
 import { MobileMenu } from "@/components/layout/mobile-menu";
-import { getOfficeStatus, OfficeStatus } from "@/lib/utils";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 import { AnnouncementMarquee } from "@/components/ui/announcement-marquee";
 
@@ -32,26 +31,19 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [status, setStatus] = useState<OfficeStatus>({
-    isOpen: true,
-    statusText: "Open Now",
-    nextEventText: "",
-  });
 
   const practiceName = content.general?.practiceName || "Marlow Dental Complex";
-  const finalName = organization?.displayName || (organization as any)?.display_name || practiceName;
+  const orgDisplayName = (organization as { displayName?: string; display_name?: string } | null);
+  const finalName = orgDisplayName?.displayName || orgDisplayName?.display_name || practiceName;
 
   const phone = content.general?.phone || primaryLocation?.phone || "(312) 555-0147";
   const cleanPhone = phone.replace(/[^0-9+]/g, "");
-  const hoursText = primaryLocation?.hoursInfo || "Mon to Thu 8 to 6, Fri 8 to 2, Sat 9 to 1";
 
   const nameParts = finalName.split(" ");
   const firstNamePart = nameParts[0] || "Marlow";
   const restNameParts = nameParts.slice(1).join(" ") || "Dental";
 
   useEffect(() => {
-    setStatus(getOfficeStatus());
-
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 40);
     };

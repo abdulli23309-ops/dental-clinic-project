@@ -6,6 +6,11 @@ from uuid import UUID, uuid4
 
 
 class UserRole(str, Enum):
+    PLATFORM_OWNER = "Platform Owner"
+    SUPER_ADMIN = "Super Admin"
+    CLINIC_BRANCH_MANAGER = "Clinic Branch Manager"
+    DOCTOR = "Doctor"
+    RECEPTIONIST = "Receptionist"
     ADMIN = "admin"
 
 
@@ -23,9 +28,11 @@ class User:
     inactivity_enabled: bool = True
     inactivity_timeout_minutes: int = 15
     inactivity_warning_seconds: int = 60
+    clinic_id: Optional[UUID] = None
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
 
 
 @dataclass

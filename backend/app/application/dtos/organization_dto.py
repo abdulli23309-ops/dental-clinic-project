@@ -15,6 +15,11 @@ class OrganizationResponse(BaseModel):
     contactEmail: Optional[str] = None
     contactPhone: Optional[str] = None
     websiteUrl: Optional[str] = None
+    primaryColor: Optional[str] = None
+    secondaryColor: Optional[str] = None
+    backgroundColor: Optional[str] = None
+    primaryFont: Optional[str] = None
+    secondaryFont: Optional[str] = None
     isActive: bool
     createdAt: datetime
     updatedAt: datetime
@@ -32,6 +37,11 @@ class OrganizationUpdateRequest(BaseModel):
     contactEmail: Optional[str] = None
     contactPhone: Optional[str] = None
     websiteUrl: Optional[str] = None
+    primaryColor: Optional[str] = None
+    secondaryColor: Optional[str] = None
+    backgroundColor: Optional[str] = None
+    primaryFont: Optional[str] = None
+    secondaryFont: Optional[str] = None
 
     model_config = ConfigDict(extra="ignore")
 

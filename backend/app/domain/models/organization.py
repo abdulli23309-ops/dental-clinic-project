@@ -18,6 +18,11 @@ class Organization:
     contact_email: Optional[str] = None
     contact_phone: Optional[str] = None
     website_url: Optional[str] = None
+    primary_color: Optional[str] = None
+    secondary_color: Optional[str] = None
+    background_color: Optional[str] = None
+    primary_font: Optional[str] = None
+    secondary_font: Optional[str] = None
     is_active: bool = True
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
@@ -25,9 +30,9 @@ class Organization:
 
 
 @dataclass
-class Location:
+class Clinic:
     """
-    Pure domain representation of a physical practice office / operatory site.
+    Pure domain representation of a clinic branch.
     """
     organization_id: UUID
     name: str
@@ -46,3 +51,12 @@ class Location:
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+@dataclass
+class Location(Clinic):
+    """
+    Backwards-compatible alias for Clinic branch.
+    """
+    pass
+

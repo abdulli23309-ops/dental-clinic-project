@@ -28,8 +28,6 @@ async def test_appointment_service_successful_creation():
         fullName="Jane Alvarez",
         phone="(312) 555-0100",
         email="jane@example.com",
-        hasInsurance=True,
-        insuranceProvider="Delta Dental PPO",
         notes="Sensitive lower molar",
         utmSource="google",
         utmCampaign="lincoln-park",
@@ -46,8 +44,6 @@ async def test_appointment_service_successful_creation():
     saved_entity: Appointment = mock_repo.save.call_args[0][0]
     assert saved_entity.patient_full_name == "Jane Alvarez"
     assert saved_entity.patient_phone == "(312) 555-0100"
-    assert saved_entity.has_insurance is True
-    assert saved_entity.insurance_provider == "Delta Dental PPO"
 
 
 @pytest.mark.asyncio

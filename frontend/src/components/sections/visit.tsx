@@ -1,241 +1,219 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { motion } from "motion/react";
-import { Car, Train, Clock, Phone, Mail, MapPin } from "lucide-react";
-import { CopyButton } from "@/components/ui/copy-button";
-import { Card } from "@/components/ui/card";
-import { getOfficeStatus, OfficeStatus } from "@/lib/utils";
+import { useState } from "react";
+import { Clock, MapPin, Navigation, Phone } from "lucide-react";
+import { SectionHeading } from "@/components/ui/section-heading";
+import { Button } from "@/components/ui/button";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 
-const DEFAULT_SCHEDULE = [
-  { day: "Monday", hours: "8:00 AM to 6:00 PM" },
-  { day: "Tuesday", hours: "8:00 AM to 6:00 PM" },
-  { day: "Wednesday", hours: "8:00 AM to 6:00 PM" },
-  { day: "Thursday", hours: "8:00 AM to 6:00 PM" },
-  { day: "Friday", hours: "8:00 AM to 2:00 PM" },
-  { day: "Saturday", hours: "9:00 AM to 1:00 PM" },
-  { day: "Sunday", hours: "Closed" },
-];
-
-/**
- * Renders office locations, transit directions, parking availability, and weekly hours.
- * Dynamically populated from CMS and multi-location backend data.
- */
 export function Visit() {
-  const { content, locations, primaryLocation } = usePublicContent();
-  const [selectedLocationId, setSelectedLocationId] = useState<string>(primaryLocation.id);
+  const { locations, isLoading } = usePublicContent();
+  const [selectedCity, setSelectedCity] = useState<string>("all");
 
-  const [status, setStatus] = useState<OfficeStatus>({
-    isOpen: true,
-    statusText: "Open Now",
-    nextEventText: "",
-  });
+  const activeLocations = locations.filter((l) => l.isActive !== false);
 
-  useEffect(() => {
-    setStatus(getOfficeStatus());
-  }, []);
+  // Derive unique cities dynamically from database locations
+  const availableCities = Array.from(
+    new Set(activeLocations.map((l) => l.city).filter(Boolean))
+  );
 
-  const activeLocations = locations.filter((l) => l.isActive);
-  const activeLoc =
-    activeLocations.find((l) => l.id === selectedLocationId) ||
-    primaryLocation ||
-    activeLocations[0];
-
-  const fullAddress = `${activeLoc.addressLine1}${
-    activeLoc.addressLine2 ? `, ${activeLoc.addressLine2}` : ""
-  }, ${activeLoc.city}, ${activeLoc.state} ${activeLoc.postalCode || ""}`;
-
-  const phone = activeLoc.phone || content.general?.phone || "(312) 555-0147";
-  const cleanPhone = phone.replace(/[^0-9+]/g, "");
-  const email = activeLoc.email || content.general?.email || "care@marlowdental.com";
+  const filteredLocations =
+    selectedCity === "all"
+      ? activeLocations
+      : activeLocations.filter(
+          (l) => l.city.toLowerCase() === selectedCity.toLowerCase()
+        );
 
   return (
-    <section id="visit" className="border-t border-line bg-bone py-20 md:py-28">
-      <div className="container-x">
-        {/* Multi-Location Switcher Tabs if practice has multiple locations */}
-        {activeLocations.length > 1 && (
-          <div className="mb-10 flex flex-wrap gap-2 border-b border-line pb-4">
-            <span className="text-xs text-ink-soft flex items-center gap-1.5 mr-2">
-              <MapPin className="h-3.5 w-3.5 text-forest" />
-              Practice Locations:
-            </span>
-            {activeLocations.map((loc) => (
-              <button
-                key={loc.id}
-                onClick={() => setSelectedLocationId(loc.id)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
-                  activeLoc.id === loc.id
-                    ? "bg-forest text-white shadow-sm"
-                    : "bg-cream text-ink-soft hover:bg-sand/60 hover:text-ink"
-                }`}
-              >
-                {loc.name} {loc.isPrimary && "(Primary)"}
-              </button>
-            ))}
+    <section id="visit" className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 py-20 md:py-28 overflow-hidden">
+      <div className="container-x space-y-10">
+        {/* Section Header */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div>
+            <SectionHeading
+              eyebrow="Practice Facilities &amp; Office Hours"
+              title={
+                <>
+                  Our Practice Locations
+                  <br />
+                  &amp; Clinical Facilities
+                </>
+              }
+            />
+          </div>
+          <p className="max-w-md text-sm leading-relaxed text-gray-600 dark:text-gray-400">
+            Accessible, state-of-the-art dental suites designed for comfort, quiet continuity, and unhurried appointments.
+          </p>
+        </div>
+
+        {/* Dynamic City Filter Tabs */}
+        {availableCities.length > 0 && (
+          <div className="border-b border-gray-200 dark:border-gray-800 pb-4 flex items-center gap-2 overflow-x-auto scrollbar-none" role="tablist">
+            <button
+              role="tab"
+              aria-selected={selectedCity === "all"}
+              onClick={() => setSelectedCity("all")}
+              className={`rounded-full px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
+                selectedCity === "all"
+                  ? "bg-primary text-white shadow-subtle font-semibold"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700"
+              }`}
+            >
+              All Practice Facilities ({activeLocations.length})
+            </button>
+            {availableCities.map((city) => {
+              const isSelected = selectedCity.toLowerCase() === city.toLowerCase();
+              const count = activeLocations.filter(
+                (l) => l.city.toLowerCase() === city.toLowerCase()
+              ).length;
+              return (
+                <button
+                  key={city}
+                  role="tab"
+                  aria-selected={isSelected}
+                  onClick={() => setSelectedCity(city)}
+                  className={`rounded-full px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
+                    isSelected
+                      ? "bg-primary text-white shadow-subtle font-semibold"
+                      : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700"
+                  }`}
+                >
+                  {city} ({count})
+                </button>
+              );
+            })}
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-16">
-          {/* Practice Location & Transit Info - 5 cols */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
-            transition={{ duration: 0.4 }}
-            className="lg:col-span-5 space-y-8"
-          >
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <p className="eyebrow">{activeLoc.name || "Location & Hours"}</p>
-                <span
-                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10.5px] font-semibold ${
-                    status.isOpen
-                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                      : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
-                  }`}
+        {/* Loading State */}
+        {isLoading ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex flex-col md:flex-row w-full bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm p-4 gap-6 animate-pulse">
+                <div className="w-full md:w-56 h-36 rounded-xl bg-gray-200 dark:bg-gray-800 shrink-0" />
+                <div className="flex-1 space-y-3 py-2">
+                  <div className="h-5 bg-gray-200 dark:bg-gray-800 rounded w-1/3" />
+                  <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-2/3" />
+                  <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-1/4" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredLocations.length === 0 ? (
+          /* Empty State */
+          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-12 text-center space-y-3">
+            <MapPin className="h-10 w-10 text-gray-400 dark:text-gray-500 mx-auto" />
+            <h3 className="font-display text-lg text-gray-900 dark:text-white font-semibold">
+              No practice facilities found in this city
+            </h3>
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 max-w-md mx-auto">
+              Please select &quot;All Practice Facilities&quot; or check back shortly as our directory updates in real-time.
+            </p>
+            {selectedCity !== "all" && (
+              <Button onClick={() => setSelectedCity("all")} variant="outline" size="sm">
+                View All Facilities
+              </Button>
+            )}
+          </div>
+        ) : (
+          /* Location Cards Full-Width Horizontal Rows */
+          <div className="space-y-4">
+            {filteredLocations.map((loc, idx) => {
+              const fullAddress = `${loc.addressLine1}${
+                loc.addressLine2 ? `, ${loc.addressLine2}` : ""
+              }, ${loc.city}, ${loc.state} ${loc.postalCode || ""}`;
+              const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                `${loc.name}, ${fullAddress}`
+              )}`;
+              const phone = loc.phone || "(312) 555-0147";
+              const cleanPhone = phone.replace(/[^0-9+]/g, "");
+
+              // Curated facility imagery for aesthetics
+              const facilityImages = [
+                "https://images.unsplash.com/photo-1629909613654-28e377c37b09?q=80&w=800&auto=format&fit=crop",
+                "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?q=80&w=800&auto=format&fit=crop",
+                "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?q=80&w=800&auto=format&fit=crop",
+              ];
+              const clinicImage = facilityImages[idx % facilityImages.length];
+
+              return (
+                <div
+                  key={loc.id}
+                  className="flex flex-col md:flex-row w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm p-4 gap-6 items-stretch md:items-center justify-between hover:border-primary/40 transition-all"
                 >
-                  <span
-                    className={`h-1.5 w-1.5 rounded-full ${
-                      status.isOpen ? "bg-emerald-500" : "bg-amber-500"
-                    }`}
-                  />
-                  {status.statusText}
-                </span>
-              </div>
-              <h2 className="fluid-h2 tracking-[-0.02em] text-ink font-normal">
-                Easy to find,
-                <br />
-                easy to park,
-                <br />
-                easy to enter.
-              </h2>
-            </div>
+                  {/* Left Side: Clinic Image */}
+                  <div className="w-full md:w-56 h-40 md:h-36 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 shrink-0 relative">
+                    <img
+                      src={clinicImage}
+                      alt={loc.name}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                    {loc.isPrimary && (
+                      <span className="absolute top-2.5 left-2.5 rounded-full bg-primary text-white px-2 py-0.5 text-[9.5px] font-semibold uppercase tracking-wider shadow-xs">
+                        Primary Clinic
+                      </span>
+                    )}
+                  </div>
 
-            {/* Address */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-soft/70">
-                  Facility Address
-                </p>
-                <CopyButton text={fullAddress} label="Copy Address" />
-              </div>
-              <p className="font-display text-[20px] leading-snug text-ink">
-                {activeLoc.addressLine1}
-                {activeLoc.addressLine2 && <><br />{activeLoc.addressLine2}</>}
-                <br />
-                {activeLoc.city}, {activeLoc.state} {activeLoc.postalCode}
-              </p>
-              <p className="text-xs sm:text-[13px] leading-relaxed text-ink-soft">
-                Ground-floor private practice with step-free, wheelchair accessible entrance directly from the sidewalk.
-              </p>
-            </div>
-
-            {/* Parking */}
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2 text-ink font-medium text-sm">
-                <Car className="h-4 w-4 text-forest dark:text-emerald-400" />
-                <span>Dedicated Patient Parking</span>
-              </div>
-              <p className="text-xs sm:text-[13px] leading-relaxed text-ink-soft">
-                Free patient parking stalls behind the building (first-come, first-served), plus ample street parking.
-              </p>
-            </div>
-
-            {/* Public Transit */}
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2 text-ink font-medium text-sm">
-                <Train className="h-4 w-4 text-forest dark:text-emerald-400" />
-                <span>Transit Access</span>
-              </div>
-              <p className="text-xs sm:text-[13px] leading-relaxed text-ink-soft">
-                {content.contact?.transitNote ||
-                  "Convenient access via nearby rapid transit stations and major metropolitan bus lines."}
-              </p>
-            </div>
-
-            {/* Direct Contact */}
-            <div className="pt-2 border-t border-line/60 flex flex-wrap gap-4 text-sm">
-              <a
-                href={`tel:${cleanPhone}`}
-                className="flex items-center gap-1.5 text-forest dark:text-emerald-400 font-medium hover:underline"
-              >
-                <Phone className="h-3.5 w-3.5" />
-                <span>{phone}</span>
-              </a>
-              <a
-                href={`mailto:${email}`}
-                className="flex items-center gap-1.5 text-forest dark:text-emerald-400 font-medium hover:underline"
-              >
-                <Mail className="h-3.5 w-3.5" />
-                <span>{email}</span>
-              </a>
-            </div>
-          </motion.div>
-
-          {/* Map & Office Hours Schedule - 7 cols */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
-            className="lg:col-span-7 space-y-8"
-          >
-            {/* Map Frame */}
-            <div className="aspect-[16/10] w-full overflow-hidden rounded-[var(--radius-card)] border border-line bg-cream shadow-subtle">
-              <iframe
-                title={`${activeLoc.name} Location Map`}
-                src={`https://www.google.com/maps?q=${encodeURIComponent(
-                  fullAddress
-                )}&output=embed`}
-                className="h-full w-full border-0"
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-              />
-            </div>
-
-            {/* Office Hours Table */}
-            <Card surface="cream" shadow="subtle" className="p-6">
-              <div className="flex items-center justify-between border-b border-line pb-3">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-clay" />
-                  <h3 className="font-display text-base text-ink font-medium">
-                    Office Hours Schedule
-                  </h3>
-                </div>
-                <span className="text-xs text-ink-soft">
-                  {activeLoc.hoursInfo ? "Published Schedule" : "Central Time"}
-                </span>
-              </div>
-
-              {activeLoc.hoursInfo ? (
-                <div className="mt-4 p-4 rounded-xl bg-bone border border-line/60 text-xs text-ink leading-relaxed">
-                  {activeLoc.hoursInfo}
-                </div>
-              ) : (
-                <dl className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2.5">
-                  {DEFAULT_SCHEDULE.map((item) => (
-                    <div
-                      key={item.day}
-                      className="flex items-center justify-between border-b border-line/60 py-1.5 text-xs sm:text-[13px]"
-                    >
-                      <dt className="text-ink-soft">{item.day}</dt>
-                      <dd
-                        className={`font-mono ${
-                          item.hours === "Closed"
-                            ? "text-ink-soft/60"
-                            : "font-medium text-ink"
-                        }`}
-                      >
-                        {item.hours}
-                      </dd>
+                  {/* Middle: Clinic Name, Map Pin Icon + Address */}
+                  <div className="flex-1 space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-display text-lg sm:text-xl text-gray-900 dark:text-white font-semibold leading-snug">
+                        {loc.name}
+                      </h3>
+                      <span className="rounded-full bg-gray-100 dark:bg-gray-800 px-2.5 py-0.5 text-[11px] font-semibold text-gray-600 dark:text-gray-400">
+                        {loc.city}, {loc.state}
+                      </span>
                     </div>
-                  ))}
-                </dl>
-              )}
-            </Card>
-          </motion.div>
-        </div>
+
+                    <div className="flex items-start gap-1.5 text-xs text-gray-600 dark:text-gray-400">
+                      <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                      <span className="leading-relaxed">{fullAddress}</span>
+                    </div>
+
+                    <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-gray-400 pt-1">
+                      <div className="flex items-center gap-1.5">
+                        <Phone className="h-3.5 w-3.5 text-primary shrink-0" />
+                        <a href={`tel:${cleanPhone}`} className="hover:text-primary font-medium">
+                          {phone}
+                        </a>
+                      </div>
+                      {loc.hoursInfo && (
+                        <div className="hidden sm:flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
+                          <Clock className="h-3.5 w-3.5 text-primary shrink-0" />
+                          <span className="truncate max-w-xs">{loc.hoursInfo.split("\n")[0]}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right Side: Get Directions text link + Dark rounded Book Appointment button */}
+                  <div className="flex items-center gap-4 shrink-0 justify-end pt-2 md:pt-0 border-t md:border-t-0 border-gray-100 dark:border-gray-800">
+                    <a
+                      href={mapUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
+                    >
+                      <Navigation className="h-3.5 w-3.5 text-primary" />
+                      <span>Get Directions</span>
+                    </a>
+
+                    <Button
+                      href="/book"
+                      variant="primary"
+                      size="sm"
+                      className="rounded-full px-5 text-xs"
+                    >
+                      <span>Book Appointment</span>
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </section>
   );

@@ -59,6 +59,16 @@ class OrganizationService:
             org.contact_phone = req.contactPhone.strip() or None
         if req.websiteUrl is not None:
             org.website_url = req.websiteUrl.strip() or None
+        if req.primaryColor is not None:
+            org.primary_color = req.primaryColor.strip() or None
+        if req.secondaryColor is not None:
+            org.secondary_color = req.secondaryColor.strip() or None
+        if req.backgroundColor is not None:
+            org.background_color = req.backgroundColor.strip() or None
+        if req.primaryFont is not None:
+            org.primary_font = req.primaryFont.strip() or None
+        if req.secondaryFont is not None:
+            org.secondary_font = req.secondaryFont.strip() or None
 
         org.updated_at = datetime.now(timezone.utc)
         return await self.org_repo.save(org)

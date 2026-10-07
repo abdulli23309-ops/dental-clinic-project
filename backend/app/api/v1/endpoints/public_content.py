@@ -2,15 +2,18 @@ from typing import List
 from fastapi import APIRouter, Depends
 
 from app.api.deps import (
+    get_announcement_service,
     get_cms_service,
     get_organization_service,
     get_service_service,
     get_team_service,
 )
+from app.application.dtos.announcement_dto import AnnouncementResponse
 from app.application.dtos.cms_dto import FaqResponse, PublicCmsResponse
-from app.application.dtos.organization_dto import LocationResponse
+from app.application.dtos.organization_dto import LocationResponse, OrganizationResponse
 from app.application.dtos.service_dto import ServiceResponse
 from app.application.dtos.team_dto import TeamMemberResponse
+from app.application.services.announcement_service import AnnouncementService
 from app.application.services.cms_service import CmsService
 from app.application.services.organization_service import OrganizationService
 from app.application.services.service_service import ServiceService
@@ -139,3 +142,58 @@ async def get_public_faqs(
         )
         for f in faqs
     ]
+
+
+@router.get("/organization", response_model=OrganizationResponse)
+async def get_public_organization(
+    org_service: OrganizationService = Depends(get_organization_service),
+) -> OrganizationResponse:
+    """Returns top-level practice organization details including branding and dynamic theming."""
+    org = await org_service.get_organization()
+    return OrganizationResponse(
+        id=org.id,
+        name=org.name,
+        displayName=org.display_name,
+        tagline=org.tagline,
+        description=org.description,
+        logoUrl=org.logo_url,
+        contactEmail=org.contact_email,
+        contactPhone=org.contact_phone,
+        websiteUrl=org.website_url,
+        primaryColor=org.primary_color,
+        secondaryColor=org.secondary_color,
+        backgroundColor=org.background_color,
+        primaryFont=org.primary_font,
+        secondaryFont=org.secondary_font,
+        isActive=org.is_active,
+        createdAt=org.created_at,
+        updatedAt=org.updated_at,
+    )
+
+
+@router.get("/announcements", response_model=List[AnnouncementResponse])
+async def get_public_announcements(
+    service: AnnouncementService = Depends(get_announcement_service),
+) -> List[AnnouncementResponse]:
+    """Returns all active marquee ticker announcements."""
+    items = await service.list_announcements(include_inactive=False)
+    return [
+        AnnouncementResponse(
+            id=item.id,
+            content=item.content,
+            isActive=item.is_active,
+            displayOrder=item.display_order,
+            createdAt=item.created_at,
+            updatedAt=item.updated_at,
+        )
+        for item in items
+    ]
+
+
+@router.get("/clinics", response_model=List[LocationResponse])
+async def get_public_clinics(
+    org_service: OrganizationService = Depends(get_organization_service),
+) -> List[LocationResponse]:
+    """Returns all active clinic branches."""
+    return await get_public_locations(org_service)
+

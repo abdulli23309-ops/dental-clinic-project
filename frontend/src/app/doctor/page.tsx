@@ -20,11 +20,13 @@ import {
   updateDoctorBookingNotes,
 } from "@/lib/api";
 import { useAuth } from "@/components/providers/auth-provider";
+import { useDirectory } from "@/lib/directory";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 export default function DoctorDashboardPage() {
   const { accessToken, user } = useAuth();
+  const directory = useDirectory();
 
   const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [schedule, setSchedule] = useState<ReceptionBooking[]>([]);
@@ -140,7 +142,7 @@ export default function DoctorDashboardPage() {
                       )}
                     </td>
                     <td className="px-5 py-4 text-ink">
-                      {b.serviceName || "Clinical Examination"}
+                      {directory.serviceName(b.serviceId) || "Clinical Examination"}
                     </td>
                     <td className="px-5 py-4">
                       <span

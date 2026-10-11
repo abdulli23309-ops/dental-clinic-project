@@ -86,12 +86,26 @@ class PostgresTaskRepository(TaskRepository):
             stmt = stmt.where(TaskORM.assigned_to_user_id == assigned_to_user_id)
             count_stmt = count_stmt.where(TaskORM.assigned_to_user_id == assigned_to_user_id)
         if status:
-            if status in ("open", "pending"):
-                stmt = stmt.where(TaskORM.status.in_(["pending", "open"]))
-                count_stmt = count_stmt.where(TaskORM.status.in_(["pending", "open"]))
-            else:
-                stmt = stmt.where(TaskORM.status == status)
-                count_stmt = count_stmt.where(TaskORM.status == status)
+            raw_tokens = [s.strip().lower() for s in status.split(",") if s.strip()]
+            status_tokens: List[str] = []
+            for token in raw_tokens:
+                if token == "active":
+                    status_tokens.extend(["pending", "in_progress"])
+                elif token == "open":
+                    status_tokens.append("pending")
+                elif token == "completed":
+                    status_tokens.append("done")
+                else:
+                    status_tokens.append(token)
+            seen = set()
+            normalized_statuses = [x for x in status_tokens if not (x in seen or seen.add(x))]
+
+            if len(normalized_statuses) == 1:
+                stmt = stmt.where(TaskORM.status == normalized_statuses[0])
+                count_stmt = count_stmt.where(TaskORM.status == normalized_statuses[0])
+            elif len(normalized_statuses) > 1:
+                stmt = stmt.where(TaskORM.status.in_(normalized_statuses))
+                count_stmt = count_stmt.where(TaskORM.status.in_(normalized_statuses))
         if priority:
             stmt = stmt.where(TaskORM.priority == priority)
             count_stmt = count_stmt.where(TaskORM.priority == priority)

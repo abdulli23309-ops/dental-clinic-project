@@ -55,7 +55,7 @@ async def test_receptionist_dashboard_and_counts(receptionist_auth, test_session
         patient_full_name="Bob Smith",
         patient_phone="3125550102",
         patient_email="bob@example.com",
-        status="checked_in",
+        status="arrived",
     )
     await booking_repo.save(b1)
     await booking_repo.save(b2)
@@ -66,7 +66,8 @@ async def test_receptionist_dashboard_and_counts(receptionist_auth, test_session
     data = resp.json()
     assert data["todayAppointments"] == 2
     assert data["confirmedCount"] == 1
-    assert data["checkedInCount"] == 1
+    assert data["checkedInCount"] == 0
+    assert data["waitingCount"] == 1
     assert len(data["todayFlow"]) == 2
 
 

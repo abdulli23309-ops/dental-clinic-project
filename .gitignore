@@ -38,7 +38,8 @@ pytest_out.txt
 *.out
 *.out.txt
 # Next.js build output directory (root)
-docs/
+docs/*
+!docs/*.md
 *out.txt
 *.log
 backend/_migcheck.py

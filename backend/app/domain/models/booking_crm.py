@@ -105,6 +105,8 @@ class Task:
     title: str
     clinic_id: Optional[UUID] = None
     assigned_to_user_id: Optional[UUID] = None
+    patient_id: Optional[UUID] = None
+    booking_id: Optional[UUID] = None
     description: Optional[str] = None
     due_date: Optional[datetime] = None
     status: str = "pending"
@@ -122,6 +124,7 @@ class Message:
     content: str
     sender_id: Optional[UUID] = None
     recipient_id: Optional[UUID] = None
+    patient_id: Optional[UUID] = None
     phone: Optional[str] = None
     email: Optional[str] = None
     channel: str = "sms"

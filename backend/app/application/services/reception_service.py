@@ -356,13 +356,15 @@ class ReceptionService:
         today = datetime.now(timezone.utc).date()
         upcoming = [b for b in bookings if b.preferred_date >= today]
         past = [b for b in bookings if b.preferred_date < today]
+        tasks = await self.task_repo.get_patient_tasks(patient_id)
+        messages = await self.message_repo.get_patient_messages(patient_id)
 
         return {
             "patient": patient,
             "upcomingAppointments": upcoming,
             "pastAppointments": past,
-            "tasks": [],
-            "messages": [],
+            "tasks": tasks,
+            "messages": messages,
         }
 
     async def update_patient(
@@ -414,6 +416,8 @@ class ReceptionService:
         title: str,
         clinic_id: Optional[UUID] = None,
         assigned_to_user_id: Optional[UUID] = None,
+        patient_id: Optional[UUID] = None,
+        booking_id: Optional[UUID] = None,
         description: Optional[str] = None,
         priority: str = "medium",
         status: str = "pending",
@@ -424,6 +428,8 @@ class ReceptionService:
             title=title,
             clinic_id=clinic_id,
             assigned_to_user_id=assigned_to_user_id,
+            patient_id=patient_id,
+            booking_id=booking_id,
             description=description,
             priority=priority,
             status=normalized_status,
@@ -469,18 +475,21 @@ class ReceptionService:
         content: str,
         sender_id: Optional[UUID] = None,
         recipient_id: Optional[UUID] = None,
+        patient_id: Optional[UUID] = None,
         phone: Optional[str] = None,
         email: Optional[str] = None,
         channel: str = "sms",
+        status: str = "logged",
     ) -> Message:
         msg = Message(
             content=content,
             sender_id=sender_id,
             recipient_id=recipient_id,
+            patient_id=patient_id,
             phone=phone,
             email=email,
             channel=channel,
-            status="sent",
+            status=status,
         )
         return await self.message_repo.save(msg)
 

@@ -31,3 +31,9 @@ class MessageRepository(ABC):
     ) -> Tuple[List[Message], int]:
         """Returns filtered message records with pagination."""
         pass
+
+    @abstractmethod
+    async def get_patient_messages(self, patient_id: UUID) -> List[Message]:
+        """Returns communications associated with a patient."""
+        pass
+

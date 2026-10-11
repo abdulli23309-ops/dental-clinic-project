@@ -17,6 +17,7 @@ class PostgresMessageRepository(MessageRepository):
     def _to_orm(entity: Message) -> MessageORM:
         return MessageORM(
             id=entity.id,
+            patient_id=entity.patient_id,
             sender_id=entity.sender_id,
             recipient_id=entity.recipient_id,
             phone=entity.phone,
@@ -31,6 +32,7 @@ class PostgresMessageRepository(MessageRepository):
     def _to_domain(orm: MessageORM) -> Message:
         return Message(
             id=orm.id,
+            patient_id=orm.patient_id,
             sender_id=orm.sender_id,
             recipient_id=orm.recipient_id,
             phone=orm.phone,
@@ -76,3 +78,13 @@ class PostgresMessageRepository(MessageRepository):
         stmt = stmt.order_by(MessageORM.created_at.desc()).limit(limit).offset(offset)
         res = await self._session.execute(stmt)
         return [self._to_domain(r) for r in res.scalars().all()], total
+
+    async def get_patient_messages(self, patient_id: UUID) -> List[Message]:
+        stmt = (
+            select(MessageORM)
+            .where(MessageORM.patient_id == patient_id)
+            .order_by(MessageORM.created_at.desc())
+        )
+        res = await self._session.execute(stmt)
+        return [self._to_domain(r) for r in res.scalars().all()]
+

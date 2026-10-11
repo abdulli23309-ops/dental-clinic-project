@@ -32,3 +32,9 @@ class TaskRepository(ABC):
     ) -> Tuple[List[Task], int]:
         """Returns filtered tasks with pagination and total count."""
         pass
+
+    @abstractmethod
+    async def get_patient_tasks(self, patient_id: UUID) -> List[Task]:
+        """Returns tasks associated with a patient directly or via the patient's bookings."""
+        pass
+

@@ -11,6 +11,7 @@ import {
   Clock,
   Edit2,
   FileText,
+  ListTodo,
   Mail,
   MessageSquare,
   Phone,
@@ -23,6 +24,7 @@ import {
 
 import {
   createReceptionBooking,
+  createReceptionTask,
   getReceptionPatient,
   ReceptionPatientDetail,
   sendReceptionMessage,
@@ -54,6 +56,12 @@ export default function ReceptionPatientDetailPage() {
   const [messageChannel, setMessageChannel] = useState<"sms" | "email" | "portal" | "whatsapp">("sms");
   const [messageBody, setMessageBody] = useState("");
   const [isInternalNote, setIsInternalNote] = useState(false);
+
+  // Quick Task Modal
+  const [isTaskOpen, setIsTaskOpen] = useState(false);
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskDescription, setTaskDescription] = useState("");
+  const [taskPriority, setTaskPriority] = useState<"low" | "medium" | "high" | "urgent">("medium");
 
   const loadPatient = async () => {
     setIsLoading(true);
@@ -108,6 +116,7 @@ export default function ReceptionPatientDetailPage() {
           recipient:
             messageChannel === "email" ? patient.email || undefined : patient.phone,
           body: messageBody,
+          patientId: patient.id,
         },
         accessToken
       );
@@ -116,6 +125,30 @@ export default function ReceptionPatientDetailPage() {
       await loadPatient();
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Failed to log message.");
+    }
+  };
+
+  const handleCreatePatientTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!taskTitle.trim() || !patient) return;
+
+    try {
+      await createReceptionTask(
+        {
+          title: taskTitle,
+          description: taskDescription || undefined,
+          priority: taskPriority,
+          patientId: patient.id,
+          status: "pending",
+        },
+        accessToken
+      );
+      setIsTaskOpen(false);
+      setTaskTitle("");
+      setTaskDescription("");
+      await loadPatient();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to create task.");
     }
   };
 
@@ -182,6 +215,14 @@ export default function ReceptionPatientDetailPage() {
           >
             <MessageSquare className="h-3.5 w-3.5 text-blue-500" />
             <span>Log Communication</span>
+          </button>
+
+          <button
+            onClick={() => setIsTaskOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 shadow-xs cursor-pointer transition-colors"
+          >
+            <ListTodo className="h-3.5 w-3.5 text-primary" />
+            <span>Create Task</span>
           </button>
 
           <Link
@@ -491,6 +532,80 @@ export default function ReceptionPatientDetailPage() {
                   className="px-4 py-2 rounded-full bg-primary text-white font-semibold hover:bg-primary/90 transition-colors cursor-pointer"
                 >
                   Save to Chart
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create Task Modal */}
+      {isTaskOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-800">
+              <h2 className="text-base font-display font-semibold text-gray-900 dark:text-white">
+                Create Patient Task
+              </h2>
+              <button
+                onClick={() => setIsTaskOpen(false)}
+                className="p-1.5 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreatePatientTask} className="space-y-4 text-xs">
+              <div className="space-y-1">
+                <label className="font-medium text-gray-700 dark:text-gray-300">Task Title *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Schedule 6-month cleaning recall"
+                  value={taskTitle}
+                  onChange={(e) => setTaskTitle(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 focus:border-primary"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-medium text-gray-700 dark:text-gray-300">Priority</label>
+                <select
+                  value={taskPriority}
+                  onChange={(e) => setTaskPriority(e.target.value as any)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 focus:border-primary"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-medium text-gray-700 dark:text-gray-300">Description</label>
+                <textarea
+                  rows={2}
+                  placeholder="Additional context or notes..."
+                  value={taskDescription}
+                  onChange={(e) => setTaskDescription(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 focus:border-primary"
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsTaskOpen(false)}
+                  className="px-4 py-2 rounded-full border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-full bg-primary text-white font-semibold hover:bg-primary/90 transition-colors cursor-pointer"
+                >
+                  Create Task
                 </button>
               </div>
             </form>

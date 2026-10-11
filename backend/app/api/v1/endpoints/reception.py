@@ -441,8 +441,38 @@ async def get_patient_profile(
             )
             for b in profile["pastAppointments"]
         ],
-        tasks=[],
-        messages=[],
+        tasks=[
+            TaskResponseDto(
+                id=t.id,
+                title=t.title,
+                description=t.description,
+                status=t.status,
+                priority=t.priority,
+                clinicId=t.clinic_id,
+                assignedToUserId=t.assigned_to_user_id,
+                patientId=t.patient_id,
+                bookingId=t.booking_id,
+                dueDate=t.due_date,
+                createdAt=t.created_at,
+                updatedAt=t.updated_at,
+            )
+            for t in profile["tasks"]
+        ],
+        messages=[
+            MessageResponseDto(
+                id=m.id,
+                content=m.content,
+                patientId=m.patient_id,
+                senderId=m.sender_id,
+                recipientId=m.recipient_id,
+                phone=m.phone,
+                email=m.email,
+                channel=m.channel,
+                status=m.status,
+                createdAt=m.created_at,
+            )
+            for m in profile["messages"]
+        ],
     )
 
 
@@ -528,6 +558,8 @@ async def create_task(
         title=req.title,
         clinic_id=effective_clinic,
         assigned_to_user_id=req.assignedToUserId or current_user.id,
+        patient_id=req.patientId,
+        booking_id=req.bookingId,
         description=req.description,
         priority=req.priority,
         status=req.status,
@@ -541,6 +573,8 @@ async def create_task(
         priority=task.priority,
         clinicId=task.clinic_id,
         assignedToUserId=task.assigned_to_user_id,
+        patientId=task.patient_id,
+        bookingId=task.booking_id,
         dueDate=task.due_date,
         createdAt=task.created_at,
         updatedAt=task.updated_at,
@@ -619,6 +653,7 @@ async def send_message(
         content=req.content,
         sender_id=current_user.id,
         recipient_id=req.recipientId,
+        patient_id=req.patientId,
         phone=req.phone,
         email=req.email,
         channel=req.channel,
@@ -626,8 +661,9 @@ async def send_message(
     return MessageResponseDto(
         id=msg.id,
         content=msg.content,
+        patientId=msg.patient_id,
         senderId=msg.sender_id,
-        recipientId=msg.recipientId if hasattr(msg, "recipientId") else msg.recipient_id,
+        recipientId=msg.recipient_id,
         phone=msg.phone,
         email=msg.email,
         channel=msg.channel,

@@ -115,6 +115,8 @@ class TaskResponseDto(BaseModel):
     priority: str
     clinicId: Optional[UUID] = None
     assignedToUserId: Optional[UUID] = None
+    patientId: Optional[UUID] = None
+    bookingId: Optional[UUID] = None
     dueDate: Optional[datetime] = None
     createdAt: datetime
     updatedAt: datetime
@@ -127,6 +129,8 @@ class TaskCreateRequest(BaseModel):
     status: str = Field(default="pending")
     assignedToUserId: Optional[UUID] = None
     clinicId: Optional[UUID] = None
+    patientId: Optional[UUID] = None
+    bookingId: Optional[UUID] = None
     dueDate: Optional[datetime] = None
 
 
@@ -190,6 +194,7 @@ class LeadConvertRequest(BaseModel):
 class MessageResponseDto(BaseModel):
     id: UUID
     content: str
+    patientId: Optional[UUID] = None
     senderId: Optional[UUID] = None
     recipientId: Optional[UUID] = None
     phone: Optional[str] = None
@@ -201,6 +206,7 @@ class MessageResponseDto(BaseModel):
 
 class MessageCreateRequest(BaseModel):
     content: str = Field(..., min_length=1, max_length=2000)
+    patientId: Optional[UUID] = None
     recipientId: Optional[UUID] = None
     phone: Optional[str] = None
     email: Optional[str] = None

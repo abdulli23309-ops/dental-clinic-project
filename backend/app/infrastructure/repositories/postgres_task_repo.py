@@ -19,6 +19,8 @@ class PostgresTaskRepository(TaskRepository):
             id=entity.id,
             clinic_id=entity.clinic_id,
             assigned_to_user_id=entity.assigned_to_user_id,
+            patient_id=entity.patient_id,
+            booking_id=entity.booking_id,
             title=entity.title,
             description=entity.description,
             due_date=entity.due_date,
@@ -34,6 +36,8 @@ class PostgresTaskRepository(TaskRepository):
             id=orm.id,
             clinic_id=orm.clinic_id,
             assigned_to_user_id=orm.assigned_to_user_id,
+            patient_id=orm.patient_id,
+            booking_id=orm.booking_id,
             title=orm.title,
             description=orm.description,
             due_date=orm.due_date,
@@ -48,6 +52,8 @@ class PostgresTaskRepository(TaskRepository):
         if existing:
             existing.clinic_id = task.clinic_id
             existing.assigned_to_user_id = task.assigned_to_user_id
+            existing.patient_id = task.patient_id
+            existing.booking_id = task.booking_id
             existing.title = task.title
             existing.description = task.description
             existing.due_date = task.due_date
@@ -116,3 +122,22 @@ class PostgresTaskRepository(TaskRepository):
         stmt = stmt.order_by(TaskORM.created_at.desc()).limit(limit).offset(offset)
         res = await self._session.execute(stmt)
         return [self._to_domain(r) for r in res.scalars().all()], total
+
+    async def get_patient_tasks(self, patient_id: UUID) -> List[Task]:
+        from app.infrastructure.database.orm_models import BookingORM
+        from sqlalchemy import or_
+
+        booking_subquery = select(BookingORM.id).where(BookingORM.patient_id == patient_id)
+        stmt = (
+            select(TaskORM)
+            .where(
+                or_(
+                    TaskORM.patient_id == patient_id,
+                    TaskORM.booking_id.in_(booking_subquery),
+                )
+            )
+            .order_by(TaskORM.created_at.desc())
+        )
+        res = await self._session.execute(stmt)
+        return [self._to_domain(r) for r in res.scalars().all()]
+

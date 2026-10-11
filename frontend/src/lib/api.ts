@@ -1802,6 +1802,8 @@ export async function createReceptionTask(
     priority?: "low" | "medium" | "high" | "urgent";
     dueDate?: string;
     status?: string;
+    patientId?: string;
+    bookingId?: string;
   },
   token?: string | null
 ): Promise<ReceptionTask> {
@@ -1814,6 +1816,8 @@ export async function createReceptionTask(
         description: data.description ?? null,
         priority: data.priority ?? "medium",
         status: data.status ?? "pending",
+        patientId: data.patientId ?? null,
+        bookingId: data.bookingId ?? null,
         dueDate: data.dueDate ? `${data.dueDate}T00:00:00` : null,
       }),
     },
@@ -1881,6 +1885,7 @@ export async function sendReceptionMessage(
     channel: "sms" | "email" | "portal" | "whatsapp";
     recipient?: string;
     body: string;
+    patientId?: string;
   },
   token?: string | null
 ): Promise<ReceptionMessage> {
@@ -1893,6 +1898,7 @@ export async function sendReceptionMessage(
         channel: data.channel,
         phone: data.channel === "email" ? null : data.recipient || null,
         email: data.channel === "email" ? data.recipient || null : null,
+        patientId: data.patientId || null,
       }),
     },
     token

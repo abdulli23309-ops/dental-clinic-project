@@ -1064,6 +1064,18 @@ class TaskORM(Base):
         nullable=True,
         index=True,
     )
+    patient_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("patients.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    booking_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("bookings.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     title: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
@@ -1109,6 +1121,12 @@ class MessageORM(Base):
         Uuid(as_uuid=True),
         primary_key=True,
         default=uuid4,
+    )
+    patient_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("patients.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     sender_id: Mapped[Optional[UUID]] = mapped_column(
         Uuid(as_uuid=True),

@@ -40,6 +40,7 @@ import { useDirectory } from "@/lib/directory";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DentalChart } from "@/components/doctor/dental-chart";
+import { ClinicalAlertBanner } from "@/components/doctor/clinical-alert-banner";
 import { getWaitingTimeCategory } from "@/lib/statuses";
 
 export default function DoctorDashboardPage() {
@@ -430,11 +431,18 @@ export default function DoctorDashboardPage() {
                       {b.bookingTime}
                     </td>
                     <td className="px-5 py-4">
-                      <span className="font-semibold text-ink block">
-                        {b.patientName || "Patient"}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-semibold text-ink">
+                          {b.patientName || "Patient"}
+                        </span>
+                        {b.hasAlerts && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-100 text-rose-800 border border-rose-300 dark:bg-rose-950 dark:text-rose-200 dark:border-rose-800">
+                            Alert
+                          </span>
+                        )}
+                      </div>
                       {b.patientPhone && (
-                        <span className="text-[11px] text-ink-soft font-mono">{b.patientPhone}</span>
+                        <span className="text-[11px] text-ink-soft font-mono block">{b.patientPhone}</span>
                       )}
                     </td>
                     <td className="px-5 py-4 text-ink">
@@ -534,6 +542,13 @@ export default function DoctorDashboardPage() {
                 </button>
               </div>
             </div>
+
+            {/* Clinical Alert & Allergy Safety Banner */}
+            {selectedBooking.patientId && (
+              <div className="pt-2">
+                <ClinicalAlertBanner patientId={selectedBooking.patientId} />
+              </div>
+            )}
 
             {/* Workspace Navigation Tabs */}
             <div className="flex border-b border-line gap-2">

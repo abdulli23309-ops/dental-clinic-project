@@ -27,6 +27,7 @@ import {
   createReceptionTask,
   getReceptionPatient,
   ReceptionPatientDetail,
+  recordReceptionPendingAlert,
   sendReceptionMessage,
   updateReceptionPatient,
 } from "@/lib/api";
@@ -62,6 +63,13 @@ export default function ReceptionPatientDetailPage() {
   const [taskTitle, setTaskTitle] = useState("");
   const [taskDescription, setTaskDescription] = useState("");
   const [taskPriority, setTaskPriority] = useState<"low" | "medium" | "high" | "urgent">("medium");
+
+  // Pending Alert Modal (Reception Capture)
+  const [isPendingAlertOpen, setIsPendingAlertOpen] = useState(false);
+  const [alertType, setAlertType] = useState<"allergy" | "condition" | "medication" | "other">("allergy");
+  const [alertDescription, setAlertDescription] = useState("");
+  const [alertSuccess, setAlertSuccess] = useState<string | null>(null);
+  const [isAlertSubmitting, setIsAlertSubmitting] = useState(false);
 
   const loadPatient = async () => {
     setIsLoading(true);
@@ -149,6 +157,33 @@ export default function ReceptionPatientDetailPage() {
       await loadPatient();
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Failed to create task.");
+    }
+  };
+
+  const handleRecordPendingAlert = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!alertDescription.trim() || !patient) return;
+    setIsAlertSubmitting(true);
+    try {
+      await recordReceptionPendingAlert(
+        patient.id,
+        {
+          type: alertType,
+          description: alertDescription.trim(),
+        },
+        accessToken
+      );
+      setAlertDescription("");
+      setAlertSuccess("Pending alert logged. The attending clinician will be prompted to confirm or dismiss it.");
+      setTimeout(() => {
+        setIsPendingAlertOpen(false);
+        setAlertSuccess(null);
+      }, 2000);
+      await loadPatient();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to record pending alert.");
+    } finally {
+      setIsAlertSubmitting(false);
     }
   };
 
@@ -271,6 +306,33 @@ export default function ReceptionPatientDetailPage() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Medical Alerts (Front Desk View & Capture) */}
+          <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xs font-mono uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                Medical Alerts
+              </h2>
+              {patient.hasAlerts ? (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                  Alerts on file
+                </span>
+              ) : (
+                <span className="text-[11px] text-gray-400 font-mono">None on file</span>
+              )}
+            </div>
+            <p className="text-[11px] text-gray-500">
+              Clinical details are restricted to clinicians. Front desk staff record unconfirmed alerts for doctor review.
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsPendingAlertOpen(true)}
+              className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 text-xs font-medium hover:bg-amber-100/50 dark:hover:bg-amber-900/40 transition-colors cursor-pointer"
+            >
+              <AlertCircle className="h-3.5 w-3.5" />
+              <span>Report Allergy / Condition</span>
+            </button>
           </div>
 
           {/* Visit History Summary */}
@@ -606,6 +668,94 @@ export default function ReceptionPatientDetailPage() {
                   className="px-4 py-2 rounded-full bg-primary text-white font-semibold hover:bg-primary/90 transition-colors cursor-pointer"
                 >
                   Create Task
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Record Pending Medical Alert Modal (Front Desk Capture) */}
+      {isPendingAlertOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="w-full max-w-lg rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-800">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-amber-500" />
+                <h2 className="text-base font-display font-semibold text-gray-900 dark:text-white">
+                  Report Patient Allergy / Condition
+                </h2>
+              </div>
+              <button
+                onClick={() => {
+                  setIsPendingAlertOpen(false);
+                  setAlertSuccess(null);
+                }}
+                className="p-1.5 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 text-xs text-amber-800 dark:text-amber-300">
+              <p className="font-semibold mb-0.5">Front Desk Medical Alert Capture Policy</p>
+              <p>
+                Reception cannot confirm clinical alerts. This record will be submitted as an <strong>unconfirmed pending alert</strong>. The attending clinician will be prompted to review and confirm it prior to treatment.
+              </p>
+            </div>
+
+            {alertSuccess && (
+              <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900 text-xs text-emerald-800 dark:text-emerald-300">
+                {alertSuccess}
+              </div>
+            )}
+
+            <form onSubmit={handleRecordPendingAlert} className="space-y-4 text-xs">
+              <div className="space-y-1">
+                <label className="font-medium text-gray-700 dark:text-gray-300">Category *</label>
+                <select
+                  value={alertType}
+                  onChange={(e) => setAlertType(e.target.value as "allergy" | "condition" | "medication" | "other")}
+                  className="w-full px-3.5 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 focus:border-primary text-xs"
+                >
+                  <option value="allergy">Allergy (e.g. Penicillin, Latex, Local Anesthetic)</option>
+                  <option value="condition">Medical Condition (e.g. Asthma, Diabetes, Hypertension, Bleeding Disorder)</option>
+                  <option value="medication">Current Medication (e.g. Anticoagulants, Bisphosphonates)</option>
+                  <option value="other">Other Clinical Risk / Concern</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-medium text-gray-700 dark:text-gray-300">
+                  Patient-Reported Description *
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  placeholder="e.g. Severe hives from penicillin; diagnosed 5 years ago..."
+                  value={alertDescription}
+                  onChange={(e) => setAlertDescription(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 focus:border-primary text-xs"
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsPendingAlertOpen(false);
+                    setAlertSuccess(null);
+                  }}
+                  className="px-4 py-2 rounded-full border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isAlertSubmitting || !alertDescription.trim()}
+                  className="px-4 py-2 rounded-full bg-amber-600 text-white font-semibold hover:bg-amber-700 disabled:opacity-50 transition-colors cursor-pointer"
+                >
+                  {isAlertSubmitting ? "Logging..." : "Log Pending Alert"}
                 </button>
               </div>
             </form>

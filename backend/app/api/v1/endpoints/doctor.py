@@ -12,10 +12,12 @@ from app.api.deps import (
     get_doctor_service,
     get_encounter_repository,
     get_encounter_service,
+    get_medical_alert_service,
     get_patient_repository,
     get_reception_service,
     require_doctor,
 )
+from app.application.services.medical_alert_service import MedicalAlertService
 from app.application.services.reception_service import ReceptionService
 from app.domain.repositories.booking_repo import BookingRepository
 from app.domain.repositories.encounter_repo import EncounterRepository
@@ -67,6 +69,7 @@ async def get_doctor_schedule(
     clinic_id: Optional[UUID] = Query(None),
     current_user: User = Depends(require_doctor),
     doctor_service: DoctorService = Depends(get_doctor_service),
+    medical_alert_service: MedicalAlertService = Depends(get_medical_alert_service),
 ) -> List[BookingResponseDto]:
     user_role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
     is_admin_level = user_role_str.lower() in ("admin", "super admin", "platform owner")
@@ -82,6 +85,13 @@ async def get_doctor_schedule(
         clinic_id=effective_clinic,
         target_date=target_date,
     )
+
+    patient_ids = [b.patient_id for b in bookings if b.patient_id]
+    patients_with_alerts = set()
+    for pid in patient_ids:
+        if await medical_alert_service.check_alerts_on_file(pid):
+            patients_with_alerts.add(pid)
+
     return [
         BookingResponseDto(
             id=b.id,
@@ -106,6 +116,7 @@ async def get_doctor_schedule(
             completedAt=b.completed_at,
             cancellationReason=b.cancellation_reason,
             cancelledByUserId=b.cancelled_by_user_id,
+            hasAlerts=b.patient_id in patients_with_alerts if b.patient_id else False,
             createdAt=b.created_at,
             updatedAt=b.updated_at,
         )

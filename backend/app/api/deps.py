@@ -13,6 +13,7 @@ from app.application.services.dental_chart_service import DentalChartService
 from app.application.services.doctor_service import DoctorService
 from app.application.services.clinical_note_service import ClinicalNoteService
 from app.application.services.encounter_service import EncounterService
+from app.application.services.medical_alert_service import MedicalAlertService
 from app.application.services.organization_service import OrganizationService
 from app.application.services.reception_service import ReceptionService
 from app.application.services.service_service import ServiceService
@@ -29,6 +30,7 @@ from app.domain.repositories.dental_chart_repo import DentalChartRepository
 from app.domain.repositories.dental_procedure_repo import DentalProcedureRepository
 from app.domain.repositories.encounter_repo import EncounterRepository
 from app.domain.repositories.lead_repo import LeadRepository
+from app.domain.repositories.medical_alert_repo import MedicalAlertRepository
 from app.domain.repositories.message_repo import MessageRepository
 from app.domain.repositories.organization_repo import LocationRepository, OrganizationRepository
 from app.domain.repositories.patient_repo import PatientRepository
@@ -43,6 +45,7 @@ from app.domain.repositories.user_repo import (
 from app.domain.services.storage_service import StorageService
 from app.infrastructure.repositories.postgres_activity_repo import PostgresActivityLogRepository
 from app.infrastructure.repositories.postgres_announcement_repo import PostgresAnnouncementRepository
+from app.infrastructure.repositories.postgres_medical_alert_repo import PostgresMedicalAlertRepository
 from app.infrastructure.repositories.postgres_appointment_repo import PostgresAppointmentRepository
 from app.infrastructure.repositories.postgres_booking_repo import PostgresBookingRepository
 from app.infrastructure.repositories.postgres_clinical_note_repo import PostgresClinicalNoteRepository
@@ -148,6 +151,12 @@ def get_patient_repository(
     session: AsyncSession = Depends(get_db_session),
 ) -> PatientRepository:
     return PostgresPatientRepository(session)
+
+
+def get_medical_alert_repository(
+    session: AsyncSession = Depends(get_db_session),
+) -> MedicalAlertRepository:
+    return PostgresMedicalAlertRepository(session)
 
 
 def get_task_repository(
@@ -414,7 +423,17 @@ def require_role(*allowed_roles: str) -> Callable:
     return role_checker
 
 
+def get_medical_alert_service(
+    alert_repo: MedicalAlertRepository = Depends(get_medical_alert_repository),
+    patient_repo: PatientRepository = Depends(get_patient_repository),
+    activity_repo: PostgresActivityLogRepository = Depends(get_activity_log_repository),
+) -> MedicalAlertService:
+    return MedicalAlertService(alert_repo, patient_repo, activity_repo)
+
+
 # Pre-configured role dependencies
 require_admin = require_role("admin", "Platform Owner", "Super Admin")
 require_receptionist = require_role("receptionist", "Receptionist", "admin", "Admin", "Super Admin", "Clinic Branch Manager")
 require_doctor = require_role("doctor", "Doctor", "admin", "Admin", "Super Admin")
+require_doctor_strictly = require_role("doctor", "Doctor")
+

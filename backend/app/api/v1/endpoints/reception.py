@@ -4,7 +4,16 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 
-from app.api.deps import get_reception_service, require_receptionist
+from app.api.deps import (
+    get_medical_alert_service,
+    get_reception_service,
+    require_receptionist,
+)
+from app.application.dtos.medical_alert_dto import (
+    CreatePendingAlertRequest,
+    MedicalAlertDto,
+)
+from app.application.services.medical_alert_service import MedicalAlertService
 from app.application.dtos.reception_dto import (
     BookingCreateRequest,
     BookingRescheduleRequest,
@@ -316,29 +325,34 @@ async def search_patients(
     clinic_id: Optional[UUID] = Query(None),
     current_user: User = Depends(require_receptionist),
     reception_service: ReceptionService = Depends(get_reception_service),
+    medical_alert_service: MedicalAlertService = Depends(get_medical_alert_service),
 ) -> Dict[str, Any]:
     effective_clinic = _get_clinic_scope(current_user, clinic_id)
     offset = (page - 1) * page_size
     patients, total = await reception_service.search_patients(
         query=query, clinic_id=effective_clinic, limit=page_size, offset=offset
     )
-    items = [
-        PatientResponseDto(
-            id=p.id,
-            firstName=p.first_name,
-            lastName=p.last_name,
-            fullName=f"{p.first_name} {p.last_name}",
-            phone=p.phone,
-            email=p.email,
-            clinicId=p.clinic_id,
-            dateOfBirth=p.date_of_birth,
-            notes=p.notes,
-            isActive=p.is_active,
-            createdAt=p.created_at,
-            updatedAt=p.updated_at,
+    items = []
+    for p in patients:
+        has_alerts = await medical_alert_service.check_alerts_on_file(p.id)
+        items.append(
+            PatientResponseDto(
+                id=p.id,
+                firstName=p.first_name,
+                lastName=p.last_name,
+                fullName=f"{p.first_name} {p.last_name}",
+                phone=p.phone,
+                email=p.email,
+                clinicId=p.clinic_id,
+                dateOfBirth=p.date_of_birth,
+                notes=p.notes,
+                medicalHistoryStatus=p.medical_history_status,
+                hasAlerts=has_alerts,
+                isActive=p.is_active,
+                createdAt=p.created_at,
+                updatedAt=p.updated_at,
+            )
         )
-        for p in patients
-    ]
     return {
         "items": items,
         "total": total,
@@ -376,6 +390,8 @@ async def create_patient(
             clinicId=patient.clinic_id,
             dateOfBirth=patient.date_of_birth,
             notes=patient.notes,
+            medicalHistoryStatus=patient.medical_history_status,
+            hasAlerts=False,
             isActive=patient.is_active,
             createdAt=patient.created_at,
             updatedAt=patient.updated_at,
@@ -390,9 +406,11 @@ async def get_patient_profile(
     id: UUID,
     current_user: User = Depends(require_receptionist),
     reception_service: ReceptionService = Depends(get_reception_service),
+    medical_alert_service: MedicalAlertService = Depends(get_medical_alert_service),
 ) -> PatientProfileResponse:
     profile = await reception_service.get_patient_profile(id)
     pat = profile["patient"]
+    has_alerts = await medical_alert_service.check_alerts_on_file(pat.id)
     return PatientProfileResponse(
         patient=PatientResponseDto(
             id=pat.id,
@@ -404,6 +422,8 @@ async def get_patient_profile(
             clinicId=pat.clinic_id,
             dateOfBirth=pat.date_of_birth,
             notes=pat.notes,
+            medicalHistoryStatus=pat.medical_history_status,
+            hasAlerts=has_alerts,
             isActive=pat.is_active,
             createdAt=pat.created_at,
             updatedAt=pat.updated_at,
@@ -873,3 +893,41 @@ async def get_waitlist(
         )
         for b in bookings
     ]
+
+
+@router.post(
+    "/patients/{patient_id}/pending-alerts",
+    response_model=MedicalAlertDto,
+    status_code=status.HTTP_201_CREATED,
+)
+async def record_pending_alert(
+    patient_id: UUID,
+    req: CreatePendingAlertRequest,
+    current_user: User = Depends(require_receptionist),
+    medical_alert_service: MedicalAlertService = Depends(get_medical_alert_service),
+) -> MedicalAlertDto:
+    """
+    Reception-capture endpoint: records an unconfirmed pending medical alert reported at front desk.
+    Doctors see this on the patient record as 'Reception reported: ... — confirm or dismiss'.
+    """
+    saved = await medical_alert_service.create_reception_pending_alert(
+        patient_id=patient_id,
+        alert_type=req.type,
+        description=req.description,
+        current_user=current_user,
+    )
+    return MedicalAlertDto(
+        id=saved.id,
+        patientId=saved.patient_id,
+        type=saved.type,
+        description=saved.description,
+        severity=saved.severity,
+        recordedByUserId=saved.recorded_by_user_id,
+        recordedAt=saved.recorded_at,
+        lastReviewedAt=saved.last_reviewed_at,
+        isActive=saved.is_active,
+        isConfirmed=saved.is_confirmed,
+        createdAt=saved.created_at,
+        updatedAt=saved.updated_at,
+    )
+

@@ -1028,6 +1028,7 @@ interface RawBooking {
   completedAt?: string | null;
   cancellationReason?: string | null;
   cancelledByUserId?: string | null;
+  hasAlerts?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -1071,6 +1072,8 @@ interface RawPatient {
   dateOfBirth?: string | null;
   notes?: string | null;
   isActive: boolean;
+  hasAlerts?: boolean;
+  medicalHistoryStatus?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -1189,6 +1192,7 @@ export interface ReceptionBooking {
   completedAt?: string | null;
   cancellationReason?: string | null;
   cancelledByUserId?: string | null;
+  hasAlerts?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -1205,6 +1209,8 @@ export interface ReceptionPatient {
   dateOfBirth?: string | null;
   notes?: string | null;
   isActive: boolean;
+  hasAlerts?: boolean;
+  medicalHistoryStatus?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -1304,6 +1310,7 @@ function mapBooking(raw: RawBooking): ReceptionBooking {
     completedAt: raw.completedAt,
     cancellationReason: raw.cancellationReason,
     cancelledByUserId: raw.cancelledByUserId,
+    hasAlerts: raw.hasAlerts ?? false,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
   };
@@ -2478,3 +2485,135 @@ export async function updateProcedureStatus(
   if (!res.ok) await apiError(res, "Failed to update procedure status.");
   return res.json();
 }
+
+
+/* --- Clinical Medical Alerts & Safety Banner (Phase 1.1) --- */
+
+export interface MedicalAlertItem {
+  id: string;
+  patientId: string;
+  type: "allergy" | "condition" | "medication" | "other";
+  description: string;
+  severity?: string | null;
+  recordedByUserId?: string | null;
+  recordedAt: string;
+  lastReviewedAt?: string | null;
+  isActive: boolean;
+  isConfirmed: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MedicalAlertsSummary {
+  patientId: string;
+  medicalHistoryStatus: "not_asked" | "none_known" | "recorded";
+  confirmedAlerts: MedicalAlertItem[];
+  pendingAlerts: MedicalAlertItem[];
+  lastReviewedAt?: string | null;
+}
+
+export async function getPatientAlertsSummary(
+  patientId: string,
+  token?: string | null
+): Promise<MedicalAlertsSummary> {
+  const res = await authorizedFetch(`/api/v1/clinical/patients/${patientId}/alerts`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to load patient medical alerts.");
+  return res.json();
+}
+
+export async function recordDoctorAlert(
+  patientId: string,
+  data: { type: string; description: string; severity?: string },
+  token?: string | null
+): Promise<MedicalAlertItem> {
+  const res = await authorizedFetch(
+    `/api/v1/clinical/patients/${patientId}/alerts`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to record medical alert.");
+  return res.json();
+}
+
+export async function confirmDoctorAlert(
+  alertId: string,
+  token?: string | null
+): Promise<MedicalAlertItem> {
+  const res = await authorizedFetch(
+    `/api/v1/clinical/alerts/${alertId}/confirm`,
+    {
+      method: "POST",
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to confirm medical alert.");
+  return res.json();
+}
+
+export async function dismissDoctorAlert(
+  alertId: string,
+  token?: string | null
+): Promise<MedicalAlertItem> {
+  const res = await authorizedFetch(
+    `/api/v1/clinical/alerts/${alertId}/dismiss`,
+    {
+      method: "POST",
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to dismiss medical alert.");
+  return res.json();
+}
+
+export async function reviewPatientAlertsAtVisit(
+  patientId: string,
+  token?: string | null
+): Promise<{ patientId: string; lastReviewedAt: string; status: string }> {
+  const res = await authorizedFetch(
+    `/api/v1/clinical/patients/${patientId}/alerts/review`,
+    {
+      method: "POST",
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to record clinical review of alerts.");
+  return res.json();
+}
+
+export async function updateMedicalHistoryStatus(
+  patientId: string,
+  status: string,
+  token?: string | null
+): Promise<{ patientId: string; medicalHistoryStatus: string }> {
+  const res = await authorizedFetch(
+    `/api/v1/clinical/patients/${patientId}/medical-history-status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to update medical history status.");
+  return res.json();
+}
+
+export async function recordReceptionPendingAlert(
+  patientId: string,
+  data: { type: string; description: string },
+  token?: string | null
+): Promise<MedicalAlertItem> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/patients/${patientId}/pending-alerts`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to record pending medical alert.");
+  return res.json();
+}
+

@@ -25,6 +25,7 @@ import { useDirectory } from "@/lib/directory";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DentalChart } from "@/components/doctor/dental-chart";
+import { ClinicalAlertBanner } from "@/components/doctor/clinical-alert-banner";
 
 export default function DoctorPatientDetailPage() {
   const params = useParams();
@@ -127,6 +128,9 @@ export default function DoctorPatientDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Clinical Medical Alert & Allergy Safety Banner */}
+      <ClinicalAlertBanner patientId={patient.id} onAlertsChange={loadPatient} />
 
       {/* Workspace Tabs */}
       <div className="flex items-center gap-2 border-b border-line pb-2">

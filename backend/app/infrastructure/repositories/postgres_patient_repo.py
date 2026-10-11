@@ -26,6 +26,7 @@ class PostgresPatientRepository(PatientRepository):
             email=entity.email,
             date_of_birth=entity.date_of_birth,
             notes=entity.notes,
+            medical_history_status=entity.medical_history_status,
             is_active=entity.is_active,
             created_at=entity.created_at,
             updated_at=entity.updated_at,
@@ -43,6 +44,7 @@ class PostgresPatientRepository(PatientRepository):
             email=orm.email,
             date_of_birth=orm.date_of_birth,
             notes=orm.notes,
+            medical_history_status=getattr(orm, "medical_history_status", "not_asked"),
             is_active=orm.is_active,
             created_at=orm.created_at,
             updated_at=orm.updated_at,
@@ -58,6 +60,7 @@ class PostgresPatientRepository(PatientRepository):
             existing.clinic_id = patient.clinic_id
             existing.date_of_birth = patient.date_of_birth
             existing.notes = patient.notes
+            existing.medical_history_status = patient.medical_history_status
             existing.is_active = patient.is_active
             await self._session.flush()
             await self._session.refresh(existing)

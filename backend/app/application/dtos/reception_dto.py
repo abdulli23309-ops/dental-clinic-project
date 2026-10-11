@@ -29,6 +29,7 @@ class BookingResponseDto(BaseModel):
     completedAt: Optional[datetime] = None
     cancellationReason: Optional[str] = None
     cancelledByUserId: Optional[UUID] = None
+    hasAlerts: bool = False
     createdAt: datetime
     updatedAt: datetime
 
@@ -81,6 +82,8 @@ class PatientResponseDto(BaseModel):
     clinicId: Optional[UUID] = None
     dateOfBirth: Optional[date] = None
     notes: Optional[str] = None
+    medicalHistoryStatus: str = "not_asked"
+    hasAlerts: bool = False
     isActive: bool
     createdAt: datetime
     updatedAt: datetime

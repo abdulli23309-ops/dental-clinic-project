@@ -10,6 +10,7 @@ from app.api.v1.endpoints import (
     admin_team,
     appointments,
     auth,
+    clinical_alerts,
     doctor,
     health,
     public_content,
@@ -23,6 +24,9 @@ api_v1_router.include_router(health.router, tags=["Health"])
 api_v1_router.include_router(appointments.router, tags=["Appointments"])
 api_v1_router.include_router(auth.router, tags=["Authentication"])
 api_v1_router.include_router(public_content.router, tags=["Public Content"])
+
+# Clinical & Practitioner routes
+api_v1_router.include_router(clinical_alerts.router, tags=["Clinical Medical Alerts"])
 
 # Receptionist Front-Office workspace
 api_v1_router.include_router(reception.router, tags=["Receptionist Front-Office"])

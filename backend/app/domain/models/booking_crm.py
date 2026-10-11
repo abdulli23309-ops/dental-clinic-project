@@ -17,10 +17,31 @@ class Patient:
     clinic_id: Optional[UUID] = None
     date_of_birth: Optional[date] = None
     notes: Optional[str] = None
+    medical_history_status: str = "not_asked"  # not_asked | none_known | recorded
     is_active: bool = True
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+@dataclass
+class PatientMedicalAlert:
+    """
+    Pure domain representation of a medical alert (allergy, condition, medication, other).
+    """
+    patient_id: UUID
+    type: str  # allergy | condition | medication | other
+    description: str
+    severity: Optional[str] = None  # mild | moderate | severe | life_threatening
+    recorded_by_user_id: Optional[UUID] = None
+    recorded_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    last_reviewed_at: Optional[datetime] = None
+    is_active: bool = True
+    is_confirmed: bool = True
+    id: UUID = field(default_factory=uuid4)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
 
 
 @dataclass

@@ -171,13 +171,20 @@ export default function ReceptionPatientsPage() {
                 {patients.map((p) => (
                   <tr key={p.id} className="hover:bg-gray-50/80 dark:hover:bg-gray-800/40 transition-colors">
                     <td className="px-5 py-4">
-                      <Link
-                        href={`/reception/patients/${p.id}`}
-                        className="font-semibold text-primary hover:underline flex items-center gap-1.5"
-                      >
-                        <User className="h-3.5 w-3.5" />
-                        <span>{p.fullName}</span>
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/reception/patients/${p.id}`}
+                          className="font-semibold text-primary hover:underline flex items-center gap-1.5"
+                        >
+                          <User className="h-3.5 w-3.5" />
+                          <span>{p.fullName}</span>
+                        </Link>
+                        {p.hasAlerts && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                            Alerts on file
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-5 py-4 font-mono text-gray-700 dark:text-gray-300">
                       {p.phone}

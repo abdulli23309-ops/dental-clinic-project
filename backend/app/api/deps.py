@@ -138,6 +138,12 @@ def get_booking_repository(
     return PostgresBookingRepository(session)
 
 
+def get_activity_log_repository(
+    session: AsyncSession = Depends(get_db_session),
+) -> PostgresActivityLogRepository:
+    return PostgresActivityLogRepository(session)
+
+
 def get_patient_repository(
     session: AsyncSession = Depends(get_db_session),
 ) -> PatientRepository:
@@ -223,6 +229,8 @@ def get_reception_service(
     lead_repo: LeadRepository = Depends(get_lead_repository),
     message_repo: MessageRepository = Depends(get_message_repository),
     appointment_repo: AppointmentRepository = Depends(get_appointment_repository),
+    service_repo: ServiceRepository = Depends(get_service_repository),
+    activity_repo: PostgresActivityLogRepository = Depends(get_activity_log_repository),
 ) -> ReceptionService:
     return ReceptionService(
         booking_repo,
@@ -231,6 +239,8 @@ def get_reception_service(
         lead_repo,
         message_repo,
         appointment_repo,
+        service_repo,
+        activity_repo,
     )
 
 
@@ -256,12 +266,6 @@ def get_encounter_service(
         patient_repo=patient_repo,
         booking_repo=booking_repo,
     )
-
-
-def get_activity_log_repository(
-    session: AsyncSession = Depends(get_db_session),
-) -> PostgresActivityLogRepository:
-    return PostgresActivityLogRepository(session)
 
 
 def get_clinical_note_repository(

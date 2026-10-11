@@ -49,6 +49,8 @@ class BookingCreateRequest(BaseModel):
     notes: Optional[str] = None
     staffNotes: Optional[str] = None
     status: str = Field(default="confirmed")
+    overrideDoubleBooking: bool = False
+    overrideReason: Optional[str] = None
 
 
 class BookingStatusUpdateRequest(BaseModel):
@@ -63,6 +65,8 @@ class BookingRescheduleRequest(BaseModel):
     teamMemberId: Optional[UUID] = None
     slotId: Optional[UUID] = None
     staffNotes: Optional[str] = None
+    overrideDoubleBooking: bool = False
+    overrideReason: Optional[str] = None
 
 
 # --- Patient DTOs ---

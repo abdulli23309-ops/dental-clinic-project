@@ -1,10 +1,11 @@
 import random
+import re
 import string
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status as http_status
 
 from app.domain.models.booking_crm import Booking, Lead, Message, Patient, Task
 from app.domain.models.appointment import Appointment, AppointmentStatus
@@ -13,13 +14,58 @@ from app.domain.repositories.booking_repo import BookingRepository
 from app.domain.repositories.lead_repo import LeadRepository
 from app.domain.repositories.message_repo import MessageRepository
 from app.domain.repositories.patient_repo import PatientRepository
+from app.domain.repositories.service_repo import ServiceRepository
 from app.domain.repositories.task_repo import TaskRepository
+from app.infrastructure.repositories.postgres_activity_repo import PostgresActivityLogRepository
 
 
 def generate_booking_confirmation_id() -> str:
     year = datetime.now(timezone.utc).year
     suffix = "".join(random.choices(string.digits, k=4))
     return f"BK-{year}-{suffix}"
+
+
+def parse_time_to_minutes(time_str: Optional[str]) -> Optional[int]:
+    if not time_str or not time_str.strip():
+        return None
+    s = time_str.strip().upper()
+    m = re.match(r"^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$", s)
+    if not m:
+        return None
+    hours = int(m.group(1))
+    minutes = int(m.group(2)) if m.group(2) else 0
+    ampm = m.group(3)
+
+    if ampm == "AM":
+        if hours == 12:
+            hours = 0
+        elif hours > 12:
+            return None
+    elif ampm == "PM":
+        if hours < 12:
+            hours += 12
+        elif hours > 12:
+            return None
+    else:
+        if hours > 23 or minutes > 59:
+            return None
+
+    if minutes > 59:
+        return None
+    return hours * 60 + minutes
+
+
+def parse_duration_to_minutes(duration_str: Optional[str]) -> int:
+    if not duration_str:
+        return 30
+    m = re.search(r"(\d+(?:\.\d+)?)\s*(h|hr|hour|min|m)?", duration_str.lower())
+    if not m:
+        return 30
+    val = float(m.group(1))
+    unit = m.group(2) or "min"
+    if "h" in unit:
+        return int(val * 60)
+    return int(val)
 
 
 class ReceptionService:
@@ -31,6 +77,8 @@ class ReceptionService:
         lead_repo: LeadRepository,
         message_repo: MessageRepository,
         appointment_repo: AppointmentRepository,
+        service_repo: Optional[ServiceRepository] = None,
+        activity_repo: Optional[PostgresActivityLogRepository] = None,
     ):
         self.booking_repo = booking_repo
         self.patient_repo = patient_repo
@@ -38,6 +86,8 @@ class ReceptionService:
         self.lead_repo = lead_repo
         self.message_repo = message_repo
         self.appointment_repo = appointment_repo
+        self.service_repo = service_repo
+        self.activity_repo = activity_repo
 
     async def get_dashboard_summary(
         self, clinic_id: Optional[UUID] = None
@@ -154,6 +204,63 @@ class ReceptionService:
             offset=offset,
         )
 
+    async def get_service_duration(self, service_id: Optional[str]) -> int:
+        if not service_id or not self.service_repo:
+            return 30
+        try:
+            service_uuid = UUID(str(service_id))
+            service = await self.service_repo.get_by_id(service_uuid)
+            if service and service.duration:
+                return parse_duration_to_minutes(service.duration)
+        except (ValueError, TypeError):
+            pass
+
+        try:
+            service = await self.service_repo.get_by_slug(str(service_id))
+            if service and service.duration:
+                return parse_duration_to_minutes(service.duration)
+        except Exception:
+            pass
+        return 30
+
+    async def check_booking_overlap(
+        self,
+        team_member_id: Optional[UUID],
+        preferred_date: date,
+        preferred_time: str,
+        service_id: Optional[str] = None,
+        exclude_booking_id: Optional[UUID] = None,
+    ) -> Optional[Booking]:
+        if not team_member_id:
+            return None
+        cand_start = parse_time_to_minutes(preferred_time)
+        if cand_start is None:
+            return None
+        cand_duration = await self.get_service_duration(service_id)
+        cand_end = cand_start + cand_duration
+
+        existing_bookings, _ = await self.booking_repo.list_bookings(
+            team_member_id=team_member_id,
+            date_from=preferred_date,
+            date_to=preferred_date,
+            limit=200,
+        )
+
+        for b in existing_bookings:
+            if exclude_booking_id and b.id == exclude_booking_id:
+                continue
+            if b.status in ("cancelled", "no_show", "waitlist"):
+                continue
+            b_start = parse_time_to_minutes(b.preferred_time)
+            if b_start is None:
+                continue
+            b_dur = await self.get_service_duration(b.service_id)
+            b_end = b_start + b_dur
+
+            if cand_start < b_end and b_start < cand_end:
+                return b
+        return None
+
     async def create_booking(
         self,
         patient_full_name: str,
@@ -169,7 +276,32 @@ class ReceptionService:
         status: str = "confirmed",
         notes: Optional[str] = None,
         staff_notes: Optional[str] = None,
+        override_double_booking: bool = False,
+        override_reason: Optional[str] = None,
+        user_id: Optional[UUID] = None,
     ) -> Booking:
+        normalized_status = self.NORMALIZE_STATUS.get(status, status)
+
+        conflict = None
+        if team_member_id and preferred_time and normalized_status not in ("cancelled", "no_show", "waitlist"):
+            conflict = await self.check_booking_overlap(
+                team_member_id=team_member_id,
+                preferred_date=preferred_date,
+                preferred_time=preferred_time,
+                service_id=service_id,
+            )
+            if conflict:
+                if not override_double_booking:
+                    raise HTTPException(
+                        status_code=http_status.HTTP_409_CONFLICT,
+                        detail=f"Double-booking conflict: Clinician already has an appointment scheduled at {conflict.preferred_time}.",
+                    )
+                if not override_reason or not override_reason.strip():
+                    raise HTTPException(
+                        status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail="Override reason is required to override double-booking.",
+                    )
+
         # If patient_id not provided, find or create patient record
         if not patient_id:
             dups = await self.patient_repo.find_duplicates(
@@ -195,7 +327,6 @@ class ReceptionService:
                 saved_pat = await self.patient_repo.save(new_pat)
                 patient_id = saved_pat.id
 
-        normalized_status = self.NORMALIZE_STATUS.get(status, status)
         booking = Booking(
             confirmation_id=generate_booking_confirmation_id(),
             preferred_date=preferred_date,
@@ -212,7 +343,24 @@ class ReceptionService:
             notes=notes,
             staff_notes=staff_notes,
         )
-        return await self.booking_repo.save(booking)
+        saved_booking = await self.booking_repo.save(booking)
+
+        if conflict and override_double_booking and self.activity_repo:
+            await self.activity_repo.log_activity(
+                action="override_double_booking",
+                entity_type="booking",
+                entity_id=str(saved_booking.id),
+                user_id=user_id,
+                details={
+                    "reason": override_reason.strip(),
+                    "conflict_booking_id": str(conflict.id),
+                    "conflict_time": conflict.preferred_time,
+                    "preferred_date": str(preferred_date),
+                    "team_member_id": str(team_member_id),
+                },
+            )
+
+        return saved_booking
 
     VALID_STATUSES = {
         "requested",
@@ -256,20 +404,20 @@ class ReceptionService:
         normalized_new = self.NORMALIZE_STATUS.get(new_status, new_status)
         if normalized_new not in self.VALID_STATUSES:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"Invalid status '{new_status}'. Allowed statuses: {sorted(list(self.VALID_STATUSES))}",
             )
 
         booking = await self.booking_repo.get_by_id(booking_id)
         if not booking:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Booking record not found."
+                status_code=http_status.HTTP_404_NOT_FOUND, detail="Booking record not found."
             )
 
         allowed = self.ALLOWED_TRANSITIONS.get(booking.status, set())
         if new_status not in allowed and normalized_new not in allowed:
             raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
+                status_code=http_status.HTTP_409_CONFLICT,
                 detail=f"Cannot transition appointment from '{booking.status}' to '{new_status}'.",
             )
 
@@ -287,7 +435,7 @@ class ReceptionService:
         elif normalized_new == "cancelled":
             if not cancellation_reason or not cancellation_reason.strip():
                 raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail="Cancellation reason is required when cancelling an appointment.",
                 )
             booking.cancellation_reason = cancellation_reason.strip()
@@ -306,12 +454,39 @@ class ReceptionService:
         team_member_id: Optional[UUID] = None,
         slot_id: Optional[UUID] = None,
         staff_notes: Optional[str] = None,
+        override_double_booking: bool = False,
+        override_reason: Optional[str] = None,
+        user_id: Optional[UUID] = None,
     ) -> Booking:
         booking = await self.booking_repo.get_by_id(booking_id)
         if not booking:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Booking record not found."
+                status_code=http_status.HTTP_404_NOT_FOUND, detail="Booking record not found."
             )
+
+        effective_team_member = team_member_id or booking.team_member_id
+        effective_service = booking.service_id
+        conflict = None
+        if effective_team_member and preferred_time:
+            conflict = await self.check_booking_overlap(
+                team_member_id=effective_team_member,
+                preferred_date=preferred_date,
+                preferred_time=preferred_time,
+                service_id=effective_service,
+                exclude_booking_id=booking.id,
+            )
+            if conflict:
+                if not override_double_booking:
+                    raise HTTPException(
+                        status_code=http_status.HTTP_409_CONFLICT,
+                        detail=f"Double-booking conflict: Clinician already has an appointment scheduled at {conflict.preferred_time}.",
+                    )
+                if not override_reason or not override_reason.strip():
+                    raise HTTPException(
+                        status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail="Override reason is required to override double-booking.",
+                    )
+
         booking.preferred_date = preferred_date
         booking.preferred_time = preferred_time
         if team_member_id:
@@ -321,7 +496,24 @@ class ReceptionService:
         if staff_notes:
             booking.staff_notes = staff_notes
         booking.status = "confirmed"
-        return await self.booking_repo.save(booking)
+        saved_booking = await self.booking_repo.save(booking)
+
+        if conflict and override_double_booking and self.activity_repo:
+            await self.activity_repo.log_activity(
+                action="override_double_booking",
+                entity_type="booking",
+                entity_id=str(saved_booking.id),
+                user_id=user_id,
+                details={
+                    "reason": override_reason.strip(),
+                    "conflict_booking_id": str(conflict.id),
+                    "conflict_time": conflict.preferred_time,
+                    "preferred_date": str(preferred_date),
+                    "team_member_id": str(effective_team_member),
+                },
+            )
+
+        return saved_booking
 
     # --- Patients ---
 
@@ -375,7 +567,7 @@ class ReceptionService:
         patient = await self.patient_repo.get_by_id(patient_id)
         if not patient:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found."
+                status_code=http_status.HTTP_404_NOT_FOUND, detail="Patient not found."
             )
         bookings = await self.booking_repo.get_patient_bookings(patient_id)
         today = datetime.now(timezone.utc).date()
@@ -398,7 +590,7 @@ class ReceptionService:
         patient = await self.patient_repo.get_by_id(patient_id)
         if not patient:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found."
+                status_code=http_status.HTTP_404_NOT_FOUND, detail="Patient not found."
             )
         for k, v in updates.items():
             if hasattr(patient, k) and v is not None:
@@ -468,7 +660,7 @@ class ReceptionService:
         task = await self.task_repo.get_by_id(task_id)
         if not task:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Task not found."
+                status_code=http_status.HTTP_404_NOT_FOUND, detail="Task not found."
             )
         for k, v in updates.items():
             if k == "status" and v is not None:
@@ -563,7 +755,7 @@ class ReceptionService:
         lead = await self.lead_repo.get_by_id(lead_id)
         if not lead:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Lead not found."
+                status_code=http_status.HTTP_404_NOT_FOUND, detail="Lead not found."
             )
         for k, v in updates.items():
             if hasattr(lead, k) and v is not None:
@@ -580,7 +772,7 @@ class ReceptionService:
         lead = await self.lead_repo.get_by_id(lead_id)
         if not lead:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Lead not found."
+                status_code=http_status.HTTP_404_NOT_FOUND, detail="Lead not found."
             )
 
         names = lead.full_name.split()

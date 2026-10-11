@@ -196,6 +196,9 @@ async def create_appointment(
         status=req.status,
         notes=req.notes,
         staff_notes=req.staffNotes,
+        override_double_booking=req.overrideDoubleBooking,
+        override_reason=req.overrideReason,
+        user_id=current_user.id,
     )
     return BookingResponseDto(
         id=booking.id,
@@ -276,6 +279,9 @@ async def reschedule_appointment(
         team_member_id=req.teamMemberId,
         slot_id=req.slotId,
         staff_notes=req.staffNotes,
+        override_double_booking=req.overrideDoubleBooking,
+        override_reason=req.overrideReason,
+        user_id=current_user.id,
     )
     return BookingResponseDto(
         id=booking.id,

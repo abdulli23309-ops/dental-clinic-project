@@ -128,7 +128,7 @@ class Message:
     phone: Optional[str] = None
     email: Optional[str] = None
     channel: str = "sms"
-    status: str = "sent"
+    status: str = "logged"
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 

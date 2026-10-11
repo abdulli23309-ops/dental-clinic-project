@@ -1158,7 +1158,7 @@ class MessageORM(Base):
     status: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
-        default="sent",
+        default="logged",
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

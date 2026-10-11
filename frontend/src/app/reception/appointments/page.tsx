@@ -28,6 +28,7 @@ import {
   isWaiting,
   isInProgress,
   isCompleted,
+  isCancelled,
   APPOINTMENT_STATUS,
 } from "@/lib/statuses";
 
@@ -290,6 +291,15 @@ export default function ReceptionAppointmentsPage() {
                             className="px-3 py-1 rounded-full bg-primary text-white text-[11px] font-medium hover:bg-primary/90 transition-colors cursor-pointer"
                           >
                             Complete
+                          </button>
+                        )}
+
+                        {!isCancelled(b.status) && !isCompleted(b.status) && b.status !== APPOINTMENT_STATUS.WAITLIST && (
+                          <button
+                            onClick={() => handleStatusChange(b.id, APPOINTMENT_STATUS.WAITLIST)}
+                            className="px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-[11px] font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                          >
+                            Move to waitlist
                           </button>
                         )}
                       </div>

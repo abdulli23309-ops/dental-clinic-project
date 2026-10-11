@@ -400,6 +400,15 @@ export default function ReceptionSchedulePage() {
                           Reschedule
                         </button>
 
+                        {!isCancelled(b.status) && !isCompleted(b.status) && b.status !== APPOINTMENT_STATUS.WAITLIST && (
+                          <button
+                            onClick={() => handleStatusUpdate(b.id, APPOINTMENT_STATUS.WAITLIST)}
+                            className="px-2.5 py-1 rounded-full border border-line text-ink-soft hover:text-ink text-[11px] hover:bg-sand transition-colors"
+                          >
+                            Move to waitlist
+                          </button>
+                        )}
+
                         {!isCancelled(b.status) && !isCompleted(b.status) && (
                           <button
                             onClick={() => handleStatusUpdate(b.id, APPOINTMENT_STATUS.CANCELLED)}

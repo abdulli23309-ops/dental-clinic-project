@@ -1454,6 +1454,7 @@ export async function createReceptionBooking(
     bookingDate: string;
     bookingTime: string;
     notes?: string;
+    status?: string;
   },
   token?: string | null
 ): Promise<ReceptionBooking> {
@@ -1467,6 +1468,9 @@ export async function createReceptionBooking(
     fullName = fullName || profile.fullName;
     phone = phone || profile.phone;
     email = email || profile.email || undefined;
+  }
+  if (!email && phone) {
+    email = `${phone.replace(/\D/g, "") || "patient"}@marlow.internal`;
   }
   if (!fullName || !phone || !email) {
     throw new Error("Patient name, phone and email are required to book an appointment.");
@@ -1487,7 +1491,7 @@ export async function createReceptionBooking(
         serviceId: data.serviceId ?? null,
         clinicId: data.clinicId ?? null,
         notes: data.notes ?? null,
-        status: "confirmed",
+        status: data.status || "confirmed",
       }),
     },
     token

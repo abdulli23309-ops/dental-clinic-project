@@ -70,7 +70,14 @@ class EncounterService:
             # If booking is unassigned, assign it to the creating clinician
             if not booking.team_member_id:
                 booking.team_member_id = clinician_id
-                await self.booking_repo.save(booking)
+
+            # When starting an encounter for an arrived booking, auto-transition to in_progress and record started_at
+            if booking.status == "arrived":
+                booking.status = "in_progress"
+                if booking.started_at is None:
+                    booking.started_at = datetime.now(timezone.utc)
+
+            await self.booking_repo.save(booking)
 
         # 3. Validate initial status
         initial_status_str = (dto.status or "in_progress").lower()

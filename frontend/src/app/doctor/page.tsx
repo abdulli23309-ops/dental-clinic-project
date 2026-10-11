@@ -33,12 +33,14 @@ import {
   ReceptionBooking,
   saveDraftEncounterNote,
   signEncounterClinicalNote,
+  startDoctorAppointment,
 } from "@/lib/api";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useDirectory } from "@/lib/directory";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DentalChart } from "@/components/doctor/dental-chart";
+import { getWaitingTimeCategory } from "@/lib/statuses";
 
 export default function DoctorDashboardPage() {
   const { accessToken, user } = useAuth();
@@ -82,6 +84,24 @@ export default function DoctorDashboardPage() {
 
   useEffect(() => {
     loadSchedule();
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        loadSchedule();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        loadSchedule();
+      }
+    }, 30000);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [date, accessToken]);
 
   const handleOpenSoapModal = async (booking: ReceptionBooking) => {
@@ -236,6 +256,7 @@ export default function DoctorDashboardPage() {
 
   const isAdminLevel = !!(user?.role && ["admin", "owner", "superadmin"].includes(user.role.toLowerCase()));
   const isUnlinkedDoctor = !user?.teamMemberId && !isAdminLevel;
+  const arrivedPatients = schedule.filter((b) => b.status === "arrived");
 
   return (
     <div className="space-y-8">
@@ -280,6 +301,97 @@ export default function DoctorDashboardPage() {
             <span>Refresh</span>
           </Button>
         </div>
+      </div>
+
+      {/* Waiting for you panel (Task 0.6) */}
+      <div className="p-5 rounded-2xl border border-line bg-cream shadow-subtle space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-sm font-display font-semibold text-ink">
+              Waiting for you
+            </h2>
+            <span
+              className={`font-mono text-xs px-2.5 py-0.5 rounded-full font-bold ${
+                arrivedPatients.length > 0
+                  ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300"
+                  : "bg-line/50 text-ink-soft"
+              }`}
+            >
+              {arrivedPatients.length}
+            </span>
+          </div>
+          <span className="text-[11px] text-ink-soft font-mono">
+            Auto-refreshes every 30s
+          </span>
+        </div>
+
+        {arrivedPatients.length === 0 ? (
+          <p className="text-xs text-ink-soft italic py-2">
+            No patients currently waiting for you in the reception lobby.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {arrivedPatients.map((b) => {
+              const mins = b.arrivedAt
+                ? Math.max(0, Math.floor((Date.now() - new Date(b.arrivedAt).getTime()) / 60000))
+                : 0;
+              const cat = getWaitingTimeCategory(mins);
+              const badgeClasses =
+                cat === "on_time"
+                  ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200"
+                  : cat === "extended"
+                  ? "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200"
+                  : "bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300 border-red-200 animate-pulse";
+              const label =
+                cat === "on_time"
+                  ? `On time (${mins}m)`
+                  : cat === "extended"
+                  ? `Waiting ${mins}m (>5m)`
+                  : `Waiting ${mins}m (>15m)`;
+
+              return (
+                <div
+                  key={b.id}
+                  className="p-4 rounded-xl border border-line bg-bone flex flex-col justify-between gap-3 shadow-xs"
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-semibold text-xs text-ink truncate">
+                        {b.patientName}
+                      </p>
+                      <span
+                        className={`inline-flex items-center gap-1 font-mono text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 ${badgeClasses}`}
+                      >
+                        <Clock className="h-2.5 w-2.5" />
+                        {label}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-ink-soft mt-1">
+                      {directory.serviceName(b.serviceId) || "Visit"} · Appt: {b.bookingTime}
+                    </p>
+                  </div>
+
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={async () => {
+                      try {
+                        await startDoctorAppointment(b.id, accessToken);
+                        await loadSchedule();
+                      } catch (err) {
+                        console.error(err);
+                      }
+                      await handleOpenSoapModal(b);
+                    }}
+                  >
+                    <span>Attend Patient (Start Visit)</span>
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Schedule Card Table */}

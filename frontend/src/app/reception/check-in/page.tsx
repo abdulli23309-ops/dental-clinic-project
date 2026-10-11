@@ -29,6 +29,8 @@ import {
   isExpected,
   isCompleted,
   APPOINTMENT_STATUS,
+  WAITING_TIME_THRESHOLDS,
+  getWaitingTimeCategory,
 } from "@/lib/statuses";
 
 export default function ReceptionCheckInPage() {
@@ -192,10 +194,37 @@ export default function ReceptionCheckInPage() {
                         {directory.serviceName(b.serviceId) || "Consultation"} · {directory.providerName(b.providerId) || "Provider"}
                       </p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right space-y-1">
                       <span className="font-mono text-xs font-bold text-amber-700 dark:text-amber-300 block">
                         {b.bookingTime}
                       </span>
+                      {(() => {
+                        const mins = b.arrivedAt
+                          ? Math.max(0, Math.floor((Date.now() - new Date(b.arrivedAt).getTime()) / 60000))
+                          : 0;
+                        const cat = getWaitingTimeCategory(mins);
+                        const badgeClasses =
+                          cat === "on_time"
+                            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200"
+                            : cat === "extended"
+                            ? "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200"
+                            : "bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300 border-red-200 animate-pulse";
+                        const label =
+                          cat === "on_time"
+                            ? `On time (${mins}m)`
+                            : cat === "extended"
+                            ? `Waiting ${mins}m (>5m)`
+                            : `Overdue ${mins}m (>15m)`;
+
+                        return (
+                          <span
+                            className={`inline-flex items-center gap-1 font-mono text-[10px] font-semibold px-2 py-0.5 rounded-full border ${badgeClasses}`}
+                          >
+                            <Clock className="h-2.5 w-2.5" />
+                            {label}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
 

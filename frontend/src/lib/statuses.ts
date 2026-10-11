@@ -73,3 +73,22 @@ export function isTaskActive(status: string | null | undefined): boolean {
 export function isTaskDone(status: string | null | undefined): boolean {
   return status === TASK_STATUS.DONE || status === "completed";
 }
+
+/** Waiting time thresholds in minutes (Task 0.6) */
+export const WAITING_TIME_THRESHOLDS = {
+  ON_TIME_MAX_MINUTES: 5,
+  EXTENDED_WAIT_MAX_MINUTES: 15,
+} as const;
+
+export type WaitingCategory = "on_time" | "extended" | "critical";
+
+export function getWaitingTimeCategory(minutes: number): WaitingCategory {
+  if (minutes <= WAITING_TIME_THRESHOLDS.ON_TIME_MAX_MINUTES) {
+    return "on_time";
+  }
+  if (minutes <= WAITING_TIME_THRESHOLDS.EXTENDED_WAIT_MAX_MINUTES) {
+    return "extended";
+  }
+  return "critical";
+}
+

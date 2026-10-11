@@ -13,8 +13,10 @@ from app.api.deps import (
     get_encounter_repository,
     get_encounter_service,
     get_patient_repository,
+    get_reception_service,
     require_doctor,
 )
+from app.application.services.reception_service import ReceptionService
 from app.domain.repositories.booking_repo import BookingRepository
 from app.domain.repositories.encounter_repo import EncounterRepository
 from app.domain.repositories.patient_repo import PatientRepository
@@ -99,6 +101,11 @@ async def get_doctor_schedule(
             staffNotes=b.staff_notes,
             utmSource=b.utm_source,
             utmCampaign=b.utm_campaign,
+            arrivedAt=b.arrived_at,
+            startedAt=b.started_at,
+            completedAt=b.completed_at,
+            cancellationReason=b.cancellation_reason,
+            cancelledByUserId=b.cancelled_by_user_id,
             createdAt=b.created_at,
             updatedAt=b.updated_at,
         )
@@ -147,8 +154,72 @@ async def get_appointment_detail(
         staffNotes=b.staff_notes,
         utmSource=b.utm_source,
         utmCampaign=b.utm_campaign,
+        arrivedAt=b.arrived_at,
+        startedAt=b.started_at,
+        completedAt=b.completed_at,
+        cancellationReason=b.cancellation_reason,
+        cancelledByUserId=b.cancelled_by_user_id,
         createdAt=b.created_at,
         updatedAt=b.updated_at,
+    )
+
+
+@router.post("/appointments/{id}/start", response_model=BookingResponseDto)
+async def start_doctor_appointment(
+    id: UUID,
+    current_user: User = Depends(require_doctor),
+    reception_service: ReceptionService = Depends(get_reception_service),
+    doctor_service: DoctorService = Depends(get_doctor_service),
+) -> BookingResponseDto:
+    """
+    Transitions an arrived appointment to in_progress and records started_at.
+    """
+    booking = await doctor_service.get_appointment(id)
+    user_role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    is_admin_level = user_role_str.lower() in ("admin", "super admin", "platform owner")
+
+    if not is_admin_level:
+        if not current_user.team_member_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access forbidden: Doctor account is not linked to a clinical staff profile.",
+            )
+        if booking.team_member_id and booking.team_member_id != current_user.team_member_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access forbidden: You cannot start an appointment for another doctor's assigned patient.",
+            )
+
+    updated = await reception_service.update_booking_status(
+        booking_id=id,
+        new_status="in_progress",
+        user_id=current_user.id,
+    )
+    return BookingResponseDto(
+        id=updated.id,
+        confirmationId=updated.confirmation_id,
+        preferredDate=updated.preferred_date,
+        preferredTime=updated.preferred_time,
+        patientFullName=updated.patient_full_name,
+        patientPhone=updated.patient_phone,
+        patientEmail=updated.patient_email,
+        status=updated.status,
+        clinicId=updated.clinic_id,
+        patientId=updated.patient_id,
+        serviceId=updated.service_id,
+        teamMemberId=updated.team_member_id,
+        slotId=updated.slot_id,
+        notes=updated.notes,
+        staffNotes=updated.staff_notes,
+        utmSource=updated.utm_source,
+        utmCampaign=updated.utm_campaign,
+        arrivedAt=updated.arrived_at,
+        startedAt=updated.started_at,
+        completedAt=updated.completed_at,
+        cancellationReason=updated.cancellation_reason,
+        cancelledByUserId=updated.cancelled_by_user_id,
+        createdAt=updated.created_at,
+        updatedAt=updated.updated_at,
     )
 
 

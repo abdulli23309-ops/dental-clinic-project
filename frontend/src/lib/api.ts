@@ -2081,6 +2081,21 @@ export async function updateDoctorBookingNotes(
   return mapBooking(await res.json());
 }
 
+export async function startDoctorAppointment(
+  bookingId: string,
+  token?: string | null
+): Promise<ReceptionBooking> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/appointments/${bookingId}/start`,
+    {
+      method: "POST",
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to start appointment.");
+  return mapBooking(await res.json());
+}
+
 export interface DoctorPatientSummary {
   id: string;
   firstName: string;

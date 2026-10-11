@@ -8,6 +8,7 @@ from app.api.v1.endpoints import (
     admin_permissions,
     admin_services,
     admin_team,
+    admin_users,
     appointments,
     auth,
     clinical_alerts,
@@ -42,3 +43,4 @@ api_v1_router.include_router(admin_team.router, tags=["Admin Team"])
 api_v1_router.include_router(admin_services.router, tags=["Admin Services"])
 api_v1_router.include_router(admin_organization.router, tags=["Admin Organization"])
 api_v1_router.include_router(admin_media.router, tags=["Admin Media"])
+api_v1_router.include_router(admin_users.router, tags=["Admin Staff Accounts"])

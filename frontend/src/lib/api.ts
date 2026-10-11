@@ -2664,3 +2664,101 @@ export async function finishDoctorAppointment(
   return mapBooking(await res.json());
 }
 
+// --- Admin Staff Account Management ---
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  fullName: string;
+  role: string;
+  isActive: boolean;
+  clinicId?: string | null;
+  teamMemberId?: string | null;
+  requiresPasswordChange: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function adminGetUsers(token?: string | null): Promise<AdminUser[]> {
+  const res = await authorizedFetch(`/api/v1/admin/users`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to load staff accounts.");
+  return res.json();
+}
+
+export async function adminCreateUser(
+  data: {
+    fullName: string;
+    email: string;
+    role: string;
+    password: string;
+    teamMemberId?: string | null;
+    clinicId?: string | null;
+    requiresPasswordChange?: boolean;
+  },
+  token?: string | null
+): Promise<AdminUser> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/users`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to create staff account.");
+  return res.json();
+}
+
+export async function adminUpdateUserStatus(
+  id: string,
+  isActive: boolean,
+  token?: string | null
+): Promise<AdminUser> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/users/${id}/status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ isActive }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to update account status.");
+  return res.json();
+}
+
+export async function adminUpdateUserRole(
+  id: string,
+  role: string,
+  teamMemberId?: string | null,
+  token?: string | null
+): Promise<AdminUser> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/users/${id}/role`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ role, teamMemberId: teamMemberId || null }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to update account role.");
+  return res.json();
+}
+
+export async function adminResetUserPassword(
+  id: string,
+  password: string,
+  token?: string | null
+): Promise<{ message: string }> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/users/${id}/reset-password`,
+    {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to reset password.");
+  return res.json();
+}
+
+

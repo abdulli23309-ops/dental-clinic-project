@@ -408,6 +408,11 @@ class UserORM(Base):
         nullable=False,
         default=True,
     )
+    requires_password_change: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
     inactivity_enabled: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,

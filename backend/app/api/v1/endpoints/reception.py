@@ -378,6 +378,7 @@ async def create_patient(
         clinic_id=effective_clinic,
         notes=req.notes,
         check_duplicate=check_duplicates,
+        user_id=current_user.id,
     )
     return {
         "patient": PatientResponseDto(
@@ -534,7 +535,7 @@ async def update_patient_info(
     if req.isActive is not None:
         updates["is_active"] = req.isActive
 
-    pat = await reception_service.update_patient(id, updates)
+    pat = await reception_service.update_patient(id, updates, user_id=current_user.id)
     return PatientResponseDto(
         id=pat.id,
         firstName=pat.first_name,
@@ -599,6 +600,7 @@ async def create_task(
         priority=req.priority,
         status=req.status,
         due_date=req.dueDate,
+        user_id=current_user.id,
     )
     return TaskResponseDto(
         id=task.id,
@@ -637,7 +639,7 @@ async def update_task(
     if req.dueDate is not None:
         updates["due_date"] = req.dueDate
 
-    task = await reception_service.update_task(id, updates)
+    task = await reception_service.update_task(id, updates, user_id=current_user.id)
     return TaskResponseDto(
         id=task.id,
         title=task.title,

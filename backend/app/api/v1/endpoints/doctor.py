@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 
 from app.api.deps import (
+    get_activity_log_repository,
     get_booking_repository,
     get_clinical_note_service,
     get_dental_chart_service,
@@ -22,6 +23,10 @@ from app.application.services.reception_service import ReceptionService
 from app.domain.repositories.booking_repo import BookingRepository
 from app.domain.repositories.encounter_repo import EncounterRepository
 from app.domain.repositories.patient_repo import PatientRepository
+from app.infrastructure.repositories.postgres_activity_repo import (
+    PostgresActivityLogRepository,
+    record_activity,
+)
 from app.application.dtos.clinical_note_dto import (
     AmendNoteRequestDto,
     ClinicalNoteResponseDto,
@@ -474,6 +479,7 @@ async def get_clinical_encounter(
     id: UUID,
     current_user: User = Depends(require_doctor),
     encounter_service: EncounterService = Depends(get_encounter_service),
+    activity_repo: PostgresActivityLogRepository = Depends(get_activity_log_repository),
 ) -> EncounterResponseDto:
     user_role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
     is_admin_level = user_role_str.lower() in ("admin", "super admin", "platform owner")
@@ -483,6 +489,14 @@ async def get_clinical_encounter(
             encounter_id=id,
             current_user_team_member_id=current_user.team_member_id,
             is_admin=is_admin_level,
+        )
+        await record_activity(
+            activity_repo,
+            action="clinical_read_encounter",
+            entity_type="encounter",
+            entity_id=encounter.id,
+            user_id=current_user.id,
+            details={"patient_id": str(encounter.patient_id)},
         )
         return EncounterResponseDto(
             id=encounter.id,
@@ -510,6 +524,7 @@ async def get_active_encounter_by_booking(
     booking_id: UUID,
     current_user: User = Depends(require_doctor),
     encounter_service: EncounterService = Depends(get_encounter_service),
+    activity_repo: PostgresActivityLogRepository = Depends(get_activity_log_repository),
 ) -> Optional[EncounterResponseDto]:
     user_role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
     is_admin_level = user_role_str.lower() in ("admin", "super admin", "platform owner")
@@ -525,6 +540,14 @@ async def get_active_encounter_by_booking(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="No active encounter found for this booking.",
             )
+        await record_activity(
+            activity_repo,
+            action="clinical_read_encounter",
+            entity_type="encounter",
+            entity_id=encounter.id,
+            user_id=current_user.id,
+            details={"booking_id": str(booking_id), "patient_id": str(encounter.patient_id)},
+        )
         return EncounterResponseDto(
             id=encounter.id,
             patientId=encounter.patient_id,
@@ -549,6 +572,7 @@ async def list_patient_encounters(
     patient_id: UUID,
     current_user: User = Depends(require_doctor),
     encounter_service: EncounterService = Depends(get_encounter_service),
+    activity_repo: PostgresActivityLogRepository = Depends(get_activity_log_repository),
 ) -> List[EncounterResponseDto]:
     user_role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
     is_admin_level = user_role_str.lower() in ("admin", "super admin", "platform owner")
@@ -558,6 +582,13 @@ async def list_patient_encounters(
             patient_id=patient_id,
             current_user_team_member_id=current_user.team_member_id,
             is_admin=is_admin_level,
+        )
+        await record_activity(
+            activity_repo,
+            action="clinical_read_encounters",
+            entity_type="patient",
+            entity_id=patient_id,
+            user_id=current_user.id,
         )
         return [
             EncounterResponseDto(
@@ -631,6 +662,7 @@ async def get_encounter_clinical_note(
     id: UUID,
     current_user: User = Depends(require_doctor),
     note_service: ClinicalNoteService = Depends(get_clinical_note_service),
+    activity_repo: PostgresActivityLogRepository = Depends(get_activity_log_repository),
 ) -> Optional[ClinicalNoteResponseDto]:
     user_role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
     is_admin_level = user_role_str.lower() in ("admin", "super admin", "platform owner")
@@ -646,6 +678,15 @@ async def get_encounter_clinical_note(
 
         if not note:
             return None
+
+        await record_activity(
+            activity_repo,
+            action="clinical_read_note",
+            entity_type="encounter_note",
+            entity_id=note.id,
+            user_id=current_user.id,
+            details={"encounter_id": str(id), "revision": note.revision_number},
+        )
 
         return ClinicalNoteResponseDto(
             id=note.id,
@@ -869,6 +910,7 @@ async def list_encounter_note_revisions(
     id: UUID,
     current_user: User = Depends(require_doctor),
     note_service: ClinicalNoteService = Depends(get_clinical_note_service),
+    activity_repo: PostgresActivityLogRepository = Depends(get_activity_log_repository),
 ) -> List[ClinicalNoteResponseDto]:
     user_role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
     is_admin_level = user_role_str.lower() in ("admin", "super admin", "platform owner")
@@ -879,6 +921,14 @@ async def list_encounter_note_revisions(
             current_user_team_member_id=current_user.team_member_id,
             clinic_id=current_user.clinic_id,
             is_admin=is_admin_level,
+        )
+        await record_activity(
+            activity_repo,
+            action="clinical_read_note_revisions",
+            entity_type="encounter_note",
+            entity_id=id,
+            user_id=current_user.id,
+            details={"encounter_id": str(id)},
         )
         return [
             ClinicalNoteResponseDto(
@@ -971,6 +1021,7 @@ async def get_patient_dental_chart(
     patient_id: UUID,
     current_user: User = Depends(require_doctor),
     chart_service: DentalChartService = Depends(get_dental_chart_service),
+    activity_repo: PostgresActivityLogRepository = Depends(get_activity_log_repository),
 ) -> DentalChartResponseDto:
     team_member_id, clinic_id, is_admin_level, _ = _chart_identity(current_user)
     try:
@@ -979,6 +1030,14 @@ async def get_patient_dental_chart(
             current_user_team_member_id=team_member_id,
             clinic_id=clinic_id,
             is_admin=is_admin_level,
+        )
+        await record_activity(
+            activity_repo,
+            action="clinical_read_chart",
+            entity_type="dental_chart",
+            entity_id=patient_id,
+            user_id=current_user.id,
+            details={"patient_id": str(patient_id)},
         )
         return DentalChartResponseDto(
             patientId=patient_id,
@@ -997,6 +1056,7 @@ async def get_patient_dental_chart_history(
     patient_id: UUID,
     current_user: User = Depends(require_doctor),
     chart_service: DentalChartService = Depends(get_dental_chart_service),
+    activity_repo: PostgresActivityLogRepository = Depends(get_activity_log_repository),
 ) -> ChartHistoryResponseDto:
     team_member_id, clinic_id, is_admin_level, _ = _chart_identity(current_user)
     try:
@@ -1005,6 +1065,14 @@ async def get_patient_dental_chart_history(
             current_user_team_member_id=team_member_id,
             clinic_id=clinic_id,
             is_admin=is_admin_level,
+        )
+        await record_activity(
+            activity_repo,
+            action="clinical_read_chart_history",
+            entity_type="dental_chart",
+            entity_id=patient_id,
+            user_id=current_user.id,
+            details={"patient_id": str(patient_id)},
         )
         return ChartHistoryResponseDto(
             patientId=patient_id,
@@ -1022,6 +1090,7 @@ async def get_encounter_dental_chart(
     id: UUID,
     current_user: User = Depends(require_doctor),
     chart_service: DentalChartService = Depends(get_dental_chart_service),
+    activity_repo: PostgresActivityLogRepository = Depends(get_activity_log_repository),
 ) -> EncounterChartResponseDto:
     team_member_id, clinic_id, is_admin_level, _ = _chart_identity(current_user)
     try:
@@ -1030,6 +1099,14 @@ async def get_encounter_dental_chart(
             current_user_team_member_id=team_member_id,
             clinic_id=clinic_id,
             is_admin=is_admin_level,
+        )
+        await record_activity(
+            activity_repo,
+            action="clinical_read_encounter_chart",
+            entity_type="dental_chart",
+            entity_id=id,
+            user_id=current_user.id,
+            details={"encounter_id": str(id)},
         )
         return EncounterChartResponseDto(
             encounterId=encounter.id,

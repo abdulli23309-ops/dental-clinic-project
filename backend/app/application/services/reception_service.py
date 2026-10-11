@@ -16,7 +16,10 @@ from app.domain.repositories.message_repo import MessageRepository
 from app.domain.repositories.patient_repo import PatientRepository
 from app.domain.repositories.service_repo import ServiceRepository
 from app.domain.repositories.task_repo import TaskRepository
-from app.infrastructure.repositories.postgres_activity_repo import PostgresActivityLogRepository
+from app.infrastructure.repositories.postgres_activity_repo import (
+    PostgresActivityLogRepository,
+    record_activity,
+)
 
 
 def generate_booking_confirmation_id() -> str:
@@ -348,11 +351,12 @@ class ReceptionService:
         )
         saved_booking = await self.booking_repo.save(booking)
 
-        if conflict and override_double_booking and self.activity_repo:
-            await self.activity_repo.log_activity(
+        if conflict and override_double_booking:
+            await record_activity(
+                self.activity_repo,
                 action="override_double_booking",
                 entity_type="booking",
-                entity_id=str(saved_booking.id),
+                entity_id=saved_booking.id,
                 user_id=user_id,
                 details={
                     "reason": override_reason.strip(),
@@ -362,6 +366,21 @@ class ReceptionService:
                     "team_member_id": str(team_member_id),
                 },
             )
+
+        await record_activity(
+            self.activity_repo,
+            action="booking_create",
+            entity_type="booking",
+            entity_id=saved_booking.id,
+            user_id=user_id,
+            details={
+                "confirmation_id": saved_booking.confirmation_id,
+                "patient_name": saved_booking.patient_full_name,
+                "preferred_date": str(preferred_date),
+                "preferred_time": preferred_time,
+                "status": saved_booking.status,
+            },
+        )
 
         return saved_booking
 
@@ -444,10 +463,38 @@ class ReceptionService:
             booking.cancellation_reason = cancellation_reason.strip()
             booking.cancelled_by_user_id = user_id
 
+        old_status = booking.status
         booking.status = normalized_new
         if staff_notes:
             booking.staff_notes = staff_notes
-        return await self.booking_repo.save(booking)
+        saved = await self.booking_repo.save(booking)
+
+        if normalized_new == "cancelled":
+            await record_activity(
+                self.activity_repo,
+                action="booking_cancel",
+                entity_type="booking",
+                entity_id=saved.id,
+                user_id=user_id,
+                details={
+                    "reason": cancellation_reason.strip() if cancellation_reason else None,
+                    "old_status": old_status,
+                },
+            )
+        elif normalized_new != old_status:
+            await record_activity(
+                self.activity_repo,
+                action="booking_status_transition",
+                entity_type="booking",
+                entity_id=saved.id,
+                user_id=user_id,
+                details={
+                    "from_status": old_status,
+                    "to_status": normalized_new,
+                },
+            )
+
+        return saved
 
     async def reschedule_booking(
         self,
@@ -501,11 +548,12 @@ class ReceptionService:
         booking.status = "confirmed"
         saved_booking = await self.booking_repo.save(booking)
 
-        if conflict and override_double_booking and self.activity_repo:
-            await self.activity_repo.log_activity(
+        if conflict and override_double_booking:
+            await record_activity(
+                self.activity_repo,
                 action="override_double_booking",
                 entity_type="booking",
-                entity_id=str(saved_booking.id),
+                entity_id=saved_booking.id,
                 user_id=user_id,
                 details={
                     "reason": override_reason.strip(),
@@ -515,6 +563,19 @@ class ReceptionService:
                     "team_member_id": str(effective_team_member),
                 },
             )
+
+        await record_activity(
+            self.activity_repo,
+            action="booking_reschedule",
+            entity_type="booking",
+            entity_id=saved_booking.id,
+            user_id=user_id,
+            details={
+                "preferred_date": str(preferred_date),
+                "preferred_time": preferred_time,
+                "team_member_id": str(effective_team_member) if effective_team_member else None,
+            },
+        )
 
         return saved_booking
 
@@ -541,6 +602,7 @@ class ReceptionService:
         clinic_id: Optional[UUID] = None,
         notes: Optional[str] = None,
         check_duplicate: bool = True,
+        user_id: Optional[UUID] = None,
     ) -> Tuple[Patient, List[Patient]]:
         if check_duplicate:
             dups = await self.patient_repo.find_duplicates(
@@ -553,6 +615,19 @@ class ReceptionService:
             )
             if dups:
                 return dups[0], dups
+        else:
+            await record_activity(
+                self.activity_repo,
+                action="deduplication_bypass",
+                entity_type="patient",
+                entity_id=None,
+                user_id=user_id,
+                details={
+                    "first_name": first_name.strip(),
+                    "last_name": last_name.strip(),
+                    "phone": phone.strip(),
+                },
+            )
 
         patient = Patient(
             first_name=first_name.strip(),
@@ -564,6 +639,16 @@ class ReceptionService:
             notes=notes,
         )
         saved = await self.patient_repo.save(patient)
+
+        await record_activity(
+            self.activity_repo,
+            action="patient_create",
+            entity_type="patient",
+            entity_id=saved.id,
+            user_id=user_id,
+            details={"name": f"{saved.first_name} {saved.last_name}"},
+        )
+
         return saved, []
 
     async def get_patient_profile(self, patient_id: UUID) -> Dict[str, Any]:
@@ -588,7 +673,7 @@ class ReceptionService:
         }
 
     async def update_patient(
-        self, patient_id: UUID, updates: Dict[str, Any]
+        self, patient_id: UUID, updates: Dict[str, Any], user_id: Optional[UUID] = None
     ) -> Patient:
         patient = await self.patient_repo.get_by_id(patient_id)
         if not patient:
@@ -598,7 +683,18 @@ class ReceptionService:
         for k, v in updates.items():
             if hasattr(patient, k) and v is not None:
                 setattr(patient, k, v)
-        return await self.patient_repo.save(patient)
+        saved = await self.patient_repo.save(patient)
+
+        await record_activity(
+            self.activity_repo,
+            action="patient_update",
+            entity_type="patient",
+            entity_id=saved.id,
+            user_id=user_id,
+            details={"updated_fields": list(updates.keys())},
+        )
+
+        return saved
 
     # --- Requests Triage Queue ---
 
@@ -642,6 +738,7 @@ class ReceptionService:
         priority: str = "medium",
         status: str = "pending",
         due_date: Optional[datetime] = None,
+        user_id: Optional[UUID] = None,
     ) -> Task:
         normalized_status = "pending" if status == "open" else ("done" if status == "completed" else status)
         task = Task(
@@ -655,22 +752,55 @@ class ReceptionService:
             status=normalized_status,
             due_date=due_date,
         )
-        return await self.task_repo.save(task)
+        saved = await self.task_repo.save(task)
+
+        await record_activity(
+            self.activity_repo,
+            action="task_create",
+            entity_type="task",
+            entity_id=saved.id,
+            user_id=user_id,
+            details={"title": saved.title, "priority": saved.priority},
+        )
+
+        return saved
 
     async def update_task(
-        self, task_id: UUID, updates: Dict[str, Any]
+        self, task_id: UUID, updates: Dict[str, Any], user_id: Optional[UUID] = None
     ) -> Task:
         task = await self.task_repo.get_by_id(task_id)
         if not task:
             raise HTTPException(
                 status_code=http_status.HTTP_404_NOT_FOUND, detail="Task not found."
             )
+        old_status = task.status
         for k, v in updates.items():
             if k == "status" and v is not None:
                 v = "pending" if v == "open" else ("done" if v == "completed" else v)
             if hasattr(task, k) and v is not None:
                 setattr(task, k, v)
-        return await self.task_repo.save(task)
+        saved = await self.task_repo.save(task)
+
+        if "status" in updates and saved.status != old_status:
+            await record_activity(
+                self.activity_repo,
+                action="task_status_change",
+                entity_type="task",
+                entity_id=saved.id,
+                user_id=user_id,
+                details={"from_status": old_status, "to_status": saved.status},
+            )
+        else:
+            await record_activity(
+                self.activity_repo,
+                action="task_update",
+                entity_type="task",
+                entity_id=saved.id,
+                user_id=user_id,
+                details={"updated_fields": list(updates.keys())},
+            )
+
+        return saved
 
     # --- Messages ---
 

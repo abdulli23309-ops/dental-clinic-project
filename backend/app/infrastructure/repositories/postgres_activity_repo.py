@@ -42,3 +42,27 @@ class PostgresActivityLogRepository:
         self.session.add(orm)
         await self.session.flush()
 
+
+async def record_activity(
+    activity_repo: Optional[PostgresActivityLogRepository],
+    action: str,
+    entity_type: str,
+    entity_id: Optional[Any] = None,
+    user_id: Optional[UUID] = None,
+    details: Optional[dict] = None,
+    ip_address: Optional[str] = None,
+) -> None:
+    """
+    Convenience one-line helper to record activity logs safely across service and endpoint layers.
+    """
+    if activity_repo:
+        await activity_repo.log_activity(
+            action=action,
+            entity_type=entity_type,
+            entity_id=str(entity_id) if entity_id is not None else None,
+            user_id=user_id,
+            details=details,
+            ip_address=ip_address,
+        )
+
+

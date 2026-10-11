@@ -31,3 +31,15 @@ __pycache__/
 htmlcov/
 backend/uploads/
 uploads/
+
+# Audit, log, and test artifacts
+FINAL_RELEASE_AUDIT_REPORT.md
+pytest_out.txt
+*.out
+*.out.txt
+*out.txt
+*.log
+backend/_migcheck.py
+frontend/repro-error.mjs
+frontend/start-dev.bat
+frontend/.tsc-out.txt

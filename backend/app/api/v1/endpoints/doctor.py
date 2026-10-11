@@ -328,7 +328,7 @@ async def finish_doctor_appointment(
             patient_id=booking.patient_id,
             booking_id=booking.id,
             description=req.followUpNote or f"Doctor requested follow-up appointment in {timing_str}.",
-            priority="medium",
+            priority="high",
             status="pending",
             due_date=due_datetime,
         )

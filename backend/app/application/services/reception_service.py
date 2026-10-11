@@ -116,7 +116,10 @@ class ReceptionService:
         tasks, total_tasks = await self.task_repo.list_tasks(
             clinic_id=clinic_id, status="pending", limit=100
         )
-        urgent_tasks = [t for t in tasks if t.priority in ("urgent", "high")]
+        urgent_tasks = [
+            t for t in tasks
+            if t.priority in ("urgent", "high") or (t.title and t.title.startswith("Book follow-up:"))
+        ]
 
         leads, total_leads = await self.lead_repo.list_leads(
             clinic_id=clinic_id, status="new", limit=100

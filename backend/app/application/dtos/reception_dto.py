@@ -24,6 +24,11 @@ class BookingResponseDto(BaseModel):
     staffNotes: Optional[str] = None
     utmSource: Optional[str] = None
     utmCampaign: Optional[str] = None
+    arrivedAt: Optional[datetime] = None
+    startedAt: Optional[datetime] = None
+    completedAt: Optional[datetime] = None
+    cancellationReason: Optional[str] = None
+    cancelledByUserId: Optional[UUID] = None
     createdAt: datetime
     updatedAt: datetime
 
@@ -49,6 +54,7 @@ class BookingCreateRequest(BaseModel):
 class BookingStatusUpdateRequest(BaseModel):
     status: str = Field(..., description="Target status (confirmed, arrived, checked_in, in_progress, completed, cancelled, no_show)")
     staffNotes: Optional[str] = None
+    cancellationReason: Optional[str] = None
 
 
 class BookingRescheduleRequest(BaseModel):

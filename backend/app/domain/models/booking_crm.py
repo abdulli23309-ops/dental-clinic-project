@@ -92,6 +92,11 @@ class Booking:
     utm_source: Optional[str] = None
     utm_campaign: Optional[str] = None
     staff_notes: Optional[str] = None
+    arrived_at: Optional[datetime] = None
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    cancellation_reason: Optional[str] = None
+    cancelled_by_user_id: Optional[UUID] = None
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))

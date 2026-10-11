@@ -314,13 +314,13 @@ async def test_appointment_status_transition_rules(receptionist_auth, test_sessi
     )
     assert resp_invalid.status_code == 422
 
-    # 2. Illegal jump from requested directly to completed -> 400
+    # 2. Illegal jump from requested directly to completed -> 409
     resp_illegal = await client.patch(
         f"/api/v1/reception/appointments/{booking.id}/status",
         json={"status": "completed"},
         headers=headers,
     )
-    assert resp_illegal.status_code == 400
+    assert resp_illegal.status_code == 409
     assert "Cannot transition appointment" in resp_illegal.json()["detail"]
 
     # 3. Valid transition: requested -> confirmed -> 200

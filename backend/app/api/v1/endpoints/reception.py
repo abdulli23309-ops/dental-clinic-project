@@ -228,7 +228,11 @@ async def update_appointment_status(
     reception_service: ReceptionService = Depends(get_reception_service),
 ) -> BookingResponseDto:
     booking = await reception_service.update_booking_status(
-        booking_id=id, new_status=req.status, staff_notes=req.staffNotes
+        booking_id=id,
+        new_status=req.status,
+        staff_notes=req.staffNotes,
+        cancellation_reason=req.cancellationReason,
+        user_id=current_user.id,
     )
     return BookingResponseDto(
         id=booking.id,
@@ -248,6 +252,11 @@ async def update_appointment_status(
         staffNotes=booking.staff_notes,
         utmSource=booking.utm_source,
         utmCampaign=booking.utm_campaign,
+        arrivedAt=booking.arrived_at,
+        startedAt=booking.started_at,
+        completedAt=booking.completed_at,
+        cancellationReason=booking.cancellation_reason,
+        cancelledByUserId=booking.cancelled_by_user_id,
         createdAt=booking.created_at,
         updatedAt=booking.updated_at,
     )

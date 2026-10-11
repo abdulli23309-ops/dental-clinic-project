@@ -246,7 +246,12 @@ class ReceptionService:
     }
 
     async def update_booking_status(
-        self, booking_id: UUID, new_status: str, staff_notes: Optional[str] = None
+        self,
+        booking_id: UUID,
+        new_status: str,
+        staff_notes: Optional[str] = None,
+        cancellation_reason: Optional[str] = None,
+        user_id: Optional[UUID] = None,
     ) -> Booking:
         normalized_new = self.NORMALIZE_STATUS.get(new_status, new_status)
         if normalized_new not in self.VALID_STATUSES:
@@ -264,9 +269,29 @@ class ReceptionService:
         allowed = self.ALLOWED_TRANSITIONS.get(booking.status, set())
         if new_status not in allowed and normalized_new not in allowed:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=status.HTTP_409_CONFLICT,
                 detail=f"Cannot transition appointment from '{booking.status}' to '{new_status}'.",
             )
+
+        now_utc = datetime.now(timezone.utc)
+
+        if normalized_new == "arrived":
+            if booking.arrived_at is None:
+                booking.arrived_at = now_utc
+        elif normalized_new == "in_progress":
+            if booking.started_at is None:
+                booking.started_at = now_utc
+        elif normalized_new == "completed":
+            if booking.completed_at is None:
+                booking.completed_at = now_utc
+        elif normalized_new == "cancelled":
+            if not cancellation_reason or not cancellation_reason.strip():
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Cancellation reason is required when cancelling an appointment.",
+                )
+            booking.cancellation_reason = cancellation_reason.strip()
+            booking.cancelled_by_user_id = user_id
 
         booking.status = normalized_new
         if staff_notes:

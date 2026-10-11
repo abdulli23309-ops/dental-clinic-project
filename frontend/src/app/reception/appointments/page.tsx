@@ -73,7 +73,15 @@ export default function ReceptionAppointmentsPage() {
 
   const handleStatusChange = async (bookingId: string, status: string) => {
     try {
-      await updateReceptionBookingStatus(bookingId, status, undefined, accessToken);
+      let cancellationReason: string | undefined;
+      if (status === "cancelled") {
+        const reason = window.prompt("Please provide a reason for cancellation:");
+        if (!reason || !reason.trim()) {
+          return;
+        }
+        cancellationReason = reason.trim();
+      }
+      await updateReceptionBookingStatus(bookingId, status, undefined, accessToken, cancellationReason);
       await loadBookings();
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Failed to update appointment.");

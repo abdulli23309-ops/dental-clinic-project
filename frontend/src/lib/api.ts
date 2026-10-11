@@ -1023,6 +1023,11 @@ interface RawBooking {
   slotId?: string | null;
   notes?: string | null;
   staffNotes?: string | null;
+  arrivedAt?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  cancellationReason?: string | null;
+  cancelledByUserId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1179,6 +1184,11 @@ export interface ReceptionBooking {
   confirmationStatus: "confirmed" | "unconfirmed";
   notes?: string | null;
   staffNotes?: string | null;
+  arrivedAt?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  cancellationReason?: string | null;
+  cancelledByUserId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1289,6 +1299,11 @@ function mapBooking(raw: RawBooking): ReceptionBooking {
     confirmationStatus: raw.status === "requested" ? "unconfirmed" : "confirmed",
     notes: raw.notes,
     staffNotes: raw.staffNotes,
+    arrivedAt: raw.arrivedAt,
+    startedAt: raw.startedAt,
+    completedAt: raw.completedAt,
+    cancellationReason: raw.cancellationReason,
+    cancelledByUserId: raw.cancelledByUserId,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
   };
@@ -1485,13 +1500,18 @@ export async function updateReceptionBookingStatus(
   bookingId: string,
   status: string,
   staffNotes?: string,
-  token?: string | null
+  token?: string | null,
+  cancellationReason?: string
 ): Promise<ReceptionBooking> {
   const res = await authorizedFetch(
     `/api/v1/reception/appointments/${bookingId}/status`,
     {
       method: "PATCH",
-      body: JSON.stringify({ status, staffNotes: staffNotes ?? null }),
+      body: JSON.stringify({
+        status,
+        staffNotes: staffNotes ?? null,
+        cancellationReason: cancellationReason ?? null,
+      }),
     },
     token
   );
@@ -1606,6 +1626,7 @@ export async function triageReceptionRequest(
       body: JSON.stringify({
         status: action === "confirm" ? "confirmed" : "cancelled",
         staffNotes: notes ?? null,
+        cancellationReason: action === "decline" ? (notes || "Declined during intake request triage") : null,
       }),
     },
     token

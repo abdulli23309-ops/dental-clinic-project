@@ -93,11 +93,11 @@ async def test_receptionist_appointment_lifecycle(receptionist_auth):
     assert booking["status"] == "confirmed"
     assert booking["patientFullName"] == "Charlie Davis"
 
-    # 2. Check-in status update
+    # 2. Check-in status update (normalised to canonical 'arrived')
     status_payload = {"status": "checked_in", "staffNotes": "Arrived 5 mins early."}
     resp2 = await client.patch(f"/api/v1/reception/appointments/{booking_id}/status", json=status_payload, headers=headers)
     assert resp2.status_code == 200
-    assert resp2.json()["status"] == "checked_in"
+    assert resp2.json()["status"] == "arrived"
     assert resp2.json()["staffNotes"] == "Arrived 5 mins early."
 
     # 3. Reschedule
@@ -218,3 +218,33 @@ async def test_doctor_schedule_and_notes(doctor_auth, test_session):
     )
     assert resp2.status_code == 200
     assert resp2.json()["staffNotes"] == "Completed quadrant 1 scaling."
+
+
+@pytest.mark.asyncio
+async def test_appointment_status_normalization(receptionist_auth):
+    """Verifies that legacy status aliases ('scheduled', 'waiting', 'checked_in') are normalised server-side."""
+    client = receptionist_auth["client"]
+    headers = receptionist_auth["headers"]
+
+    create_payload = {
+        "patientFullName": "Legacy Status Test",
+        "patientPhone": "3125550999",
+        "patientEmail": "legacy@example.com",
+        "preferredDate": str(date.today() + timedelta(days=2)),
+        "preferredTime": "11:00 AM",
+        "serviceId": "cleanings-exams",
+        "status": "scheduled",
+    }
+    resp = await client.post("/api/v1/reception/appointments", json=create_payload, headers=headers)
+    assert resp.status_code == 201
+    booking = resp.json()
+    assert booking["status"] == "confirmed"
+
+    # Test updating status with legacy 'waiting' alias
+    status_resp = await client.patch(
+        f"/api/v1/reception/appointments/{booking['id']}/status",
+        json={"status": "waiting"},
+        headers=headers,
+    )
+    assert status_resp.status_code == 200
+    assert status_resp.json()["status"] == "arrived"

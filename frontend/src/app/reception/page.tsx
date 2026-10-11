@@ -18,6 +18,13 @@ import {
 } from "@/lib/api";
 import { useDirectory } from "@/lib/directory";
 import { useAuth } from "@/components/providers/auth-provider";
+import {
+  isRequested,
+  isExpected,
+  isWaiting,
+  isInProgress,
+  APPOINTMENT_STATUS,
+} from "@/lib/statuses";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Panel } from "@/components/dashboard/panel";
@@ -246,36 +253,36 @@ export default function ReceptionDashboardPage() {
                         </td>
                         <td className="px-4 py-2.5">
                           <div className="flex items-center justify-end gap-1.5">
-                            {item.status === "requested" && (
+                            {isRequested(item.status) && (
                               <button
-                                onClick={() => handleStatusChange(item.id, "confirmed")}
+                                onClick={() => handleStatusChange(item.id, APPOINTMENT_STATUS.CONFIRMED)}
                                 disabled={actionLoadingId === item.id}
                                 className="px-3 py-1 rounded-full bg-primary/10 text-primary hover:bg-primary/20 text-[11px] font-medium border border-primary/20 transition-colors cursor-pointer"
                               >
                                 Confirm
                               </button>
                             )}
-                            {item.status === "confirmed" && (
+                            {isExpected(item.status) && (
                               <button
-                                onClick={() => handleStatusChange(item.id, "arrived")}
+                                onClick={() => handleStatusChange(item.id, APPOINTMENT_STATUS.ARRIVED)}
                                 disabled={actionLoadingId === item.id}
                                 className="px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-950 text-[11px] font-medium border border-blue-200/70 dark:border-blue-900/60 transition-colors cursor-pointer"
                               >
                                 Check in
                               </button>
                             )}
-                            {item.status === "arrived" && (
+                            {isWaiting(item.status) && (
                               <button
-                                onClick={() => handleStatusChange(item.id, "in_progress")}
+                                onClick={() => handleStatusChange(item.id, APPOINTMENT_STATUS.IN_PROGRESS)}
                                 disabled={actionLoadingId === item.id}
                                 className="px-3 py-1 rounded-full bg-clay/10 text-clay hover:bg-clay/20 text-[11px] font-medium border border-clay/25 transition-colors cursor-pointer"
                               >
                                 Start visit
                               </button>
                             )}
-                            {item.status === "in_progress" && (
+                            {isInProgress(item.status) && (
                               <button
-                                onClick={() => handleStatusChange(item.id, "completed")}
+                                onClick={() => handleStatusChange(item.id, APPOINTMENT_STATUS.COMPLETED)}
                                 disabled={actionLoadingId === item.id}
                                 className="px-3 py-1 rounded-full bg-primary/10 text-primary hover:bg-primary/20 text-[11px] font-medium border border-primary/20 transition-colors cursor-pointer"
                               >

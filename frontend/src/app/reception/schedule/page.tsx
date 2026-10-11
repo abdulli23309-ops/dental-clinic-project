@@ -28,6 +28,15 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useDirectory } from "@/lib/directory";
+import {
+  isExpected,
+  isWaiting,
+  isInProgress,
+  isCompleted,
+  isCancelled,
+  isNoShow,
+  APPOINTMENT_STATUS,
+} from "@/lib/statuses";
 
 export default function ReceptionSchedulePage() {
   const { accessToken } = useAuth();
@@ -242,12 +251,12 @@ export default function ReceptionSchedulePage() {
               className="px-3 py-1.5 rounded-full border border-line bg-cream text-xs text-ink shadow-subtle"
             >
               <option value="">All Statuses</option>
-              <option value="scheduled">Scheduled</option>
-              <option value="arrived">Arrived</option>
-              <option value="in_progress">In Progress</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-              <option value="no_show">No Show</option>
+              <option value={APPOINTMENT_STATUS.CONFIRMED}>Confirmed</option>
+              <option value={APPOINTMENT_STATUS.ARRIVED}>Arrived</option>
+              <option value={APPOINTMENT_STATUS.IN_PROGRESS}>In Progress</option>
+              <option value={APPOINTMENT_STATUS.COMPLETED}>Completed</option>
+              <option value={APPOINTMENT_STATUS.CANCELLED}>Cancelled</option>
+              <option value={APPOINTMENT_STATUS.NO_SHOW}>No Show</option>
             </select>
           </div>
 
@@ -323,13 +332,13 @@ export default function ReceptionSchedulePage() {
                         className={`
                           px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold uppercase
                           ${
-                            b.status === "scheduled"
+                            isExpected(b.status)
                               ? "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300"
-                              : b.status === "arrived"
+                              : isWaiting(b.status)
                               ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
-                              : b.status === "in_progress"
+                              : isInProgress(b.status)
                               ? "bg-clay/15 text-clay"
-                              : b.status === "completed"
+                              : isCompleted(b.status)
                               ? "bg-primary/10 text-primary font-bold"
                               : "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300"
                           }
@@ -363,9 +372,9 @@ export default function ReceptionSchedulePage() {
                           </button>
                         )}
 
-                        {(b.status === "confirmed" || b.status === "scheduled") && (
+                        {isExpected(b.status) && (
                           <button
-                            onClick={() => handleStatusUpdate(b.id, "arrived")}
+                            onClick={() => handleStatusUpdate(b.id, APPOINTMENT_STATUS.ARRIVED)}
                             className="px-2.5 py-1 rounded-full bg-primary text-white text-[11px] font-medium hover:bg-primary/90 shadow-xs transition-colors"
                           >
                             Check In
@@ -383,9 +392,9 @@ export default function ReceptionSchedulePage() {
                           Reschedule
                         </button>
 
-                        {b.status !== "cancelled" && b.status !== "completed" && (
+                        {!isCancelled(b.status) && !isCompleted(b.status) && (
                           <button
-                            onClick={() => handleStatusUpdate(b.id, "cancelled")}
+                            onClick={() => handleStatusUpdate(b.id, APPOINTMENT_STATUS.CANCELLED)}
                             className="px-2 py-1 rounded-full text-ink-soft hover:text-red-600 text-[11px]"
                           >
                             Cancel

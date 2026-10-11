@@ -23,6 +23,13 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useDirectory } from "@/lib/directory";
+import {
+  isExpected,
+  isWaiting,
+  isInProgress,
+  isCompleted,
+  APPOINTMENT_STATUS,
+} from "@/lib/statuses";
 
 export default function ReceptionAppointmentsPage() {
   const { accessToken } = useAuth();
@@ -211,13 +218,13 @@ export default function ReceptionAppointmentsPage() {
                         className={`
                           px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold uppercase
                           ${
-                            b.status === "scheduled"
+                            isExpected(b.status)
                               ? "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-                              : b.status === "arrived"
+                              : isWaiting(b.status)
                               ? "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
-                              : b.status === "in_progress"
+                              : isInProgress(b.status)
                               ? "bg-clay/10 text-clay"
-                              : b.status === "completed"
+                              : isCompleted(b.status)
                               ? "bg-primary/10 text-primary font-bold"
                               : "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
                           }
@@ -251,27 +258,27 @@ export default function ReceptionAppointmentsPage() {
                           </button>
                         )}
 
-                        {(b.status === "confirmed" || b.status === "scheduled") && (
+                        {isExpected(b.status) && (
                           <button
-                            onClick={() => handleStatusChange(b.id, "arrived")}
+                            onClick={() => handleStatusChange(b.id, APPOINTMENT_STATUS.ARRIVED)}
                             className="px-3 py-1 rounded-full bg-blue-600 text-white text-[11px] font-medium hover:bg-blue-700 transition-colors cursor-pointer"
                           >
                             Check In
                           </button>
                         )}
 
-                        {(b.status === "arrived" || b.status === "checked_in" || b.status === "waiting") && (
+                        {isWaiting(b.status) && (
                           <button
-                            onClick={() => handleStatusChange(b.id, "in_progress")}
+                            onClick={() => handleStatusChange(b.id, APPOINTMENT_STATUS.IN_PROGRESS)}
                             className="px-3 py-1 rounded-full bg-clay text-white text-[11px] font-medium hover:bg-clay/90 transition-colors cursor-pointer"
                           >
                             With Doctor
                           </button>
                         )}
 
-                        {b.status === "in_progress" && (
+                        {isInProgress(b.status) && (
                           <button
-                            onClick={() => handleStatusChange(b.id, "completed")}
+                            onClick={() => handleStatusChange(b.id, APPOINTMENT_STATUS.COMPLETED)}
                             className="px-3 py-1 rounded-full bg-primary text-white text-[11px] font-medium hover:bg-primary/90 transition-colors cursor-pointer"
                           >
                             Complete

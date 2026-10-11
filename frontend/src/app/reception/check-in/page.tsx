@@ -23,6 +23,13 @@ import {
 
 import { useAuth } from "@/components/providers/auth-provider";
 import { useDirectory } from "@/lib/directory";
+import {
+  isWaiting,
+  isInProgress,
+  isExpected,
+  isCompleted,
+  APPOINTMENT_STATUS,
+} from "@/lib/statuses";
 
 export default function ReceptionCheckInPage() {
   const { accessToken } = useAuth();
@@ -63,14 +70,10 @@ export default function ReceptionCheckInPage() {
     }
   };
 
-  const waitingPatients = bookings.filter(
-    (b) => b.status === "arrived" || b.status === "checked_in" || b.status === "waiting"
-  );
-  const inProgressPatients = bookings.filter((b) => b.status === "in_progress");
-  const scheduledUpcoming = bookings.filter(
-    (b) => b.status === "confirmed" || b.status === "scheduled"
-  );
-  const completedPatients = bookings.filter((b) => b.status === "completed");
+  const waitingPatients = bookings.filter((b) => isWaiting(b.status));
+  const inProgressPatients = bookings.filter((b) => isInProgress(b.status));
+  const scheduledUpcoming = bookings.filter((b) => isExpected(b.status));
+  const completedPatients = bookings.filter((b) => isCompleted(b.status));
 
   return (
     <div className="space-y-6">

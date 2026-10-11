@@ -195,6 +195,7 @@ class ReceptionService:
                 saved_pat = await self.patient_repo.save(new_pat)
                 patient_id = saved_pat.id
 
+        normalized_status = self.NORMALIZE_STATUS.get(status, status)
         booking = Booking(
             confirmation_id=generate_booking_confirmation_id(),
             preferred_date=preferred_date,
@@ -207,7 +208,7 @@ class ReceptionService:
             service_id=service_id,
             team_member_id=team_member_id,
             slot_id=slot_id,
-            status=status,
+            status=normalized_status,
             notes=notes,
             staff_notes=staff_notes,
         )
@@ -216,10 +217,7 @@ class ReceptionService:
     VALID_STATUSES = {
         "requested",
         "confirmed",
-        "scheduled",
         "arrived",
-        "checked_in",
-        "waiting",
         "in_progress",
         "completed",
         "cancelled",
@@ -229,6 +227,8 @@ class ReceptionService:
 
     NORMALIZE_STATUS = {
         "scheduled": "confirmed",
+        "checked_in": "arrived",
+        "waiting": "arrived",
     }
 
     ALLOWED_TRANSITIONS = {

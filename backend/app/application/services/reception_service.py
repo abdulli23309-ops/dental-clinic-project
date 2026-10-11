@@ -419,13 +419,14 @@ class ReceptionService:
         status: str = "pending",
         due_date: Optional[datetime] = None,
     ) -> Task:
+        normalized_status = "pending" if status == "open" else ("done" if status == "completed" else status)
         task = Task(
             title=title,
             clinic_id=clinic_id,
             assigned_to_user_id=assigned_to_user_id,
             description=description,
             priority=priority,
-            status=status,
+            status=normalized_status,
             due_date=due_date,
         )
         return await self.task_repo.save(task)
@@ -439,6 +440,8 @@ class ReceptionService:
                 status_code=status.HTTP_404_NOT_FOUND, detail="Task not found."
             )
         for k, v in updates.items():
+            if k == "status" and v is not None:
+                v = "pending" if v == "open" else ("done" if v == "completed" else v)
             if hasattr(task, k) and v is not None:
                 setattr(task, k, v)
         return await self.task_repo.save(task)

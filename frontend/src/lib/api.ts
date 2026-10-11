@@ -1801,6 +1801,7 @@ export async function createReceptionTask(
     description?: string;
     priority?: "low" | "medium" | "high" | "urgent";
     dueDate?: string;
+    status?: string;
   },
   token?: string | null
 ): Promise<ReceptionTask> {
@@ -1812,7 +1813,7 @@ export async function createReceptionTask(
         title: data.title,
         description: data.description ?? null,
         priority: data.priority ?? "medium",
-        status: "pending",
+        status: data.status ?? "pending",
         dueDate: data.dueDate ? `${data.dueDate}T00:00:00` : null,
       }),
     },

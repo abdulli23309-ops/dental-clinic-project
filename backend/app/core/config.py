@@ -1,4 +1,5 @@
-from typing import List, Optional
+from typing import Any, List, Optional
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,6 +14,20 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     APP_NAME: str = "Marlow Dental API"
     API_V1_PREFIX: str = "/api/v1"
+
+    @field_validator("DEBUG", mode="before")
+    @classmethod
+    def parse_debug(cls, v: Any) -> bool:
+        if isinstance(v, bool):
+            return v
+        if isinstance(v, (int, float)):
+            return bool(v)
+        if isinstance(v, str):
+            normalized = v.strip().lower()
+            if normalized in ("true", "1", "yes", "y", "t", "enable", "enabled", "on", "debug", "dev", "development"):
+                return True
+            return False
+        return False
 
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
     DATABASE_URL: str = "postgresql+asyncpg://user:password@localhost:5432/dentai_dev"

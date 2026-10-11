@@ -10,6 +10,7 @@ import {
   MapPin,
   Settings,
   ShieldCheck,
+  User,
   Users,
 } from "lucide-react";
 
@@ -27,6 +28,7 @@ const ADMIN_LINKS: SidebarLink[] = [
   { href: "/admin/website", title: "Website CMS", icon: Globe },
   { href: "/admin/permissions", title: "Role Permissions", icon: ShieldCheck },
   { href: "/admin/settings", title: "Settings", icon: Settings },
+  { href: "/admin/account", title: "Account", icon: User },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

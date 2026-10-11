@@ -127,7 +127,7 @@ export default function ReceptionPatientsPage() {
           <Search className="h-4 w-4 text-gray-400 absolute left-3.5 top-3" />
           <input
             type="text"
-            placeholder="Search by patient name, phone, email, or MRN..."
+            placeholder="Search by patient name, phone, or email..."
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);

@@ -209,3 +209,22 @@ class EncounterService:
 
         return await self.encounter_repo.save(encounter)
 
+    async def get_unsigned_encounters(
+        self,
+        current_user_team_member_id: Optional[UUID],
+        is_admin: bool = False,
+    ) -> List[dict]:
+        """
+        Retrieves encounters where the note is unsigned draft or missing for this clinician.
+        """
+        if not is_admin and not current_user_team_member_id:
+            return []
+        effective_clinician = current_user_team_member_id if not is_admin else None
+        return await self.encounter_repo.get_unsigned_encounters_by_clinician(effective_clinician)
+
+    async def get_any_encounter_by_booking(
+        self,
+        booking_id: UUID,
+    ) -> Optional[ClinicalEncounter]:
+        return await self.encounter_repo.get_any_by_booking_id(booking_id)
+

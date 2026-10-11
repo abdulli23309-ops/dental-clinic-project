@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
 from uuid import UUID
 
@@ -42,6 +42,8 @@ from app.application.dtos.dental_chart_dto import (
 from app.application.dtos.encounter_dto import (
     CreateEncounterRequestDto,
     EncounterResponseDto,
+    FinishVisitRequestDto,
+    UnsignedNoteItemDto,
     UpdateEncounterStatusRequestDto,
 )
 from app.application.dtos.reception_dto import BookingResponseDto
@@ -206,6 +208,131 @@ async def start_doctor_appointment(
         new_status="in_progress",
         user_id=current_user.id,
     )
+    return BookingResponseDto(
+        id=updated.id,
+        confirmationId=updated.confirmation_id,
+        preferredDate=updated.preferred_date,
+        preferredTime=updated.preferred_time,
+        patientFullName=updated.patient_full_name,
+        patientPhone=updated.patient_phone,
+        patientEmail=updated.patient_email,
+        status=updated.status,
+        clinicId=updated.clinic_id,
+        patientId=updated.patient_id,
+        serviceId=updated.service_id,
+        teamMemberId=updated.team_member_id,
+        slotId=updated.slot_id,
+        notes=updated.notes,
+        staffNotes=updated.staff_notes,
+        utmSource=updated.utm_source,
+        utmCampaign=updated.utm_campaign,
+        arrivedAt=updated.arrived_at,
+        startedAt=updated.started_at,
+        completedAt=updated.completed_at,
+        cancellationReason=updated.cancellation_reason,
+        cancelledByUserId=updated.cancelled_by_user_id,
+        createdAt=updated.created_at,
+        updatedAt=updated.updated_at,
+    )
+
+
+@router.get("/unsigned-notes", response_model=List[UnsignedNoteItemDto])
+async def get_doctor_unsigned_notes(
+    current_user: User = Depends(require_doctor),
+    encounter_service: EncounterService = Depends(get_encounter_service),
+) -> List[UnsignedNoteItemDto]:
+    """
+    Returns the clinician's draft encounters / unsigned clinical notes for quick access and signing.
+    """
+    user_role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    is_admin_level = user_role_str.lower() in ("admin", "super admin", "platform owner")
+
+    if not is_admin_level and not current_user.team_member_id:
+        return []
+
+    items = await encounter_service.get_unsigned_encounters(
+        current_user_team_member_id=current_user.team_member_id,
+        is_admin=is_admin_level,
+    )
+    return [
+        UnsignedNoteItemDto(
+            encounterId=item["encounter"].id,
+            bookingId=item["encounter"].booking_id,
+            patientId=item["encounter"].patient_id,
+            patientName=item["patient_name"],
+            date=item["encounter"].created_at,
+            status=item["encounter"].status,
+            chiefComplaint=item["encounter"].chief_complaint,
+        )
+        for item in items
+    ]
+
+
+@router.post("/appointments/{id}/finish", response_model=BookingResponseDto)
+async def finish_doctor_appointment(
+    id: UUID,
+    req: Optional[FinishVisitRequestDto] = None,
+    current_user: User = Depends(require_doctor),
+    doctor_service: DoctorService = Depends(get_doctor_service),
+    encounter_service: EncounterService = Depends(get_encounter_service),
+    reception_service: ReceptionService = Depends(get_reception_service),
+) -> BookingResponseDto:
+    """
+    Finish visit action:
+    1. Requires an encounter to exist for the booking (does not allow finishing without an encounter).
+    2. Transitions booking to completed and sets completed_at.
+    3. An unsigned draft does NOT block finishing, but remains in the unsigned list.
+    4. Optional follow-up creates a linked task for reception.
+    """
+    booking = await doctor_service.get_appointment(id)
+    user_role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    is_admin_level = user_role_str.lower() in ("admin", "super admin", "platform owner")
+
+    if not is_admin_level:
+        if not current_user.team_member_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access forbidden: Doctor account is not linked to a clinical staff profile.",
+            )
+        if booking.team_member_id and booking.team_member_id != current_user.team_member_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access forbidden: You cannot finish an appointment assigned to another clinician.",
+            )
+
+    # Validate that an encounter exists for this booking
+    encounter = await encounter_service.get_any_encounter_by_booking(booking.id)
+    if not encounter:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot finish visit: a clinical encounter must exist for this appointment.",
+        )
+
+    # Transition booking to completed
+    updated = await reception_service.update_booking_status(
+        booking_id=id,
+        new_status="completed",
+        user_id=current_user.id,
+    )
+
+    # Optional follow-up task creation for reception (Task 1.3)
+    if req and (req.followUpDays or req.followUpWeeks):
+        days = req.followUpDays or ((req.followUpWeeks or 0) * 7)
+        timing_str = f"{req.followUpWeeks} weeks" if req.followUpWeeks else f"{req.followUpDays} days"
+        due_datetime = datetime.now(timezone.utc) + timedelta(days=days)
+
+        task_title = f"Book follow-up: {booking.patient_full_name} in {timing_str}"
+        await reception_service.create_task(
+            title=task_title,
+            clinic_id=booking.clinic_id,
+            patient_id=booking.patient_id,
+            booking_id=booking.id,
+            description=req.followUpNote or f"Doctor requested follow-up appointment in {timing_str}.",
+            priority="medium",
+            status="pending",
+            due_date=due_datetime,
+        )
+
     return BookingResponseDto(
         id=updated.id,
         confirmationId=updated.confirmation_id,

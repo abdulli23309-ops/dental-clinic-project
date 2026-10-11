@@ -26,14 +26,18 @@ import {
   ClinicalEncounter,
   ClinicalSOAPNote,
   createClinicalEncounter,
+  finishDoctorAppointment,
   getActiveEncounterByBooking,
+  getClinicalEncounter,
   getDoctorSchedule,
+  getDoctorUnsignedNotes,
   getEncounterClinicalNote,
   getEncounterNoteRevisions,
   ReceptionBooking,
   saveDraftEncounterNote,
   signEncounterClinicalNote,
   startDoctorAppointment,
+  UnsignedNoteItem,
 } from "@/lib/api";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useDirectory } from "@/lib/directory";
@@ -71,6 +75,23 @@ export default function DoctorDashboardPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  // Unsigned Notes & Finish Visit State (Phase 1.2 & 1.3)
+  const [unsignedNotes, setUnsignedNotes] = useState<UnsignedNoteItem[]>([]);
+  const [isFinishModalOpen, setIsFinishModalOpen] = useState(false);
+  const [finishBooking, setFinishBooking] = useState<ReceptionBooking | null>(null);
+  const [followUpWeeks, setFollowUpWeeks] = useState<number | "">("");
+  const [followUpNote, setFollowUpNote] = useState("");
+  const [isFinishing, setIsFinishing] = useState(false);
+
+  const loadUnsignedNotes = async () => {
+    try {
+      const data = await getDoctorUnsignedNotes(accessToken);
+      setUnsignedNotes(data);
+    } catch (err) {
+      console.error("Failed to load unsigned notes:", err);
+    }
+  };
+
   const loadSchedule = async () => {
     setIsLoading(true);
     try {
@@ -81,14 +102,17 @@ export default function DoctorDashboardPage() {
     } finally {
       setIsLoading(false);
     }
+    await loadUnsignedNotes();
   };
 
   useEffect(() => {
     loadSchedule();
+    loadUnsignedNotes();
 
     const handleVisibilityChange = () => {
       if (!document.hidden) {
         loadSchedule();
+        loadUnsignedNotes();
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -96,6 +120,7 @@ export default function DoctorDashboardPage() {
     const interval = setInterval(() => {
       if (!document.hidden) {
         loadSchedule();
+        loadUnsignedNotes();
       }
     }, 30000);
 
@@ -104,6 +129,92 @@ export default function DoctorDashboardPage() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [date, accessToken]);
+
+  const handleOpenUnsignedNote = async (item: UnsignedNoteItem) => {
+    const matching = schedule.find((b) => b.id === item.bookingId);
+    if (matching) {
+      await handleOpenSoapModal(matching);
+      return;
+    }
+    const surrogate: ReceptionBooking = {
+      id: item.bookingId || item.encounterId,
+      bookingNumber: "ENC",
+      patientId: item.patientId,
+      patientName: item.patientName,
+      patientPhone: "",
+      patientEmail: "",
+      bookingDate: item.date ? item.date.split("T")[0] : "",
+      bookingTime: "Encounter",
+      status: "in_progress",
+      confirmationStatus: "confirmed",
+      createdAt: item.date,
+      updatedAt: item.date,
+    };
+    setSelectedBooking(surrogate);
+    setActiveTab("soap");
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setShowRevisions(false);
+    setIsAmending(false);
+    setIsActionLoading(true);
+
+    try {
+      const enc = await getClinicalEncounter(item.encounterId, accessToken);
+      setActiveEncounter(enc);
+      const note = await getEncounterClinicalNote(enc.id, accessToken);
+      setCurrentNote(note);
+      if (note) {
+        setSubjective(note.subjective || "");
+        setObjective(note.objective || "");
+        setAssessment(note.assessment || "");
+        setPlan(note.plan || "");
+      } else {
+        setSubjective("");
+        setObjective("");
+        setAssessment("");
+        setPlan("");
+      }
+      const revs = await getEncounterNoteRevisions(enc.id, accessToken);
+      setRevisions(revs);
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : "Failed to load clinical encounter.");
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleFinishVisit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!finishBooking) return;
+    setIsFinishing(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    try {
+      await finishDoctorAppointment(
+        finishBooking.id,
+        {
+          followUpWeeks: typeof followUpWeeks === "number" ? followUpWeeks : undefined,
+          followUpNote: followUpNote.trim() || undefined,
+        },
+        accessToken
+      );
+      setIsFinishModalOpen(false);
+      setFinishBooking(null);
+      setFollowUpWeeks("");
+      setFollowUpNote("");
+      setSuccessMsg("Visit completed successfully.");
+      await loadSchedule();
+      await loadUnsignedNotes();
+      if (selectedBooking?.id === finishBooking.id) {
+        setSelectedBooking(null);
+      }
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : "Failed to finish visit.");
+    } finally {
+      setIsFinishing(false);
+    }
+  };
 
   const handleOpenSoapModal = async (booking: ReceptionBooking) => {
     setSelectedBooking(booking);
@@ -395,6 +506,61 @@ export default function DoctorDashboardPage() {
         )}
       </div>
 
+      {/* Unsigned Notes Visibility Panel (Phase 1.2) */}
+      <div className="rounded-2xl border border-line bg-card p-5 space-y-4 shadow-xs">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FileText className="h-4 w-4 text-amber-600" />
+            <h2 className="text-sm font-semibold font-display text-ink">
+              Unsigned Notes ({unsignedNotes.length})
+            </h2>
+          </div>
+          <span className="text-[11px] font-mono text-ink-soft">
+            Draft clinical notes awaiting electronic signature
+          </span>
+        </div>
+
+        {unsignedNotes.length === 0 ? (
+          <div className="p-4 rounded-xl border border-line/60 bg-sand/30 text-center text-xs text-ink-soft font-mono">
+            No unsigned draft notes. All clinical records are signed and locked.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {unsignedNotes.map((note) => (
+              <div
+                key={note.encounterId}
+                className="p-4 rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/20 flex flex-col justify-between gap-3 shadow-xs"
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-semibold text-xs text-ink truncate">
+                      {note.patientName}
+                    </p>
+                    <span className="font-mono text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 shrink-0">
+                      Draft
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-ink-soft mt-1">
+                    Encounter: {new Date(note.date).toLocaleDateString()}
+                    {note.chiefComplaint ? ` · ${note.chiefComplaint}` : ""}
+                  </p>
+                </div>
+
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="w-full text-xs"
+                  onClick={() => handleOpenUnsignedNote(note)}
+                >
+                  <Edit className="h-3 w-3 mr-1.5" />
+                  <span>Open &amp; Sign</span>
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Schedule Card Table */}
       <Card surface="bone" shadow="card" className="overflow-hidden p-0">
         {isLoading ? (
@@ -477,14 +643,29 @@ export default function DoctorDashboardPage() {
                       )}
                     </td>
                     <td className="px-5 py-4 text-right">
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => handleOpenSoapModal(b)}
-                      >
-                        <FileText className="h-3 w-3 mr-1.5" />
-                        <span>SOAP Encounter</span>
-                      </Button>
+                      <div className="flex items-center justify-end gap-2">
+                        {b.status === "in_progress" && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => {
+                              setFinishBooking(b);
+                              setIsFinishModalOpen(true);
+                            }}
+                          >
+                            <CheckCircle className="h-3 w-3 mr-1.5 text-emerald-600" />
+                            <span>Finish Visit</span>
+                          </Button>
+                        )}
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => handleOpenSoapModal(b)}
+                        >
+                          <FileText className="h-3 w-3 mr-1.5" />
+                          <span>SOAP Encounter</span>
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -532,6 +713,19 @@ export default function DoctorDashboardPage() {
                   >
                     <History className="h-3.5 w-3.5 mr-1" />
                     <span>Revisions ({revisions.length})</span>
+                  </Button>
+                )}
+                {selectedBooking.status === "in_progress" && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setFinishBooking(selectedBooking);
+                      setIsFinishModalOpen(true);
+                    }}
+                  >
+                    <CheckCircle className="h-3 w-3 mr-1 text-emerald-600" />
+                    <span>Finish Visit</span>
                   </Button>
                 )}
                 <button
@@ -831,6 +1025,100 @@ export default function DoctorDashboardPage() {
                 )}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Finish Visit Modal with Optional Follow-up (Phase 1.2 & 1.3) */}
+      {isFinishModalOpen && finishBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="w-full max-w-lg rounded-2xl border border-line bg-card p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-line">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-emerald-600" />
+                <h2 className="text-base font-display font-semibold text-ink">
+                  Complete Visit: {finishBooking.patientName}
+                </h2>
+              </div>
+              <button
+                onClick={() => {
+                  setIsFinishModalOpen(false);
+                  setFinishBooking(null);
+                }}
+                className="p-1.5 rounded-full text-ink-soft hover:text-ink cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-ink-soft">
+              This will finalize the appointment and mark the visit as completed.
+              Any unsigned clinical notes will remain in your <strong>Unsigned Notes</strong> queue for review and electronic signature.
+            </p>
+
+            <form onSubmit={handleFinishVisit} className="space-y-4 text-xs">
+              <div className="p-3.5 rounded-xl border border-line bg-sand/30 space-y-3">
+                <h3 className="font-semibold text-xs text-ink flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5 text-primary" />
+                  <span>Optional Reception Follow-Up Request</span>
+                </h3>
+                <p className="text-[11px] text-ink-soft">
+                  Create a task for the front desk to book this patient&apos;s next appointment.
+                </p>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-medium text-ink">Follow-Up Timing</label>
+                    <select
+                      value={followUpWeeks}
+                      onChange={(e) => setFollowUpWeeks(e.target.value ? Number(e.target.value) : "")}
+                      className="w-full px-3 py-1.5 rounded-lg border border-line bg-card text-xs text-ink"
+                    >
+                      <option value="">No follow-up needed</option>
+                      <option value="1">1 week</option>
+                      <option value="2">2 weeks</option>
+                      <option value="3">3 weeks</option>
+                      <option value="4">4 weeks (1 month)</option>
+                      <option value="6">6 weeks</option>
+                      <option value="8">8 weeks (2 months)</option>
+                      <option value="12">12 weeks (3 months)</option>
+                      <option value="26">6 months (recall)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-medium text-ink">Instructions / Procedure</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Crown cementation, suture removal"
+                      value={followUpNote}
+                      onChange={(e) => setFollowUpNote(e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-lg border border-line bg-card text-xs text-ink"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setIsFinishModalOpen(false);
+                    setFinishBooking(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={isFinishing}
+                >
+                  {isFinishing ? "Completing..." : "Confirm & Finish Visit"}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -2221,6 +2221,15 @@ export async function getActiveEncounterByBooking(
   return res.json();
 }
 
+export async function getClinicalEncounter(
+  id: string,
+  token?: string | null
+): Promise<ClinicalEncounter> {
+  const res = await authorizedFetch(`/api/v1/doctor/encounters/${id}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to retrieve clinical encounter.");
+  return res.json();
+}
+
 export async function createClinicalEncounter(
   data: { patientId: string; bookingId?: string; chiefComplaint?: string; reasonForVisit?: string; status?: string },
   token?: string | null
@@ -2615,5 +2624,43 @@ export async function recordReceptionPendingAlert(
   );
   if (!res.ok) await apiError(res, "Failed to record pending medical alert.");
   return res.json();
+}
+
+
+/* --- Unsigned Notes & Visit Completion (Phase 1.2 & 1.3) --- */
+
+export interface UnsignedNoteItem {
+  encounterId: string;
+  bookingId?: string | null;
+  patientId: string;
+  patientName: string;
+  date: string;
+  status: string;
+  chiefComplaint?: string | null;
+}
+
+export async function getDoctorUnsignedNotes(
+  token?: string | null
+): Promise<UnsignedNoteItem[]> {
+  const res = await authorizedFetch(`/api/v1/doctor/unsigned-notes`, {}, token);
+  if (!res.ok) throw new Error("Failed to load unsigned notes.");
+  return res.json();
+}
+
+export async function finishDoctorAppointment(
+  bookingId: string,
+  data?: { followUpDays?: number; followUpWeeks?: number; followUpNote?: string },
+  token?: string | null
+): Promise<ReceptionBooking> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/appointments/${bookingId}/finish`,
+    {
+      method: "POST",
+      body: JSON.stringify(data || {}),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to finish visit.");
+  return mapBooking(await res.json());
 }
 

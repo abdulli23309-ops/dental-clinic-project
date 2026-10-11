@@ -234,8 +234,27 @@ export default function DoctorDashboardPage() {
     }
   };
 
+  const isAdminLevel = !!(user?.role && ["admin", "owner", "superadmin"].includes(user.role.toLowerCase()));
+  const isUnlinkedDoctor = !user?.teamMemberId && !isAdminLevel;
+
   return (
     <div className="space-y-8">
+      {/* Unlinked doctor account warning banner */}
+      {isUnlinkedDoctor && (
+        <div
+          role="alert"
+          className="p-4 rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/40 dark:border-amber-900/60 text-amber-900 dark:text-amber-200 flex items-center gap-3 shadow-xs"
+        >
+          <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
+          <div>
+            <p className="text-xs font-semibold">Your account is not linked to a team member. Contact an administrator.</p>
+            <p className="text-[11px] opacity-90 mt-0.5">
+              Clinical schedules and dental charting require an active clinical staff identity profile.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-line pb-6">
         <div>

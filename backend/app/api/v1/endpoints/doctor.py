@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import List, Optional
 from uuid import UUID
 
@@ -6,12 +6,18 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 
 from app.api.deps import (
+    get_booking_repository,
     get_clinical_note_service,
     get_dental_chart_service,
     get_doctor_service,
+    get_encounter_repository,
     get_encounter_service,
+    get_patient_repository,
     require_doctor,
 )
+from app.domain.repositories.booking_repo import BookingRepository
+from app.domain.repositories.encounter_repo import EncounterRepository
+from app.domain.repositories.patient_repo import PatientRepository
 from app.application.dtos.clinical_note_dto import (
     AmendNoteRequestDto,
     ClinicalNoteResponseDto,
@@ -998,3 +1004,139 @@ async def update_procedure_status(
         if "not found" in err_msg.lower():
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=err_msg)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+
+
+# --- Doctor Patient Scoped DTOs and Endpoints ---
+
+class DoctorPatientSummaryDto(BaseModel):
+    id: UUID
+    firstName: str
+    lastName: str
+    fullName: str
+    phone: str
+    email: Optional[str] = None
+    dateOfBirth: Optional[date] = None
+    clinicId: Optional[UUID] = None
+    createdAt: Optional[datetime] = None
+
+
+class DoctorPatientVisitHistoryDto(BaseModel):
+    id: UUID
+    bookingDate: date
+    bookingTime: str
+    serviceId: Optional[str] = None
+    teamMemberId: Optional[UUID] = None
+    status: str
+
+
+class DoctorPatientEncounterSummaryDto(BaseModel):
+    id: UUID
+    bookingId: Optional[UUID] = None
+    clinicianId: UUID
+    status: str
+    startedAt: datetime
+    endedAt: Optional[datetime] = None
+
+
+class DoctorPatientDetailDto(BaseModel):
+    id: UUID
+    firstName: str
+    lastName: str
+    fullName: str
+    phone: str
+    email: Optional[str] = None
+    dateOfBirth: Optional[date] = None
+    notes: Optional[str] = None
+    clinicId: Optional[UUID] = None
+    createdAt: Optional[datetime] = None
+    visits: List[DoctorPatientVisitHistoryDto] = []
+    encounters: List[DoctorPatientEncounterSummaryDto] = []
+
+
+@router.get("/patients", response_model=List[DoctorPatientSummaryDto])
+async def search_doctor_patients(
+    q: Optional[str] = Query(None, description="Search by name, phone, or email"),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    current_user: User = Depends(require_doctor),
+    patient_repo: PatientRepository = Depends(get_patient_repository),
+) -> List[DoctorPatientSummaryDto]:
+    """Doctor-scoped patient search returning clinical demographics only."""
+    clinic_id = current_user.clinic_id if current_user.clinic_id else None
+    patients, _ = await patient_repo.search(query=q, clinic_id=clinic_id, limit=limit, offset=offset)
+    return [
+        DoctorPatientSummaryDto(
+            id=p.id,
+            firstName=p.first_name,
+            lastName=p.last_name,
+            fullName=f"{p.first_name} {p.last_name}".strip(),
+            phone=p.phone,
+            email=p.email,
+            dateOfBirth=p.date_of_birth,
+            clinicId=p.clinic_id,
+            createdAt=p.created_at,
+        )
+        for p in patients
+    ]
+
+
+@router.get("/patients/{patient_id}", response_model=DoctorPatientDetailDto)
+async def get_doctor_patient_detail(
+    patient_id: UUID,
+    current_user: User = Depends(require_doctor),
+    patient_repo: PatientRepository = Depends(get_patient_repository),
+    booking_repo: BookingRepository = Depends(get_booking_repository),
+    encounter_repo: EncounterRepository = Depends(get_encounter_repository),
+) -> DoctorPatientDetailDto:
+    """Doctor-scoped patient detail returning demographics, visit history, and encounters entry points."""
+    patient = await patient_repo.get_by_id(patient_id)
+    if not patient:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient record not found.")
+
+    if current_user.clinic_id and patient.clinic_id and patient.clinic_id != current_user.clinic_id:
+        is_admin_level = str(current_user.role.value).strip().lower() in ("admin", "owner", "superadmin")
+        if not is_admin_level:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cross-clinic access forbidden.")
+
+    bookings = await booking_repo.get_patient_bookings(patient.id)
+    bookings_sorted = sorted(bookings, key=lambda b: b.preferred_date, reverse=True)
+    visits_dto = [
+        DoctorPatientVisitHistoryDto(
+            id=b.id,
+            bookingDate=b.preferred_date,
+            bookingTime=b.preferred_time,
+            serviceId=b.service_id,
+            teamMemberId=b.team_member_id,
+            status=b.status,
+        )
+        for b in bookings_sorted
+    ]
+
+    encounters = await encounter_repo.list_by_patient_id(patient.id)
+    encounters_dto = [
+        DoctorPatientEncounterSummaryDto(
+            id=e.id,
+            bookingId=e.booking_id,
+            clinicianId=e.clinician_id,
+            status=e.status,
+            startedAt=e.started_at,
+            endedAt=e.ended_at,
+        )
+        for e in encounters
+    ]
+
+    return DoctorPatientDetailDto(
+        id=patient.id,
+        firstName=patient.first_name,
+        lastName=patient.last_name,
+        fullName=f"{patient.first_name} {patient.last_name}".strip(),
+        phone=patient.phone,
+        email=patient.email,
+        dateOfBirth=patient.date_of_birth,
+        notes=patient.notes,
+        clinicId=patient.clinic_id,
+        createdAt=patient.created_at,
+        visits=visits_dto,
+        encounters=encounters_dto,
+    )
+

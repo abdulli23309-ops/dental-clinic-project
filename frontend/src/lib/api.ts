@@ -93,6 +93,7 @@ export interface User {
   role: string;
   isActive: boolean;
   clinicId?: string | null;
+  teamMemberId?: string | null;
   organizationId?: string | null;
   inactivityEnabled?: boolean;
   inactivityTimeoutMinutes?: number;
@@ -2050,6 +2051,70 @@ export async function updateDoctorBookingNotes(
   );
   if (!res.ok) await apiError(res, "Failed to update clinical notes.");
   return mapBooking(await res.json());
+}
+
+export interface DoctorPatientSummary {
+  id: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  phone: string;
+  email?: string | null;
+  dateOfBirth?: string | null;
+  clinicId?: string | null;
+  createdAt?: string | null;
+}
+
+export interface DoctorPatientVisitHistory {
+  id: string;
+  bookingDate: string;
+  bookingTime: string;
+  serviceId?: string | null;
+  teamMemberId?: string | null;
+  status: string;
+}
+
+export interface DoctorPatientEncounterSummary {
+  id: string;
+  bookingId?: string | null;
+  clinicianId: string;
+  status: string;
+  startedAt: string;
+  endedAt?: string | null;
+}
+
+export interface DoctorPatientDetail {
+  id: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  phone: string;
+  email?: string | null;
+  dateOfBirth?: string | null;
+  notes?: string | null;
+  clinicId?: string | null;
+  createdAt?: string | null;
+  visits: DoctorPatientVisitHistory[];
+  encounters: DoctorPatientEncounterSummary[];
+}
+
+export async function searchDoctorPatients(
+  query?: string,
+  token?: string | null
+): Promise<DoctorPatientSummary[]> {
+  const qParam = query ? `?q=${encodeURIComponent(query)}` : "";
+  const res = await authorizedFetch(`/api/v1/doctor/patients${qParam}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to search patients.");
+  return res.json();
+}
+
+export async function getDoctorPatientDetail(
+  patientId: string,
+  token?: string | null
+): Promise<DoctorPatientDetail> {
+  const res = await authorizedFetch(`/api/v1/doctor/patients/${patientId}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to retrieve patient clinical summary.");
+  return res.json();
 }
 
 

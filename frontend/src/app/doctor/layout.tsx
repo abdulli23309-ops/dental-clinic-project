@@ -15,9 +15,7 @@ import {
 
 const DOCTOR_LINKS: SidebarLink[] = [
   { href: "/doctor", title: "Daily Schedule", icon: Calendar, exact: true },
-  { href: "/reception/patients", title: "Patients", icon: Users },
-  { href: "/reception/tasks", title: "Tasks", icon: ListTodo },
-  { href: "/reception/messages", title: "Messages", icon: Mail },
+  { href: "/doctor/patients", title: "Patients", icon: Users },
 ];
 
 export default function DoctorLayout({ children }: { children: React.ReactNode }) {

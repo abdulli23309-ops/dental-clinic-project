@@ -15,6 +15,7 @@ from app.domain.models.booking_crm import Booking, Lead, Message, Patient, Task
 from app.domain.models.appointment import Appointment, AppointmentStatus
 from app.domain.repositories.appointment_repo import AppointmentRepository
 from app.domain.repositories.booking_repo import BookingRepository
+from app.domain.repositories.booking_settings_repo import BookingSettingsRepository
 from app.domain.repositories.lead_repo import LeadRepository
 from app.domain.repositories.message_repo import MessageRepository
 from app.domain.repositories.patient_repo import PatientRepository
@@ -114,6 +115,7 @@ class ReceptionService:
         appointment_repo: AppointmentRepository,
         service_repo: Optional[ServiceRepository] = None,
         activity_repo: Optional[PostgresActivityLogRepository] = None,
+        booking_settings_repo: Optional[BookingSettingsRepository] = None,
     ):
         self.booking_repo = booking_repo
         self.patient_repo = patient_repo
@@ -123,6 +125,7 @@ class ReceptionService:
         self.appointment_repo = appointment_repo
         self.service_repo = service_repo
         self.activity_repo = activity_repo
+        self.booking_settings_repo = booking_settings_repo
 
     async def get_dashboard_summary(
         self, clinic_id: Optional[UUID] = None
@@ -319,6 +322,16 @@ class ReceptionService:
         user_id: Optional[UUID] = None,
     ) -> Booking:
         normalized_status = self.NORMALIZE_STATUS.get(status, status)
+
+        # Enforce closed mode override requirement for reception booking
+        if self.booking_settings_repo is not None:
+            settings = await self.booking_settings_repo.get_settings()
+            if settings.booking_mode == "closed":
+                if not override_reason or not override_reason.strip():
+                    raise HTTPException(
+                        status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail="Clinic booking is currently closed. A recorded reason is required to override and schedule.",
+                    )
 
         conflict = None
         async with _acquire_schedule_lock(self.booking_repo, team_member_id, preferred_date):

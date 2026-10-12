@@ -1,5 +1,7 @@
 import random
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
+from typing import Optional
+from fastapi import HTTPException, status as http_status
 from sqlalchemy.exc import IntegrityError
 
 from app.application.dtos.appointment_dto import (
@@ -11,6 +13,7 @@ from app.domain.models.appointment import Appointment
 from app.domain.models.booking_crm import Booking, Patient
 from app.domain.repositories.appointment_repo import AppointmentRepository
 from app.domain.repositories.booking_repo import BookingRepository
+from app.domain.repositories.booking_settings_repo import BookingSettingsRepository
 from app.domain.repositories.patient_repo import PatientRepository
 
 
@@ -28,11 +31,13 @@ class AppointmentService:
         repository: AppointmentRepository,
         booking_repo: Optional[BookingRepository] = None,
         patient_repo: Optional[PatientRepository] = None,
+        booking_settings_repo: Optional[BookingSettingsRepository] = None,
     ) -> None:
-        """Stores repositories for appointments, canonical bookings, and patient charts."""
+        """Stores repositories for appointments, canonical bookings, patient charts, and clinic availability rules."""
         self._repository = repository
         self._booking_repo = booking_repo
         self._patient_repo = patient_repo
+        self._booking_settings_repo = booking_settings_repo
 
     @staticmethod
     def generate_confirmation_id() -> str:
@@ -48,8 +53,46 @@ class AppointmentService:
         """
         Takes patient booking details, assigns a tracking ID, deduplicates or creates the patient chart,
         and saves both the canonical reception booking and legacy appointment record.
+        Enforces emergency pause, weekly closed days, planned closures, and advance booking window.
         """
         parsed_date = date.fromisoformat(request.preferredDate)
+
+        # Enforce clinic booking settings, emergency pause, weekly closed days, and closures
+        if self._booking_settings_repo is not None:
+            settings = await self._booking_settings_repo.get_settings()
+            if settings.booking_mode != "open":
+                msg = settings.pause_message or "Online booking is temporarily unavailable. Please call our clinic to schedule."
+                raise HTTPException(
+                    status_code=http_status.HTTP_423_LOCKED,
+                    detail=msg,
+                )
+
+            today_utc = datetime.now(timezone.utc).date()
+            if settings.advance_booking_days and parsed_date > today_utc + timedelta(days=settings.advance_booking_days):
+                raise HTTPException(
+                    status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Preferred appointment date cannot be more than {settings.advance_booking_days} days in advance.",
+                )
+
+            # Weekly closed days validation
+            working_hours = await self._booking_settings_repo.list_working_hours()
+            dow = parsed_date.weekday()  # 0=Mon .. 6=Sun
+            wh = next((h for h in working_hours if h.day_of_week == dow), None)
+            if wh and wh.is_closed:
+                raise HTTPException(
+                    status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Clinic is closed on {wh.day_name}s.",
+                )
+
+            # Planned calendar closures validation
+            closures = await self._booking_settings_repo.list_closures()
+            for c in closures:
+                if c.start_date <= parsed_date <= c.end_date:
+                    closure_reason = f": {c.reason}" if c.reason else ""
+                    raise HTTPException(
+                        status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=f"Clinic is closed on {parsed_date.isoformat()}{closure_reason}.",
+                    )
 
         # Attempt creation with up to 2 retries on confirmation_id unique constraint collision
         max_attempts = 3

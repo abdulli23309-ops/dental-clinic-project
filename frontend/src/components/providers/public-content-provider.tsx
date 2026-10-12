@@ -5,6 +5,7 @@ import {
   Announcement,
   fetchPublicAnnouncements,
   fetchPublicOrganization,
+  fetchPublicWorkingHours,
   getLocations,
   getSiteContent,
   getTeamMembers,
@@ -12,7 +13,9 @@ import {
   Organization,
   SiteContent,
   TeamMember,
+  WorkingHoursItem,
 } from "@/lib/api";
+import { DEFAULT_CURRENCY } from "@/lib/currency";
 
 const EMPTY_SITE_CONTENT: SiteContent = {
   general: {
@@ -70,8 +73,10 @@ interface PublicContentContextType {
   locations: LocationItem[];
   clinics: LocationItem[];
   primaryLocation: LocationItem | null;
+  workingHours: WorkingHoursItem[];
   team: TeamMember[];
   director: TeamMember | null;
+  currency: { code: string; symbol: string; timezone: string };
   isLoading: boolean;
   refreshPublicContent: () => Promise<void>;
 }
@@ -83,17 +88,19 @@ export function PublicContentProvider({ children }: { children: React.ReactNode 
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [locations, setLocations] = useState<LocationItem[]>([]);
+  const [workingHours, setWorkingHours] = useState<WorkingHoursItem[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadData = async () => {
     try {
-      const [contentData, orgData, announcementsData, locationsData, teamData] = await Promise.all([
+      const [contentData, orgData, announcementsData, locationsData, teamData, hoursData] = await Promise.all([
         getSiteContent().catch(() => null),
         fetchPublicOrganization().catch(() => null),
         fetchPublicAnnouncements().catch(() => []),
         getLocations().catch(() => []),
         getTeamMembers().catch(() => []),
+        fetchPublicWorkingHours().catch(() => []),
       ]);
 
       if (contentData) setContent(contentData);
@@ -101,6 +108,7 @@ export function PublicContentProvider({ children }: { children: React.ReactNode 
       if (announcementsData) setAnnouncements(announcementsData);
       if (locationsData) setLocations(locationsData);
       if (teamData) setTeam(teamData);
+      if (hoursData) setWorkingHours(hoursData);
     } finally {
       setIsLoading(false);
     }
@@ -160,6 +168,12 @@ export function PublicContentProvider({ children }: { children: React.ReactNode 
     team.find((m) => m.isActive) ||
     null;
 
+  const currency = {
+    code: organization?.currencyCode || DEFAULT_CURRENCY.code,
+    symbol: organization?.currencySymbol || DEFAULT_CURRENCY.symbol,
+    timezone: organization?.timezone || DEFAULT_CURRENCY.timezone,
+  };
+
   return (
     <PublicContentContext.Provider
       value={{
@@ -169,8 +183,10 @@ export function PublicContentProvider({ children }: { children: React.ReactNode 
         locations,
         clinics: locations,
         primaryLocation,
+        workingHours,
         team,
         director,
+        currency,
         isLoading,
         refreshPublicContent: loadData,
       }}

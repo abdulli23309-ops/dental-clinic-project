@@ -69,6 +69,12 @@ class OrganizationService:
             org.primary_font = req.primaryFont.strip() or None
         if req.secondaryFont is not None:
             org.secondary_font = req.secondaryFont.strip() or None
+        if req.currencyCode is not None:
+            org.currency_code = req.currencyCode.strip() or "PKR"
+        if req.currencySymbol is not None:
+            org.currency_symbol = req.currencySymbol.strip() or "Rs"
+        if req.timezone is not None:
+            org.timezone = req.timezone.strip() or "Asia/Karachi"
 
         org.updated_at = datetime.now(timezone.utc)
         return await self.org_repo.save(org)

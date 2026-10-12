@@ -53,6 +53,7 @@ const ADMIN_OPERATIONS: SidebarLink[] = [
 ];
 
 const ADMIN_MANAGEMENT: SidebarLink[] = [
+  { href: "/admin/booking", title: "Booking & Closures", icon: Clock },
   { href: "/admin/locations", title: "Clinics & Branches", icon: MapPin },
   { href: "/admin/services", title: "Services & Fees", icon: Layers },
   { href: "/admin/team", title: "Team Members", icon: Users },

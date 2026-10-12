@@ -167,6 +167,8 @@ export interface LocationItem {
   displayOrder: number;
 }
 
+import { formatPrice } from "./currency";
+
 export interface Organization {
   id: string;
   name: string;
@@ -182,6 +184,9 @@ export interface Organization {
   backgroundColor?: string | null;
   primaryFont?: string | null;
   secondaryFont?: string | null;
+  currencyCode?: string;
+  currencySymbol?: string;
+  timezone?: string;
   isActive: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -194,6 +199,64 @@ export interface Announcement {
   displayOrder: number;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface PublicBookingStatus {
+  mode: "open" | "paused" | "closed";
+  message?: string | null;
+  phone?: string | null;
+  resumeOn?: string | null;
+}
+
+export interface WorkingHoursItem {
+  id: string;
+  dayOfWeek: number;
+  dayName: string;
+  openTime?: string | null;
+  closeTime?: string | null;
+  isClosed: boolean;
+}
+
+export interface ClinicClosureItem {
+  id: string;
+  startDate: string;
+  endDate: string;
+  reason: string;
+  message?: string | null;
+  clinicId?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface BookingScheduleData {
+  status: PublicBookingStatus;
+  workingHours: WorkingHoursItem[];
+  closures: ClinicClosureItem[];
+  advanceBookingDays: number;
+  closedDays: number[];
+}
+
+export interface AdminBookingSettings {
+  id: string;
+  bookingMode: "open" | "paused" | "closed";
+  pauseMessage?: string | null;
+  pauseStartedAt?: string | null;
+  pauseStartedByUserId?: string | null;
+  resumeOn?: string | null;
+  advanceBookingDays: number;
+  slotIntervalMinutes: number;
+  isResumePassed: boolean;
+}
+
+export interface AffectedBookingItem {
+  id: string;
+  confirmationId: string;
+  preferredDate: string;
+  preferredTime: string;
+  patientFullName: string;
+  patientPhone: string;
+  patientEmail?: string | null;
+  status: string;
 }
 
 export type ClinicItem = LocationItem;
@@ -244,7 +307,7 @@ export async function getServices(): Promise<ServiceItem[]> {
         shortDesc: s.shortDesc,
         fullDesc: s.fullDesc || s.shortDesc,
         duration: s.duration,
-        cashPrice: typeof s.cashPrice === "number" ? `$${s.cashPrice}` : String(s.cashPrice),
+        cashPrice: formatPrice(s.cashPrice),
         insuranceNote: s.insuranceNote || "",
         code: s.code || "",
         recommendedInterval: s.recommendedInterval || "",
@@ -795,6 +858,45 @@ export async function fetchPublicClinics(): Promise<ClinicItem[]> {
   }
 }
 
+// Public Booking Availability Status
+export async function fetchPublicBookingStatus(): Promise<PublicBookingStatus> {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/public/booking-status`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return { mode: "open" };
+    return await res.json();
+  } catch {
+    return { mode: "open" };
+  }
+}
+
+// Public Single Source of Truth Working Hours
+export async function fetchPublicWorkingHours(): Promise<WorkingHoursItem[]> {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/public/working-hours`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
+
+// Public Booking Consolidated Schedule (Hours, Closures, Window)
+export async function fetchPublicBookingSchedule(): Promise<BookingScheduleData | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/public/booking-schedule`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 // Admin Organization
 export async function adminGetOrganization(token?: string | null): Promise<Organization> {
   const res = await authorizedFetch(`/api/v1/admin/organization`, {}, token);
@@ -946,6 +1048,149 @@ export async function adminDeleteAnnouncement(id: string, token?: string | null)
   if (!res.ok && res.status !== 204) {
     throw new Error("Failed to delete announcement.");
   }
+}
+
+// -------------------------------------------------------------
+// Admin Booking Operations, Emergency Pause & Calendar Closures
+// -------------------------------------------------------------
+
+export async function adminGetBookingSettings(token?: string | null): Promise<AdminBookingSettings> {
+  const res = await authorizedFetch(`/api/v1/admin/booking/settings`, {}, token);
+  if (!res.ok) throw new Error("Failed to load booking settings.");
+  return res.json();
+}
+
+export async function adminUpdateBookingMode(
+  data: { mode: "open" | "paused" | "closed"; message?: string; resumeOn?: string },
+  token?: string | null
+): Promise<{ settings: AdminBookingSettings; affectedBookings: AffectedBookingItem[] }> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/booking/mode`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update booking mode.");
+  }
+  return res.json();
+}
+
+export async function adminGetAffectedBookings(
+  startDate: string,
+  endDate?: string,
+  token?: string | null
+): Promise<AffectedBookingItem[]> {
+  const q = new URLSearchParams({ startDate });
+  if (endDate) q.append("endDate", endDate);
+  const res = await authorizedFetch(`/api/v1/admin/booking/affected-bookings?${q.toString()}`, {}, token);
+  if (!res.ok) throw new Error("Failed to load affected bookings.");
+  return res.json();
+}
+
+export async function adminCreateRescheduleTasks(
+  bookingIds: string[],
+  token?: string | null
+): Promise<{ tasksCreated: number; taskIds: string[] }> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/booking/reschedule-tasks`,
+    {
+      method: "POST",
+      body: JSON.stringify({ bookingIds }),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to create reschedule tasks.");
+  }
+  return res.json();
+}
+
+export async function adminGetClosures(token?: string | null): Promise<ClinicClosureItem[]> {
+  const res = await authorizedFetch(`/api/v1/admin/booking/closures`, {}, token);
+  if (!res.ok) throw new Error("Failed to load planned closures.");
+  return res.json();
+}
+
+export async function adminCreateClosure(
+  data: { startDate: string; endDate: string; reason: string; message?: string },
+  token?: string | null
+): Promise<{ closure: ClinicClosureItem; affectedBookings: AffectedBookingItem[] }> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/booking/closures`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to create calendar closure.");
+  }
+  return res.json();
+}
+
+export async function adminUpdateClosure(
+  id: string,
+  data: { startDate: string; endDate: string; reason: string; message?: string },
+  token?: string | null
+): Promise<ClinicClosureItem> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/booking/closures/${id}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update calendar closure.");
+  }
+  return res.json();
+}
+
+export async function adminDeleteClosure(id: string, token?: string | null): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/booking/closures/${id}`,
+    {
+      method: "DELETE",
+    },
+    token
+  );
+  if (!res.ok && res.status !== 204) {
+    throw new Error("Failed to delete calendar closure.");
+  }
+}
+
+export async function adminGetWorkingHours(token?: string | null): Promise<WorkingHoursItem[]> {
+  const res = await authorizedFetch(`/api/v1/admin/booking/working-hours`, {}, token);
+  if (!res.ok) throw new Error("Failed to load clinic working hours.");
+  return res.json();
+}
+
+export async function adminUpdateWorkingHours(
+  updates: Array<{ dayOfWeek: number; openTime?: string | null; closeTime?: string | null; isClosed: boolean }>,
+  token?: string | null
+): Promise<WorkingHoursItem[]> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/booking/working-hours`,
+    {
+      method: "PUT",
+      body: JSON.stringify(updates),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update working hours.");
+  }
+  return res.json();
 }
 
 // Admin Permissions Matrix

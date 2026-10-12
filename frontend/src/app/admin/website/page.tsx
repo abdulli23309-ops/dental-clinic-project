@@ -461,9 +461,17 @@ export default function AdminWebsitePage() {
 
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="contact-hours" className="block text-xs font-medium text-ink mb-1.5">
-                    Operating Hours Summary
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label htmlFor="contact-hours" className="block text-xs font-medium text-ink">
+                      Operating Hours Summary (Legacy Fallback)
+                    </label>
+                    <a
+                      href="/admin/booking"
+                      className="text-[11px] text-forest hover:underline font-medium"
+                    >
+                      Edit single-source hours in Booking Settings →
+                    </a>
+                  </div>
                   <textarea
                     id="contact-hours"
                     rows={3}
@@ -471,6 +479,9 @@ export default function AdminWebsitePage() {
                     onChange={(e) => setContactData({ ...contactData, hoursSummary: e.target.value })}
                     className="w-full rounded-[var(--radius-card)] border border-line bg-bone px-3.5 py-2.5 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-forest"
                   />
+                  <p className="text-[11px] text-ink-soft/70 mt-1">
+                    Standard clinic hours and closures are managed in <a href="/admin/booking" className="underline text-forest font-medium">Booking Settings</a> as the single source of truth. This field is preserved only as a fallback.
+                  </p>
                 </div>
                 <TextField
                   id="contact-transit"

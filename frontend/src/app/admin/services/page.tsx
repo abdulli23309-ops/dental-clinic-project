@@ -81,7 +81,7 @@ export default function AdminServicesPage() {
       title: "",
       shortDesc: "",
       fullDesc: "",
-      cashPrice: "from $",
+      cashPrice: "from Rs ",
       duration: "45 to 60 min",
       code: "CDT D0150",
       insuranceNote: "Usually covered by PPO dental plans.",
@@ -344,7 +344,7 @@ export default function AdminServicesPage() {
                     label="Cash Price"
                     value={form.cashPrice}
                     onChange={(e) => setForm({ ...form, cashPrice: e.target.value })}
-                    placeholder="from $140"
+                    placeholder="from Rs 1,500"
                     required
                   />
                   <TextField

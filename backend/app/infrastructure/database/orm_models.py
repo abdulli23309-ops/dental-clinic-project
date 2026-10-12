@@ -175,6 +175,24 @@ class OrganizationORM(Base):
         nullable=False,
         default=True,
     )
+    currency_code: Mapped[str] = mapped_column(
+        String(10),
+        nullable=False,
+        default="PKR",
+        server_default="PKR",
+    )
+    currency_symbol: Mapped[str] = mapped_column(
+        String(10),
+        nullable=False,
+        default="Rs",
+        server_default="Rs",
+    )
+    timezone: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="Asia/Karachi",
+        server_default="Asia/Karachi",
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -1447,6 +1465,12 @@ class AnnouncementORM(Base):
         nullable=False,
         default=0,
     )
+    is_auto_booking_banner: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=func.false(),
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -1998,3 +2022,165 @@ class DentalProcedureORM(Base):
             "status",
         ),
     )
+
+
+class ClinicWorkingHoursORM(Base):
+    """
+    Stores operating hours per day of week (0=Mon .. 6=Sun) with closure status.
+    """
+    __tablename__ = "clinic_working_hours"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    clinic_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("clinics.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    day_of_week: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        index=True,
+    )
+    open_time: Mapped[Optional[str]] = mapped_column(
+        String(10),
+        nullable=True,
+    )
+    close_time: Mapped[Optional[str]] = mapped_column(
+        String(10),
+        nullable=True,
+    )
+    is_closed: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class ClinicBookingSettingsORM(Base):
+    """
+    Stores booking controls, emergency pause, resume dates, and advance booking window.
+    """
+    __tablename__ = "clinic_booking_settings"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    clinic_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("clinics.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    booking_mode: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="open",
+        server_default="open",
+    )
+    pause_message: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    pause_started_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    pause_started_by_user_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    resume_on: Mapped[Optional[date]] = mapped_column(
+        Date,
+        nullable=True,
+    )
+    advance_booking_days: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=60,
+    )
+    slot_interval_minutes: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=30,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class ClinicClosureORM(Base):
+    """
+    Stores planned calendar closures (holidays, maintenance, renovations).
+    """
+    __tablename__ = "clinic_closures"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    clinic_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("clinics.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    start_date: Mapped[date] = mapped_column(
+        Date,
+        nullable=False,
+    )
+    end_date: Mapped[date] = mapped_column(
+        Date,
+        nullable=False,
+    )
+    reason: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+    message: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    created_by_user_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+

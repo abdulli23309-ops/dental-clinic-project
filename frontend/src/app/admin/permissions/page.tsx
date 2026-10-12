@@ -136,6 +136,14 @@ export default function AdminPermissionsPage() {
         </div>
       </div>
 
+      {/* Informational Notice Banner */}
+      <div className="p-3.5 bg-blue-50 border border-blue-200 text-blue-900 rounded-[var(--radius-card)] text-xs flex items-center gap-2.5">
+        <Info className="h-4 w-4 text-blue-600 flex-shrink-0" />
+        <p className="font-medium">
+          This matrix is informational. Access is currently enforced by fixed role rules.
+        </p>
+      </div>
+
       {/* Notifications */}
       {error && (
         <div className="rounded-xl bg-red-50 border border-red-200 p-3.5 text-xs text-red-700">

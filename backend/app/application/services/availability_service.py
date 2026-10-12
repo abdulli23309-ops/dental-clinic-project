@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 import re
 from typing import List, Optional, Tuple, Union
 from uuid import UUID
@@ -84,7 +84,10 @@ class AvailabilityService:
     ):
         self.booking_settings_repo = booking_settings_repo
         self.session = session
-        self.tz = ZoneInfo(timezone_str)
+        try:
+            self.tz = ZoneInfo(timezone_str)
+        except Exception:
+            self.tz = timezone(timedelta(hours=5))
 
     async def get_available_slots(
         self,

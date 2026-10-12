@@ -14,6 +14,13 @@ from app.application.dtos.booking_settings_dto import (
     ClinicClosureDto,
     ClinicClosureUpdateRequest,
     CreateClosureResponse,
+    CreateProviderAvailabilityResponse,
+    CreateProviderTimeOffResponse,
+    OnlineBookingRulesUpdateRequest,
+    ProviderAvailabilityCreateRequest,
+    ProviderAvailabilityDto,
+    ProviderTimeOffCreateRequest,
+    ProviderTimeOffDto,
     RescheduleTasksRequest,
     RescheduleTasksResponse,
     WorkingHoursDto,
@@ -167,3 +174,86 @@ async def update_working_hours(
     """
     raw_updates = [u.model_dump() for u in updates]
     return await service.update_working_hours(updates=raw_updates, user_id=current_user.id)
+
+
+@router.put("/rules", response_model=BookingSettingsResponse)
+async def update_online_booking_rules(
+    req: OnlineBookingRulesUpdateRequest,
+    current_user: User = Depends(require_admin),
+    service: BookingSettingsService = Depends(get_booking_settings_service),
+) -> BookingSettingsResponse:
+    """Updates online booking rules: slot interval minutes, min lead time hours, and advance booking days."""
+    return await service.update_online_booking_rules(
+        slot_interval_minutes=req.slotIntervalMinutes,
+        min_lead_time_hours=req.minLeadTimeHours,
+        advance_booking_days=req.advanceBookingDays,
+        user_id=current_user.id,
+    )
+
+
+@router.get("/provider-availability", response_model=List[ProviderAvailabilityDto])
+async def list_provider_availabilities(
+    teamMemberId: Optional[UUID] = Query(None),
+    service: BookingSettingsService = Depends(get_booking_settings_service),
+) -> List[ProviderAvailabilityDto]:
+    """Retrieves weekly recurring shift schedules and breaks for clinicians."""
+    return await service.list_provider_availabilities(team_member_id=teamMemberId)
+
+
+@router.post("/provider-availability", response_model=CreateProviderAvailabilityResponse)
+async def save_provider_availability(
+    req: ProviderAvailabilityCreateRequest,
+    current_user: User = Depends(require_admin),
+    service: BookingSettingsService = Depends(get_booking_settings_service),
+) -> CreateProviderAvailabilityResponse:
+    """Creates or updates a recurring clinician shift schedule. Returns affected future bookings."""
+    dto, affected = await service.save_provider_availability(req=req, user_id=current_user.id)
+    return CreateProviderAvailabilityResponse(
+        availability=dto,
+        affectedBookings=affected,
+    )
+
+
+@router.delete("/provider-availability/{avail_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_provider_availability(
+    avail_id: UUID,
+    current_user: User = Depends(require_admin),
+    service: BookingSettingsService = Depends(get_booking_settings_service),
+) -> None:
+    """Deletes a clinician shift schedule entry."""
+    await service.delete_provider_availability(avail_id=avail_id, user_id=current_user.id)
+
+
+@router.get("/provider-time-off", response_model=List[ProviderTimeOffDto])
+async def list_provider_time_off(
+    teamMemberId: Optional[UUID] = Query(None),
+    futureOnly: bool = Query(False),
+    service: BookingSettingsService = Depends(get_booking_settings_service),
+) -> List[ProviderTimeOffDto]:
+    """Retrieves scheduled time off and leaves for clinicians."""
+    return await service.list_provider_time_off(team_member_id=teamMemberId, future_only=futureOnly)
+
+
+@router.post("/provider-time-off", response_model=CreateProviderTimeOffResponse)
+async def save_provider_time_off(
+    req: ProviderTimeOffCreateRequest,
+    current_user: User = Depends(require_admin),
+    service: BookingSettingsService = Depends(get_booking_settings_service),
+) -> CreateProviderTimeOffResponse:
+    """Records clinician vacation/time off and warns with affected scheduled bookings without auto-canceling."""
+    dto, affected = await service.save_provider_time_off(req=req, user_id=current_user.id)
+    return CreateProviderTimeOffResponse(
+        timeOff=dto,
+        affectedBookings=affected,
+    )
+
+
+@router.delete("/provider-time-off/{time_off_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_provider_time_off(
+    time_off_id: UUID,
+    current_user: User = Depends(require_admin),
+    service: BookingSettingsService = Depends(get_booking_settings_service),
+) -> None:
+    """Removes a clinician time off record."""
+    await service.delete_provider_time_off(time_off_id=time_off_id, user_id=current_user.id)
+

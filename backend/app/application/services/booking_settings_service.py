@@ -10,10 +10,20 @@ from app.application.dtos.booking_settings_dto import (
     AffectedBookingDto,
     BookingSettingsResponse,
     ClinicClosureDto,
+    ProviderAvailabilityCreateRequest,
+    ProviderAvailabilityDto,
+    ProviderTimeOffCreateRequest,
+    ProviderTimeOffDto,
     PublicBookingStatusResponse,
     WorkingHoursDto,
 )
-from app.domain.models.booking_settings import BookingSettings, ClinicClosure, WorkingHours
+from app.domain.models.booking_settings import (
+    BookingSettings,
+    ClinicClosure,
+    ProviderAvailability,
+    ProviderTimeOff,
+    WorkingHours,
+)
 from app.domain.repositories.booking_repo import BookingRepository
 from app.domain.repositories.booking_settings_repo import BookingSettingsRepository
 from app.domain.repositories.organization_repo import OrganizationRepository
@@ -124,6 +134,7 @@ class BookingSettingsService:
             pauseStartedByUserId=settings.pause_started_by_user_id,
             resumeOn=settings.resume_on,
             advanceBookingDays=settings.advance_booking_days,
+            minLeadTimeHours=getattr(settings, "min_lead_time_hours", 2) or 2,
             slotIntervalMinutes=settings.slot_interval_minutes,
             isResumePassed=is_resume_passed,
         )
@@ -249,6 +260,7 @@ class BookingSettingsService:
         self,
         start_date: date,
         end_date: Optional[date] = None,
+        team_member_id: Optional[UUID] = None,
     ) -> List[AffectedBookingDto]:
         """
         Finds existing non-cancelled future bookings scheduled in the specified date window.
@@ -259,6 +271,8 @@ class BookingSettingsService:
         )
         if end_date:
             stmt = stmt.where(BookingORM.preferred_date <= end_date)
+        if team_member_id:
+            stmt = stmt.where(BookingORM.team_member_id == team_member_id)
         stmt = stmt.order_by(BookingORM.preferred_date.asc(), BookingORM.preferred_time.asc())
 
         res = await self.session.execute(stmt)
@@ -544,3 +558,200 @@ class BookingSettingsService:
             )
             for h in saved
         ]
+
+    async def update_online_booking_rules(
+        self,
+        slot_interval_minutes: int,
+        min_lead_time_hours: int,
+        advance_booking_days: int,
+        user_id: Optional[UUID] = None,
+    ) -> BookingSettingsResponse:
+        current = await self.repository.get_settings()
+        before_state = {
+            "slot_interval_minutes": current.slot_interval_minutes,
+            "min_lead_time_hours": current.min_lead_time_hours,
+            "advance_booking_days": current.advance_booking_days,
+        }
+        current.slot_interval_minutes = slot_interval_minutes
+        current.min_lead_time_hours = min_lead_time_hours
+        current.advance_booking_days = advance_booking_days
+        updated = await self.repository.update_settings(current)
+
+        await record_activity(
+            self.activity_repo,
+            action="update_online_booking_rules",
+            entity_type="clinic_booking_settings",
+            entity_id=str(updated.id),
+            user_id=user_id,
+            details={
+                "before": before_state,
+                "after": {
+                    "slot_interval_minutes": updated.slot_interval_minutes,
+                    "min_lead_time_hours": updated.min_lead_time_hours,
+                    "advance_booking_days": updated.advance_booking_days,
+                },
+            },
+        )
+        return await self.get_admin_settings()
+
+    async def list_provider_availabilities(
+        self,
+        team_member_id: Optional[UUID] = None,
+    ) -> List[ProviderAvailabilityDto]:
+        avails = await self.repository.list_provider_availabilities(team_member_id=team_member_id)
+        day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        return [
+            ProviderAvailabilityDto(
+                id=a.id,
+                teamMemberId=a.team_member_id,
+                dayOfWeek=a.day_of_week,
+                dayName=day_names[a.day_of_week] if 0 <= a.day_of_week < 7 else f"Day {a.day_of_week}",
+                startTime=a.start_time,
+                endTime=a.end_time,
+                breakStartTime=a.break_start_time,
+                breakEndTime=a.break_end_time,
+                isActive=a.is_active,
+            )
+            for a in avails
+        ]
+
+    async def save_provider_availability(
+        self,
+        req: ProviderAvailabilityCreateRequest,
+        user_id: Optional[UUID] = None,
+    ) -> Tuple[ProviderAvailabilityDto, List[AffectedBookingDto]]:
+        domain = ProviderAvailability(
+            id=uuid4(),
+            team_member_id=req.teamMemberId,
+            day_of_week=req.dayOfWeek,
+            start_time=req.startTime,
+            end_time=req.endTime,
+            break_start_time=req.breakStartTime,
+            break_end_time=req.breakEndTime,
+            is_active=req.isActive,
+        )
+        saved = await self.repository.save_provider_availability(domain)
+        today = date.today()
+        affected = await self.get_affected_bookings(start_date=today, team_member_id=req.teamMemberId)
+
+        await record_activity(
+            self.activity_repo,
+            action="save_provider_availability",
+            entity_type="provider_availability",
+            entity_id=str(saved.id),
+            user_id=user_id,
+            details={
+                "team_member_id": str(saved.team_member_id),
+                "day_of_week": saved.day_of_week,
+                "start_time": saved.start_time,
+                "end_time": saved.end_time,
+            },
+        )
+        day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        dto = ProviderAvailabilityDto(
+            id=saved.id,
+            teamMemberId=saved.team_member_id,
+            dayOfWeek=saved.day_of_week,
+            dayName=day_names[saved.day_of_week] if 0 <= saved.day_of_week < 7 else f"Day {saved.day_of_week}",
+            startTime=saved.start_time,
+            endTime=saved.end_time,
+            breakStartTime=saved.break_start_time,
+            breakEndTime=saved.break_end_time,
+            isActive=saved.is_active,
+        )
+        return dto, affected
+
+    async def delete_provider_availability(
+        self,
+        avail_id: UUID,
+        user_id: Optional[UUID] = None,
+    ) -> bool:
+        deleted = await self.repository.delete_provider_availability(avail_id)
+        if deleted:
+            await record_activity(
+                self.activity_repo,
+                action="delete_provider_availability",
+                entity_type="provider_availability",
+                entity_id=str(avail_id),
+                user_id=user_id,
+            )
+        return deleted
+
+    async def list_provider_time_off(
+        self,
+        team_member_id: Optional[UUID] = None,
+        future_only: bool = False,
+    ) -> List[ProviderTimeOffDto]:
+        items = await self.repository.list_provider_time_off(team_member_id=team_member_id, future_only=future_only)
+        return [
+            ProviderTimeOffDto(
+                id=t.id,
+                teamMemberId=t.team_member_id,
+                startDate=t.start_date,
+                endDate=t.end_date,
+                reason=t.reason,
+                isApproved=t.is_approved,
+            )
+            for t in items
+        ]
+
+    async def save_provider_time_off(
+        self,
+        req: ProviderTimeOffCreateRequest,
+        user_id: Optional[UUID] = None,
+    ) -> Tuple[ProviderTimeOffDto, List[AffectedBookingDto]]:
+        domain = ProviderTimeOff(
+            id=uuid4(),
+            team_member_id=req.teamMemberId,
+            start_date=req.startDate,
+            end_date=req.endDate,
+            reason=req.reason,
+            is_approved=req.isApproved,
+        )
+        saved = await self.repository.save_provider_time_off(domain)
+        affected = await self.get_affected_bookings(
+            start_date=req.startDate,
+            end_date=req.endDate,
+            team_member_id=req.teamMemberId,
+        )
+
+        await record_activity(
+            self.activity_repo,
+            action="save_provider_time_off",
+            entity_type="provider_time_off",
+            entity_id=str(saved.id),
+            user_id=user_id,
+            details={
+                "team_member_id": str(saved.team_member_id),
+                "start_date": saved.start_date.isoformat(),
+                "end_date": saved.end_date.isoformat(),
+                "reason": saved.reason,
+                "affected_count": len(affected),
+            },
+        )
+        dto = ProviderTimeOffDto(
+            id=saved.id,
+            teamMemberId=saved.team_member_id,
+            startDate=saved.start_date,
+            endDate=saved.end_date,
+            reason=saved.reason,
+            isApproved=saved.is_approved,
+        )
+        return dto, affected
+
+    async def delete_provider_time_off(
+        self,
+        time_off_id: UUID,
+        user_id: Optional[UUID] = None,
+    ) -> bool:
+        deleted = await self.repository.delete_provider_time_off(time_off_id)
+        if deleted:
+            await record_activity(
+                self.activity_repo,
+                action="delete_provider_time_off",
+                entity_type="provider_time_off",
+                entity_id=str(time_off_id),
+                user_id=user_id,
+            )
+        return deleted
+

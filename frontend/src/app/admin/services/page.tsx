@@ -19,7 +19,9 @@ import {
   adminGetServices,
   adminToggleServiceStatus,
   adminUpdateService,
+  getTeamMembers,
   ServiceItem,
+  TeamMember,
 } from "@/lib/api";
 
 const CATEGORIES = [
@@ -32,6 +34,7 @@ const CATEGORIES = [
 export default function AdminServicesPage() {
   const { accessToken } = useAuth();
   const [services, setServices] = useState<any[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -54,6 +57,9 @@ export default function AdminServicesPage() {
     displayOrder: 0,
     isHighlighted: false,
     isPublic: true,
+    bookableOnline: true,
+    bufferMinutes: 0,
+    providerIds: [] as string[],
   });
 
   const loadServices = async () => {
@@ -71,6 +77,9 @@ export default function AdminServicesPage() {
 
   useEffect(() => {
     loadServices();
+    getTeamMembers()
+      .then((members) => setTeamMembers(members.filter((m) => m.isActive)))
+      .catch(() => {});
   }, [accessToken]);
 
   const openAddModal = () => {
@@ -89,6 +98,9 @@ export default function AdminServicesPage() {
       displayOrder: services.length,
       isHighlighted: false,
       isPublic: true,
+      bookableOnline: true,
+      bufferMinutes: 0,
+      providerIds: [],
     });
     setShowModal(true);
   };
@@ -109,6 +121,9 @@ export default function AdminServicesPage() {
       displayOrder: service.displayOrder,
       isHighlighted: service.isHighlighted,
       isPublic: service.isPublic,
+      bookableOnline: service.bookableOnline !== false,
+      bufferMinutes: service.bufferMinutes || 0,
+      providerIds: service.providerIds || [],
     });
     setShowModal(true);
   };
@@ -132,6 +147,9 @@ export default function AdminServicesPage() {
       displayOrder: Number(form.displayOrder) || 0,
       isHighlighted: Boolean(form.isHighlighted),
       isPublic: Boolean(form.isPublic),
+      bookableOnline: Boolean(form.bookableOnline),
+      bufferMinutes: Number(form.bufferMinutes) || 0,
+      providerIds: form.providerIds,
       isActive: true,
     };
 
@@ -237,6 +255,25 @@ export default function AdminServicesPage() {
                   {svc.isHighlighted && (
                     <span className="rounded-full bg-forest text-[#FAF7F2] px-2 py-0.5 text-[10px] font-medium">
                       Featured
+                    </span>
+                  )}
+                  {svc.bookableOnline !== false ? (
+                    <span className="rounded-full bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:text-emerald-300">
+                      Online Bookable
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-gray-200 dark:bg-gray-800 px-2 py-0.5 text-[10px] font-semibold text-gray-700 dark:text-gray-300">
+                      Staff Scheduling Only
+                    </span>
+                  )}
+                  {svc.bufferMinutes > 0 && (
+                    <span className="rounded-full bg-blue-100 dark:bg-blue-950 px-2 py-0.5 text-[10px] font-semibold text-blue-800 dark:text-blue-300">
+                      +{svc.bufferMinutes}m buffer
+                    </span>
+                  )}
+                  {svc.providerIds && svc.providerIds.length > 0 && (
+                    <span className="rounded-full bg-purple-100 dark:bg-purple-950 px-2 py-0.5 text-[10px] font-semibold text-purple-800 dark:text-purple-300">
+                      {svc.providerIds.length} Clinician{svc.providerIds.length > 1 ? "s" : ""}
                     </span>
                   )}
                 </div>
@@ -428,6 +465,81 @@ export default function AdminServicesPage() {
                     />
                     <span>Show on Public Website</span>
                   </label>
+                </div>
+
+                {/* Online Booking & Clinician Assignment */}
+                <div className="rounded-xl border border-line bg-cream/40 p-4 space-y-4">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-ink-soft">
+                    Online Booking &amp; Clinician Assignment
+                  </h4>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                    <label className="flex items-center gap-2 text-xs font-medium text-ink cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={form.bookableOnline}
+                        onChange={(e) => setForm({ ...form, bookableOnline: e.target.checked })}
+                        className="rounded border-line text-forest focus:ring-forest"
+                      />
+                      <span>Allow Online Patient Booking</span>
+                    </label>
+
+                    <div>
+                      <label htmlFor="service-buffer" className="block text-[11px] font-medium text-ink mb-1">
+                        Post-Procedure Buffer Time (Minutes)
+                      </label>
+                      <input
+                        id="service-buffer"
+                        type="number"
+                        min={0}
+                        max={120}
+                        step={5}
+                        value={form.bufferMinutes}
+                        onChange={(e) => setForm({ ...form, bufferMinutes: parseInt(e.target.value, 10) || 0 })}
+                        className="w-full rounded-[var(--radius-card)] border border-line bg-bone px-3 py-1.5 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-forest"
+                      />
+                      <p className="text-[10px] text-ink-soft mt-0.5">Buffer for room sterilization &amp; chair prep.</p>
+                    </div>
+                  </div>
+
+                  {/* Clinician Multi-Select */}
+                  <div>
+                    <label className="block text-[11px] font-semibold text-ink mb-1">
+                      Assigned Clinicians (Multi-Select)
+                    </label>
+                    <p className="text-[11px] text-ink-soft mb-2">
+                      Leave empty to allow all active clinic providers to perform this service.
+                    </p>
+                    {teamMembers.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto border border-line rounded-lg p-2 bg-bone">
+                        {teamMembers.map((tm) => {
+                          const isChecked = form.providerIds.includes(tm.id);
+                          return (
+                            <label
+                              key={tm.id}
+                              className="flex items-center gap-2 text-xs text-ink p-1.5 rounded hover:bg-cream cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setForm({ ...form, providerIds: [...form.providerIds, tm.id] });
+                                  } else {
+                                    setForm({ ...form, providerIds: form.providerIds.filter((id) => id !== tm.id) });
+                                  }
+                                }}
+                                className="rounded border-line text-forest focus:ring-forest"
+                              />
+                              <span className="truncate">{tm.displayName} ({tm.professionalTitle || tm.role})</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-ink-soft italic">No active clinicians found.</p>
+                    )}
+                  </div>
                 </div>
 
                 <div className="pt-4 border-t border-line/60 flex justify-end gap-2">

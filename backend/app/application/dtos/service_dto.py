@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -20,6 +20,9 @@ class ServiceCreateRequest(BaseModel):
     isHighlighted: bool = False
     isPublic: bool = True
     isActive: bool = True
+    bookableOnline: bool = True
+    bufferMinutes: int = 0
+    providerIds: Optional[List[UUID]] = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -40,6 +43,9 @@ class ServiceUpdateRequest(BaseModel):
     isHighlighted: Optional[bool] = None
     isPublic: Optional[bool] = None
     isActive: Optional[bool] = None
+    bookableOnline: Optional[bool] = None
+    bufferMinutes: Optional[int] = None
+    providerIds: Optional[List[UUID]] = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -66,7 +72,11 @@ class ServiceResponse(BaseModel):
     isHighlighted: bool
     isActive: bool
     isPublic: bool
+    bookableOnline: bool = True
+    bufferMinutes: int = 0
+    providerIds: List[UUID] = []
     createdAt: datetime
     updatedAt: datetime
 
     model_config = ConfigDict(from_attributes=True)
+

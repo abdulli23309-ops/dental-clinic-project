@@ -1,3 +1,6 @@
+import asyncio
+from contextlib import asynccontextmanager
+import hashlib
 import random
 import re
 import string
@@ -6,6 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 
 from fastapi import HTTPException, status as http_status
+from sqlalchemy import text
 
 from app.domain.models.booking_crm import Booking, Lead, Message, Patient, Task
 from app.domain.models.appointment import Appointment, AppointmentStatus
@@ -20,6 +24,34 @@ from app.infrastructure.repositories.postgres_activity_repo import (
     PostgresActivityLogRepository,
     record_activity,
 )
+
+_SCHEDULE_MUTEXES: Dict[str, asyncio.Lock] = {}
+_MUTEX_REGISTRY_LOCK = asyncio.Lock()
+
+
+async def _get_schedule_mutex(team_member_id: UUID, preferred_date: date) -> asyncio.Lock:
+    key = f"{team_member_id}:{preferred_date.isoformat()}"
+    async with _MUTEX_REGISTRY_LOCK:
+        if key not in _SCHEDULE_MUTEXES:
+            _SCHEDULE_MUTEXES[key] = asyncio.Lock()
+        return _SCHEDULE_MUTEXES[key]
+
+
+@asynccontextmanager
+async def _acquire_schedule_lock(booking_repo: Any, team_member_id: Optional[UUID], preferred_date: Optional[date]):
+    if not team_member_id or not preferred_date:
+        yield
+        return
+    mutex = await _get_schedule_mutex(team_member_id, preferred_date)
+    async with mutex:
+        session = getattr(booking_repo, "_session", None)
+        if session is not None and getattr(session, "bind", None) is not None:
+            dialect = getattr(session.bind, "dialect", None)
+            if dialect is not None and dialect.name == "postgresql":
+                raw_key = f"marlow_schedule:{team_member_id}:{preferred_date.isoformat()}".encode("utf-8")
+                lock_id = int.from_bytes(hashlib.sha256(raw_key).digest()[:8], byteorder="big", signed=True)
+                await session.execute(text("SELECT pg_advisory_xact_lock(:lock_id)"), {"lock_id": lock_id})
+        yield
 
 
 def generate_booking_confirmation_id() -> str:
@@ -289,67 +321,68 @@ class ReceptionService:
         normalized_status = self.NORMALIZE_STATUS.get(status, status)
 
         conflict = None
-        if team_member_id and preferred_time and normalized_status not in ("cancelled", "no_show", "waitlist"):
-            conflict = await self.check_booking_overlap(
-                team_member_id=team_member_id,
-                preferred_date=preferred_date,
-                preferred_time=preferred_time,
-                service_id=service_id,
-            )
-            if conflict:
-                if not override_double_booking:
-                    raise HTTPException(
-                        status_code=http_status.HTTP_409_CONFLICT,
-                        detail=f"Double-booking conflict: Clinician already has an appointment scheduled at {conflict.preferred_time}.",
-                    )
-                if not override_reason or not override_reason.strip():
-                    raise HTTPException(
-                        status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
-                        detail="Override reason is required to override double-booking.",
-                    )
+        async with _acquire_schedule_lock(self.booking_repo, team_member_id, preferred_date):
+            if team_member_id and preferred_time and normalized_status not in ("cancelled", "no_show", "waitlist"):
+                conflict = await self.check_booking_overlap(
+                    team_member_id=team_member_id,
+                    preferred_date=preferred_date,
+                    preferred_time=preferred_time,
+                    service_id=service_id,
+                )
+                if conflict:
+                    if not override_double_booking:
+                        raise HTTPException(
+                            status_code=http_status.HTTP_409_CONFLICT,
+                            detail=f"Double-booking conflict: Clinician already has an appointment scheduled at {conflict.preferred_time}.",
+                        )
+                    if not override_reason or not override_reason.strip():
+                        raise HTTPException(
+                            status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail="Override reason is required to override double-booking.",
+                        )
 
-        # If patient_id not provided, find or create patient record
-        if not patient_id:
-            dups = await self.patient_repo.find_duplicates(
-                first_name=patient_full_name.split()[0],
-                last_name=" ".join(patient_full_name.split()[1:]) if len(patient_full_name.split()) > 1 else "",
-                phone=patient_phone,
-                email=patient_email,
-                clinic_id=clinic_id,
-            )
-            if dups:
-                patient_id = dups[0].id
-            else:
-                names = patient_full_name.split()
-                first = names[0] if names else "Patient"
-                last = " ".join(names[1:]) if len(names) > 1 else "Unknown"
-                new_pat = Patient(
-                    first_name=first,
-                    last_name=last,
+            # If patient_id not provided, find or create patient record
+            if not patient_id:
+                dups = await self.patient_repo.find_duplicates(
+                    first_name=patient_full_name.split()[0],
+                    last_name=" ".join(patient_full_name.split()[1:]) if len(patient_full_name.split()) > 1 else "",
                     phone=patient_phone,
                     email=patient_email,
                     clinic_id=clinic_id,
                 )
-                saved_pat = await self.patient_repo.save(new_pat)
-                patient_id = saved_pat.id
+                if dups:
+                    patient_id = dups[0].id
+                else:
+                    names = patient_full_name.split()
+                    first = names[0] if names else "Patient"
+                    last = " ".join(names[1:]) if len(names) > 1 else "Unknown"
+                    new_pat = Patient(
+                        first_name=first,
+                        last_name=last,
+                        phone=patient_phone,
+                        email=patient_email,
+                        clinic_id=clinic_id,
+                    )
+                    saved_pat = await self.patient_repo.save(new_pat)
+                    patient_id = saved_pat.id
 
-        booking = Booking(
-            confirmation_id=generate_booking_confirmation_id(),
-            preferred_date=preferred_date,
-            preferred_time=preferred_time,
-            patient_full_name=patient_full_name,
-            patient_phone=patient_phone,
-            patient_email=patient_email,
-            clinic_id=clinic_id,
-            patient_id=patient_id,
-            service_id=service_id,
-            team_member_id=team_member_id,
-            slot_id=slot_id,
-            status=normalized_status,
-            notes=notes,
-            staff_notes=staff_notes,
-        )
-        saved_booking = await self.booking_repo.save(booking)
+            booking = Booking(
+                confirmation_id=generate_booking_confirmation_id(),
+                preferred_date=preferred_date,
+                preferred_time=preferred_time,
+                patient_full_name=patient_full_name,
+                patient_phone=patient_phone,
+                patient_email=patient_email,
+                clinic_id=clinic_id,
+                patient_id=patient_id,
+                service_id=service_id,
+                team_member_id=team_member_id,
+                slot_id=slot_id,
+                status=normalized_status,
+                notes=notes,
+                staff_notes=staff_notes,
+            )
+            saved_booking = await self.booking_repo.save(booking)
 
         if conflict and override_double_booking:
             await record_activity(
@@ -517,36 +550,37 @@ class ReceptionService:
         effective_team_member = team_member_id or booking.team_member_id
         effective_service = booking.service_id
         conflict = None
-        if effective_team_member and preferred_time:
-            conflict = await self.check_booking_overlap(
-                team_member_id=effective_team_member,
-                preferred_date=preferred_date,
-                preferred_time=preferred_time,
-                service_id=effective_service,
-                exclude_booking_id=booking.id,
-            )
-            if conflict:
-                if not override_double_booking:
-                    raise HTTPException(
-                        status_code=http_status.HTTP_409_CONFLICT,
-                        detail=f"Double-booking conflict: Clinician already has an appointment scheduled at {conflict.preferred_time}.",
-                    )
-                if not override_reason or not override_reason.strip():
-                    raise HTTPException(
-                        status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
-                        detail="Override reason is required to override double-booking.",
-                    )
+        async with _acquire_schedule_lock(self.booking_repo, effective_team_member, preferred_date):
+            if effective_team_member and preferred_time:
+                conflict = await self.check_booking_overlap(
+                    team_member_id=effective_team_member,
+                    preferred_date=preferred_date,
+                    preferred_time=preferred_time,
+                    service_id=effective_service,
+                    exclude_booking_id=booking.id,
+                )
+                if conflict:
+                    if not override_double_booking:
+                        raise HTTPException(
+                            status_code=http_status.HTTP_409_CONFLICT,
+                            detail=f"Double-booking conflict: Clinician already has an appointment scheduled at {conflict.preferred_time}.",
+                        )
+                    if not override_reason or not override_reason.strip():
+                        raise HTTPException(
+                            status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail="Override reason is required to override double-booking.",
+                        )
 
-        booking.preferred_date = preferred_date
-        booking.preferred_time = preferred_time
-        if team_member_id:
-            booking.team_member_id = team_member_id
-        if slot_id:
-            booking.slot_id = slot_id
-        if staff_notes:
-            booking.staff_notes = staff_notes
-        booking.status = "confirmed"
-        saved_booking = await self.booking_repo.save(booking)
+            booking.preferred_date = preferred_date
+            booking.preferred_time = preferred_time
+            if team_member_id:
+                booking.team_member_id = team_member_id
+            if slot_id:
+                booking.slot_id = slot_id
+            if staff_notes:
+                booking.staff_notes = staff_notes
+            booking.status = "confirmed"
+            saved_booking = await self.booking_repo.save(booking)
 
         if conflict and override_double_booking:
             await record_activity(

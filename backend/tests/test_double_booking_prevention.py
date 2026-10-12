@@ -250,3 +250,46 @@ async def test_reschedule_double_booking_prevention(receptionist_auth, test_sess
     assert r_ok.status_code == 200
     assert r_ok.json()["preferredTime"] == "11:15 AM"
 
+
+@pytest.mark.asyncio
+async def test_concurrent_double_booking_race_safety(receptionist_auth, test_session):
+    import asyncio
+    client = receptionist_auth["client"]
+    headers = receptionist_auth["headers"]
+
+    team_member_id = uuid4()
+    today = date.today()
+
+    payload_1 = {
+        "patientFullName": "Concurrent Patient A",
+        "patientPhone": "5551117777",
+        "patientEmail": "conc_a@example.com",
+        "preferredDate": today.isoformat(),
+        "preferredTime": "01:00 PM",
+        "teamMemberId": str(team_member_id),
+        "status": "confirmed",
+    }
+    payload_2 = {
+        "patientFullName": "Concurrent Patient B",
+        "patientPhone": "5551118888",
+        "patientEmail": "conc_b@example.com",
+        "preferredDate": today.isoformat(),
+        "preferredTime": "01:00 PM",
+        "teamMemberId": str(team_member_id),
+        "status": "confirmed",
+    }
+
+    # Fire two booking requests concurrently
+    resp1, resp2 = await asyncio.gather(
+        client.post("/api/v1/reception/appointments", json=payload_1, headers=headers),
+        client.post("/api/v1/reception/appointments", json=payload_2, headers=headers),
+    )
+
+    statuses = [resp1.status_code, resp2.status_code]
+    # Exactly one must succeed (201) and one must be rejected with conflict (409)
+    assert 201 in statuses
+    assert 409 in statuses
+
+    conflict_resp = resp1 if resp1.status_code == 409 else resp2
+    assert "Double-booking conflict" in conflict_resp.json()["detail"]
+

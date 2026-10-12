@@ -1,5 +1,12 @@
+import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
+
+# Ensure project root is on sys.path when executed directly (e.g. python app/main.py)
+_BACKEND_ROOT = str(Path(__file__).resolve().parent.parent)
+if _BACKEND_ROOT not in sys.path:
+    sys.path.insert(0, _BACKEND_ROOT)
+
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -83,3 +90,9 @@ app.include_router(api_v1_router, prefix=settings.API_V1_PREFIX)
 
 # Root health check alias
 app.add_api_route("/health", health_check, methods=["GET"], tags=["Health"], summary="Root Health Check")
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
+

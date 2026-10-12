@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.services.announcement_service import AnnouncementService
 from app.application.services.appointment_service import AppointmentService
 from app.application.services.auth_service import AuthService
+from app.application.services.availability_service import AvailabilityService
 from app.application.services.booking_settings_service import BookingSettingsService
 from app.application.services.cms_service import CmsService
 from app.application.services.dental_chart_service import DentalChartService
@@ -190,6 +191,16 @@ def get_storage_service() -> StorageService:
     return LocalStorageService()
 
 
+def get_availability_service(
+    repo: BookingSettingsRepository = Depends(get_booking_settings_repository),
+    session: AsyncSession = Depends(get_db_session),
+) -> AvailabilityService:
+    return AvailabilityService(
+        booking_settings_repo=repo,
+        session=session,
+    )
+
+
 # --- Application Services ---
 
 def get_appointment_service(
@@ -197,8 +208,15 @@ def get_appointment_service(
     booking_repo: BookingRepository = Depends(get_booking_repository),
     patient_repo: PatientRepository = Depends(get_patient_repository),
     booking_settings_repo: BookingSettingsRepository = Depends(get_booking_settings_repository),
+    availability_service: AvailabilityService = Depends(get_availability_service),
 ) -> AppointmentService:
-    return AppointmentService(repository, booking_repo, patient_repo, booking_settings_repo)
+    return AppointmentService(
+        repository,
+        booking_repo,
+        patient_repo,
+        booking_settings_repo,
+        availability_service,
+    )
 
 
 def get_auth_service(
@@ -218,8 +236,9 @@ def get_team_service(
 
 def get_service_service(
     service_repo: ServiceRepository = Depends(get_service_repository),
+    booking_settings_repo: BookingSettingsRepository = Depends(get_booking_settings_repository),
 ) -> ServiceService:
-    return ServiceService(service_repo)
+    return ServiceService(service_repo, booking_settings_repo)
 
 
 def get_cms_service(

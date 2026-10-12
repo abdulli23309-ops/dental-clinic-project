@@ -3,7 +3,14 @@ from datetime import date
 from typing import List, Optional
 from uuid import UUID
 
-from app.domain.models.booking_settings import BookingSettings, ClinicClosure, WorkingHours
+from app.domain.models.booking_settings import (
+    BookingSettings,
+    ClinicClosure,
+    ProviderAvailability,
+    ProviderTimeOff,
+    ServiceProviderLink,
+    WorkingHours,
+)
 
 
 class BookingSettingsRepository(ABC):
@@ -42,3 +49,36 @@ class BookingSettingsRepository(ABC):
     @abstractmethod
     async def delete_closure(self, closure_id: UUID) -> bool:
         pass
+
+    @abstractmethod
+    async def list_provider_availabilities(self, team_member_id: Optional[UUID] = None) -> List[ProviderAvailability]:
+        pass
+
+    @abstractmethod
+    async def save_provider_availability(self, avail: ProviderAvailability) -> ProviderAvailability:
+        pass
+
+    @abstractmethod
+    async def delete_provider_availability(self, avail_id: UUID) -> bool:
+        pass
+
+    @abstractmethod
+    async def list_provider_time_off(self, team_member_id: Optional[UUID] = None, future_only: bool = False) -> List[ProviderTimeOff]:
+        pass
+
+    @abstractmethod
+    async def save_provider_time_off(self, time_off: ProviderTimeOff) -> ProviderTimeOff:
+        pass
+
+    @abstractmethod
+    async def delete_provider_time_off(self, time_off_id: UUID) -> bool:
+        pass
+
+    @abstractmethod
+    async def list_service_providers(self, service_id: Optional[UUID] = None, team_member_id: Optional[UUID] = None) -> List[ServiceProviderLink]:
+        pass
+
+    @abstractmethod
+    async def set_service_providers(self, service_id: UUID, team_member_ids: List[UUID]) -> None:
+        pass
+

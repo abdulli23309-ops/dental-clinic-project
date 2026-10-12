@@ -1,8 +1,12 @@
-from typing import List
-from fastapi import APIRouter, Depends
+from datetime import date, datetime
+from typing import List, Optional
+from uuid import UUID
+from zoneinfo import ZoneInfo
+from fastapi import APIRouter, Depends, Query
 
 from app.api.deps import (
     get_announcement_service,
+    get_availability_service,
     get_booking_settings_service,
     get_cms_service,
     get_organization_service,
@@ -11,9 +15,11 @@ from app.api.deps import (
 )
 from app.application.dtos.announcement_dto import AnnouncementResponse
 from app.application.dtos.booking_settings_dto import (
+    PublicAvailabilityResponse,
     PublicBookingStatusResponse,
     WorkingHoursDto,
 )
+from app.application.services.availability_service import AvailabilityService
 from app.application.dtos.cms_dto import FaqResponse, PublicCmsResponse
 from app.application.dtos.organization_dto import LocationResponse, OrganizationResponse
 from app.application.dtos.service_dto import ServiceResponse
@@ -59,6 +65,8 @@ async def get_public_services(
             isHighlighted=s.is_highlighted,
             isActive=s.is_active,
             isPublic=s.is_public,
+            bookableOnline=getattr(s, "bookable_online", True),
+            bufferMinutes=getattr(s, "buffer_minutes", 0),
             createdAt=s.created_at,
             updatedAt=s.updated_at,
         )
@@ -202,6 +210,35 @@ async def get_public_booking_schedule(
 ):
     """Consolidated schedule configuration for date-pickers: working hours, closures, and advance window."""
     return await booking_settings_service.get_public_schedule()
+
+
+@router.get("/availability", response_model=PublicAvailabilityResponse)
+async def get_public_availability(
+    date: Optional[date] = Query(None, description="Requested booking date (YYYY-MM-DD)"),
+    serviceId: Optional[str] = Query(None, description="Optional service ID or slug"),
+    teamMemberId: Optional[UUID] = Query(None, description="Optional clinician ID"),
+    avail_service: AvailabilityService = Depends(get_availability_service),
+) -> PublicAvailabilityResponse:
+    """
+    Computes real-time available booking slots based on clinic working hours,
+    breaks, planned closures, approved clinician leaves, service durations and buffers,
+    lead times, advance booking windows, and existing bookings in Asia/Karachi timezone.
+    Never exposes personal patient or doctor information.
+    """
+    target_date = date or datetime.now(ZoneInfo("Asia/Karachi")).date()
+    slots = await avail_service.get_available_slots(
+        target_date=target_date,
+        service_id=serviceId,
+        team_member_id=teamMemberId,
+    )
+    return PublicAvailabilityResponse(
+        date=target_date,
+        serviceId=serviceId,
+        teamMemberId=teamMemberId,
+        timezone="Asia/Karachi",
+        slots=slots,
+    )
+
 
 
 

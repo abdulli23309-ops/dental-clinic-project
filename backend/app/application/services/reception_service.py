@@ -30,8 +30,8 @@ _SCHEDULE_MUTEXES: Dict[str, asyncio.Lock] = {}
 _MUTEX_REGISTRY_LOCK = asyncio.Lock()
 
 
-async def _get_schedule_mutex(team_member_id: UUID, preferred_date: date) -> asyncio.Lock:
-    key = f"{team_member_id}:{preferred_date.isoformat()}"
+async def _get_schedule_mutex(team_member_id: Optional[UUID], preferred_date: date) -> asyncio.Lock:
+    key = f"{team_member_id or 'all'}:{preferred_date.isoformat()}"
     async with _MUTEX_REGISTRY_LOCK:
         if key not in _SCHEDULE_MUTEXES:
             _SCHEDULE_MUTEXES[key] = asyncio.Lock()
@@ -40,7 +40,7 @@ async def _get_schedule_mutex(team_member_id: UUID, preferred_date: date) -> asy
 
 @asynccontextmanager
 async def _acquire_schedule_lock(booking_repo: Any, team_member_id: Optional[UUID], preferred_date: Optional[date]):
-    if not team_member_id or not preferred_date:
+    if not preferred_date:
         yield
         return
     mutex = await _get_schedule_mutex(team_member_id, preferred_date)
@@ -49,7 +49,8 @@ async def _acquire_schedule_lock(booking_repo: Any, team_member_id: Optional[UUI
         if session is not None and getattr(session, "bind", None) is not None:
             dialect = getattr(session.bind, "dialect", None)
             if dialect is not None and dialect.name == "postgresql":
-                raw_key = f"marlow_schedule:{team_member_id}:{preferred_date.isoformat()}".encode("utf-8")
+                provider_part = str(team_member_id) if team_member_id else "all"
+                raw_key = f"marlow_schedule:{provider_part}:{preferred_date.isoformat()}".encode("utf-8")
                 lock_id = int.from_bytes(hashlib.sha256(raw_key).digest()[:8], byteorder="big", signed=True)
                 await session.execute(text("SELECT pg_advisory_xact_lock(:lock_id)"), {"lock_id": lock_id})
         yield

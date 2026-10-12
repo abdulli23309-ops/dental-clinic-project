@@ -873,6 +873,16 @@ class ServiceORM(Base):
         nullable=False,
         default=True,
     )
+    bookable_online: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+    buffer_minutes: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -2117,10 +2127,15 @@ class ClinicBookingSettingsORM(Base):
         nullable=False,
         default=60,
     )
+    min_lead_time_hours: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=2,
+    )
     slot_interval_minutes: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
-        default=30,
+        default=15,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -2183,4 +2198,137 @@ class ClinicClosureORM(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+
+
+class ProviderAvailabilityORM(Base):
+    """
+    Stores working hours and breaks for clinicians.
+    """
+    __tablename__ = "provider_availability"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    team_member_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("team_members.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    day_of_week: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+    )
+    start_time: Mapped[str] = mapped_column(
+        String(10),
+        nullable=False,
+    )
+    end_time: Mapped[str] = mapped_column(
+        String(10),
+        nullable=False,
+    )
+    break_start_time: Mapped[Optional[str]] = mapped_column(
+        String(10),
+        nullable=True,
+    )
+    break_end_time: Mapped[Optional[str]] = mapped_column(
+        String(10),
+        nullable=True,
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class ProviderTimeOffORM(Base):
+    """
+    Stores planned leaves, vacations, or sick leaves for clinicians.
+    """
+    __tablename__ = "provider_time_off"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    team_member_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("team_members.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    start_date: Mapped[date] = mapped_column(
+        Date,
+        nullable=False,
+    )
+    end_date: Mapped[date] = mapped_column(
+        Date,
+        nullable=False,
+    )
+    reason: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+    is_approved: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class ServiceProviderORM(Base):
+    """
+    Associates which clinicians provide which services.
+    """
+    __tablename__ = "service_providers"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    service_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("services.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    team_member_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("team_members.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
 

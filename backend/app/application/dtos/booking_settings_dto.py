@@ -70,7 +70,8 @@ class BookingSettingsResponse(BaseModel):
     pauseStartedByUserId: Optional[UUID] = None
     resumeOn: Optional[date] = None
     advanceBookingDays: int
-    slotIntervalMinutes: int
+    minLeadTimeHours: int = 2
+    slotIntervalMinutes: int = 15
     isResumePassed: bool = False
 
 
@@ -97,3 +98,72 @@ class RescheduleTasksRequest(BaseModel):
 class RescheduleTasksResponse(BaseModel):
     tasksCreated: int
     taskIds: List[UUID]
+
+
+class OnlineBookingRulesUpdateRequest(BaseModel):
+    slotIntervalMinutes: int = Field(default=15, ge=5, le=120)
+    minLeadTimeHours: int = Field(default=2, ge=0, le=48)
+    advanceBookingDays: int = Field(default=60, ge=1, le=365)
+
+
+class ProviderAvailabilityDto(BaseModel):
+    id: UUID
+    teamMemberId: UUID
+    dayOfWeek: int
+    dayName: str
+    startTime: str
+    endTime: str
+    breakStartTime: Optional[str] = None
+    breakEndTime: Optional[str] = None
+    isActive: bool
+
+
+class ProviderAvailabilityCreateRequest(BaseModel):
+    teamMemberId: UUID
+    dayOfWeek: int
+    startTime: str
+    endTime: str
+    breakStartTime: Optional[str] = None
+    breakEndTime: Optional[str] = None
+    isActive: bool = True
+
+
+class ProviderTimeOffDto(BaseModel):
+    id: UUID
+    teamMemberId: UUID
+    startDate: date
+    endDate: date
+    reason: str
+    isApproved: bool
+
+
+class ProviderTimeOffCreateRequest(BaseModel):
+    teamMemberId: UUID
+    startDate: date
+    endDate: date
+    reason: str
+    isApproved: bool = True
+
+
+class SetServiceProvidersRequest(BaseModel):
+    teamMemberIds: List[UUID]
+
+
+class PublicAvailabilityResponse(BaseModel):
+    date: date
+    serviceId: Optional[str] = None
+    teamMemberId: Optional[UUID] = None
+    timezone: str = "Asia/Karachi"
+    slots: List[str]
+
+
+class CreateProviderTimeOffResponse(BaseModel):
+    timeOff: ProviderTimeOffDto
+    affectedBookings: List[AffectedBookingDto]
+
+
+class CreateProviderAvailabilityResponse(BaseModel):
+    availability: ProviderAvailabilityDto
+    affectedBookings: List[AffectedBookingDto]
+
+

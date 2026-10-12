@@ -8,10 +8,12 @@ from uuid import uuid4
 
 from app.api.deps import (
     get_appointment_repository,
+    get_availability_service,
     get_booking_repository,
     get_patient_repository,
     get_booking_settings_repository,
 )
+from app.application.services.availability_service import AvailabilityService
 from app.domain.models.appointment import Appointment
 from app.domain.models.booking_settings import BookingSettings, WorkingHours
 from app.domain.repositories.appointment_repo import AppointmentRepository
@@ -43,10 +45,14 @@ def mock_appointment_repo():
     ]
     mock_settings_repo.list_closures.return_value = []
 
+    mock_avail_service = AsyncMock(spec=AvailabilityService)
+    mock_avail_service.is_slot_available.return_value = True
+
     app.dependency_overrides[get_appointment_repository] = lambda: mock_repo
     app.dependency_overrides[get_booking_repository] = lambda: mock_booking_repo
     app.dependency_overrides[get_patient_repository] = lambda: mock_patient_repo
     app.dependency_overrides[get_booking_settings_repository] = lambda: mock_settings_repo
+    app.dependency_overrides[get_availability_service] = lambda: mock_avail_service
     yield mock_repo
     app.dependency_overrides.clear()
 

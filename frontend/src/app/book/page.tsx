@@ -27,13 +27,12 @@ import {
   getServices,
   fetchPublicBookingStatus,
   fetchPublicBookingSchedule,
+  getPublicAvailability,
   PublicBookingStatus,
   BookingScheduleData,
 } from "@/lib/api";
 import { formatPrice } from "@/lib/currency";
 import { usePublicContent } from "@/components/providers/public-content-provider";
-
-const TIME_SLOTS = ["8:30 AM", "10:00 AM", "11:30 AM", "1:30 PM", "3:00 PM", "4:30 PM"];
 
 type WizardStep = 0 | 1 | 2 | 3;
 
@@ -61,7 +60,12 @@ function BookingWizard() {
   const [step, setStep] = useState<WizardStep>(initialStep);
   const [service, setService] = useState<string>(preselectedService || "cleanings-exams");
   const [date, setDate] = useState<string>("");
-  const [time, setTime] = useState<string>("10:00 AM");
+  const [time, setTime] = useState<string>("");
+
+  // Dynamic slot availability
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState<boolean>(false);
+  const [slotError, setSlotError] = useState<string | null>(null);
 
   // Booking Availability & Schedule Constraints
   const [bookingStatus, setBookingStatus] = useState<PublicBookingStatus>({ mode: "open" });
@@ -185,6 +189,49 @@ function BookingWizard() {
     return { available: true, reason: "" };
   };
 
+  // Fetch dynamic available slots from availability engine when date or service changes
+  useEffect(() => {
+    if (!date) {
+      setAvailableSlots([]);
+      setTime("");
+      return;
+    }
+
+    const dateCheck = getDateAvailability(date);
+    if (!dateCheck.available) {
+      setAvailableSlots([]);
+      setTime("");
+      return;
+    }
+
+    let isCurrent = true;
+    setLoadingSlots(true);
+    setSlotError(null);
+
+    getPublicAvailability({ date, serviceId: service })
+      .then((data) => {
+        if (!isCurrent) return;
+        const slots = data?.slots || [];
+        setAvailableSlots(slots);
+        setTime((prev) => (slots.includes(prev) ? prev : slots[0] || ""));
+      })
+      .catch(() => {
+        if (!isCurrent) return;
+        setAvailableSlots([]);
+        setTime("");
+        setSlotError("Unable to retrieve available time slots. Please select another date or contact our clinic.");
+      })
+      .finally(() => {
+        if (isCurrent) {
+          setLoadingSlots(false);
+        }
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [date, service, scheduleData]);
+
   /** Updates active wizard step */
   const updateStep = (nextStep: WizardStep) => {
     setStep(nextStep);
@@ -300,6 +347,18 @@ function BookingWizard() {
           ? err.message
           : "Unable to submit your appointment request. Please check your connection or contact our clinic directly.";
       setSubmitError(message);
+      // Refresh available slots in case the selected slot was taken by another user
+      if (date) {
+        getPublicAvailability({ date, serviceId: service })
+          .then((data) => {
+            const slots = data?.slots || [];
+            setAvailableSlots(slots);
+            if (!slots.includes(time)) {
+              setTime(slots[0] || "");
+            }
+          })
+          .catch(() => {});
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -555,25 +614,40 @@ function BookingWizard() {
                       <label className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-soft/80 mb-2">
                         Preferred Time Slot (12-Hour Asia/Karachi)
                       </label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {TIME_SLOTS.map((slot) => {
-                          const isSelected = time === slot;
-                          return (
-                            <button
-                              key={slot}
-                              type="button"
-                              onClick={() => setTime(slot)}
-                              className={`rounded-[var(--radius-card)] border py-2.5 text-xs font-mono font-medium transition-all cursor-pointer ${
-                                isSelected
-                                  ? "border-forest bg-forest text-[#FAF7F2]"
-                                  : "border-line bg-cream hover:border-forest/40 text-ink"
-                              }`}
-                            >
-                              {slot}
-                            </button>
-                          );
-                        })}
-                      </div>
+                      {loadingSlots ? (
+                        <div className="flex items-center justify-center p-8 rounded-[var(--radius-card)] border border-line bg-cream/40">
+                          <div className="h-5 w-5 animate-spin rounded-full border-2 border-forest border-t-transparent mr-2" />
+                          <span className="text-xs text-ink-soft">Checking clinic availability...</span>
+                        </div>
+                      ) : availableSlots.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1">
+                          {availableSlots.map((slot) => {
+                            const isSelected = time === slot;
+                            return (
+                              <button
+                                key={slot}
+                                type="button"
+                                onClick={() => setTime(slot)}
+                                className={`rounded-[var(--radius-card)] border py-2.5 text-xs font-mono font-medium transition-all cursor-pointer ${
+                                  isSelected
+                                    ? "border-forest bg-forest text-[#FAF7F2]"
+                                    : "border-line bg-cream hover:border-forest/40 text-ink"
+                                }`}
+                              >
+                                {slot}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="rounded-xl border border-line bg-cream/60 p-5 text-center">
+                          <Clock className="h-5 w-5 text-ink-soft mx-auto mb-1.5 opacity-60" />
+                          <p className="text-xs font-medium text-ink">No appointment slots available</p>
+                          <p className="text-[11px] text-ink-soft mt-0.5">
+                            {slotError || "All slots are reserved for this date. Please select another day."}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -585,7 +659,7 @@ function BookingWizard() {
                     <Button
                       variant="primary"
                       onClick={handleNext}
-                      disabled={!currentDateAvailability.available}
+                      disabled={!currentDateAvailability.available || !time || loadingSlots || availableSlots.length === 0}
                     >
                       <span>Continue to Details</span>
                       <ArrowRight className="h-4 w-4 ml-1" />

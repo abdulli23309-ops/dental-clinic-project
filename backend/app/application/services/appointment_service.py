@@ -15,6 +15,8 @@ from app.domain.repositories.appointment_repo import AppointmentRepository
 from app.domain.repositories.booking_repo import BookingRepository
 from app.domain.repositories.booking_settings_repo import BookingSettingsRepository
 from app.domain.repositories.patient_repo import PatientRepository
+from app.application.services.reception_service import _acquire_schedule_lock
+from app.application.services.availability_service import AvailabilityService
 
 
 class AppointmentService:
@@ -32,12 +34,14 @@ class AppointmentService:
         booking_repo: Optional[BookingRepository] = None,
         patient_repo: Optional[PatientRepository] = None,
         booking_settings_repo: Optional[BookingSettingsRepository] = None,
+        availability_service: Optional[AvailabilityService] = None,
     ) -> None:
         """Stores repositories for appointments, canonical bookings, patient charts, and clinic availability rules."""
         self._repository = repository
         self._booking_repo = booking_repo
         self._patient_repo = patient_repo
         self._booking_settings_repo = booking_settings_repo
+        self._availability_service = availability_service
 
     @staticmethod
     def generate_confirmation_id() -> str:
@@ -94,86 +98,101 @@ class AppointmentService:
                         detail=f"Clinic is closed on {parsed_date.isoformat()}{closure_reason}.",
                     )
 
-        # Attempt creation with up to 2 retries on confirmation_id unique constraint collision
-        max_attempts = 3
-        for attempt in range(max_attempts):
-            confirmation_id = self.generate_confirmation_id()
-            patient_id = None
-
-            # Deduplicate or create patient record if patient repository is wired
-            if self._patient_repo is not None:
-                names = request.fullName.strip().split()
-                first = names[0] if names else "Patient"
-                last = " ".join(names[1:]) if len(names) > 1 else "Unknown"
-                dups = await self._patient_repo.find_duplicates(
-                    first_name=first,
-                    last_name=last,
-                    phone=request.phone.strip(),
-                    email=request.email.strip().lower() if request.email else None,
+        # Enforce advisory lock and availability validation
+        async with _acquire_schedule_lock(self._booking_repo, None, parsed_date):
+            if self._availability_service is not None:
+                is_available = await self._availability_service.is_slot_available(
+                    target_date=parsed_date,
+                    time_str=request.preferredTime,
+                    service_id=request.serviceId,
+                    team_member_id=None,
                 )
-                if dups:
-                    patient_id = dups[0].id
-                else:
-                    new_pat = Patient(
+                if not is_available:
+                    raise HTTPException(
+                        status_code=http_status.HTTP_409_CONFLICT,
+                        detail="Double-booking conflict: The selected time slot is no longer available. Please select another slot.",
+                    )
+
+            # Attempt creation with up to 2 retries on confirmation_id unique constraint collision
+            max_attempts = 3
+            for attempt in range(max_attempts):
+                confirmation_id = self.generate_confirmation_id()
+                patient_id = None
+
+                # Deduplicate or create patient record if patient repository is wired
+                if self._patient_repo is not None:
+                    names = request.fullName.strip().split()
+                    first = names[0] if names else "Patient"
+                    last = " ".join(names[1:]) if len(names) > 1 else "Unknown"
+                    dups = await self._patient_repo.find_duplicates(
                         first_name=first,
                         last_name=last,
                         phone=request.phone.strip(),
                         email=request.email.strip().lower() if request.email else None,
                     )
-                    saved_pat = await self._patient_repo.save(new_pat)
-                    patient_id = saved_pat.id
+                    if dups:
+                        patient_id = dups[0].id
+                    else:
+                        new_pat = Patient(
+                            first_name=first,
+                            last_name=last,
+                            phone=request.phone.strip(),
+                            email=request.email.strip().lower() if request.email else None,
+                        )
+                        saved_pat = await self._patient_repo.save(new_pat)
+                        patient_id = saved_pat.id
 
-            # Create canonical booking record for reception intake triage queue
-            if self._booking_repo is not None:
-                booking = Booking(
+                # Create canonical booking record for reception intake triage queue
+                if self._booking_repo is not None:
+                    booking = Booking(
+                        confirmation_id=confirmation_id,
+                        preferred_date=parsed_date,
+                        preferred_time=request.preferredTime,
+                        patient_full_name=request.fullName.strip(),
+                        patient_phone=request.phone.strip(),
+                        patient_email=request.email.strip().lower() if request.email else "",
+                        service_id=request.serviceId,
+                        patient_id=patient_id,
+                        status="requested",
+                        notes=request.notes,
+                        utm_source=request.utmSource,
+                        utm_campaign=request.utmCampaign,
+                    )
+                    await self._booking_repo.save(booking)
+
+                appointment = Appointment(
                     confirmation_id=confirmation_id,
+                    service_id=request.serviceId,
                     preferred_date=parsed_date,
                     preferred_time=request.preferredTime,
-                    patient_full_name=request.fullName.strip(),
-                    patient_phone=request.phone.strip(),
-                    patient_email=request.email.strip().lower() if request.email else "",
-                    service_id=request.serviceId,
-                    patient_id=patient_id,
-                    status="requested",
+                    patient_full_name=request.fullName,
+                    patient_phone=request.phone,
+                    patient_email=request.email,
                     notes=request.notes,
                     utm_source=request.utmSource,
                     utm_campaign=request.utmCampaign,
                 )
-                await self._booking_repo.save(booking)
 
-            appointment = Appointment(
-                confirmation_id=confirmation_id,
-                service_id=request.serviceId,
-                preferred_date=parsed_date,
-                preferred_time=request.preferredTime,
-                patient_full_name=request.fullName,
-                patient_phone=request.phone,
-                patient_email=request.email,
-                notes=request.notes,
-                utm_source=request.utmSource,
-                utm_campaign=request.utmCampaign,
-            )
+                try:
+                    saved = await self._repository.save(appointment)
+                    # PHI-Safe Logging: Never log patient name, phone, email, notes, or insurance details
+                    logger.info(
+                        "Appointment request created: confirmation_id=%s, service=%s, date=%s",
+                        saved.confirmation_id,
+                        saved.service_id,
+                        saved.preferred_date.isoformat(),
+                    )
 
+                    return AppointmentCreateResponse(
+                        success=True,
+                        confirmationId=saved.confirmation_id,
+                        message=f"Appointment request received for {saved.preferred_date.isoformat()} at {saved.preferred_time}.",
+                        estimatedCallbackWindow="Within 1 business hour (Monday to Thursday 8:00 AM to 6:00 PM Central)",
+                    )
+                except IntegrityError:
+                    if attempt < max_attempts - 1:
+                        logger.warning("Collision encountered on confirmation_id=%s, retrying...", confirmation_id)
+                        continue
+                    logger.error("Failed to generate unique confirmation_id after %d attempts.", max_attempts)
+                    raise
 
-            try:
-                saved = await self._repository.save(appointment)
-                # PHI-Safe Logging: Never log patient name, phone, email, notes, or insurance details
-                logger.info(
-                    "Appointment request created: confirmation_id=%s, service=%s, date=%s",
-                    saved.confirmation_id,
-                    saved.service_id,
-                    saved.preferred_date.isoformat(),
-                )
-
-                return AppointmentCreateResponse(
-                    success=True,
-                    confirmationId=saved.confirmation_id,
-                    message=f"Appointment request received for {saved.preferred_date.isoformat()} at {saved.preferred_time}.",
-                    estimatedCallbackWindow="Within 1 business hour (Monday to Thursday 8:00 AM to 6:00 PM Central)",
-                )
-            except IntegrityError:
-                if attempt < max_attempts - 1:
-                    logger.warning("Collision encountered on confirmation_id=%s, retrying...", confirmation_id)
-                    continue
-                logger.error("Failed to generate unique confirmation_id after %d attempts.", max_attempts)
-                raise

@@ -30,7 +30,8 @@ class BookingSettings:
     pause_started_by_user_id: Optional[UUID] = None
     resume_on: Optional[date] = None
     advance_booking_days: int = 60
-    slot_interval_minutes: int = 30
+    min_lead_time_hours: int = 2
+    slot_interval_minutes: int = 15
     clinic_id: Optional[UUID] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -47,3 +48,38 @@ class ClinicClosure:
     created_by_user_id: Optional[UUID] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
+
+@dataclass
+class ProviderAvailability:
+    id: UUID
+    team_member_id: UUID
+    day_of_week: int
+    start_time: str
+    end_time: str
+    break_start_time: Optional[str] = None
+    break_end_time: Optional[str] = None
+    is_active: bool = True
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+@dataclass
+class ProviderTimeOff:
+    id: UUID
+    team_member_id: UUID
+    start_date: date
+    end_date: date
+    reason: str
+    is_approved: bool = True
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+@dataclass
+class ServiceProviderLink:
+    id: UUID
+    service_id: UUID
+    team_member_id: UUID
+    created_at: Optional[datetime] = None
+

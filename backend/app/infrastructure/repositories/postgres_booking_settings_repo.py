@@ -5,18 +5,28 @@ from uuid import UUID, uuid4
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.models.booking_settings import BookingSettings, ClinicClosure, WorkingHours
+from app.domain.models.booking_settings import (
+    BookingSettings,
+    ClinicClosure,
+    ProviderAvailability,
+    ProviderTimeOff,
+    ServiceProviderLink,
+    WorkingHours,
+)
 from app.domain.repositories.booking_settings_repo import BookingSettingsRepository
 from app.infrastructure.database.orm_models import (
     ClinicBookingSettingsORM,
     ClinicClosureORM,
     ClinicWorkingHoursORM,
+    ProviderAvailabilityORM,
+    ProviderTimeOffORM,
+    ServiceProviderORM,
 )
 
 
 class PostgresBookingSettingsRepository(BookingSettingsRepository):
     """
-    SQLAlchemy 2.0 PostgreSQL repository for working hours, booking settings, and closures.
+    SQLAlchemy 2.0 PostgreSQL repository for working hours, booking settings, closures, and provider schedules.
     """
 
     def __init__(self, session: AsyncSession):
@@ -35,7 +45,8 @@ class PostgresBookingSettingsRepository(BookingSettingsRepository):
                 id=uuid4(),
                 booking_mode="open",
                 advance_booking_days=60,
-                slot_interval_minutes=30,
+                min_lead_time_hours=2,
+                slot_interval_minutes=15,
                 clinic_id=clinic_id,
             )
 
@@ -47,6 +58,7 @@ class PostgresBookingSettingsRepository(BookingSettingsRepository):
             pause_started_by_user_id=orm.pause_started_by_user_id,
             resume_on=orm.resume_on,
             advance_booking_days=orm.advance_booking_days,
+            min_lead_time_hours=getattr(orm, "min_lead_time_hours", 2) or 2,
             slot_interval_minutes=orm.slot_interval_minutes,
             clinic_id=orm.clinic_id,
             created_at=orm.created_at,
@@ -67,6 +79,7 @@ class PostgresBookingSettingsRepository(BookingSettingsRepository):
         orm.pause_started_by_user_id = settings.pause_started_by_user_id
         orm.resume_on = settings.resume_on
         orm.advance_booking_days = settings.advance_booking_days
+        orm.min_lead_time_hours = settings.min_lead_time_hours
         orm.slot_interval_minutes = settings.slot_interval_minutes
         orm.clinic_id = settings.clinic_id
         orm.updated_at = datetime.now(timezone.utc)
@@ -80,6 +93,7 @@ class PostgresBookingSettingsRepository(BookingSettingsRepository):
             pause_started_by_user_id=orm.pause_started_by_user_id,
             resume_on=orm.resume_on,
             advance_booking_days=orm.advance_booking_days,
+            min_lead_time_hours=orm.min_lead_time_hours,
             slot_interval_minutes=orm.slot_interval_minutes,
             clinic_id=orm.clinic_id,
             created_at=orm.created_at,
@@ -243,3 +257,164 @@ class PostgresBookingSettingsRepository(BookingSettingsRepository):
         res = await self.session.execute(stmt)
         await self.session.flush()
         return res.rowcount > 0
+
+    async def list_provider_availabilities(self, team_member_id: Optional[UUID] = None) -> List[ProviderAvailability]:
+        stmt = select(ProviderAvailabilityORM)
+        if team_member_id:
+            stmt = stmt.where(ProviderAvailabilityORM.team_member_id == team_member_id)
+        stmt = stmt.order_by(ProviderAvailabilityORM.day_of_week.asc())
+        res = await self.session.execute(stmt)
+        orms = res.scalars().all()
+        return [
+            ProviderAvailability(
+                id=o.id,
+                team_member_id=o.team_member_id,
+                day_of_week=o.day_of_week,
+                start_time=o.start_time,
+                end_time=o.end_time,
+                break_start_time=o.break_start_time,
+                break_end_time=o.break_end_time,
+                is_active=o.is_active,
+                created_at=o.created_at,
+                updated_at=o.updated_at,
+            )
+            for o in orms
+        ]
+
+    async def save_provider_availability(self, avail: ProviderAvailability) -> ProviderAvailability:
+        stmt = select(ProviderAvailabilityORM).where(ProviderAvailabilityORM.id == avail.id)
+        res = await self.session.execute(stmt)
+        o = res.scalar_one_or_none()
+        if not o:
+            o = ProviderAvailabilityORM(
+                id=avail.id,
+                team_member_id=avail.team_member_id,
+                created_at=datetime.now(timezone.utc),
+            )
+            self.session.add(o)
+
+        o.day_of_week = avail.day_of_week
+        o.start_time = avail.start_time
+        o.end_time = avail.end_time
+        o.break_start_time = avail.break_start_time
+        o.break_end_time = avail.break_end_time
+        o.is_active = avail.is_active
+        o.updated_at = datetime.now(timezone.utc)
+        await self.session.flush()
+        return ProviderAvailability(
+            id=o.id,
+            team_member_id=o.team_member_id,
+            day_of_week=o.day_of_week,
+            start_time=o.start_time,
+            end_time=o.end_time,
+            break_start_time=o.break_start_time,
+            break_end_time=o.break_end_time,
+            is_active=o.is_active,
+            created_at=o.created_at,
+            updated_at=o.updated_at,
+        )
+
+    async def delete_provider_availability(self, avail_id: UUID) -> bool:
+        stmt = delete(ProviderAvailabilityORM).where(ProviderAvailabilityORM.id == avail_id)
+        res = await self.session.execute(stmt)
+        await self.session.flush()
+        return res.rowcount > 0
+
+    async def list_provider_time_off(
+        self,
+        team_member_id: Optional[UUID] = None,
+        future_only: bool = False,
+    ) -> List[ProviderTimeOff]:
+        stmt = select(ProviderTimeOffORM)
+        if team_member_id:
+            stmt = stmt.where(ProviderTimeOffORM.team_member_id == team_member_id)
+        if future_only:
+            today = date.today()
+            stmt = stmt.where(ProviderTimeOffORM.end_date >= today)
+        stmt = stmt.order_by(ProviderTimeOffORM.start_date.asc())
+        res = await self.session.execute(stmt)
+        orms = res.scalars().all()
+        return [
+            ProviderTimeOff(
+                id=o.id,
+                team_member_id=o.team_member_id,
+                start_date=o.start_date,
+                end_date=o.end_date,
+                reason=o.reason,
+                is_approved=o.is_approved,
+                created_at=o.created_at,
+                updated_at=o.updated_at,
+            )
+            for o in orms
+        ]
+
+    async def save_provider_time_off(self, time_off: ProviderTimeOff) -> ProviderTimeOff:
+        stmt = select(ProviderTimeOffORM).where(ProviderTimeOffORM.id == time_off.id)
+        res = await self.session.execute(stmt)
+        o = res.scalar_one_or_none()
+        if not o:
+            o = ProviderTimeOffORM(
+                id=time_off.id,
+                team_member_id=time_off.team_member_id,
+                created_at=datetime.now(timezone.utc),
+            )
+            self.session.add(o)
+
+        o.start_date = time_off.start_date
+        o.end_date = time_off.end_date
+        o.reason = time_off.reason
+        o.is_approved = time_off.is_approved
+        o.updated_at = datetime.now(timezone.utc)
+        await self.session.flush()
+        return ProviderTimeOff(
+            id=o.id,
+            team_member_id=o.team_member_id,
+            start_date=o.start_date,
+            end_date=o.end_date,
+            reason=o.reason,
+            is_approved=o.is_approved,
+            created_at=o.created_at,
+            updated_at=o.updated_at,
+        )
+
+    async def delete_provider_time_off(self, time_off_id: UUID) -> bool:
+        stmt = delete(ProviderTimeOffORM).where(ProviderTimeOffORM.id == time_off_id)
+        res = await self.session.execute(stmt)
+        await self.session.flush()
+        return res.rowcount > 0
+
+    async def list_service_providers(
+        self,
+        service_id: Optional[UUID] = None,
+        team_member_id: Optional[UUID] = None,
+    ) -> List[ServiceProviderLink]:
+        stmt = select(ServiceProviderORM)
+        if service_id:
+            stmt = stmt.where(ServiceProviderORM.service_id == service_id)
+        if team_member_id:
+            stmt = stmt.where(ServiceProviderORM.team_member_id == team_member_id)
+        res = await self.session.execute(stmt)
+        orms = res.scalars().all()
+        return [
+            ServiceProviderLink(
+                id=o.id,
+                service_id=o.service_id,
+                team_member_id=o.team_member_id,
+                created_at=o.created_at,
+            )
+            for o in orms
+        ]
+
+    async def set_service_providers(self, service_id: UUID, team_member_ids: List[UUID]) -> None:
+        del_stmt = delete(ServiceProviderORM).where(ServiceProviderORM.service_id == service_id)
+        await self.session.execute(del_stmt)
+        for tm_id in team_member_ids:
+            self.session.add(
+                ServiceProviderORM(
+                    service_id=service_id,
+                    team_member_id=tm_id,
+                    created_at=datetime.now(timezone.utc),
+                )
+            )
+        await self.session.flush()
+

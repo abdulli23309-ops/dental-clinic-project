@@ -19,6 +19,9 @@ export interface ServiceItem {
   highlight?: boolean;
   isActive?: boolean;
   displayOrder?: number;
+  bookableOnline?: boolean;
+  bufferMinutes?: number;
+  providerIds?: string[];
 }
 
 export interface DoctorProfile {
@@ -244,8 +247,38 @@ export interface AdminBookingSettings {
   pauseStartedByUserId?: string | null;
   resumeOn?: string | null;
   advanceBookingDays: number;
+  minLeadTimeHours?: number;
   slotIntervalMinutes: number;
   isResumePassed: boolean;
+}
+
+export interface ProviderAvailabilityItem {
+  id: string;
+  teamMemberId: string;
+  dayOfWeek: number;
+  dayName: string;
+  startTime: string;
+  endTime: string;
+  breakStartTime?: string | null;
+  breakEndTime?: string | null;
+  isActive: boolean;
+}
+
+export interface ProviderTimeOffItem {
+  id: string;
+  teamMemberId: string;
+  startDate: string;
+  endDate: string;
+  reason: string;
+  isApproved: boolean;
+}
+
+export interface PublicAvailabilityData {
+  date: string;
+  serviceId?: string | null;
+  teamMemberId?: string | null;
+  timezone: string;
+  slots: string[];
 }
 
 export interface AffectedBookingItem {
@@ -1192,6 +1225,139 @@ export async function adminUpdateWorkingHours(
   }
   return res.json();
 }
+
+export async function getPublicAvailability(params: {
+  date?: string;
+  serviceId?: string;
+  teamMemberId?: string;
+}): Promise<PublicAvailabilityData> {
+  const q = new URLSearchParams();
+  if (params.date) q.append("date", params.date);
+  if (params.serviceId) q.append("serviceId", params.serviceId);
+  if (params.teamMemberId) q.append("teamMemberId", params.teamMemberId);
+  const res = await fetch(`${API_BASE}/api/v1/public/availability?${q.toString()}`);
+  if (!res.ok) throw new Error("Failed to load appointment availability.");
+  return res.json();
+}
+
+export async function adminUpdateOnlineBookingRules(
+  data: { slotIntervalMinutes: number; minLeadTimeHours: number; advanceBookingDays: number },
+  token?: string | null
+): Promise<AdminBookingSettings> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/booking/rules`,
+    {
+      method: "PUT",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update online booking rules.");
+  }
+  return res.json();
+}
+
+export async function adminGetProviderAvailabilities(
+  teamMemberId?: string,
+  token?: string | null
+): Promise<ProviderAvailabilityItem[]> {
+  const q = teamMemberId ? `?teamMemberId=${teamMemberId}` : "";
+  const res = await authorizedFetch(`/api/v1/admin/booking/provider-availability${q}`, {}, token);
+  if (!res.ok) throw new Error("Failed to load clinician shifts.");
+  return res.json();
+}
+
+export async function adminSaveProviderAvailability(
+  data: {
+    teamMemberId: string;
+    dayOfWeek: number;
+    startTime: string;
+    endTime: string;
+    breakStartTime?: string | null;
+    breakEndTime?: string | null;
+    isActive?: boolean;
+  },
+  token?: string | null
+): Promise<{ availability: ProviderAvailabilityItem; affectedBookings: AffectedBookingItem[] }> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/booking/provider-availability`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to save clinician schedule.");
+  }
+  return res.json();
+}
+
+export async function adminDeleteProviderAvailability(
+  availId: string,
+  token?: string | null
+): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/booking/provider-availability/${availId}`,
+    { method: "DELETE" },
+    token
+  );
+  if (!res.ok && res.status !== 204) throw new Error("Failed to delete clinician schedule.");
+}
+
+export async function adminGetProviderTimeOff(
+  teamMemberId?: string,
+  futureOnly: boolean = false,
+  token?: string | null
+): Promise<ProviderTimeOffItem[]> {
+  const q = new URLSearchParams();
+  if (teamMemberId) q.append("teamMemberId", teamMemberId);
+  if (futureOnly) q.append("futureOnly", "true");
+  const res = await authorizedFetch(`/api/v1/admin/booking/provider-time-off?${q.toString()}`, {}, token);
+  if (!res.ok) throw new Error("Failed to load clinician time off.");
+  return res.json();
+}
+
+export async function adminSaveProviderTimeOff(
+  data: {
+    teamMemberId: string;
+    startDate: string;
+    endDate: string;
+    reason: string;
+    isApproved?: boolean;
+  },
+  token?: string | null
+): Promise<{ timeOff: ProviderTimeOffItem; affectedBookings: AffectedBookingItem[] }> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/booking/provider-time-off`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to save clinician time off.");
+  }
+  return res.json();
+}
+
+export async function adminDeleteProviderTimeOff(
+  timeOffId: string,
+  token?: string | null
+): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/booking/provider-time-off/${timeOffId}`,
+    { method: "DELETE" },
+    token
+  );
+  if (!res.ok && res.status !== 204) throw new Error("Failed to delete clinician time off.");
+}
+
 
 // Admin Permissions Matrix
 export interface PermissionMatrixItem {

@@ -575,6 +575,8 @@ async def list_tasks(
             priority=t.priority,
             clinicId=t.clinic_id,
             assignedToUserId=t.assigned_to_user_id,
+            patientId=t.patient_id,
+            bookingId=t.booking_id,
             dueDate=t.due_date,
             createdAt=t.created_at,
             updatedAt=t.updated_at,

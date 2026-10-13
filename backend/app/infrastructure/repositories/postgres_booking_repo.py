@@ -128,6 +128,7 @@ class PostgresBookingRepository(BookingRepository):
         date_from: Optional[date] = None,
         date_to: Optional[date] = None,
         status: Optional[str] = None,
+        status_in: Optional[List[str]] = None,
         search: Optional[str] = None,
         limit: int = 100,
         offset: int = 0,
@@ -150,6 +151,9 @@ class PostgresBookingRepository(BookingRepository):
         if status:
             stmt = stmt.where(BookingORM.status == status)
             count_stmt = count_stmt.where(BookingORM.status == status)
+        elif status_in:
+            stmt = stmt.where(BookingORM.status.in_(status_in))
+            count_stmt = count_stmt.where(BookingORM.status.in_(status_in))
         if search:
             search_pattern = f"%{search.strip()}%"
             filter_expr = or_(

@@ -2101,6 +2101,12 @@ class ClinicBookingSettingsORM(Base):
         Text,
         nullable=True,
     )
+    waiting_threshold_minutes: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=15,
+        server_default="15",
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

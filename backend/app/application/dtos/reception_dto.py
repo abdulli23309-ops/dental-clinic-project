@@ -281,6 +281,17 @@ class DashboardSummaryResponse(BaseModel):
     needsAttentionCount: int
     todayFlow: List[BookingResponseDto]
     needsAttentionItems: List[Dict[str, Any]]
+    unconfirmedTomorrowCount: Optional[int] = 0
+    waitingDelayedCount: Optional[int] = 0
+    overdueTasksCount: Optional[int] = 0
+    pastUnresolvedCount: Optional[int] = 0
+    needsActionQueue: Optional[List[Dict[str, Any]]] = None
+
+
+class DashboardSnoozeRequest(BaseModel):
+    itemType: str = Field(pattern="^(booking|task)$")
+    itemId: UUID
+    durationHours: int = Field(default=24, ge=1, le=720)
 
 
 class AppointmentRequestItemDto(BaseModel):

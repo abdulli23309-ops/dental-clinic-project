@@ -150,10 +150,80 @@ class ReceptionService:
         self.team_repo = team_repo
         self.user_repo = user_repo
 
+    async def snooze_queue_item(
+        self,
+        item_type: str,
+        item_id: UUID,
+        duration_hours: int = 24,
+        user_id: Optional[UUID] = None,
+    ) -> Dict[str, Any]:
+        """
+        Snoozes an actionable item (booking or task) from the reception triage queue.
+        Audited with before and after state.
+        """
+        snooze_until = datetime.now(timezone.utc) + timedelta(hours=duration_hours)
+        snooze_tag = f"[SNOOZED_UNTIL:{snooze_until.isoformat()}]"
+
+        if item_type == "booking":
+            booking = await self.booking_repo.get_by_id(item_id)
+            if not booking:
+                raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="Booking not found")
+            clean_notes = re.sub(r"\[SNOOZED_UNTIL:[^\]]+\]", "", booking.staff_notes or "").strip()
+            booking.staff_notes = f"{clean_notes} {snooze_tag}".strip()
+            await self.booking_repo.save(booking)
+            await record_activity(
+                self.activity_repo,
+                action="snooze_booking",
+                entity_type="booking",
+                entity_id=str(booking.id),
+                user_id=user_id,
+                details={"snoozed_until": snooze_until.isoformat(), "duration_hours": duration_hours},
+            )
+        elif item_type == "task":
+            task = await self.task_repo.get_by_id(item_id)
+            if not task:
+                raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="Task not found")
+            task.due_date = snooze_until
+            clean_desc = re.sub(r"\[SNOOZED_UNTIL:[^\]]+\]", "", task.description or "").strip()
+            task.description = f"{clean_desc} {snooze_tag}".strip()
+            await self.task_repo.save(task)
+            await record_activity(
+                self.activity_repo,
+                action="snooze_task",
+                entity_type="task",
+                entity_id=str(task.id),
+                user_id=user_id,
+                details={"snoozed_until": snooze_until.isoformat(), "duration_hours": duration_hours},
+            )
+        else:
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail="Invalid itemType. Must be 'booking' or 'task'.",
+            )
+
+        return {
+            "success": True,
+            "itemId": str(item_id),
+            "itemType": item_type,
+            "snoozedUntil": snooze_until.isoformat(),
+        }
+
     async def get_dashboard_summary(
         self, clinic_id: Optional[UUID] = None
     ) -> Dict[str, Any]:
-        today = datetime.now(timezone.utc).date()
+        now = datetime.now(timezone.utc)
+        today = now.date()
+        tomorrow = today + timedelta(days=1)
+        yesterday = today - timedelta(days=1)
+
+        # Configurable waiting threshold
+        waiting_threshold_minutes = 15
+        if self.booking_settings_repo:
+            try:
+                settings = await self.booking_settings_repo.get_settings(clinic_id=clinic_id)
+                waiting_threshold_minutes = getattr(settings, "waiting_threshold_minutes", 15) or 15
+            except Exception:
+                waiting_threshold_minutes = 15
 
         # 1. Today's bookings
         today_bookings, total_today = await self.booking_repo.list_bookings(
@@ -186,46 +256,198 @@ class ReceptionService:
             clinic_id=clinic_id, status="new", limit=100
         )
 
-        # 3. Needs Attention items
-        needs_attention = []
+        # Helper to safely convert datetime to timezone-aware UTC
+        def to_utc(dt: Optional[datetime]) -> Optional[datetime]:
+            if not dt:
+                return None
+            if dt.tzinfo is None:
+                return dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(timezone.utc)
 
-        # A. Unconfirmed appointments today
-        for b in today_bookings:
+        # Helper to detect snoozed item
+        def is_item_snoozed(text_content: Optional[str]) -> bool:
+            if not text_content:
+                return False
+            m = re.search(r"\[SNOOZED_UNTIL:([^\]]+)\]", text_content)
+            if not m:
+                return False
+            try:
+                snooze_dt = datetime.fromisoformat(m.group(1))
+                if snooze_dt.tzinfo is None:
+                    snooze_dt = snooze_dt.replace(tzinfo=timezone.utc)
+                return now < snooze_dt
+            except Exception:
+                return False
+
+        # 3. Build Actionable Queue (5 categories)
+        needs_action: List[Dict[str, Any]] = []
+        handled_booking_ids = set()
+
+        # Category 1: Online requests awaiting triage (status == "requested")
+        requested_bookings, _ = await self.booking_repo.list_bookings(
+            clinic_id=clinic_id,
+            status="requested",
+            limit=100,
+        )
+        for b in requested_bookings:
+            if is_item_snoozed(b.staff_notes):
+                continue
+            handled_booking_ids.add(b.id)
+            needs_action.append({
+                "id": str(b.id),
+                "type": "online_request",
+                "title": f"Online Request: {b.patient_full_name}",
+                "subtitle": f"{b.preferred_date} at {b.preferred_time} · {b.patient_phone}",
+                "description": f"{b.preferred_date} at {b.preferred_time} · {b.patient_phone}",
+                "actionRoute": "/reception/appointments/requests",
+                "link": "/reception/appointments/requests",
+                "severity": "high",
+                "priority": "high",
+                "targetId": str(b.id),
+                "bookingId": str(b.id),
+                "patientId": str(b.patient_id) if b.patient_id else None,
+                "patientName": b.patient_full_name,
+                "patientPhone": b.patient_phone,
+                "availableActions": ["confirm", "snooze", "create_task"],
+            })
+
+        # Category 2: Unconfirmed appointments for the next day
+        tomorrow_bookings, _ = await self.booking_repo.list_bookings(
+            clinic_id=clinic_id,
+            date_from=tomorrow,
+            date_to=tomorrow,
+            limit=100,
+        )
+        for b in tomorrow_bookings:
+            if b.id in handled_booking_ids:
+                continue
             if b.status in ("requested", "unconfirmed"):
-                needs_attention.append({
+                if is_item_snoozed(b.staff_notes):
+                    continue
+                handled_booking_ids.add(b.id)
+                needs_action.append({
                     "id": str(b.id),
-                    "type": "unconfirmed_appointment",
-                    "title": f"Unconfirmed Visit: {b.patient_full_name}",
-                    "subtitle": f"{b.preferred_time} today · {b.patient_phone}",
-                    "actionRoute": f"/reception/appointments/confirmations",
-                    "severity": "high",
+                    "type": "unconfirmed_tomorrow",
+                    "title": f"Unconfirmed Visit Tomorrow: {b.patient_full_name}",
+                    "subtitle": f"Tomorrow at {b.preferred_time} · {b.patient_phone}",
+                    "description": f"Tomorrow at {b.preferred_time} · {b.patient_phone}",
+                    "actionRoute": "/reception/reminders",
+                    "link": "/reception/reminders",
+                    "severity": "medium",
+                    "priority": "medium",
+                    "targetId": str(b.id),
+                    "bookingId": str(b.id),
+                    "patientId": str(b.patient_id) if b.patient_id else None,
+                    "patientName": b.patient_full_name,
+                    "patientPhone": b.patient_phone,
+                    "availableActions": ["confirm", "snooze", "create_task"],
                 })
 
-        # B. Late arrivals (arrived/scheduled > 15m ago without being in_progress)
-        # C. Urgent tasks
-        for t in urgent_tasks[:5]:
-            needs_attention.append({
-                "id": str(t.id),
-                "type": "urgent_task",
-                "title": f"Task: {t.title}",
-                "subtitle": f"Priority: {t.priority.upper()}",
-                "actionRoute": "/reception/tasks",
+        # Category 3: Patients waiting longer than configurable threshold
+        for b in today_bookings:
+            if b.status in ("arrived", "waiting", "checked_in"):
+                if is_item_snoozed(b.staff_notes):
+                    continue
+                wait_mins = 0
+                arr_dt = to_utc(b.arrived_at)
+                if arr_dt:
+                    wait_mins = int((now - arr_dt).total_seconds() / 60)
+                else:
+                    parsed_slot = parse_time_to_minutes(b.preferred_time)
+                    if parsed_slot is not None:
+                        now_mins = now.hour * 60 + now.minute
+                        wait_mins = max(0, now_mins - parsed_slot)
+
+                if wait_mins >= waiting_threshold_minutes:
+                    handled_booking_ids.add(b.id)
+                    needs_action.append({
+                        "id": str(b.id),
+                        "type": "waiting_delayed",
+                        "title": f"Waiting Delayed: {b.patient_full_name}",
+                        "subtitle": f"Waiting {wait_mins}m (threshold {waiting_threshold_minutes}m) · {b.preferred_time}",
+                        "description": f"Waiting {wait_mins}m (threshold {waiting_threshold_minutes}m) · {b.preferred_time}",
+                        "actionRoute": "/reception",
+                        "link": "/reception",
+                        "severity": "urgent",
+                        "priority": "urgent",
+                        "targetId": str(b.id),
+                        "bookingId": str(b.id),
+                        "patientId": str(b.patient_id) if b.patient_id else None,
+                        "patientName": b.patient_full_name,
+                        "patientPhone": b.patient_phone,
+                        "availableActions": ["check_in", "snooze", "create_task"],
+                    })
+
+        # Category 4: Overdue and urgent tasks
+        for t in tasks:
+            if is_item_snoozed(t.description):
+                continue
+            due_dt = to_utc(t.due_date)
+            is_overdue = bool(due_dt and due_dt < now)
+            is_urgent_or_followup = bool(
+                t.priority in ("urgent", "high") or (t.title and t.title.startswith("Book follow-up:"))
+            )
+            if is_overdue or is_urgent_or_followup:
+                item_type = "overdue_task" if is_overdue else "urgent_task"
+                needs_action.append({
+                    "id": str(t.id),
+                    "type": item_type,
+                    "title": f"Task: {t.title}",
+                    "subtitle": f"Due {due_dt.strftime('%Y-%m-%d %H:%M') if due_dt else 'N/A'} · Priority: {t.priority.upper()}",
+                    "description": f"Due {due_dt.strftime('%Y-%m-%d %H:%M') if due_dt else 'N/A'} · Priority: {t.priority.upper()}",
+                    "actionRoute": "/reception/tasks",
+                    "link": "/reception/tasks",
+                    "severity": "urgent" if (is_overdue or t.priority == "urgent") else "high",
+                    "priority": "urgent" if (is_overdue or t.priority == "urgent") else "high",
+                    "targetId": str(t.id),
+                    "taskId": str(t.id),
+                    "bookingId": str(t.booking_id) if t.booking_id else None,
+                    "patientId": str(t.patient_id) if t.patient_id else None,
+                    "patientName": None,
+                    "patientPhone": None,
+                    "availableActions": ["snooze", "create_task"],
+                })
+
+        # Category 5: Past appointments never resolved
+        past_bookings, _ = await self.booking_repo.list_bookings(
+            clinic_id=clinic_id,
+            date_to=yesterday,
+            status_in=["requested", "confirmed", "arrived", "in_progress"],
+            limit=100,
+        )
+        for b in past_bookings:
+            if b.id in handled_booking_ids:
+                continue
+            if is_item_snoozed(b.staff_notes):
+                continue
+            handled_booking_ids.add(b.id)
+            needs_action.append({
+                "id": str(b.id),
+                "type": "past_unresolved",
+                "title": f"Unresolved Past Visit: {b.patient_full_name}",
+                "subtitle": f"{b.preferred_date} at {b.preferred_time} · Status: {b.status.replace('_', ' ').title()}",
+                "description": f"{b.preferred_date} at {b.preferred_time} · Status: {b.status.replace('_', ' ').title()}",
+                "actionRoute": "/reception/end-of-day",
+                "link": "/reception/end-of-day",
                 "severity": "urgent",
+                "priority": "urgent",
+                "targetId": str(b.id),
+                "bookingId": str(b.id),
+                "patientId": str(b.patient_id) if b.patient_id else None,
+                "patientName": b.patient_full_name,
+                "patientPhone": b.patient_phone,
+                "availableActions": ["confirm", "snooze", "create_task"],
             })
 
-        # D. New leads
-        for l in leads[:5]:
-            needs_attention.append({
-                "id": str(l.id),
-                "type": "new_lead",
-                "title": f"Inquiry from {l.full_name}",
-                "subtitle": f"Phone: {l.phone}",
-                "actionRoute": "/reception/leads",
-                "severity": "medium",
-            })
-
-        # Recalls due count (patients without visit in 6 months)
+        # Recalls due count
         recalls_due = await self.get_recalls(clinic_id=clinic_id)
+
+        # Actionable counts
+        online_req_count = len([i for i in needs_action if i["type"] == "online_request"])
+        unconfirmed_tom_count = len([i for i in needs_action if i["type"] == "unconfirmed_tomorrow"])
+        waiting_del_count = len([i for i in needs_action if i["type"] == "waiting_delayed"])
+        overdue_tsk_count = len([i for i in needs_action if i["type"] == "overdue_task"])
+        past_unres_count = len([i for i in needs_action if i["type"] == "past_unresolved"])
 
         return {
             "todayAppointments": total_today,
@@ -237,13 +459,18 @@ class ReceptionService:
             "completedCount": completed_count,
             "cancelledCount": cancelled_count,
             "noShowCount": no_show_count,
-            "pendingRequestsCount": len([b for b in today_bookings if b.status == "requested"]),
+            "pendingRequestsCount": online_req_count,
+            "unconfirmedTomorrowCount": unconfirmed_tom_count,
+            "waitingDelayedCount": waiting_del_count,
+            "overdueTasksCount": overdue_tsk_count,
+            "pastUnresolvedCount": past_unres_count,
             "urgentTasksCount": len(urgent_tasks),
             "newLeadsCount": total_leads,
             "recallsDueCount": len(recalls_due),
-            "needsAttentionCount": len(needs_attention),
+            "needsAttentionCount": len(needs_action),
             "todayFlow": today_bookings,
-            "needsAttentionItems": needs_attention,
+            "needsAttentionItems": needs_action,
+            "needsActionQueue": needs_action,
         }
 
     async def list_schedule(

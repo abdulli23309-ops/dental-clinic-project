@@ -33,6 +33,7 @@ class BookingSettings:
     min_lead_time_hours: int = 2
     slot_interval_minutes: int = 15
     reminder_template: Optional[str] = None
+    waiting_threshold_minutes: int = 15
     clinic_id: Optional[UUID] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

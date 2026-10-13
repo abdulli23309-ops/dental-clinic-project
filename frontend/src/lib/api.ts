@@ -1476,6 +1476,13 @@ interface RawAttentionItem {
   subtitle: string;
   actionRoute: string;
   severity: string;
+  targetId?: string;
+  bookingId?: string | null;
+  taskId?: string | null;
+  patientId?: string | null;
+  patientName?: string | null;
+  patientPhone?: string | null;
+  availableActions?: ("confirm" | "check_in" | "snooze" | "create_task")[];
 }
 
 interface RawDashboardSummary {
@@ -1489,12 +1496,17 @@ interface RawDashboardSummary {
   cancelledCount: number;
   noShowCount: number;
   pendingRequestsCount: number;
+  unconfirmedTomorrowCount?: number;
+  waitingDelayedCount?: number;
+  overdueTasksCount?: number;
+  pastUnresolvedCount?: number;
   urgentTasksCount: number;
   newLeadsCount: number;
   recallsDueCount: number;
   needsAttentionCount: number;
   todayFlow: RawBooking[];
   needsAttentionItems: RawAttentionItem[];
+  needsActionQueue?: RawAttentionItem[];
 }
 
 interface RawPatient {
@@ -1576,6 +1588,10 @@ export interface ReceptionDashboardStats {
   cancelledCount: number;
   noShowCount: number;
   pendingRequestsCount: number;
+  unconfirmedTomorrowCount: number;
+  waitingDelayedCount: number;
+  overdueTasksCount: number;
+  pastUnresolvedCount: number;
   urgentTasksCount: number;
   newLeadsCount: number;
   recallsDueCount: number;
@@ -1605,6 +1621,14 @@ export interface ReceptionAttentionItem {
   description: string;
   link: string;
   priority: string;
+  severity?: string;
+  targetId?: string;
+  bookingId?: string | null;
+  taskId?: string | null;
+  patientId?: string | null;
+  patientName?: string | null;
+  patientPhone?: string | null;
+  availableActions?: ("confirm" | "check_in" | "snooze" | "create_task")[];
 }
 
 export interface ReceptionBooking {
@@ -1844,6 +1868,10 @@ export async function getReceptionDashboard(
     cancelledCount: raw.cancelledCount,
     noShowCount: raw.noShowCount,
     pendingRequestsCount: raw.pendingRequestsCount,
+    unconfirmedTomorrowCount: raw.unconfirmedTomorrowCount || 0,
+    waitingDelayedCount: raw.waitingDelayedCount || 0,
+    overdueTasksCount: raw.overdueTasksCount || 0,
+    pastUnresolvedCount: raw.pastUnresolvedCount || 0,
     urgentTasksCount: raw.urgentTasksCount,
     newLeadsCount: raw.newLeadsCount,
     recallsDueCount: raw.recallsDueCount,
@@ -1868,8 +1896,38 @@ export async function getReceptionDashboard(
       description: item.subtitle,
       link: item.actionRoute,
       priority: item.severity,
+      severity: item.severity,
+      targetId: item.targetId,
+      bookingId: item.bookingId,
+      taskId: item.taskId,
+      patientId: item.patientId,
+      patientName: item.patientName,
+      patientPhone: item.patientPhone,
+      availableActions: item.availableActions,
     })),
   };
+}
+
+export async function snoozeReceptionQueueItem(
+  itemType: "booking" | "task",
+  itemId: string,
+  durationHours = 24,
+  token?: string | null
+): Promise<{ success: boolean; itemId: string; snoozedUntil: string }> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/dashboard/snooze`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ itemType, itemId, durationHours }),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to snooze queue item.");
+  }
+  return res.json();
 }
 
 /* --- Schedule & appointments (backend: /reception/schedule, /appointments) --- */

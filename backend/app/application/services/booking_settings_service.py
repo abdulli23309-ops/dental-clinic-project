@@ -137,6 +137,7 @@ class BookingSettingsService:
             minLeadTimeHours=getattr(settings, "min_lead_time_hours", 2) or 2,
             slotIntervalMinutes=settings.slot_interval_minutes,
             reminderTemplate=settings.reminder_template,
+            waitingThresholdMinutes=getattr(settings, "waiting_threshold_minutes", 15) or 15,
             isResumePassed=is_resume_passed,
         )
 
@@ -218,6 +219,8 @@ class BookingSettingsService:
             resumeOn=updated_settings.resume_on,
             advanceBookingDays=updated_settings.advance_booking_days,
             slotIntervalMinutes=updated_settings.slot_interval_minutes,
+            reminderTemplate=updated_settings.reminder_template,
+            waitingThresholdMinutes=getattr(updated_settings, "waiting_threshold_minutes", 15) or 15,
             isResumePassed=is_resume_passed,
         )
 
@@ -566,6 +569,7 @@ class BookingSettingsService:
         min_lead_time_hours: int,
         advance_booking_days: int,
         reminder_template: Optional[str] = None,
+        waiting_threshold_minutes: Optional[int] = None,
         user_id: Optional[UUID] = None,
     ) -> BookingSettingsResponse:
         current = await self.repository.get_settings()
@@ -574,12 +578,15 @@ class BookingSettingsService:
             "min_lead_time_hours": current.min_lead_time_hours,
             "advance_booking_days": current.advance_booking_days,
             "reminder_template": current.reminder_template,
+            "waiting_threshold_minutes": getattr(current, "waiting_threshold_minutes", 15) or 15,
         }
         current.slot_interval_minutes = slot_interval_minutes
         current.min_lead_time_hours = min_lead_time_hours
         current.advance_booking_days = advance_booking_days
         if reminder_template is not None:
             current.reminder_template = reminder_template
+        if waiting_threshold_minutes is not None:
+            current.waiting_threshold_minutes = waiting_threshold_minutes
         updated = await self.repository.update_settings(current)
 
         await record_activity(
@@ -595,6 +602,7 @@ class BookingSettingsService:
                     "min_lead_time_hours": updated.min_lead_time_hours,
                     "advance_booking_days": updated.advance_booking_days,
                     "reminder_template": updated.reminder_template,
+                    "waiting_threshold_minutes": updated.waiting_threshold_minutes,
                 },
             },
         )

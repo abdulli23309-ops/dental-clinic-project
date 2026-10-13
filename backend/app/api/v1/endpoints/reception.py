@@ -19,6 +19,7 @@ from app.application.dtos.reception_dto import (
     BookingRescheduleRequest,
     BookingResponseDto,
     BookingStatusUpdateRequest,
+    DashboardSnoozeRequest,
     DashboardSummaryResponse,
     LeadConvertRequest,
     LeadCreateRequest,
@@ -90,6 +91,21 @@ async def get_dashboard(
     ]
     summary["todayFlow"] = flow_dtos
     return DashboardSummaryResponse(**summary)
+
+
+@router.post("/dashboard/snooze")
+async def snooze_dashboard_queue_item(
+    req: DashboardSnoozeRequest,
+    current_user: User = Depends(require_receptionist),
+    reception_service: ReceptionService = Depends(get_reception_service),
+) -> Dict[str, Any]:
+    """Snoozes an actionable triage item (booking or task) for reception queue, audited."""
+    return await reception_service.snooze_queue_item(
+        item_type=req.itemType,
+        item_id=req.itemId,
+        duration_hours=req.durationHours,
+        user_id=current_user.id,
+    )
 
 
 # --- 2. Schedule & Bookings ---

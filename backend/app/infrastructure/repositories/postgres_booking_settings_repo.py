@@ -61,6 +61,7 @@ class PostgresBookingSettingsRepository(BookingSettingsRepository):
             min_lead_time_hours=getattr(orm, "min_lead_time_hours", 2) or 2,
             slot_interval_minutes=orm.slot_interval_minutes,
             reminder_template=getattr(orm, "reminder_template", None),
+            waiting_threshold_minutes=getattr(orm, "waiting_threshold_minutes", 15) or 15,
             clinic_id=orm.clinic_id,
             created_at=orm.created_at,
             updated_at=orm.updated_at,
@@ -83,6 +84,7 @@ class PostgresBookingSettingsRepository(BookingSettingsRepository):
         orm.min_lead_time_hours = settings.min_lead_time_hours
         orm.slot_interval_minutes = settings.slot_interval_minutes
         orm.reminder_template = settings.reminder_template
+        orm.waiting_threshold_minutes = settings.waiting_threshold_minutes
         orm.clinic_id = settings.clinic_id
         orm.updated_at = datetime.now(timezone.utc)
 
@@ -98,6 +100,7 @@ class PostgresBookingSettingsRepository(BookingSettingsRepository):
             min_lead_time_hours=orm.min_lead_time_hours,
             slot_interval_minutes=orm.slot_interval_minutes,
             reminder_template=orm.reminder_template,
+            waiting_threshold_minutes=orm.waiting_threshold_minutes,
             clinic_id=orm.clinic_id,
             created_at=orm.created_at,
             updated_at=orm.updated_at,

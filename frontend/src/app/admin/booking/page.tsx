@@ -127,6 +127,7 @@ export default function AdminBookingPage() {
   const [slotInterval, setSlotInterval] = useState(15);
   const [minLeadTime, setMinLeadTime] = useState(2);
   const [advanceDays, setAdvanceDays] = useState(60);
+  const [reminderTemplate, setReminderTemplate] = useState("");
   const [isSavingRules, setIsSavingRules] = useState(false);
 
   const loadAll = async () => {
@@ -147,6 +148,10 @@ export default function AdminBookingPage() {
       setSlotInterval(settingsData.slotIntervalMinutes || 15);
       setMinLeadTime(settingsData.minLeadTimeHours ?? 2);
       setAdvanceDays(settingsData.advanceBookingDays || 60);
+      setReminderTemplate(
+        settingsData.reminderTemplate ||
+          "Dear {patient_name}, this is a reminder for your dental appointment on {appointment_date} at {appointment_time} with {clinician_name} at Marlow Dental. Please reply to confirm or call us if you need to reschedule."
+      );
 
       const activeDoctors = membersData.filter((m) => m.isActive);
       setTeamMembers(activeDoctors);
@@ -461,6 +466,7 @@ export default function AdminBookingPage() {
           slotIntervalMinutes: Number(slotInterval),
           minLeadTimeHours: Number(minLeadTime),
           advanceBookingDays: Number(advanceDays),
+          reminderTemplate: reminderTemplate,
         },
         accessToken
       );
@@ -1048,6 +1054,31 @@ export default function AdminBookingPage() {
                 />
                 <p className="text-[11px] text-gray-500 mt-1">
                   Maximum number of days ahead patients are allowed to book on the appointment calendar.
+                </p>
+              </div>
+
+              {/* Reminder Message Template (Logistics only, no clinical content) */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label htmlFor="rule-template" className="block text-xs font-semibold text-gray-800 dark:text-gray-200">
+                    Appointment Reminder Message Template
+                  </label>
+                  <span className="text-[10px] text-gray-500 font-medium">No clinical content</span>
+                </div>
+                <textarea
+                  id="rule-template"
+                  rows={4}
+                  value={reminderTemplate}
+                  onChange={(e) => setReminderTemplate(e.target.value)}
+                  className="w-full rounded-xl border border-line bg-bone px-3 py-2 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-forest"
+                  placeholder="Dear {patient_name}, this is a reminder for your dental appointment on {appointment_date} at {appointment_time} with {clinician_name} at Marlow Dental."
+                />
+                <p className="text-[11px] text-gray-500 mt-1">
+                  Available placeholders: <code className="bg-bone px-1 py-0.5 rounded border border-line">{"{patient_name}"}</code>,{" "}
+                  <code className="bg-bone px-1 py-0.5 rounded border border-line">{"{appointment_date}"}</code>,{" "}
+                  <code className="bg-bone px-1 py-0.5 rounded border border-line">{"{appointment_time}"}</code>,{" "}
+                  <code className="bg-bone px-1 py-0.5 rounded border border-line">{"{clinician_name}"}</code>,{" "}
+                  <code className="bg-bone px-1 py-0.5 rounded border border-line">{"{clinic_name}"}</code>.
                 </p>
               </div>
             </div>

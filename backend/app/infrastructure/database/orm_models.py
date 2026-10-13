@@ -1106,6 +1106,15 @@ class BookingORM(Base):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
+    reminded_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    reminded_by_user_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -2087,6 +2096,10 @@ class ClinicBookingSettingsORM(Base):
         Integer,
         nullable=False,
         default=15,
+    )
+    reminder_template: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

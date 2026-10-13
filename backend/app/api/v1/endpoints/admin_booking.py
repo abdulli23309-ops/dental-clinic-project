@@ -21,6 +21,7 @@ from app.application.dtos.booking_settings_dto import (
     ProviderAvailabilityDto,
     ProviderTimeOffCreateRequest,
     ProviderTimeOffDto,
+    ReminderTemplateUpdateRequest,
     RescheduleTasksRequest,
     RescheduleTasksResponse,
     WorkingHoursDto,
@@ -182,11 +183,25 @@ async def update_online_booking_rules(
     current_user: User = Depends(require_admin),
     service: BookingSettingsService = Depends(get_booking_settings_service),
 ) -> BookingSettingsResponse:
-    """Updates online booking rules: slot interval minutes, min lead time hours, and advance booking days."""
+    """Updates online booking rules: slot interval minutes, min lead time hours, advance booking days, and optional reminder template."""
     return await service.update_online_booking_rules(
         slot_interval_minutes=req.slotIntervalMinutes,
         min_lead_time_hours=req.minLeadTimeHours,
         advance_booking_days=req.advanceBookingDays,
+        reminder_template=req.reminderTemplate,
+        user_id=current_user.id,
+    )
+
+
+@router.put("/reminder-template", response_model=BookingSettingsResponse)
+async def update_reminder_template(
+    req: ReminderTemplateUpdateRequest,
+    current_user: User = Depends(require_admin),
+    service: BookingSettingsService = Depends(get_booking_settings_service),
+) -> BookingSettingsResponse:
+    """Updates appointment WhatsApp/SMS reminder template (strictly non-clinical logistics). Audited."""
+    return await service.update_reminder_template(
+        template=req.template,
         user_id=current_user.id,
     )
 

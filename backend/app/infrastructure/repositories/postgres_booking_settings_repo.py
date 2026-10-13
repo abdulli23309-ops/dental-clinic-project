@@ -60,6 +60,7 @@ class PostgresBookingSettingsRepository(BookingSettingsRepository):
             advance_booking_days=orm.advance_booking_days,
             min_lead_time_hours=getattr(orm, "min_lead_time_hours", 2) or 2,
             slot_interval_minutes=orm.slot_interval_minutes,
+            reminder_template=getattr(orm, "reminder_template", None),
             clinic_id=orm.clinic_id,
             created_at=orm.created_at,
             updated_at=orm.updated_at,
@@ -81,6 +82,7 @@ class PostgresBookingSettingsRepository(BookingSettingsRepository):
         orm.advance_booking_days = settings.advance_booking_days
         orm.min_lead_time_hours = settings.min_lead_time_hours
         orm.slot_interval_minutes = settings.slot_interval_minutes
+        orm.reminder_template = settings.reminder_template
         orm.clinic_id = settings.clinic_id
         orm.updated_at = datetime.now(timezone.utc)
 
@@ -95,6 +97,7 @@ class PostgresBookingSettingsRepository(BookingSettingsRepository):
             advance_booking_days=orm.advance_booking_days,
             min_lead_time_hours=orm.min_lead_time_hours,
             slot_interval_minutes=orm.slot_interval_minutes,
+            reminder_template=orm.reminder_template,
             clinic_id=orm.clinic_id,
             created_at=orm.created_at,
             updated_at=orm.updated_at,

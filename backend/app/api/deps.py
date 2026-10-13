@@ -272,6 +272,8 @@ def get_reception_service(
     service_repo: ServiceRepository = Depends(get_service_repository),
     activity_repo: PostgresActivityLogRepository = Depends(get_activity_log_repository),
     booking_settings_repo: BookingSettingsRepository = Depends(get_booking_settings_repository),
+    team_repo: TeamMemberRepository = Depends(get_team_repository),
+    user_repo: UserRepository = Depends(get_user_repository),
 ) -> ReceptionService:
     return ReceptionService(
         booking_repo,
@@ -283,6 +285,8 @@ def get_reception_service(
         service_repo,
         activity_repo,
         booking_settings_repo,
+        team_repo,
+        user_repo,
     )
 
 

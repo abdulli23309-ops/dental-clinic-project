@@ -32,6 +32,7 @@ class BookingSettings:
     advance_booking_days: int = 60
     min_lead_time_hours: int = 2
     slot_interval_minutes: int = 15
+    reminder_template: Optional[str] = None
     clinic_id: Optional[UUID] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

@@ -72,6 +72,7 @@ class BookingSettingsResponse(BaseModel):
     advanceBookingDays: int
     minLeadTimeHours: int = 2
     slotIntervalMinutes: int = 15
+    reminderTemplate: Optional[str] = None
     isResumePassed: bool = False
 
 
@@ -104,6 +105,11 @@ class OnlineBookingRulesUpdateRequest(BaseModel):
     slotIntervalMinutes: int = Field(default=15, ge=5, le=120)
     minLeadTimeHours: int = Field(default=2, ge=0, le=48)
     advanceBookingDays: int = Field(default=60, ge=1, le=365)
+    reminderTemplate: Optional[str] = None
+
+
+class ReminderTemplateUpdateRequest(BaseModel):
+    template: str = Field(..., max_length=2000)
 
 
 class ProviderAvailabilityDto(BaseModel):

@@ -21,6 +21,8 @@ from app.domain.repositories.message_repo import MessageRepository
 from app.domain.repositories.patient_repo import PatientRepository
 from app.domain.repositories.service_repo import ServiceRepository
 from app.domain.repositories.task_repo import TaskRepository
+from app.domain.repositories.team_repo import TeamMemberRepository
+from app.domain.repositories.user_repo import UserRepository
 from app.infrastructure.repositories.postgres_activity_repo import (
     PostgresActivityLogRepository,
     record_activity,
@@ -60,6 +62,22 @@ def generate_booking_confirmation_id() -> str:
     year = datetime.now(timezone.utc).year
     suffix = "".join(random.choices(string.digits, k=4))
     return f"BK-{year}-{suffix}"
+
+
+def normalize_pakistan_phone(phone: Optional[str]) -> str:
+    """Normalises phone number to international Pakistan format 92..."""
+    if not phone:
+        return ""
+    digits = re.sub(r"\D", "", phone)
+    if digits.startswith("0092"):
+        digits = digits[2:]
+    elif digits.startswith("0"):
+        digits = "92" + digits[1:]
+    elif digits.startswith("3") and len(digits) == 10:
+        digits = "92" + digits
+    elif not digits.startswith("92") and len(digits) >= 7:
+        digits = "92" + digits
+    return digits
 
 
 def parse_time_to_minutes(time_str: Optional[str]) -> Optional[int]:
@@ -117,6 +135,8 @@ class ReceptionService:
         service_repo: Optional[ServiceRepository] = None,
         activity_repo: Optional[PostgresActivityLogRepository] = None,
         booking_settings_repo: Optional[BookingSettingsRepository] = None,
+        team_repo: Optional[TeamMemberRepository] = None,
+        user_repo: Optional[UserRepository] = None,
     ):
         self.booking_repo = booking_repo
         self.patient_repo = patient_repo
@@ -127,6 +147,8 @@ class ReceptionService:
         self.service_repo = service_repo
         self.activity_repo = activity_repo
         self.booking_settings_repo = booking_settings_repo
+        self.team_repo = team_repo
+        self.user_repo = user_repo
 
     async def get_dashboard_summary(
         self, clinic_id: Optional[UUID] = None
@@ -1006,3 +1028,134 @@ class ReceptionService:
                 "clinicId": str(b.clinic_id) if b.clinic_id else None,
             })
         return recalls
+
+    # --- Reminders Worklist ---
+
+    async def mark_appointment_reminded(
+        self,
+        booking_id: UUID,
+        user_id: UUID,
+    ) -> Booking:
+        booking = await self.booking_repo.get_by_id(booking_id)
+        if not booking:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail=f"Booking {booking_id} not found.",
+            )
+        now = datetime.now(timezone.utc)
+        booking.reminded_at = now
+        booking.reminded_by_user_id = user_id
+        saved = await self.booking_repo.save(booking)
+
+        user_name = "Reception"
+        if self.user_repo:
+            try:
+                u = await self.user_repo.get_by_id(user_id)
+                if u:
+                    user_name = u.full_name
+            except Exception:
+                pass
+
+        await record_activity(
+            self.activity_repo,
+            action="mark_reminded",
+            entity_type="booking",
+            entity_id=str(booking.id),
+            user_id=user_id,
+            details={
+                "booking_id": str(booking.id),
+                "patient_id": str(booking.patient_id) if booking.patient_id else None,
+                "reminded_at": now.isoformat(),
+                "reminded_by": user_name,
+                "patient_full_name": booking.patient_full_name,
+                "patient_phone": booking.patient_phone,
+            },
+        )
+        return saved
+
+    async def get_reminders_worklist(
+        self,
+        target_date: date,
+        clinic_id: Optional[UUID] = None,
+    ) -> Dict[str, Any]:
+        default_tpl = (
+            "Dear {patient_name}, this is a reminder for your dental appointment on "
+            "{appointment_date} at {appointment_time} with {clinician_name} at Marlow Dental. "
+            "Please reply to confirm or call us if you need to reschedule."
+        )
+        template = default_tpl
+        if self.booking_settings_repo:
+            try:
+                settings = await self.booking_settings_repo.get_settings(clinic_id=clinic_id)
+                if settings and settings.reminder_template:
+                    template = settings.reminder_template
+            except Exception:
+                pass
+
+        bookings, _ = await self.booking_repo.list_bookings(
+            clinic_id=clinic_id,
+            date_from=target_date,
+            date_to=target_date,
+            status="confirmed",
+            limit=200,
+        )
+
+        items = []
+        for b in bookings:
+            clinician_name = None
+            if b.team_member_id and self.team_repo:
+                try:
+                    member = await self.team_repo.get_by_id(b.team_member_id)
+                    if member:
+                        clinician_name = member.display_name or f"{member.first_name} {member.last_name}"
+                except Exception:
+                    pass
+
+            reminded_by_name = None
+            if b.reminded_by_user_id and self.user_repo:
+                try:
+                    u = await self.user_repo.get_by_id(b.reminded_by_user_id)
+                    if u:
+                        reminded_by_name = u.full_name
+                except Exception:
+                    pass
+
+            service_name = None
+            if b.service_id and self.service_repo:
+                try:
+                    svc = await self.service_repo.get_by_id(UUID(str(b.service_id)))
+                    if svc:
+                        service_name = svc.title
+                except Exception:
+                    try:
+                        svc = await self.service_repo.get_by_slug(str(b.service_id))
+                        if svc:
+                            service_name = svc.title
+                    except Exception:
+                        pass
+
+            items.append({
+                "id": b.id,
+                "confirmationId": b.confirmation_id,
+                "preferredDate": b.preferred_date,
+                "preferredTime": b.preferred_time,
+                "patientFullName": b.patient_full_name,
+                "patientPhone": b.patient_phone,
+                "patientEmail": b.patient_email,
+                "status": b.status,
+                "clinicId": b.clinic_id,
+                "patientId": b.patient_id,
+                "serviceId": b.service_id,
+                "serviceName": service_name,
+                "teamMemberId": b.team_member_id,
+                "clinicianName": clinician_name,
+                "remindedAt": b.reminded_at,
+                "remindedByUserId": b.reminded_by_user_id,
+                "remindedByName": reminded_by_name,
+            })
+
+        return {
+            "targetDate": target_date,
+            "template": template,
+            "items": items,
+        }

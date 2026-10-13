@@ -136,6 +136,7 @@ class BookingSettingsService:
             advanceBookingDays=settings.advance_booking_days,
             minLeadTimeHours=getattr(settings, "min_lead_time_hours", 2) or 2,
             slotIntervalMinutes=settings.slot_interval_minutes,
+            reminderTemplate=settings.reminder_template,
             isResumePassed=is_resume_passed,
         )
 
@@ -564,6 +565,7 @@ class BookingSettingsService:
         slot_interval_minutes: int,
         min_lead_time_hours: int,
         advance_booking_days: int,
+        reminder_template: Optional[str] = None,
         user_id: Optional[UUID] = None,
     ) -> BookingSettingsResponse:
         current = await self.repository.get_settings()
@@ -571,10 +573,13 @@ class BookingSettingsService:
             "slot_interval_minutes": current.slot_interval_minutes,
             "min_lead_time_hours": current.min_lead_time_hours,
             "advance_booking_days": current.advance_booking_days,
+            "reminder_template": current.reminder_template,
         }
         current.slot_interval_minutes = slot_interval_minutes
         current.min_lead_time_hours = min_lead_time_hours
         current.advance_booking_days = advance_booking_days
+        if reminder_template is not None:
+            current.reminder_template = reminder_template
         updated = await self.repository.update_settings(current)
 
         await record_activity(
@@ -589,7 +594,31 @@ class BookingSettingsService:
                     "slot_interval_minutes": updated.slot_interval_minutes,
                     "min_lead_time_hours": updated.min_lead_time_hours,
                     "advance_booking_days": updated.advance_booking_days,
+                    "reminder_template": updated.reminder_template,
                 },
+            },
+        )
+        return await self.get_admin_settings()
+
+    async def update_reminder_template(
+        self,
+        template: str,
+        user_id: Optional[UUID] = None,
+    ) -> BookingSettingsResponse:
+        current = await self.repository.get_settings()
+        before_state = {"reminder_template": current.reminder_template}
+        current.reminder_template = template
+        updated = await self.repository.update_settings(current)
+
+        await record_activity(
+            self.activity_repo,
+            action="update_reminder_template",
+            entity_type="clinic_booking_settings",
+            entity_id=str(updated.id),
+            user_id=user_id,
+            details={
+                "before": before_state,
+                "after": {"reminder_template": updated.reminder_template},
             },
         )
         return await self.get_admin_settings()

@@ -249,6 +249,7 @@ export interface AdminBookingSettings {
   advanceBookingDays: number;
   minLeadTimeHours?: number;
   slotIntervalMinutes: number;
+  reminderTemplate?: string | null;
   isResumePassed: boolean;
 }
 
@@ -1241,7 +1242,7 @@ export async function getPublicAvailability(params: {
 }
 
 export async function adminUpdateOnlineBookingRules(
-  data: { slotIntervalMinutes: number; minLeadTimeHours: number; advanceBookingDays: number },
+  data: { slotIntervalMinutes: number; minLeadTimeHours: number; advanceBookingDays: number; reminderTemplate?: string },
   token?: string | null
 ): Promise<AdminBookingSettings> {
   const res = await authorizedFetch(
@@ -1255,6 +1256,25 @@ export async function adminUpdateOnlineBookingRules(
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Failed to update online booking rules.");
+  }
+  return res.json();
+}
+
+export async function adminUpdateReminderTemplate(
+  template: string,
+  token?: string | null
+): Promise<AdminBookingSettings> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/booking/reminder-template`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ template }),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update reminder template.");
   }
   return res.json();
 }
@@ -1439,6 +1459,11 @@ interface RawBooking {
   completedAt?: string | null;
   cancellationReason?: string | null;
   cancelledByUserId?: string | null;
+  remindedAt?: string | null;
+  remindedByUserId?: string | null;
+  remindedByName?: string | null;
+  clinicianName?: string | null;
+  serviceName?: string | null;
   hasAlerts?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -1603,6 +1628,11 @@ export interface ReceptionBooking {
   completedAt?: string | null;
   cancellationReason?: string | null;
   cancelledByUserId?: string | null;
+  remindedAt?: string | null;
+  remindedByUserId?: string | null;
+  remindedByName?: string | null;
+  clinicianName?: string | null;
+  serviceName?: string | null;
   hasAlerts?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -1721,6 +1751,11 @@ function mapBooking(raw: RawBooking): ReceptionBooking {
     completedAt: raw.completedAt,
     cancellationReason: raw.cancellationReason,
     cancelledByUserId: raw.cancelledByUserId,
+    remindedAt: raw.remindedAt,
+    remindedByUserId: raw.remindedByUserId,
+    remindedByName: raw.remindedByName,
+    clinicianName: raw.clinicianName,
+    serviceName: raw.serviceName,
     hasAlerts: raw.hasAlerts ?? false,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
@@ -2012,6 +2047,73 @@ export async function markNoShowReceptionBooking(
 ): Promise<ReceptionBooking> {
   return updateReceptionBookingStatus(bookingId, "no_show", staffNotes, token);
 }
+
+/* --- Reminders Worklist --- */
+
+export function normalizePakistanPhone(phone: string): string {
+  if (!phone) return "";
+  let digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("0092")) {
+    digits = digits.slice(2);
+  } else if (digits.startsWith("0")) {
+    digits = "92" + digits.slice(1);
+  } else if (digits.startsWith("3") && digits.length === 10) {
+    digits = "92" + digits;
+  } else if (!digits.startsWith("92") && digits.length >= 7) {
+    digits = "92" + digits;
+  }
+  return digits;
+}
+
+export interface ReceptionReminderItem {
+  id: string;
+  confirmationId: string;
+  preferredDate: string;
+  preferredTime: string;
+  patientFullName: string;
+  patientPhone: string;
+  patientEmail: string;
+  status: string;
+  clinicId?: string | null;
+  patientId?: string | null;
+  serviceId?: string | null;
+  serviceName?: string | null;
+  teamMemberId?: string | null;
+  clinicianName?: string | null;
+  remindedAt?: string | null;
+  remindedByUserId?: string | null;
+  remindedByName?: string | null;
+}
+
+export interface ReceptionRemindersResponse {
+  targetDate: string;
+  template: string;
+  items: ReceptionReminderItem[];
+}
+
+export async function getReceptionReminders(
+  date?: string,
+  token?: string | null
+): Promise<ReceptionRemindersResponse> {
+  const q = date ? `?date=${date}` : "";
+  const res = await authorizedFetch(`/api/v1/reception/reminders${q}`, {}, token);
+  if (!res.ok) throw new Error("Failed to load appointment reminders.");
+  return res.json();
+}
+
+export async function markAppointmentReminded(
+  bookingId: string,
+  token?: string | null
+): Promise<ReceptionBooking> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/appointments/${bookingId}/remind`,
+    { method: "POST" },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to mark appointment reminded.");
+  return mapBooking(await res.json());
+}
+
 
 
 /* --- Intake requests (mapped onto /reception/appointments) --- */

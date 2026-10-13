@@ -29,9 +29,44 @@ class BookingResponseDto(BaseModel):
     completedAt: Optional[datetime] = None
     cancellationReason: Optional[str] = None
     cancelledByUserId: Optional[UUID] = None
+    remindedAt: Optional[datetime] = None
+    remindedByUserId: Optional[UUID] = None
+    remindedByName: Optional[str] = None
+    clinicianName: Optional[str] = None
+    serviceName: Optional[str] = None
     hasAlerts: bool = False
     createdAt: datetime
     updatedAt: datetime
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ReminderItemDto(BaseModel):
+    id: UUID
+    confirmationId: str
+    preferredDate: date
+    preferredTime: str
+    patientFullName: str
+    patientPhone: str
+    patientEmail: str
+    status: str
+    clinicId: Optional[UUID] = None
+    patientId: Optional[UUID] = None
+    serviceId: Optional[str] = None
+    serviceName: Optional[str] = None
+    teamMemberId: Optional[UUID] = None
+    clinicianName: Optional[str] = None
+    remindedAt: Optional[datetime] = None
+    remindedByUserId: Optional[UUID] = None
+    remindedByName: Optional[str] = None
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class RemindersWorklistResponse(BaseModel):
+    targetDate: date
+    template: str
+    items: List[ReminderItemDto]
 
     model_config = ConfigDict(populate_by_name=True)
 

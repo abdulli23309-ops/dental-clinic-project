@@ -72,6 +72,7 @@ const RECEPTION_NAV: SidebarLink[] = [
   { href: "/reception", title: "Dashboard", icon: Activity, exact: true },
   { href: "/reception/schedule", title: "Schedule", icon: Calendar },
   { href: "/reception/appointments", title: "Appointments", icon: Clock },
+  { href: "/reception/reminders", title: "Reminders", icon: Bell },
   { href: "/reception/appointments/requests", title: "Requests", icon: Inbox },
   { href: "/reception/appointments/confirmations", title: "Confirmations", icon: FileCheck },
   { href: "/reception/check-in", title: "Check-In Flow", icon: UserCheck },

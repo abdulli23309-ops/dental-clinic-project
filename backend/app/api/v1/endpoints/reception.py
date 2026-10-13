@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
@@ -30,6 +30,8 @@ from app.application.dtos.reception_dto import (
     PatientProfileResponse,
     PatientResponseDto,
     PatientUpdateRequest,
+    ReminderItemDto,
+    RemindersWorklistResponse,
     TaskCreateRequest,
     TaskResponseDto,
     TaskUpdateRequest,
@@ -271,6 +273,69 @@ async def update_appointment_status(
         completedAt=booking.completed_at,
         cancellationReason=booking.cancellation_reason,
         cancelledByUserId=booking.cancelled_by_user_id,
+        remindedAt=booking.reminded_at,
+        remindedByUserId=booking.reminded_by_user_id,
+        createdAt=booking.created_at,
+        updatedAt=booking.updated_at,
+    )
+
+
+# --- Reminders Worklist ---
+
+@router.get("/reminders", response_model=RemindersWorklistResponse)
+async def get_reminders(
+    date_val: Optional[date] = Query(None, alias="date"),
+    clinic_id: Optional[UUID] = Query(None),
+    current_user: User = Depends(require_receptionist),
+    reception_service: ReceptionService = Depends(get_reception_service),
+) -> RemindersWorklistResponse:
+    """Lists confirmed appointments for a chosen day (default tomorrow) with patient, time, clinician."""
+    effective_clinic = _get_clinic_scope(current_user, clinic_id)
+    target = date_val or (date.today() + timedelta(days=1))
+    result = await reception_service.get_reminders_worklist(
+        target_date=target,
+        clinic_id=effective_clinic,
+    )
+    return RemindersWorklistResponse(**result)
+
+
+@router.post("/appointments/{id}/remind", response_model=BookingResponseDto)
+async def mark_appointment_reminded(
+    id: UUID,
+    current_user: User = Depends(require_receptionist),
+    reception_service: ReceptionService = Depends(get_reception_service),
+) -> BookingResponseDto:
+    """Marks an appointment as reminded, storing timestamp and staff user. Audited."""
+    booking = await reception_service.mark_appointment_reminded(
+        booking_id=id,
+        user_id=current_user.id,
+    )
+    return BookingResponseDto(
+        id=booking.id,
+        confirmationId=booking.confirmation_id,
+        preferredDate=booking.preferred_date,
+        preferredTime=booking.preferred_time,
+        patientFullName=booking.patient_full_name,
+        patientPhone=booking.patient_phone,
+        patientEmail=booking.patient_email,
+        status=booking.status,
+        clinicId=booking.clinic_id,
+        patientId=booking.patient_id,
+        serviceId=booking.service_id,
+        teamMemberId=booking.team_member_id,
+        slotId=booking.slot_id,
+        notes=booking.notes,
+        staffNotes=booking.staff_notes,
+        utmSource=booking.utm_source,
+        utmCampaign=booking.utm_campaign,
+        arrivedAt=booking.arrived_at,
+        startedAt=booking.started_at,
+        completedAt=booking.completed_at,
+        cancellationReason=booking.cancellation_reason,
+        cancelledByUserId=booking.cancelled_by_user_id,
+        remindedAt=booking.reminded_at,
+        remindedByUserId=booking.reminded_by_user_id,
+        remindedByName=current_user.full_name,
         createdAt=booking.created_at,
         updatedAt=booking.updated_at,
     )

@@ -39,6 +39,8 @@ class PostgresBookingRepository(BookingRepository):
             completed_at=entity.completed_at,
             cancellation_reason=entity.cancellation_reason,
             cancelled_by_user_id=entity.cancelled_by_user_id,
+            reminded_at=entity.reminded_at,
+            reminded_by_user_id=entity.reminded_by_user_id,
             created_at=entity.created_at,
             updated_at=entity.updated_at,
         )
@@ -68,6 +70,8 @@ class PostgresBookingRepository(BookingRepository):
             completed_at=orm.completed_at,
             cancellation_reason=orm.cancellation_reason,
             cancelled_by_user_id=orm.cancelled_by_user_id,
+            reminded_at=orm.reminded_at,
+            reminded_by_user_id=orm.reminded_by_user_id,
             created_at=orm.created_at,
             updated_at=orm.updated_at,
         )
@@ -95,6 +99,8 @@ class PostgresBookingRepository(BookingRepository):
             existing.completed_at = booking.completed_at
             existing.cancellation_reason = booking.cancellation_reason
             existing.cancelled_by_user_id = booking.cancelled_by_user_id
+            existing.reminded_at = booking.reminded_at
+            existing.reminded_by_user_id = booking.reminded_by_user_id
             await self._session.flush()
             await self._session.refresh(existing)
             return self._to_domain(existing)

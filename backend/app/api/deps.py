@@ -209,6 +209,7 @@ def get_appointment_service(
     patient_repo: PatientRepository = Depends(get_patient_repository),
     booking_settings_repo: BookingSettingsRepository = Depends(get_booking_settings_repository),
     availability_service: AvailabilityService = Depends(get_availability_service),
+    session: AsyncSession = Depends(get_db_session),
 ) -> AppointmentService:
     return AppointmentService(
         repository,
@@ -216,6 +217,7 @@ def get_appointment_service(
         patient_repo,
         booking_settings_repo,
         availability_service,
+        session=session,
     )
 
 

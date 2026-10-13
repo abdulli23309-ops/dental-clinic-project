@@ -44,20 +44,6 @@ class PatientMedicalAlert:
 
 
 
-@dataclass
-class Slot:
-    """
-    Pure domain representation of an appointment operatory time slot.
-    """
-    start_time: datetime
-    end_time: datetime
-    clinic_id: Optional[UUID] = None
-    team_member_id: Optional[UUID] = None
-    is_booked: bool = False
-    is_active: bool = True
-    id: UUID = field(default_factory=uuid4)
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-
 
 @dataclass
 class LeadSource:

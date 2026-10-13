@@ -896,54 +896,6 @@ class ServiceORM(Base):
     )
 
 
-class SlotORM(Base):
-    """
-    Stores scheduled bookable appointment slots.
-    """
-    __tablename__ = "slots"
-
-    id: Mapped[UUID] = mapped_column(
-        Uuid(as_uuid=True),
-        primary_key=True,
-        default=uuid4,
-    )
-    clinic_id: Mapped[Optional[UUID]] = mapped_column(
-        Uuid(as_uuid=True),
-        ForeignKey("clinics.id", ondelete="CASCADE"),
-        nullable=True,
-        index=True,
-    )
-    team_member_id: Mapped[Optional[UUID]] = mapped_column(
-        Uuid(as_uuid=True),
-        ForeignKey("team_members.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
-    start_time: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        index=True,
-    )
-    end_time: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-    )
-    is_booked: Mapped[bool] = mapped_column(
-        Boolean,
-        nullable=False,
-        default=False,
-    )
-    is_active: Mapped[bool] = mapped_column(
-        Boolean,
-        nullable=False,
-        default=True,
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=func.now(),
-    )
-
 
 class LeadSourceORM(Base):
     """
@@ -1089,7 +1041,6 @@ class BookingORM(Base):
     )
     slot_id: Mapped[Optional[UUID]] = mapped_column(
         Uuid(as_uuid=True),
-        ForeignKey("slots.id", ondelete="SET NULL"),
         nullable=True,
     )
     preferred_date: Mapped[date] = mapped_column(

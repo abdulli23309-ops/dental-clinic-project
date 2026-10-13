@@ -94,6 +94,7 @@ class AvailabilityService:
         target_date: date,
         service_id: Optional[Union[UUID, str]] = None,
         team_member_id: Optional[UUID] = None,
+        enforce_lead_time: bool = True,
     ) -> List[str]:
         now_local = datetime.now(self.tz)
         today_local = now_local.date()
@@ -144,11 +145,16 @@ class AvailabilityService:
                     svc_res = await self.session.execute(stmt)
                     svc = svc_res.scalars().first()
 
-            if not svc or not svc.is_active or not svc.is_public or not getattr(svc, "bookable_online", True):
-                return []
-            duration_minutes = parse_duration_to_minutes(svc.duration)
-            buffer_minutes = getattr(svc, "buffer_minutes", 0) or 0
-            service_provider_links = await self.booking_settings_repo.list_service_providers(service_id=svc.id)
+            if svc:
+                if not svc.is_active or not svc.is_public or not getattr(svc, "bookable_online", True):
+                    return []
+                duration_minutes = parse_duration_to_minutes(svc.duration)
+                buffer_minutes = getattr(svc, "buffer_minutes", 0) or 0
+                service_provider_links = await self.booking_settings_repo.list_service_providers(service_id=svc.id)
+            else:
+                duration_minutes = 30
+                buffer_minutes = 0
+                service_provider_links = []
 
         slot_interval = settings.slot_interval_minutes or 15
 
@@ -255,7 +261,7 @@ class AvailabilityService:
 
         # 9. Lead time threshold
         min_allowed_time = None
-        if target_date == today_local:
+        if enforce_lead_time and target_date == today_local:
             min_allowed_time = now_local.hour * 60 + now_local.minute + (settings.min_lead_time_hours * 60)
 
         # 10. Generate slots from clinic_open_mins to clinic_close_mins
@@ -322,11 +328,13 @@ class AvailabilityService:
         time_str: str,
         service_id: Optional[Union[UUID, str]] = None,
         team_member_id: Optional[UUID] = None,
+        enforce_lead_time: bool = False,
     ) -> bool:
         slots = await self.get_available_slots(
             target_date=target_date,
             service_id=service_id,
             team_member_id=team_member_id,
+            enforce_lead_time=enforce_lead_time,
         )
         norm_time = parse_time_to_minutes(time_str)
         if norm_time is None:

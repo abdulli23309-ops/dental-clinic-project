@@ -1832,6 +1832,7 @@ class ReceptionService:
         notes: Optional[str] = None,
         patient_id: Optional[UUID] = None,
         user_id: Optional[UUID] = None,
+        amount_charged_cents: Optional[int] = None,
     ) -> VisitPayment:
         booking = await self.booking_repo.get_by_id(booking_id)
         if not booking:
@@ -1843,7 +1844,7 @@ class ReceptionService:
         if self.booking_settings_repo:
             try:
                 settings = await self.booking_settings_repo.get_settings(clinic_id=booking.clinic_id)
-                if settings and not getattr(settings, "payments_enabled", False):
+                if settings and not getattr(settings, "payments_enabled", True):
                     raise HTTPException(
                         status_code=http_status.HTTP_400_BAD_REQUEST,
                         detail="Visit payments are currently disabled in clinic settings.",
@@ -1859,8 +1860,10 @@ class ReceptionService:
                 detail="Payment repository is not configured.",
             )
 
+        charged_cents = amount_charged_cents if amount_charged_cents is not None else amount_cents
         payment = VisitPayment(
             amount_cents=amount_cents,
+            amount_charged_cents=charged_cents,
             currency=currency.upper(),
             method=method.lower(),
             notes=notes,
@@ -1892,6 +1895,7 @@ class ReceptionService:
                 "confirmationId": booking.confirmation_id,
                 "patientName": booking.patient_full_name,
                 "amountCents": saved.amount_cents,
+                "amountChargedCents": saved.amount_charged_cents,
                 "currency": saved.currency,
                 "method": saved.method,
                 "recordedByName": user_name,
@@ -1899,6 +1903,74 @@ class ReceptionService:
             },
         )
         return saved
+
+    async def void_visit_payment(
+        self,
+        booking_id: UUID,
+        payment_id: UUID,
+        user_id: UUID,
+        reason: str,
+    ) -> VisitPayment:
+        if not reason or not reason.strip():
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail="Void reason is required.",
+            )
+        booking = await self.booking_repo.get_by_id(booking_id)
+        if not booking:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail=f"Booking {booking_id} not found.",
+            )
+        if not self.payment_repo:
+            raise HTTPException(
+                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Payment repository is not configured.",
+            )
+        payment = await self.payment_repo.get_by_id(payment_id)
+        if not payment or payment.booking_id != booking_id:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail=f"Payment {payment_id} not found for this booking.",
+            )
+        if payment.is_voided:
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail="Payment is already voided.",
+            )
+
+        payment.is_voided = True
+        payment.void_reason = reason.strip()
+        payment.voided_at = datetime.now(timezone.utc)
+        payment.voided_by_user_id = user_id
+        updated = await self.payment_repo.update(payment)
+
+        user_name = "Staff"
+        if self.user_repo and user_id:
+            try:
+                u = await self.user_repo.get_by_id(user_id)
+                if u:
+                    user_name = u.full_name
+            except Exception:
+                pass
+
+        await record_activity(
+            self.activity_repo,
+            action="visit_payment_voided",
+            entity_type="visit_payment",
+            entity_id=str(updated.id),
+            user_id=user_id,
+            details={
+                "paymentId": str(updated.id),
+                "bookingId": str(booking.id),
+                "confirmationId": booking.confirmation_id,
+                "patientName": booking.patient_full_name,
+                "amountCents": updated.amount_cents,
+                "voidReason": updated.void_reason,
+                "voidedByName": user_name,
+            },
+        )
+        return updated
 
     async def get_booking_payments(self, booking_id: UUID) -> List[Dict[str, Any]]:
         booking = await self.booking_repo.get_by_id(booking_id)
@@ -1914,13 +1986,14 @@ class ReceptionService:
         staff_names = {}
         if self.user_repo:
             for p in payments:
-                if p.recorded_by_user_id and p.recorded_by_user_id not in staff_names:
-                    try:
-                        u = await self.user_repo.get_by_id(p.recorded_by_user_id)
-                        if u:
-                            staff_names[p.recorded_by_user_id] = u.full_name
-                    except Exception:
-                        pass
+                for uid in (p.recorded_by_user_id, p.voided_by_user_id):
+                    if uid and uid not in staff_names:
+                        try:
+                            u = await self.user_repo.get_by_id(uid)
+                            if u:
+                                staff_names[uid] = u.full_name
+                        except Exception:
+                            pass
 
         result = []
         for p in payments:
@@ -1931,9 +2004,16 @@ class ReceptionService:
                 "patientId": p.patient_id,
                 "amountCents": p.amount_cents,
                 "amountFormatted": p.amount_formatted,
+                "amountChargedCents": p.amount_charged_cents,
+                "amountChargedFormatted": p.amount_charged_formatted,
                 "currency": p.currency,
                 "method": p.method,
                 "notes": p.notes,
+                "isVoided": p.is_voided,
+                "voidReason": p.void_reason,
+                "voidedAt": p.voided_at,
+                "voidedByUserId": p.voided_by_user_id,
+                "voidedByName": staff_names.get(p.voided_by_user_id) if p.voided_by_user_id else None,
                 "recordedByUserId": p.recorded_by_user_id,
                 "recordedByName": staff_names.get(p.recorded_by_user_id, "Staff") if p.recorded_by_user_id else None,
                 "createdAt": p.created_at,
@@ -1960,13 +2040,14 @@ class ReceptionService:
         staff_names = {}
         if self.user_repo:
             for p in payments:
-                if p.recorded_by_user_id and p.recorded_by_user_id not in staff_names:
-                    try:
-                        u = await self.user_repo.get_by_id(p.recorded_by_user_id)
-                        if u:
-                            staff_names[p.recorded_by_user_id] = u.full_name
-                    except Exception:
-                        pass
+                for uid in (p.recorded_by_user_id, p.voided_by_user_id):
+                    if uid and uid not in staff_names:
+                        try:
+                            u = await self.user_repo.get_by_id(uid)
+                            if u:
+                                staff_names[uid] = u.full_name
+                        except Exception:
+                            pass
 
         total_cents = 0
         cash_cents = 0
@@ -1975,13 +2056,14 @@ class ReceptionService:
         payment_dtos = []
 
         for p in payments:
-            total_cents += p.amount_cents
-            if p.method == "cash":
-                cash_cents += p.amount_cents
-            elif p.method == "card":
-                card_cents += p.amount_cents
-            elif p.method in ("bank_transfer", "transfer"):
-                transfer_cents += p.amount_cents
+            if not p.is_voided:
+                total_cents += p.amount_cents
+                if p.method == "cash":
+                    cash_cents += p.amount_cents
+                elif p.method == "card":
+                    card_cents += p.amount_cents
+                elif p.method in ("bank_transfer", "transfer"):
+                    transfer_cents += p.amount_cents
 
             payment_dtos.append({
                 "id": p.id,
@@ -1990,21 +2072,29 @@ class ReceptionService:
                 "patientId": p.patient_id,
                 "amountCents": p.amount_cents,
                 "amountFormatted": p.amount_formatted,
+                "amountChargedCents": p.amount_charged_cents,
+                "amountChargedFormatted": p.amount_charged_formatted,
                 "currency": p.currency,
                 "method": p.method,
                 "notes": p.notes,
+                "isVoided": p.is_voided,
+                "voidReason": p.void_reason,
+                "voidedAt": p.voided_at,
+                "voidedByUserId": p.voided_by_user_id,
+                "voidedByName": staff_names.get(p.voided_by_user_id) if p.voided_by_user_id else None,
                 "recordedByUserId": p.recorded_by_user_id,
                 "recordedByName": staff_names.get(p.recorded_by_user_id, "Staff") if p.recorded_by_user_id else None,
                 "createdAt": p.created_at,
             })
 
+        active_count = len([p for p in payments if not p.is_voided])
         return {
             "targetDate": target_date,
             "totalCents": total_cents,
             "cashCents": cash_cents,
             "cardCents": card_cents,
             "transferCents": transfer_cents,
-            "paymentCount": len(payments),
+            "paymentCount": active_count,
             "payments": payment_dtos,
         }
 

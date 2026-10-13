@@ -45,6 +45,7 @@ from app.application.dtos.reception_dto import (
     WaitlistOfferCandidateDto,
     EndOfDayPaymentsSummaryDto,
     RecordVisitPaymentRequest,
+    VoidVisitPaymentRequest,
     VisitPaymentDto,
 )
 from app.application.services.reception_service import ReceptionService
@@ -560,6 +561,7 @@ async def record_appointment_payment(
         notes=req.notes,
         patient_id=req.patientId,
         user_id=current_user.id,
+        amount_charged_cents=req.amountChargedCents,
     )
     return VisitPaymentDto(
         id=payment.id,
@@ -568,11 +570,59 @@ async def record_appointment_payment(
         patientId=payment.patient_id,
         amountCents=payment.amount_cents,
         amountFormatted=payment.amount_formatted,
+        amountChargedCents=payment.amount_charged_cents,
+        amountChargedFormatted=payment.amount_charged_formatted,
         currency=payment.currency,
         method=payment.method,
         notes=payment.notes,
+        isVoided=payment.is_voided,
+        voidReason=payment.void_reason,
+        voidedAt=payment.voided_at,
+        voidedByUserId=payment.voided_by_user_id,
+        voidedByName=None,
         recordedByUserId=payment.recorded_by_user_id,
         recordedByName=current_user.full_name,
+        createdAt=payment.created_at,
+    )
+
+
+@router.post(
+    "/appointments/{id}/payments/{payment_id}/void",
+    response_model=VisitPaymentDto,
+)
+async def void_appointment_payment(
+    id: UUID,
+    payment_id: UUID,
+    req: VoidVisitPaymentRequest,
+    current_user: User = Depends(require_receptionist),
+    reception_service: ReceptionService = Depends(get_reception_service),
+) -> VisitPaymentDto:
+    """Voids an existing visit payment with mandatory reason. Audited."""
+    payment = await reception_service.void_visit_payment(
+        booking_id=id,
+        payment_id=payment_id,
+        user_id=current_user.id,
+        reason=req.reason,
+    )
+    return VisitPaymentDto(
+        id=payment.id,
+        clinicId=payment.clinic_id,
+        bookingId=payment.booking_id,
+        patientId=payment.patient_id,
+        amountCents=payment.amount_cents,
+        amountFormatted=payment.amount_formatted,
+        amountChargedCents=payment.amount_charged_cents,
+        amountChargedFormatted=payment.amount_charged_formatted,
+        currency=payment.currency,
+        method=payment.method,
+        notes=payment.notes,
+        isVoided=payment.is_voided,
+        voidReason=payment.void_reason,
+        voidedAt=payment.voided_at,
+        voidedByUserId=payment.voided_by_user_id,
+        voidedByName=current_user.full_name,
+        recordedByUserId=payment.recorded_by_user_id,
+        recordedByName=None,
         createdAt=payment.created_at,
     )
 

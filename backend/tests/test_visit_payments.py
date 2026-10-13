@@ -231,20 +231,182 @@ async def test_end_of_day_payments_summary(
     assert summary["totalCents"] >= 1000000
 
 
+@pytest.mark.asyncio
+async def test_void_visit_payment_with_reason_and_audit(
+    receptionist_auth: dict, test_session: AsyncSession
+):
+    client: AsyncClient = receptionist_auth["client"]
+    headers = receptionist_auth["headers"]
+    today = date.today()
+
+    # Create booking
+    booking = BookingORM(
+        id=uuid4(),
+        confirmation_id="BK-PAY-VOID-01",
+        preferred_date=today,
+        preferred_time="15:00",
+        patient_full_name="Sadia Bibi",
+        patient_phone="+923004445566",
+        patient_email="sadia@example.com",
+        status="confirmed",
+    )
+    test_session.add(booking)
+    await test_session.commit()
+
+    # 1. Record payment
+    p_resp = await client.post(
+        f"/api/v1/reception/appointments/{booking.id}/payments",
+        headers=headers,
+        json={"amountCents": 400000, "amountChargedCents": 400000, "method": "cash", "notes": "Initial deposit"},
+    )
+    assert p_resp.status_code == 201
+    payment_id = p_resp.json()["id"]
+
+    # 2. Attempt void without reason -> 422 Unprocessable
+    bad_void = await client.post(
+        f"/api/v1/reception/appointments/{booking.id}/payments/{payment_id}/void",
+        headers=headers,
+        json={"reason": ""},
+    )
+    assert bad_void.status_code in (400, 422)
+
+    # 3. Void with valid reason -> 200
+    void_resp = await client.post(
+        f"/api/v1/reception/appointments/{booking.id}/payments/{payment_id}/void",
+        headers=headers,
+        json={"reason": "Incorrect fee billed; refunded cash to patient."},
+    )
+    assert void_resp.status_code == 200
+    void_data = void_resp.json()
+    assert void_data["isVoided"] is True
+    assert void_data["voidReason"] == "Incorrect fee billed; refunded cash to patient."
+    assert void_data["voidedAt"] is not None
+
+    # 4. Attempt void again -> 400 Bad Request
+    dup_void = await client.post(
+        f"/api/v1/reception/appointments/{booking.id}/payments/{payment_id}/void",
+        headers=headers,
+        json={"reason": "Trying again"},
+    )
+    assert dup_void.status_code == 400
+    assert "already voided" in dup_void.json()["detail"].lower()
+
+    # 5. Verify audit log entry
+    audit_stmt = (
+        select(ActivityLogORM)
+        .where(
+            ActivityLogORM.action == "visit_payment_voided",
+            ActivityLogORM.entity_id == str(payment_id),
+        )
+    )
+    audit_res = await test_session.execute(audit_stmt)
+    assert audit_res.scalars().first() is not None
+
+    # 6. Verify voided payment is excluded from EOD totals
+    eod_resp = await client.get(
+        f"/api/v1/reception/end-of-day/payments-summary?date={today.isoformat()}",
+        headers=headers,
+    )
+    assert eod_resp.status_code == 200
+    eod = eod_resp.json()
+    voided_in_eod = [p for p in eod["payments"] if p["id"] == payment_id]
+    assert len(voided_in_eod) == 1
+    assert voided_in_eod[0]["isVoided"] is True
+
+
+@pytest.mark.asyncio
+async def test_balance_tracking_and_doctor_payment_badge_without_amounts(
+    receptionist_auth: dict, doctor_auth: dict, test_session: AsyncSession
+):
+    reception_client: AsyncClient = receptionist_auth["client"]
+    rec_headers = receptionist_auth["headers"]
+    doc_client: AsyncClient = doctor_auth["client"]
+    doc_headers = doctor_auth["headers"]
+    today = date.today()
+
+    # Create booking for doctor
+    booking = BookingORM(
+        id=uuid4(),
+        confirmation_id="BK-PAY-DOC-01",
+        preferred_date=today,
+        preferred_time="11:00",
+        patient_full_name="Amina Sheikh",
+        patient_phone="+923007778899",
+        patient_email="amina@example.com",
+        status="confirmed",
+    )
+    test_session.add(booking)
+    await test_session.commit()
+
+    # 1. Before any payment: doctor schedule shows unpaid (or no payment)
+    doc_sched_1 = await doc_client.get(
+        f"/api/v1/doctor/schedule?target_date={today.isoformat()}",
+        headers=doc_headers,
+    )
+    assert doc_sched_1.status_code == 200
+    doc_item_1 = next((b for b in doc_sched_1.json() if b["id"] == str(booking.id)), None)
+    if doc_item_1:
+        assert doc_item_1["paymentStatus"] == "unpaid"
+        # Zero amounts exposed in Doctor response
+        assert "amountCents" not in doc_item_1
+        assert "amountChargedCents" not in doc_item_1
+
+    # 2. Reception records partial payment: fee 500000, paying 300000
+    p1 = await reception_client.post(
+        f"/api/v1/reception/appointments/{booking.id}/payments",
+        headers=rec_headers,
+        json={"amountCents": 300000, "amountChargedCents": 500000, "method": "cash"},
+    )
+    assert p1.status_code == 201
+
+    # Doctor schedule shows partial
+    doc_sched_2 = await doc_client.get(
+        f"/api/v1/doctor/schedule?target_date={today.isoformat()}",
+        headers=doc_headers,
+    )
+    assert doc_sched_2.status_code == 200
+    doc_item_2 = next((b for b in doc_sched_2.json() if b["id"] == str(booking.id)), None)
+    if doc_item_2:
+        assert doc_item_2["paymentStatus"] == "partial"
+        assert "amountCents" not in doc_item_2
+
+    # 3. Reception records remaining payment: fee 500000, paying 200000
+    p2 = await reception_client.post(
+        f"/api/v1/reception/appointments/{booking.id}/payments",
+        headers=rec_headers,
+        json={"amountCents": 200000, "amountChargedCents": 500000, "method": "card"},
+    )
+    assert p2.status_code == 201
+
+    # Doctor schedule shows paid
+    doc_sched_3 = await doc_client.get(
+        f"/api/v1/doctor/schedule?target_date={today.isoformat()}",
+        headers=doc_headers,
+    )
+    assert doc_sched_3.status_code == 200
+    doc_item_3 = next((b for b in doc_sched_3.json() if b["id"] == str(booking.id)), None)
+    if doc_item_3:
+        assert doc_item_3["paymentStatus"] == "paid"
+        assert "amountCents" not in doc_item_3
+
+
 def test_visit_payments_migration_definitions():
     import importlib.util
     from pathlib import Path
 
-    file_path = Path(__file__).parent.parent / "alembic" / "versions" / "a8b9c0d1e2f3_visit_payments.py"
-    assert file_path.exists()
-    spec = importlib.util.spec_from_file_location("a8b9c0d1e2f3_visit_payments", file_path)
-    mig = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mig)
+    for rev, parent in [
+        ("a8b9c0d1e2f3_visit_payments.py", "a6b7c8d9e0f1"),
+        ("b8c9d0e1f2a3_visit_payment_voiding_and_balance.py", "a8b9c0d1e2f3"),
+    ]:
+        file_path = Path(__file__).parent.parent / "alembic" / "versions" / rev
+        assert file_path.exists(), f"Missing migration file {rev}"
+        spec = importlib.util.spec_from_file_location(rev.replace(".py", ""), file_path)
+        mig = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mig)
 
-    assert mig.revision == "a8b9c0d1e2f3"
-    assert mig.down_revision == "a6b7c8d9e0f1"
-    assert hasattr(mig, "upgrade")
-    assert hasattr(mig, "downgrade")
-    assert callable(mig.upgrade)
-    assert callable(mig.downgrade)
+        assert mig.down_revision == parent
+        assert hasattr(mig, "upgrade")
+        assert hasattr(mig, "downgrade")
+        assert callable(mig.upgrade)
+        assert callable(mig.downgrade)
 

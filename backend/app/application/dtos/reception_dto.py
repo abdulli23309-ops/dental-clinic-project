@@ -35,6 +35,7 @@ class BookingResponseDto(BaseModel):
     clinicianName: Optional[str] = None
     serviceName: Optional[str] = None
     hasAlerts: bool = False
+    paymentStatus: Optional[str] = None
     createdAt: datetime
     updatedAt: datetime
 
@@ -429,9 +430,16 @@ class VisitPaymentDto(BaseModel):
     patientId: Optional[UUID] = None
     amountCents: int
     amountFormatted: str
+    amountChargedCents: Optional[int] = 0
+    amountChargedFormatted: Optional[str] = None
     currency: str = "PKR"
     method: str = "cash"
     notes: Optional[str] = None
+    isVoided: bool = False
+    voidReason: Optional[str] = None
+    voidedAt: Optional[datetime] = None
+    voidedByUserId: Optional[UUID] = None
+    voidedByName: Optional[str] = None
     recordedByUserId: Optional[UUID] = None
     recordedByName: Optional[str] = None
     createdAt: datetime
@@ -441,10 +449,15 @@ class VisitPaymentDto(BaseModel):
 
 class RecordVisitPaymentRequest(BaseModel):
     amountCents: int = Field(gt=0, description="Amount in cents/smallest currency unit")
+    amountChargedCents: Optional[int] = Field(default=None, ge=0, description="Total amount charged in cents")
     currency: str = Field(default="PKR", max_length=3)
     method: str = Field(default="cash", pattern="^(cash|card|bank_transfer)$")
     notes: Optional[str] = None
     patientId: Optional[UUID] = None
+
+
+class VoidVisitPaymentRequest(BaseModel):
+    reason: str = Field(min_length=1, max_length=500, description="Mandatory reason for voiding this payment record")
 
 
 class EndOfDayPaymentsSummaryDto(BaseModel):

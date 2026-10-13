@@ -129,7 +129,7 @@ export default function AdminBookingPage() {
   const [advanceDays, setAdvanceDays] = useState(60);
   const [reminderTemplate, setReminderTemplate] = useState("");
   const [fileNumberPrefix, setFileNumberPrefix] = useState("MD-");
-  const [paymentsEnabled, setPaymentsEnabled] = useState(false);
+  const [paymentsEnabled, setPaymentsEnabled] = useState(true);
   const [isSavingRules, setIsSavingRules] = useState(false);
 
   const loadAll = async () => {
@@ -151,7 +151,7 @@ export default function AdminBookingPage() {
       setMinLeadTime(settingsData.minLeadTimeHours ?? 2);
       setAdvanceDays(settingsData.advanceBookingDays || 60);
       setFileNumberPrefix(settingsData.fileNumberPrefix || "MD-");
-      setPaymentsEnabled(Boolean(settingsData.paymentsEnabled));
+      setPaymentsEnabled(settingsData.paymentsEnabled ?? true);
       setReminderTemplate(
         settingsData.reminderTemplate ||
           "Dear {patient_name}, this is a reminder for your dental appointment on {appointment_date} at {appointment_time} with {clinician_name} at Marlow Dental. Please reply to confirm or call us if you need to reschedule."

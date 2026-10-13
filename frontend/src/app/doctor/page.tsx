@@ -601,6 +601,21 @@ export default function DoctorDashboardPage() {
                         <span className="font-semibold text-ink">
                           {b.patientName || "Patient"}
                         </span>
+                        {b.paymentStatus === "paid" && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800">
+                            Paid
+                          </span>
+                        )}
+                        {b.paymentStatus === "unpaid" && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800">
+                            Unpaid
+                          </span>
+                        )}
+                        {b.paymentStatus === "partial" && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800 border border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800">
+                            Partial
+                          </span>
+                        )}
                         {b.hasAlerts && (
                           <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-100 text-rose-800 border border-rose-300 dark:bg-rose-950 dark:text-rose-200 dark:border-rose-800">
                             Alert

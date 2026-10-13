@@ -1475,6 +1475,7 @@ interface RawBooking {
   clinicianName?: string | null;
   serviceName?: string | null;
   hasAlerts?: boolean;
+  paymentStatus?: "paid" | "unpaid" | "partial" | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1675,6 +1676,7 @@ export interface ReceptionBooking {
   clinicianName?: string | null;
   serviceName?: string | null;
   hasAlerts?: boolean;
+  paymentStatus?: "paid" | "unpaid" | "partial" | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1802,9 +1804,16 @@ export interface VisitPayment {
   patientId?: string | null;
   amountCents: number;
   amountFormatted: string;
+  amountChargedCents?: number;
+  amountChargedFormatted?: string | null;
   currency: string;
   method: "cash" | "card" | "bank_transfer" | string;
   notes?: string | null;
+  isVoided?: boolean;
+  voidReason?: string | null;
+  voidedAt?: string | null;
+  voidedByUserId?: string | null;
+  voidedByName?: string | null;
   recordedByUserId?: string | null;
   recordedByName?: string | null;
   createdAt: string;
@@ -1853,6 +1862,7 @@ function mapBooking(raw: RawBooking): ReceptionBooking {
     clinicianName: raw.clinicianName,
     serviceName: raw.serviceName,
     hasAlerts: raw.hasAlerts ?? false,
+    paymentStatus: raw.paymentStatus ?? null,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
   };
@@ -2899,6 +2909,7 @@ export async function recordBookingPayment(
   bookingId: string,
   data: {
     amountCents: number;
+    amountChargedCents?: number;
     currency?: string;
     method?: string;
     notes?: string;
@@ -2915,6 +2926,24 @@ export async function recordBookingPayment(
     token
   );
   if (!res.ok) await apiError(res, "Failed to record payment.");
+  return res.json();
+}
+
+export async function voidBookingPayment(
+  bookingId: string,
+  paymentId: string,
+  reason: string,
+  token?: string | null
+): Promise<VisitPayment> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/appointments/${bookingId}/payments/${paymentId}/void`,
+    {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to void payment.");
   return res.json();
 }
 

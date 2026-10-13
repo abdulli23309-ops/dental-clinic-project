@@ -15,9 +15,19 @@ class VisitPayment:
     method: str = "cash"  # "cash", "card", "bank_transfer"
     notes: Optional[str] = None
     recorded_by_user_id: Optional[UUID] = None
+    amount_charged_cents: int = 0
+    is_voided: bool = False
+    void_reason: Optional[str] = None
+    voided_at: Optional[datetime] = None
+    voided_by_user_id: Optional[UUID] = None
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     @property
     def amount_formatted(self) -> str:
         units = self.amount_cents / 100
+        return f"{self.currency} {units:,.2f}"
+
+    @property
+    def amount_charged_formatted(self) -> str:
+        units = self.amount_charged_cents / 100
         return f"{self.currency} {units:,.2f}"

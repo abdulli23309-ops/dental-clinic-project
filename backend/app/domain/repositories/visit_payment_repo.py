@@ -30,3 +30,8 @@ class VisitPaymentRepository(ABC):
     ) -> List[VisitPayment]:
         """Lists all payments recorded on a given date (for end of day reconciliation)."""
         pass
+
+    @abstractmethod
+    async def update(self, payment: VisitPayment) -> VisitPayment:
+        """Updates an existing visit payment (e.g. for voiding)."""
+        pass

@@ -16,6 +16,7 @@ from app.api.deps import (
     get_medical_alert_service,
     get_patient_repository,
     get_reception_service,
+    get_visit_payment_repository,
     require_doctor,
 )
 from app.application.services.medical_alert_service import MedicalAlertService
@@ -23,6 +24,7 @@ from app.application.services.reception_service import ReceptionService
 from app.domain.repositories.booking_repo import BookingRepository
 from app.domain.repositories.encounter_repo import EncounterRepository
 from app.domain.repositories.patient_repo import PatientRepository
+from app.domain.repositories.visit_payment_repo import VisitPaymentRepository
 from app.infrastructure.repositories.postgres_activity_repo import (
     PostgresActivityLogRepository,
     record_activity,
@@ -70,6 +72,27 @@ class DoctorNoteUpdateRequest(BaseModel):
     staffNotes: str
 
 
+async def _determine_payment_status(payment_repo: Optional[VisitPaymentRepository], booking_id: UUID) -> str:
+    if not payment_repo:
+        return "unpaid"
+    try:
+        payments = await payment_repo.list_by_booking_id(booking_id)
+        active = [p for p in payments if not p.is_voided]
+        if not active:
+            return "unpaid"
+        total_charged = max([p.amount_charged_cents for p in active], default=0)
+        total_paid = sum(p.amount_cents for p in active)
+        if total_charged > 0 and total_paid >= total_charged:
+            return "paid"
+        elif total_paid > 0 and total_charged == 0:
+            return "paid"
+        elif total_paid > 0:
+            return "partial"
+        return "unpaid"
+    except Exception:
+        return "unpaid"
+
+
 @router.get("/schedule", response_model=List[BookingResponseDto])
 async def get_doctor_schedule(
     target_date: Optional[date] = Query(None),
@@ -77,6 +100,7 @@ async def get_doctor_schedule(
     current_user: User = Depends(require_doctor),
     doctor_service: DoctorService = Depends(get_doctor_service),
     medical_alert_service: MedicalAlertService = Depends(get_medical_alert_service),
+    payment_repo: VisitPaymentRepository = Depends(get_visit_payment_repository),
 ) -> List[BookingResponseDto]:
     user_role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
     is_admin_level = user_role_str.lower() in ("admin", "super admin", "platform owner")
@@ -99,36 +123,40 @@ async def get_doctor_schedule(
         if await medical_alert_service.check_alerts_on_file(pid):
             patients_with_alerts.add(pid)
 
-    return [
-        BookingResponseDto(
-            id=b.id,
-            confirmationId=b.confirmation_id,
-            preferredDate=b.preferred_date,
-            preferredTime=b.preferred_time,
-            patientFullName=b.patient_full_name,
-            patientPhone=b.patient_phone,
-            patientEmail=b.patient_email,
-            status=b.status,
-            clinicId=b.clinic_id,
-            patientId=b.patient_id,
-            serviceId=b.service_id,
-            teamMemberId=b.team_member_id,
-            slotId=b.slot_id,
-            notes=b.notes,
-            staffNotes=b.staff_notes,
-            utmSource=b.utm_source,
-            utmCampaign=b.utm_campaign,
-            arrivedAt=b.arrived_at,
-            startedAt=b.started_at,
-            completedAt=b.completed_at,
-            cancellationReason=b.cancellation_reason,
-            cancelledByUserId=b.cancelled_by_user_id,
-            hasAlerts=b.patient_id in patients_with_alerts if b.patient_id else False,
-            createdAt=b.created_at,
-            updatedAt=b.updated_at,
+    response = []
+    for b in bookings:
+        status_val = await _determine_payment_status(payment_repo, b.id)
+        response.append(
+            BookingResponseDto(
+                id=b.id,
+                confirmationId=b.confirmation_id,
+                preferredDate=b.preferred_date,
+                preferredTime=b.preferred_time,
+                patientFullName=b.patient_full_name,
+                patientPhone=b.patient_phone,
+                patientEmail=b.patient_email,
+                status=b.status,
+                clinicId=b.clinic_id,
+                patientId=b.patient_id,
+                serviceId=b.service_id,
+                teamMemberId=b.team_member_id,
+                slotId=b.slot_id,
+                notes=b.notes,
+                staffNotes=b.staff_notes,
+                utmSource=b.utm_source,
+                utmCampaign=b.utm_campaign,
+                arrivedAt=b.arrived_at,
+                startedAt=b.started_at,
+                completedAt=b.completed_at,
+                cancellationReason=b.cancellation_reason,
+                cancelledByUserId=b.cancelled_by_user_id,
+                hasAlerts=b.patient_id in patients_with_alerts if b.patient_id else False,
+                paymentStatus=status_val,
+                createdAt=b.created_at,
+                updatedAt=b.updated_at,
+            )
         )
-        for b in bookings
-    ]
+    return response
 
 
 @router.get("/appointments/{id}", response_model=BookingResponseDto)
@@ -136,6 +164,7 @@ async def get_appointment_detail(
     id: UUID,
     current_user: User = Depends(require_doctor),
     doctor_service: DoctorService = Depends(get_doctor_service),
+    payment_repo: VisitPaymentRepository = Depends(get_visit_payment_repository),
 ) -> BookingResponseDto:
     b = await doctor_service.get_appointment(id)
     user_role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
@@ -154,6 +183,7 @@ async def get_appointment_detail(
                 detail="Access forbidden: You cannot view appointment details for another doctor's assigned patient.",
             )
 
+    status_val = await _determine_payment_status(payment_repo, b.id)
     return BookingResponseDto(
         id=b.id,
         confirmationId=b.confirmation_id,
@@ -177,6 +207,7 @@ async def get_appointment_detail(
         completedAt=b.completed_at,
         cancellationReason=b.cancellation_reason,
         cancelledByUserId=b.cancelled_by_user_id,
+        paymentStatus=status_val,
         createdAt=b.created_at,
         updatedAt=b.updated_at,
     )

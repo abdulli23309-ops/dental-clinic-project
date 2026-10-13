@@ -26,6 +26,11 @@ class PostgresVisitPaymentRepository(VisitPaymentRepository):
             method=entity.method,
             notes=entity.notes,
             recorded_by_user_id=entity.recorded_by_user_id,
+            amount_charged_cents=entity.amount_charged_cents,
+            is_voided=entity.is_voided,
+            void_reason=entity.void_reason,
+            voided_at=entity.voided_at,
+            voided_by_user_id=entity.voided_by_user_id,
             created_at=entity.created_at,
         )
 
@@ -41,6 +46,11 @@ class PostgresVisitPaymentRepository(VisitPaymentRepository):
             method=orm.method,
             notes=orm.notes,
             recorded_by_user_id=orm.recorded_by_user_id,
+            amount_charged_cents=orm.amount_charged_cents,
+            is_voided=orm.is_voided,
+            void_reason=orm.void_reason,
+            voided_at=orm.voided_at,
+            voided_by_user_id=orm.voided_by_user_id,
             created_at=orm.created_at,
         )
 
@@ -49,6 +59,22 @@ class PostgresVisitPaymentRepository(VisitPaymentRepository):
         self._session.add(orm)
         await self._session.flush()
         return self._to_domain(orm)
+
+    async def update(self, payment: VisitPayment) -> VisitPayment:
+        orm = await self._session.get(VisitPaymentORM, payment.id)
+        if orm:
+            orm.amount_cents = payment.amount_cents
+            orm.amount_charged_cents = payment.amount_charged_cents
+            orm.currency = payment.currency
+            orm.method = payment.method
+            orm.notes = payment.notes
+            orm.is_voided = payment.is_voided
+            orm.void_reason = payment.void_reason
+            orm.voided_at = payment.voided_at
+            orm.voided_by_user_id = payment.voided_by_user_id
+            await self._session.flush()
+            return self._to_domain(orm)
+        return payment
 
     async def get_by_id(self, payment_id: UUID) -> Optional[VisitPayment]:
         orm = await self._session.get(VisitPaymentORM, payment_id)

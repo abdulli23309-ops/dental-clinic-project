@@ -21,6 +21,9 @@ from app.application.dtos.reception_dto import (
     BookingStatusUpdateRequest,
     DashboardSnoozeRequest,
     DashboardSummaryResponse,
+    EndOfDayItemDto,
+    EndOfDayResolveRequest,
+    EndOfDayUnresolvedResponse,
     LeadConvertRequest,
     LeadCreateRequest,
     LeadResponseDto,
@@ -352,6 +355,68 @@ async def mark_appointment_reminded(
         remindedAt=booking.reminded_at,
         remindedByUserId=booking.reminded_by_user_id,
         remindedByName=current_user.full_name,
+        createdAt=booking.created_at,
+        updatedAt=booking.updated_at,
+    )
+
+
+# --- End-of-Day Review ---
+
+@router.get("/end-of-day/unresolved", response_model=EndOfDayUnresolvedResponse)
+async def get_end_of_day_unresolved(
+    date_val: Optional[date] = Query(None, alias="date"),
+    clinic_id: Optional[UUID] = Query(None),
+    current_user: User = Depends(require_receptionist),
+    reception_service: ReceptionService = Depends(get_reception_service),
+) -> EndOfDayUnresolvedResponse:
+    """Lists unresolved appointments for the target date and earlier for end-of-day review."""
+    effective_clinic = _get_clinic_scope(current_user, clinic_id)
+    target = date_val or date.today()
+    result = await reception_service.get_end_of_day_unresolved(
+        target_date=target,
+        clinic_id=effective_clinic,
+    )
+    return EndOfDayUnresolvedResponse(**result)
+
+
+@router.post("/end-of-day/resolve", response_model=BookingResponseDto)
+async def resolve_end_of_day(
+    req: EndOfDayResolveRequest,
+    current_user: User = Depends(require_receptionist),
+    reception_service: ReceptionService = Depends(get_reception_service),
+) -> BookingResponseDto:
+    """Manually resolves an unresolved appointment at end-of-day as completed, no-show, or cancelled. Strictly audited."""
+    booking = await reception_service.resolve_end_of_day(
+        booking_id=req.bookingId,
+        resolution=req.resolution,
+        reason=req.reason,
+        user_id=current_user.id,
+    )
+    return BookingResponseDto(
+        id=booking.id,
+        confirmationId=booking.confirmation_id,
+        preferredDate=booking.preferred_date,
+        preferredTime=booking.preferred_time,
+        patientFullName=booking.patient_full_name,
+        patientPhone=booking.patient_phone,
+        patientEmail=booking.patient_email,
+        status=booking.status,
+        clinicId=booking.clinic_id,
+        patientId=booking.patient_id,
+        serviceId=booking.service_id,
+        teamMemberId=booking.team_member_id,
+        slotId=booking.slot_id,
+        notes=booking.notes,
+        staffNotes=booking.staff_notes,
+        utmSource=booking.utm_source,
+        utmCampaign=booking.utm_campaign,
+        arrivedAt=booking.arrived_at,
+        startedAt=booking.started_at,
+        completedAt=booking.completed_at,
+        cancellationReason=booking.cancellation_reason,
+        cancelledByUserId=booking.cancelled_by_user_id,
+        remindedAt=booking.reminded_at,
+        remindedByUserId=booking.reminded_by_user_id,
         createdAt=booking.created_at,
         updatedAt=booking.updated_at,
     )

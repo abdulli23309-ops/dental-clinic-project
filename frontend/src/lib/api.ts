@@ -2172,6 +2172,65 @@ export async function markAppointmentReminded(
   return mapBooking(await res.json());
 }
 
+/* --- End-of-Day Review --- */
+
+export interface ReceptionEndOfDayItem {
+  id: string;
+  confirmationId: string;
+  preferredDate: string;
+  preferredTime: string;
+  patientFullName: string;
+  patientPhone: string;
+  patientEmail: string;
+  status: string;
+  clinicId?: string | null;
+  patientId?: string | null;
+  serviceId?: string | null;
+  serviceName?: string | null;
+  teamMemberId?: string | null;
+  clinicianName?: string | null;
+  arrivedAt?: string | null;
+  notes?: string | null;
+  staffNotes?: string | null;
+}
+
+export interface ReceptionEndOfDayResponse {
+  targetDate: string;
+  todayCount: number;
+  pastCount: number;
+  totalUnresolved: number;
+  items: ReceptionEndOfDayItem[];
+}
+
+export async function getReceptionEndOfDayUnresolved(
+  date?: string,
+  token?: string | null
+): Promise<ReceptionEndOfDayResponse> {
+  const q = date ? `?date=${date}` : "";
+  const res = await authorizedFetch(`/api/v1/reception/end-of-day/unresolved${q}`, {}, token);
+  if (!res.ok) throw new Error("Failed to load unresolved end-of-day appointments.");
+  return res.json();
+}
+
+export async function resolveReceptionEndOfDay(
+  data: {
+    bookingId: string;
+    resolution: "completed" | "no_show" | "cancelled";
+    reason?: string;
+  },
+  token?: string | null
+): Promise<ReceptionBooking> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/end-of-day/resolve`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to resolve end-of-day appointment.");
+  return mapBooking(await res.json());
+}
 
 
 /* --- Intake requests (mapped onto /reception/appointments) --- */

@@ -698,7 +698,7 @@ class ReceptionService:
     }
 
     ALLOWED_TRANSITIONS = {
-        "requested": {"confirmed", "scheduled", "cancelled", "waitlist"},
+        "requested": {"confirmed", "scheduled", "cancelled", "waitlist", "no_show"},
         "confirmed": {"arrived", "checked_in", "waiting", "in_progress", "cancelled", "no_show", "waitlist", "confirmed"},
         "scheduled": {"arrived", "checked_in", "waiting", "in_progress", "cancelled", "no_show", "waitlist", "confirmed"},
         "arrived": {"in_progress", "completed", "cancelled", "no_show", "arrived"},
@@ -1386,3 +1386,151 @@ class ReceptionService:
             "template": template,
             "items": items,
         }
+
+    async def get_end_of_day_unresolved(
+        self,
+        target_date: date,
+        clinic_id: Optional[UUID] = None,
+    ) -> Dict[str, Any]:
+        """Returns unresolved appointments for target_date and earlier (status in requested, confirmed, arrived, in_progress)."""
+        bookings, _ = await self.booking_repo.list_bookings(
+            clinic_id=clinic_id,
+            date_to=target_date,
+            status_in=["requested", "confirmed", "arrived", "in_progress"],
+            limit=500,
+        )
+
+        today_count = 0
+        past_count = 0
+        items = []
+
+        for b in bookings:
+            if b.preferred_date == target_date:
+                today_count += 1
+            elif b.preferred_date < target_date:
+                past_count += 1
+
+            clinician_name = None
+            if b.team_member_id and self.team_repo:
+                try:
+                    member = await self.team_repo.get_by_id(b.team_member_id)
+                    if member:
+                        clinician_name = member.display_name or f"{member.first_name} {member.last_name}"
+                except Exception:
+                    pass
+
+            service_name = None
+            if b.service_id and self.service_repo:
+                try:
+                    svc = await self.service_repo.get_by_id(UUID(str(b.service_id)))
+                    if svc:
+                        service_name = svc.title
+                except Exception:
+                    try:
+                        svc = await self.service_repo.get_by_slug(str(b.service_id))
+                        if svc:
+                            service_name = svc.title
+                    except Exception:
+                        pass
+
+            items.append({
+                "id": b.id,
+                "confirmationId": b.confirmation_id,
+                "preferredDate": b.preferred_date,
+                "preferredTime": b.preferred_time,
+                "patientFullName": b.patient_full_name,
+                "patientPhone": b.patient_phone,
+                "patientEmail": b.patient_email,
+                "status": b.status,
+                "clinicId": b.clinic_id,
+                "patientId": b.patient_id,
+                "serviceId": b.service_id,
+                "serviceName": service_name,
+                "teamMemberId": b.team_member_id,
+                "clinicianName": clinician_name,
+                "arrivedAt": b.arrived_at,
+                "notes": b.notes,
+                "staffNotes": b.staff_notes,
+            })
+
+        return {
+            "targetDate": target_date,
+            "todayCount": today_count,
+            "pastCount": past_count,
+            "totalUnresolved": len(items),
+            "items": items,
+        }
+
+    async def resolve_end_of_day(
+        self,
+        booking_id: UUID,
+        resolution: str,
+        reason: Optional[str] = None,
+        user_id: Optional[UUID] = None,
+    ) -> Booking:
+        """Manually resolves an end-of-day unresolved appointment. Never auto-transitions."""
+        if resolution not in ("completed", "no_show", "cancelled"):
+            raise HTTPException(
+                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid resolution '{resolution}'. Must be 'completed', 'no_show', or 'cancelled'.",
+            )
+
+        booking = await self.booking_repo.get_by_id(booking_id)
+        if not booking:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="Booking record not found.",
+            )
+
+        if booking.status not in ("requested", "confirmed", "arrived", "in_progress"):
+            raise HTTPException(
+                status_code=http_status.HTTP_409_CONFLICT,
+                detail=f"Appointment is already resolved with status '{booking.status}'.",
+            )
+
+        old_status = booking.status
+        now_utc = datetime.now(timezone.utc)
+
+        if resolution == "cancelled":
+            if not reason or not reason.strip():
+                raise HTTPException(
+                    status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Cancellation reason is required when cancelling an appointment at end-of-day.",
+                )
+            booking.cancellation_reason = reason.strip()
+            booking.cancelled_by_user_id = user_id
+            booking.status = "cancelled"
+        elif resolution == "completed":
+            booking.status = "completed"
+            if booking.completed_at is None:
+                booking.completed_at = now_utc
+            if reason and reason.strip():
+                note = f"[End-of-day resolution] {reason.strip()}"
+                booking.staff_notes = f"{booking.staff_notes}\n{note}" if booking.staff_notes else note
+        elif resolution == "no_show":
+            booking.status = "no_show"
+            if reason and reason.strip():
+                note = f"[End-of-day resolution] {reason.strip()}"
+                booking.staff_notes = f"{booking.staff_notes}\n{note}" if booking.staff_notes else note
+
+        saved = await self.booking_repo.save(booking)
+
+        # Audit trail: action="end_of_day_resolution"
+        await record_activity(
+            self.activity_repo,
+            action="end_of_day_resolution",
+            entity_type="booking",
+            entity_id=saved.id,
+            user_id=user_id,
+            details={
+                "previous_status": old_status,
+                "resolution": resolution,
+                "reason": reason.strip() if reason else None,
+                "booking_id": str(saved.id),
+                "confirmation_id": saved.confirmation_id,
+                "preferred_date": str(saved.preferred_date),
+            },
+        )
+
+        return saved
+

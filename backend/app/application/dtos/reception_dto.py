@@ -307,3 +307,44 @@ class AppointmentRequestItemDto(BaseModel):
     notes: Optional[str] = None
     staffNotes: Optional[str] = None
     createdAt: datetime
+
+
+# --- End-of-Day Review DTOs ---
+
+class EndOfDayItemDto(BaseModel):
+    id: UUID
+    confirmationId: str
+    preferredDate: date
+    preferredTime: str
+    patientFullName: str
+    patientPhone: str
+    patientEmail: str
+    status: str
+    clinicId: Optional[UUID] = None
+    patientId: Optional[UUID] = None
+    serviceId: Optional[str] = None
+    serviceName: Optional[str] = None
+    teamMemberId: Optional[UUID] = None
+    clinicianName: Optional[str] = None
+    arrivedAt: Optional[datetime] = None
+    notes: Optional[str] = None
+    staffNotes: Optional[str] = None
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class EndOfDayUnresolvedResponse(BaseModel):
+    targetDate: date
+    todayCount: int
+    pastCount: int
+    totalUnresolved: int
+    items: List[EndOfDayItemDto]
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class EndOfDayResolveRequest(BaseModel):
+    bookingId: UUID
+    resolution: str = Field(..., pattern="^(completed|no_show|cancelled)$")
+    reason: Optional[str] = None
+

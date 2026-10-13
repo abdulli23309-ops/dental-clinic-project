@@ -16,6 +16,7 @@ class ServiceCreateRequest(BaseModel):
     code: Optional[str] = None
     insuranceNote: Optional[str] = None
     recommendedInterval: Optional[str] = None
+    recallIntervalDays: Optional[int] = None
     displayOrder: int = 0
     isHighlighted: bool = False
     isPublic: bool = True
@@ -39,6 +40,7 @@ class ServiceUpdateRequest(BaseModel):
     code: Optional[str] = None
     insuranceNote: Optional[str] = None
     recommendedInterval: Optional[str] = None
+    recallIntervalDays: Optional[int] = None
     displayOrder: Optional[int] = None
     isHighlighted: Optional[bool] = None
     isPublic: Optional[bool] = None
@@ -68,6 +70,7 @@ class ServiceResponse(BaseModel):
     code: Optional[str] = None
     insuranceNote: Optional[str] = None
     recommendedInterval: Optional[str] = None
+    recallIntervalDays: Optional[int] = None
     displayOrder: int
     isHighlighted: bool
     isActive: bool

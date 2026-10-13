@@ -19,6 +19,7 @@ from app.application.dtos.reception_dto import (
     BookingRescheduleRequest,
     BookingResponseDto,
     BookingStatusUpdateRequest,
+    CreateRecallTaskRequest,
     DashboardSnoozeRequest,
     DashboardSummaryResponse,
     EndOfDayItemDto,
@@ -34,6 +35,7 @@ from app.application.dtos.reception_dto import (
     PatientProfileResponse,
     PatientResponseDto,
     PatientUpdateRequest,
+    RecallItemDto,
     ReminderItemDto,
     RemindersWorklistResponse,
     TaskCreateRequest,
@@ -1053,14 +1055,45 @@ async def convert_lead_to_patient(
 
 # --- 7. Recalls & Waitlist ---
 
-@router.get("/recalls", response_model=List[Dict[str, Any]])
+@router.get("/recalls", response_model=List[RecallItemDto])
 async def get_recalls(
     clinic_id: Optional[UUID] = Query(None),
     current_user: User = Depends(require_receptionist),
     reception_service: ReceptionService = Depends(get_reception_service),
-) -> List[Dict[str, Any]]:
+) -> List[RecallItemDto]:
     effective_clinic = _get_clinic_scope(current_user, clinic_id)
-    return await reception_service.get_recalls(clinic_id=effective_clinic)
+    raw = await reception_service.get_recalls(clinic_id=effective_clinic)
+    return [RecallItemDto(**r) for r in raw]
+
+
+@router.post("/recalls/tasks", response_model=TaskResponseDto, status_code=status.HTTP_201_CREATED)
+async def create_recall_task(
+    req: CreateRecallTaskRequest,
+    current_user: User = Depends(require_receptionist),
+    reception_service: ReceptionService = Depends(get_reception_service),
+) -> TaskResponseDto:
+    effective_clinic = _get_clinic_scope(current_user, None)
+    task = await reception_service.create_recall_task(
+        patient_id=req.patientId,
+        service_id=req.serviceId,
+        due_date=req.dueDate,
+        user_id=current_user.id,
+        clinic_id=effective_clinic,
+    )
+    return TaskResponseDto(
+        id=task.id,
+        title=task.title,
+        description=task.description,
+        status=task.status,
+        priority=task.priority,
+        clinicId=task.clinic_id,
+        assignedToUserId=task.assigned_to_user_id,
+        patientId=task.patient_id,
+        bookingId=task.booking_id,
+        dueDate=task.due_date,
+        createdAt=task.created_at,
+        updatedAt=task.updated_at,
+    )
 
 
 @router.get("/waitlist", response_model=List[BookingResponseDto])

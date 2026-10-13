@@ -54,6 +54,7 @@ export default function AdminServicesPage() {
     code: "",
     insuranceNote: "",
     recommendedInterval: "",
+    recallIntervalDays: 180 as number | undefined,
     displayOrder: 0,
     isHighlighted: false,
     isPublic: true,
@@ -95,6 +96,7 @@ export default function AdminServicesPage() {
       code: "CDT D0150",
       insuranceNote: "Usually covered by PPO dental plans.",
       recommendedInterval: "Every 6 months",
+      recallIntervalDays: 180,
       displayOrder: services.length,
       isHighlighted: false,
       isPublic: true,
@@ -118,6 +120,7 @@ export default function AdminServicesPage() {
       code: service.code || "",
       insuranceNote: service.insuranceNote || "",
       recommendedInterval: service.recommendedInterval || "",
+      recallIntervalDays: service.recallIntervalDays !== undefined && service.recallIntervalDays !== null ? Number(service.recallIntervalDays) : undefined,
       displayOrder: service.displayOrder,
       isHighlighted: service.isHighlighted,
       isPublic: service.isPublic,
@@ -144,6 +147,7 @@ export default function AdminServicesPage() {
       code: form.code.trim() || null,
       insuranceNote: form.insuranceNote.trim() || null,
       recommendedInterval: form.recommendedInterval.trim() || null,
+      recallIntervalDays: form.recallIntervalDays ? Number(form.recallIntervalDays) : null,
       displayOrder: Number(form.displayOrder) || 0,
       isHighlighted: Boolean(form.isHighlighted),
       isPublic: Boolean(form.isPublic),
@@ -269,6 +273,11 @@ export default function AdminServicesPage() {
                   {svc.bufferMinutes > 0 && (
                     <span className="rounded-full bg-blue-100 dark:bg-blue-950 px-2 py-0.5 text-[10px] font-semibold text-blue-800 dark:text-blue-300">
                       +{svc.bufferMinutes}m buffer
+                    </span>
+                  )}
+                  {svc.recallIntervalDays && (
+                    <span className="rounded-full bg-sand px-2 py-0.5 text-[10px] font-mono font-medium text-clay">
+                      {svc.recallIntervalDays}d recall
                     </span>
                   )}
                   {svc.providerIds && svc.providerIds.length > 0 && (
@@ -428,20 +437,28 @@ export default function AdminServicesPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <TextField
                     id="service-ins"
                     label="Insurance Copay Note"
                     value={form.insuranceNote}
                     onChange={(e) => setForm({ ...form, insuranceNote: e.target.value })}
-                    placeholder="Typically 100% covered by PPO..."
+                    placeholder="Typically 100% covered..."
                   />
                   <TextField
                     id="service-rec"
-                    label="Recommended Interval"
+                    label="Recommended Interval Text"
                     value={form.recommendedInterval}
                     onChange={(e) => setForm({ ...form, recommendedInterval: e.target.value })}
                     placeholder="Every 6 months"
+                  />
+                  <TextField
+                    id="service-recall-days"
+                    label="Recall Interval (Days)"
+                    type="number"
+                    value={form.recallIntervalDays !== undefined ? String(form.recallIntervalDays) : ""}
+                    onChange={(e) => setForm({ ...form, recallIntervalDays: e.target.value ? Number(e.target.value) : undefined })}
+                    placeholder="e.g. 180 (or 90 for perio)"
                   />
                 </div>
 

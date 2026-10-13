@@ -369,3 +369,29 @@ class EndOfDayResolveRequest(BaseModel):
     resolution: str = Field(..., pattern="^(completed|no_show|cancelled)$")
     reason: Optional[str] = None
 
+
+# --- Recall DTOs ---
+
+class CreateRecallTaskRequest(BaseModel):
+    patientId: UUID
+    serviceId: Optional[str] = None
+    dueDate: Optional[date] = None
+
+
+class RecallItemDto(BaseModel):
+    patientId: str
+    patientFullName: str
+    phone: str
+    email: Optional[str] = None
+    lastVisitDate: str
+    serviceId: str
+    serviceName: str
+    recallIntervalDays: int
+    dueDate: str
+    status: str
+    clinicId: Optional[str] = None
+    hasOpenTask: bool = False
+    taskId: Optional[str] = None
+
+    model_config = ConfigDict(populate_by_name=True)
+

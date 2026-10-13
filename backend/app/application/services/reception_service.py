@@ -1,10 +1,11 @@
 import asyncio
 from contextlib import asynccontextmanager
 import hashlib
+import json
 import random
 import re
 import string
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 
@@ -1260,19 +1261,90 @@ class ReceptionService:
 
     # --- Recalls ---
 
+    @staticmethod
+    def _parse_service_recall_interval(svc: Any) -> Tuple[int, str]:
+        if not svc:
+            return 180, "Preventive Cleaning & Exam"
+        name = getattr(svc, "title", None) or "Preventive Care"
+        interval_days = getattr(svc, "recall_interval_days", None)
+        if interval_days is not None and interval_days > 0:
+            return interval_days, name
+
+        rec_str = getattr(svc, "recommended_interval", None)
+        if rec_str:
+            text = rec_str.lower()
+            m = re.search(r"(\d+)\s*(?:month|mth|mo)", text)
+            if m:
+                return int(m.group(1)) * 30, name
+            y = re.search(r"(\d+)\s*(?:year|yr)", text)
+            if y:
+                return int(y.group(1)) * 365, name
+            d = re.search(r"(\d+)\s*(?:day|d)", text)
+            if d:
+                return int(d.group(1)), name
+        return 180, name
+
     async def get_recalls(
         self, clinic_id: Optional[UUID] = None
     ) -> List[Dict[str, Any]]:
-        # Derived recall list: patients who had a visit > 180 days ago and no future booking
-        six_months_ago = datetime.now(timezone.utc).date() - timedelta(days=180)
+        # 1. Load active and inactive services to match any service reference
+        services_by_key = {}
+        if self.service_repo:
+            all_services = await self.service_repo.list_all(include_inactive=True)
+            for s in all_services:
+                services_by_key[str(s.id).lower()] = s
+                services_by_key[s.slug.strip().lower()] = s
+
+        # 2. Query completed visits
         past_bookings, _ = await self.booking_repo.list_bookings(
             clinic_id=clinic_id,
-            date_to=six_months_ago,
             status="completed",
-            limit=50,
+            limit=250,
         )
-        recalls = []
+
+        # 3. Identify each patient's most recent completed visit
+        latest_by_patient: Dict[str, Booking] = {}
         for b in past_bookings:
+            key = str(b.patient_id) if b.patient_id else (b.patient_phone or str(b.id))
+            if key not in latest_by_patient or b.preferred_date > latest_by_patient[key].preferred_date:
+                latest_by_patient[key] = b
+
+        today = datetime.now(timezone.utc).date()
+        recalls = []
+
+        for b in latest_by_patient.values():
+            # Lookup service
+            svc = None
+            if b.service_id:
+                svc = services_by_key.get(str(b.service_id).lower())
+            interval_days, service_name = self._parse_service_recall_interval(svc)
+            due_date = b.preferred_date + timedelta(days=interval_days)
+
+            # Only due if due_date has arrived or passed
+            if due_date > today:
+                continue
+
+            # Check if patient already has an upcoming booking
+            if b.patient_id:
+                patient_bookings = await self.booking_repo.get_patient_bookings(b.patient_id)
+                has_future_booking = any(
+                    fb.preferred_date >= today and fb.status in ("requested", "confirmed", "arrived", "in_progress")
+                    for fb in patient_bookings
+                )
+                if has_future_booking:
+                    continue
+
+            # Check if there is already an open recall task
+            has_open_task = False
+            open_task_id = None
+            if b.patient_id:
+                patient_tasks = await self.task_repo.get_patient_tasks(b.patient_id)
+                for t in patient_tasks:
+                    if t.status in ("pending", "in_progress") and "recall" in t.title.lower():
+                        has_open_task = True
+                        open_task_id = str(t.id)
+                        break
+
             recalls.append({
                 "patientId": str(b.patient_id) if b.patient_id else str(b.id),
                 "patientFullName": b.patient_full_name,
@@ -1280,10 +1352,74 @@ class ReceptionService:
                 "email": b.patient_email,
                 "lastVisitDate": b.preferred_date.isoformat(),
                 "serviceId": b.service_id or "cleanings-exams",
-                "status": "due",
+                "serviceName": service_name,
+                "recallIntervalDays": interval_days,
+                "dueDate": due_date.isoformat(),
+                "status": "overdue" if due_date < today else "due",
                 "clinicId": str(b.clinic_id) if b.clinic_id else None,
+                "hasOpenTask": has_open_task,
+                "taskId": open_task_id,
             })
+
+        # Sort by dueDate ascending (most overdue first)
+        recalls.sort(key=lambda r: r["dueDate"])
         return recalls
+
+    async def create_recall_task(
+        self,
+        patient_id: UUID,
+        service_id: Optional[str] = None,
+        due_date: Optional[date] = None,
+        user_id: Optional[UUID] = None,
+        clinic_id: Optional[UUID] = None,
+    ) -> Task:
+        patient = await self.patient_repo.get_by_id(patient_id)
+        if not patient:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail=f"Patient {patient_id} not found.",
+            )
+
+        service_title = "Preventive Care"
+        if service_id and self.service_repo:
+            svc = None
+            try:
+                svc = await self.service_repo.get_by_id(UUID(service_id))
+            except (ValueError, TypeError):
+                svc = await self.service_repo.get_by_slug(service_id)
+            if svc:
+                service_title = svc.title
+
+        target_due_date = due_date or datetime.now(timezone.utc).date()
+        due_dt = datetime.combine(target_due_date, time(17, 0), tzinfo=timezone.utc)
+
+        task = Task(
+            title=f"Recall Call: {patient.full_name} ({service_title})",
+            description=f"Patient due for {service_title} recall. Call to schedule checkup.",
+            priority="medium",
+            status="pending",
+            clinic_id=clinic_id or patient.clinic_id,
+            patient_id=patient.id,
+            due_date=due_dt,
+        )
+        saved_task = await self.task_repo.save(task)
+
+        if self.activity_repo:
+            await self.activity_repo.log_activity(
+                action="create_recall_task",
+                entity_type="task",
+                entity_id=str(saved_task.id),
+                user_id=user_id,
+                details={
+                    "patientId": str(patient.id),
+                    "patientName": patient.full_name,
+                    "serviceTitle": service_title,
+                    "dueDate": target_due_date.isoformat(),
+                },
+            )
+
+        return saved_task
+
 
     # --- Reminders Worklist ---
 

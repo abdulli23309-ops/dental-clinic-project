@@ -1767,8 +1767,14 @@ export interface ReceptionRecall {
   phone: string;
   email?: string | null;
   lastVisitDate: string;
-  status: string;
   serviceId?: string | null;
+  serviceName?: string | null;
+  recallIntervalDays?: number;
+  dueDate: string;
+  status: string;
+  clinicId?: string | null;
+  hasOpenTask?: boolean;
+  taskId?: string | null;
 }
 
 /* --- Mappers: backend DTO -> frontend shape --- */
@@ -2744,7 +2750,13 @@ export async function getReceptionRecalls(
     email?: string | null;
     lastVisitDate: string;
     serviceId?: string | null;
+    serviceName?: string | null;
+    recallIntervalDays?: number;
+    dueDate: string;
     status: string;
+    clinicId?: string | null;
+    hasOpenTask?: boolean;
+    taskId?: string | null;
   }> = await res.json();
 
   return raw.map((r) => ({
@@ -2753,9 +2765,35 @@ export async function getReceptionRecalls(
     phone: r.phone,
     email: r.email,
     lastVisitDate: r.lastVisitDate,
-    status: r.status,
     serviceId: r.serviceId,
+    serviceName: r.serviceName,
+    recallIntervalDays: r.recallIntervalDays,
+    dueDate: r.dueDate,
+    status: r.status,
+    clinicId: r.clinicId,
+    hasOpenTask: r.hasOpenTask,
+    taskId: r.taskId,
   }));
+}
+
+export async function createReceptionRecallTask(
+  data: { patientId: string; serviceId?: string; dueDate?: string },
+  token?: string | null
+): Promise<ReceptionTask> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/recalls/tasks`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        patientId: data.patientId,
+        serviceId: data.serviceId || null,
+        dueDate: data.dueDate || null,
+      }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to create recall task.");
+  return mapTask(await res.json());
 }
 
 /**

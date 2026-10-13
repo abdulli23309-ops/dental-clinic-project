@@ -27,6 +27,7 @@ class Service:
     code: Optional[str] = None
     insurance_note: Optional[str] = None
     recommended_interval: Optional[str] = None
+    recall_interval_days: Optional[int] = None
     display_order: int = 0
     is_highlighted: bool = False
     is_active: bool = True

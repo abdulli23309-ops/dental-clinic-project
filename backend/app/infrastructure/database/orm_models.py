@@ -883,6 +883,10 @@ class ServiceORM(Base):
         String(150),
         nullable=True,
     )
+    recall_interval_days: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+    )
     display_order: Mapped[int] = mapped_column(
         Integer,
         nullable=False,

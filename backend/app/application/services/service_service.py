@@ -62,6 +62,7 @@ class ServiceService:
             code=req.code.strip() if req.code else None,
             insurance_note=req.insuranceNote.strip() if req.insuranceNote else None,
             recommended_interval=req.recommendedInterval.strip() if req.recommendedInterval else None,
+            recall_interval_days=req.recallIntervalDays,
             display_order=req.displayOrder,
             is_highlighted=req.isHighlighted,
             is_public=req.isPublic,
@@ -106,6 +107,8 @@ class ServiceService:
             svc.insurance_note = req.insuranceNote.strip() or None
         if req.recommendedInterval is not None:
             svc.recommended_interval = req.recommendedInterval.strip() or None
+        if req.recallIntervalDays is not None:
+            svc.recall_interval_days = req.recallIntervalDays
         if req.displayOrder is not None:
             svc.display_order = req.displayOrder
         if req.isHighlighted is not None:

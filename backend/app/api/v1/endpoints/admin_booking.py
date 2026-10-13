@@ -190,6 +190,7 @@ async def update_online_booking_rules(
         advance_booking_days=req.advanceBookingDays,
         reminder_template=req.reminderTemplate,
         waiting_threshold_minutes=req.waitingThresholdMinutes,
+        file_number_prefix=req.fileNumberPrefix,
         user_id=current_user.id,
     )
 

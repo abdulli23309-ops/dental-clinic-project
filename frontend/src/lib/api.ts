@@ -250,6 +250,7 @@ export interface AdminBookingSettings {
   minLeadTimeHours?: number;
   slotIntervalMinutes: number;
   reminderTemplate?: string | null;
+  fileNumberPrefix?: string | null;
   isResumePassed: boolean;
 }
 
@@ -1242,7 +1243,14 @@ export async function getPublicAvailability(params: {
 }
 
 export async function adminUpdateOnlineBookingRules(
-  data: { slotIntervalMinutes: number; minLeadTimeHours: number; advanceBookingDays: number; reminderTemplate?: string },
+  data: {
+    slotIntervalMinutes: number;
+    minLeadTimeHours: number;
+    advanceBookingDays: number;
+    reminderTemplate?: string;
+    waitingThresholdMinutes?: number;
+    fileNumberPrefix?: string;
+  },
   token?: string | null
 ): Promise<AdminBookingSettings> {
   const res = await authorizedFetch(
@@ -1522,6 +1530,13 @@ interface RawPatient {
   isActive: boolean;
   hasAlerts?: boolean;
   medicalHistoryStatus?: string;
+  fileNumber?: string | null;
+  guardianName?: string | null;
+  guardianPhone?: string | null;
+  guardianRelationship?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
+  emergencyContactRelationship?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1676,6 +1691,13 @@ export interface ReceptionPatient {
   isActive: boolean;
   hasAlerts?: boolean;
   medicalHistoryStatus?: string;
+  fileNumber?: string | null;
+  guardianName?: string | null;
+  guardianPhone?: string | null;
+  guardianRelationship?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
+  emergencyContactRelationship?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -2401,6 +2423,13 @@ export async function createReceptionPatient(
     email?: string;
     dateOfBirth?: string;
     notes?: string;
+    fileNumber?: string;
+    guardianName?: string;
+    guardianPhone?: string;
+    guardianRelationship?: string;
+    emergencyContactName?: string;
+    emergencyContactPhone?: string;
+    emergencyContactRelationship?: string;
     bypassDuplicateCheck?: boolean;
   },
   token?: string | null
@@ -2419,6 +2448,13 @@ export async function createReceptionPatient(
         email: data.email ?? null,
         dateOfBirth: data.dateOfBirth ?? null,
         notes: data.notes ?? null,
+        fileNumber: data.fileNumber ?? null,
+        guardianName: data.guardianName ?? null,
+        guardianPhone: data.guardianPhone ?? null,
+        guardianRelationship: data.guardianRelationship ?? null,
+        emergencyContactName: data.emergencyContactName ?? null,
+        emergencyContactPhone: data.emergencyContactPhone ?? null,
+        emergencyContactRelationship: data.emergencyContactRelationship ?? null,
       }),
     },
     token
@@ -2442,6 +2478,13 @@ export async function updateReceptionPatient(
     dateOfBirth: string;
     notes: string;
     isActive: boolean;
+    fileNumber: string;
+    guardianName: string;
+    guardianPhone: string;
+    guardianRelationship: string;
+    emergencyContactName: string;
+    emergencyContactPhone: string;
+    emergencyContactRelationship: string;
   }>,
   token?: string | null
 ): Promise<ReceptionPatient> {
@@ -2457,6 +2500,13 @@ export async function updateReceptionPatient(
         dateOfBirth: data.dateOfBirth ?? null,
         notes: data.notes ?? null,
         isActive: data.isActive ?? null,
+        fileNumber: data.fileNumber ?? null,
+        guardianName: data.guardianName ?? null,
+        guardianPhone: data.guardianPhone ?? null,
+        guardianRelationship: data.guardianRelationship ?? null,
+        emergencyContactName: data.emergencyContactName ?? null,
+        emergencyContactPhone: data.emergencyContactPhone ?? null,
+        emergencyContactRelationship: data.emergencyContactRelationship ?? null,
       }),
     },
     token

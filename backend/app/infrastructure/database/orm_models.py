@@ -611,6 +611,36 @@ class PatientORM(Base):
         server_default="not_asked",
         default="not_asked",
     )
+    file_number: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
+    guardian_name: Mapped[Optional[str]] = mapped_column(
+        String(150),
+        nullable=True,
+    )
+    guardian_phone: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+    guardian_relationship: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+    emergency_contact_name: Mapped[Optional[str]] = mapped_column(
+        String(150),
+        nullable=True,
+    )
+    emergency_contact_phone: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+    emergency_contact_relationship: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        nullable=True,
+    )
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
@@ -2106,6 +2136,12 @@ class ClinicBookingSettingsORM(Base):
         nullable=False,
         default=15,
         server_default="15",
+    )
+    file_number_prefix: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="MD-",
+        server_default="MD-",
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

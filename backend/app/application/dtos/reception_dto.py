@@ -121,6 +121,13 @@ class PatientResponseDto(BaseModel):
     medicalHistoryStatus: str = "not_asked"
     hasAlerts: bool = False
     isActive: bool
+    fileNumber: Optional[str] = None
+    guardianName: Optional[str] = None
+    guardianPhone: Optional[str] = None
+    guardianRelationship: Optional[str] = None
+    emergencyContactName: Optional[str] = None
+    emergencyContactPhone: Optional[str] = None
+    emergencyContactRelationship: Optional[str] = None
     createdAt: datetime
     updatedAt: datetime
 
@@ -133,6 +140,13 @@ class PatientCreateRequest(BaseModel):
     dateOfBirth: Optional[date] = None
     clinicId: Optional[UUID] = None
     notes: Optional[str] = None
+    fileNumber: Optional[str] = None
+    guardianName: Optional[str] = None
+    guardianPhone: Optional[str] = None
+    guardianRelationship: Optional[str] = None
+    emergencyContactName: Optional[str] = None
+    emergencyContactPhone: Optional[str] = None
+    emergencyContactRelationship: Optional[str] = None
 
 
 class PatientUpdateRequest(BaseModel):
@@ -144,6 +158,13 @@ class PatientUpdateRequest(BaseModel):
     clinicId: Optional[UUID] = None
     notes: Optional[str] = None
     isActive: Optional[bool] = None
+    fileNumber: Optional[str] = None
+    guardianName: Optional[str] = None
+    guardianPhone: Optional[str] = None
+    guardianRelationship: Optional[str] = None
+    emergencyContactName: Optional[str] = None
+    emergencyContactPhone: Optional[str] = None
+    emergencyContactRelationship: Optional[str] = None
 
 
 class PatientProfileResponse(BaseModel):

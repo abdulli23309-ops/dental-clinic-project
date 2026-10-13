@@ -138,6 +138,7 @@ class BookingSettingsService:
             slotIntervalMinutes=settings.slot_interval_minutes,
             reminderTemplate=settings.reminder_template,
             waitingThresholdMinutes=getattr(settings, "waiting_threshold_minutes", 15) or 15,
+            fileNumberPrefix=getattr(settings, "file_number_prefix", "MD-") or "MD-",
             isResumePassed=is_resume_passed,
         )
 
@@ -570,6 +571,7 @@ class BookingSettingsService:
         advance_booking_days: int,
         reminder_template: Optional[str] = None,
         waiting_threshold_minutes: Optional[int] = None,
+        file_number_prefix: Optional[str] = None,
         user_id: Optional[UUID] = None,
     ) -> BookingSettingsResponse:
         current = await self.repository.get_settings()
@@ -579,6 +581,7 @@ class BookingSettingsService:
             "advance_booking_days": current.advance_booking_days,
             "reminder_template": current.reminder_template,
             "waiting_threshold_minutes": getattr(current, "waiting_threshold_minutes", 15) or 15,
+            "file_number_prefix": getattr(current, "file_number_prefix", "MD-") or "MD-",
         }
         current.slot_interval_minutes = slot_interval_minutes
         current.min_lead_time_hours = min_lead_time_hours
@@ -587,6 +590,8 @@ class BookingSettingsService:
             current.reminder_template = reminder_template
         if waiting_threshold_minutes is not None:
             current.waiting_threshold_minutes = waiting_threshold_minutes
+        if file_number_prefix is not None:
+            current.file_number_prefix = file_number_prefix.strip()
         updated = await self.repository.update_settings(current)
 
         await record_activity(
@@ -603,6 +608,7 @@ class BookingSettingsService:
                     "advance_booking_days": updated.advance_booking_days,
                     "reminder_template": updated.reminder_template,
                     "waiting_threshold_minutes": updated.waiting_threshold_minutes,
+                    "file_number_prefix": updated.file_number_prefix,
                 },
             },
         )

@@ -74,6 +74,7 @@ class BookingSettingsResponse(BaseModel):
     slotIntervalMinutes: int = 15
     reminderTemplate: Optional[str] = None
     waitingThresholdMinutes: int = 15
+    fileNumberPrefix: Optional[str] = "MD-"
     isResumePassed: bool = False
 
 
@@ -108,6 +109,7 @@ class OnlineBookingRulesUpdateRequest(BaseModel):
     advanceBookingDays: int = Field(default=60, ge=1, le=365)
     reminderTemplate: Optional[str] = None
     waitingThresholdMinutes: int = Field(default=15, ge=1, le=180)
+    fileNumberPrefix: Optional[str] = Field(default="MD-", max_length=20)
 
 
 class ReminderTemplateUpdateRequest(BaseModel):

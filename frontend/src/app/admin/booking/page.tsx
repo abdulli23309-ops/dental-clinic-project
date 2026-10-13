@@ -128,6 +128,7 @@ export default function AdminBookingPage() {
   const [minLeadTime, setMinLeadTime] = useState(2);
   const [advanceDays, setAdvanceDays] = useState(60);
   const [reminderTemplate, setReminderTemplate] = useState("");
+  const [fileNumberPrefix, setFileNumberPrefix] = useState("MD-");
   const [isSavingRules, setIsSavingRules] = useState(false);
 
   const loadAll = async () => {
@@ -148,6 +149,7 @@ export default function AdminBookingPage() {
       setSlotInterval(settingsData.slotIntervalMinutes || 15);
       setMinLeadTime(settingsData.minLeadTimeHours ?? 2);
       setAdvanceDays(settingsData.advanceBookingDays || 60);
+      setFileNumberPrefix(settingsData.fileNumberPrefix || "MD-");
       setReminderTemplate(
         settingsData.reminderTemplate ||
           "Dear {patient_name}, this is a reminder for your dental appointment on {appointment_date} at {appointment_time} with {clinician_name} at Marlow Dental. Please reply to confirm or call us if you need to reschedule."
@@ -467,6 +469,7 @@ export default function AdminBookingPage() {
           minLeadTimeHours: Number(minLeadTime),
           advanceBookingDays: Number(advanceDays),
           reminderTemplate: reminderTemplate,
+          fileNumberPrefix: fileNumberPrefix.trim() || "MD-",
         },
         accessToken
       );
@@ -1054,6 +1057,25 @@ export default function AdminBookingPage() {
                 />
                 <p className="text-[11px] text-gray-500 mt-1">
                   Maximum number of days ahead patients are allowed to book on the appointment calendar.
+                </p>
+              </div>
+
+              {/* Patient Sequential File Number Prefix */}
+              <div>
+                <label htmlFor="rule-file-prefix" className="block text-xs font-semibold text-gray-800 dark:text-gray-200 mb-1">
+                  Patient File Number Prefix
+                </label>
+                <input
+                  id="rule-file-prefix"
+                  type="text"
+                  maxLength={15}
+                  value={fileNumberPrefix}
+                  onChange={(e) => setFileNumberPrefix(e.target.value)}
+                  className="w-full rounded-xl border border-line bg-bone px-3 py-2 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-forest"
+                  placeholder="MD-"
+                />
+                <p className="text-[11px] text-gray-500 mt-1">
+                  Prefix for auto-generated sequential patient chart numbers (e.g. MD-0001, MD-0002).
                 </p>
               </div>
 

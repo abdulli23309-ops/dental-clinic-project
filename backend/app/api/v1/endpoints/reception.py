@@ -498,6 +498,13 @@ async def search_patients(
                 medicalHistoryStatus=p.medical_history_status,
                 hasAlerts=has_alerts,
                 isActive=p.is_active,
+                fileNumber=p.file_number,
+                guardianName=p.guardian_name,
+                guardianPhone=p.guardian_phone,
+                guardianRelationship=p.guardian_relationship,
+                emergencyContactName=p.emergency_contact_name,
+                emergencyContactPhone=p.emergency_contact_phone,
+                emergencyContactRelationship=p.emergency_contact_relationship,
                 createdAt=p.created_at,
                 updatedAt=p.updated_at,
             )
@@ -527,6 +534,13 @@ async def create_patient(
         clinic_id=effective_clinic,
         notes=req.notes,
         check_duplicate=check_duplicates,
+        file_number=req.fileNumber,
+        guardian_name=req.guardianName,
+        guardian_phone=req.guardianPhone,
+        guardian_relationship=req.guardianRelationship,
+        emergency_contact_name=req.emergencyContactName,
+        emergency_contact_phone=req.emergencyContactPhone,
+        emergency_contact_relationship=req.emergencyContactRelationship,
         user_id=current_user.id,
     )
     return {
@@ -543,6 +557,13 @@ async def create_patient(
             medicalHistoryStatus=patient.medical_history_status,
             hasAlerts=False,
             isActive=patient.is_active,
+            fileNumber=patient.file_number,
+            guardianName=patient.guardian_name,
+            guardianPhone=patient.guardian_phone,
+            guardianRelationship=patient.guardian_relationship,
+            emergencyContactName=patient.emergency_contact_name,
+            emergencyContactPhone=patient.emergency_contact_phone,
+            emergencyContactRelationship=patient.emergency_contact_relationship,
             createdAt=patient.created_at,
             updatedAt=patient.updated_at,
         ),
@@ -575,6 +596,13 @@ async def get_patient_profile(
             medicalHistoryStatus=pat.medical_history_status,
             hasAlerts=has_alerts,
             isActive=pat.is_active,
+            fileNumber=pat.file_number,
+            guardianName=pat.guardian_name,
+            guardianPhone=pat.guardian_phone,
+            guardianRelationship=pat.guardian_relationship,
+            emergencyContactName=pat.emergency_contact_name,
+            emergencyContactPhone=pat.emergency_contact_phone,
+            emergencyContactRelationship=pat.emergency_contact_relationship,
             createdAt=pat.created_at,
             updatedAt=pat.updated_at,
         ),
@@ -683,6 +711,20 @@ async def update_patient_info(
         updates["notes"] = req.notes
     if req.isActive is not None:
         updates["is_active"] = req.isActive
+    if req.fileNumber is not None:
+        updates["file_number"] = req.fileNumber.strip() if req.fileNumber else None
+    if req.guardianName is not None:
+        updates["guardian_name"] = req.guardianName.strip() if req.guardianName else None
+    if req.guardianPhone is not None:
+        updates["guardian_phone"] = req.guardianPhone.strip() if req.guardianPhone else None
+    if req.guardianRelationship is not None:
+        updates["guardian_relationship"] = req.guardianRelationship.strip() if req.guardianRelationship else None
+    if req.emergencyContactName is not None:
+        updates["emergency_contact_name"] = req.emergencyContactName.strip() if req.emergencyContactName else None
+    if req.emergencyContactPhone is not None:
+        updates["emergency_contact_phone"] = req.emergencyContactPhone.strip() if req.emergencyContactPhone else None
+    if req.emergencyContactRelationship is not None:
+        updates["emergency_contact_relationship"] = req.emergencyContactRelationship.strip() if req.emergencyContactRelationship else None
 
     pat = await reception_service.update_patient(id, updates, user_id=current_user.id)
     return PatientResponseDto(
@@ -695,7 +737,16 @@ async def update_patient_info(
         clinicId=pat.clinic_id,
         dateOfBirth=pat.date_of_birth,
         notes=pat.notes,
+        medicalHistoryStatus=pat.medical_history_status,
+        hasAlerts=False,
         isActive=pat.is_active,
+        fileNumber=pat.file_number,
+        guardianName=pat.guardian_name,
+        guardianPhone=pat.guardian_phone,
+        guardianRelationship=pat.guardian_relationship,
+        emergencyContactName=pat.emergency_contact_name,
+        emergencyContactPhone=pat.emergency_contact_phone,
+        emergencyContactRelationship=pat.emergency_contact_relationship,
         createdAt=pat.created_at,
         updatedAt=pat.updated_at,
     )

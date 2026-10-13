@@ -902,6 +902,13 @@ class ReceptionService:
         clinic_id: Optional[UUID] = None,
         notes: Optional[str] = None,
         check_duplicate: bool = True,
+        file_number: Optional[str] = None,
+        guardian_name: Optional[str] = None,
+        guardian_phone: Optional[str] = None,
+        guardian_relationship: Optional[str] = None,
+        emergency_contact_name: Optional[str] = None,
+        emergency_contact_phone: Optional[str] = None,
+        emergency_contact_relationship: Optional[str] = None,
         user_id: Optional[UUID] = None,
     ) -> Tuple[Patient, List[Patient]]:
         if check_duplicate:
@@ -929,6 +936,18 @@ class ReceptionService:
                 },
             )
 
+        assigned_file_number = file_number.strip() if file_number and file_number.strip() else None
+        if not assigned_file_number:
+            prefix = "MD-"
+            if self.booking_settings_repo:
+                try:
+                    settings = await self.booking_settings_repo.get_settings(clinic_id=clinic_id)
+                    if settings and settings.file_number_prefix:
+                        prefix = settings.file_number_prefix
+                except Exception:
+                    pass
+            assigned_file_number = await self.patient_repo.get_next_file_number(prefix=prefix)
+
         patient = Patient(
             first_name=first_name.strip(),
             last_name=last_name.strip(),
@@ -937,6 +956,13 @@ class ReceptionService:
             date_of_birth=date_of_birth,
             clinic_id=clinic_id,
             notes=notes,
+            file_number=assigned_file_number,
+            guardian_name=guardian_name.strip() if guardian_name else None,
+            guardian_phone=guardian_phone.strip() if guardian_phone else None,
+            guardian_relationship=guardian_relationship.strip() if guardian_relationship else None,
+            emergency_contact_name=emergency_contact_name.strip() if emergency_contact_name else None,
+            emergency_contact_phone=emergency_contact_phone.strip() if emergency_contact_phone else None,
+            emergency_contact_relationship=emergency_contact_relationship.strip() if emergency_contact_relationship else None,
         )
         saved = await self.patient_repo.save(patient)
 
@@ -946,7 +972,10 @@ class ReceptionService:
             entity_type="patient",
             entity_id=saved.id,
             user_id=user_id,
-            details={"name": f"{saved.first_name} {saved.last_name}"},
+            details={
+                "name": f"{saved.first_name} {saved.last_name}",
+                "file_number": saved.file_number,
+            },
         )
 
         return saved, []

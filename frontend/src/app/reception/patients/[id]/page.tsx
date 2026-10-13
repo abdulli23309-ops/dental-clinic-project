@@ -50,6 +50,13 @@ export default function ReceptionPatientDetailPage() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [notes, setNotes] = useState("");
+  const [fileNumber, setFileNumber] = useState("");
+  const [guardianName, setGuardianName] = useState("");
+  const [guardianPhone, setGuardianPhone] = useState("");
+  const [guardianRelationship, setGuardianRelationship] = useState("");
+  const [emergencyContactName, setEmergencyContactName] = useState("");
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState("");
+  const [emergencyContactRelationship, setEmergencyContactRelationship] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   // Quick Message Modal
@@ -80,6 +87,13 @@ export default function ReceptionPatientDetailPage() {
       setPhone(data.phone);
       setEmail(data.email || "");
       setNotes(data.notes || "");
+      setFileNumber(data.fileNumber || "");
+      setGuardianName(data.guardianName || "");
+      setGuardianPhone(data.guardianPhone || "");
+      setGuardianRelationship(data.guardianRelationship || "");
+      setEmergencyContactName(data.emergencyContactName || "");
+      setEmergencyContactPhone(data.emergencyContactPhone || "");
+      setEmergencyContactRelationship(data.emergencyContactRelationship || "");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load patient chart.");
     } finally {
@@ -101,6 +115,13 @@ export default function ReceptionPatientDetailPage() {
           phone,
           email: email || undefined,
           notes: notes || undefined,
+          fileNumber: fileNumber.trim() || undefined,
+          guardianName: guardianName.trim() || undefined,
+          guardianPhone: guardianPhone.trim() || undefined,
+          guardianRelationship: guardianRelationship.trim() || undefined,
+          emergencyContactName: emergencyContactName.trim() || undefined,
+          emergencyContactPhone: emergencyContactPhone.trim() || undefined,
+          emergencyContactRelationship: emergencyContactRelationship.trim() || undefined,
         },
         accessToken
       );
@@ -229,6 +250,11 @@ export default function ReceptionPatientDetailPage() {
             <h1 className="text-2xl font-display font-semibold text-gray-900 dark:text-white">
               {patient.fullName}
             </h1>
+            {patient.fileNumber && (
+              <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                {patient.fileNumber}
+              </span>
+            )}
             <span className="text-xs font-mono px-3 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
               Patient since {new Date(patient.createdAt).toLocaleDateString()}
             </span>
@@ -280,6 +306,12 @@ export default function ReceptionPatientDetailPage() {
             </h2>
 
             <div className="space-y-3 text-xs">
+              {patient.fileNumber && (
+                <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-800">
+                  <span className="text-gray-500">File Number:</span>
+                  <span className="font-mono font-bold text-primary">{patient.fileNumber}</span>
+                </div>
+              )}
               <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
                 <Phone className="h-4 w-4 text-primary shrink-0" />
                 <a href={`tel:${patient.phone}`} className="font-mono hover:underline">
@@ -296,6 +328,22 @@ export default function ReceptionPatientDetailPage() {
                 <Calendar className="h-4 w-4 text-purple-600 shrink-0" />
                 <span>DOB: {patient.dateOfBirth || "Unknown"}</span>
               </div>
+
+              {(patient.guardianName || patient.guardianPhone) && (
+                <div className="p-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-900 space-y-1">
+                  <span className="text-[10px] font-mono uppercase font-bold text-sky-800 dark:text-sky-300 block">Parent / Guardian</span>
+                  <p className="font-semibold text-gray-900 dark:text-white">{patient.guardianName} ({patient.guardianRelationship || "Guardian"})</p>
+                  <p className="font-mono text-sky-700 dark:text-sky-400">{patient.guardianPhone}</p>
+                </div>
+              )}
+
+              {(patient.emergencyContactName || patient.emergencyContactPhone) && (
+                <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 space-y-1">
+                  <span className="text-[10px] font-mono uppercase font-bold text-gray-500 block">Emergency Contact</span>
+                  <p className="font-semibold text-gray-900 dark:text-white">{patient.emergencyContactName} ({patient.emergencyContactRelationship || "Contact"})</p>
+                  <p className="font-mono text-gray-600 dark:text-gray-400">{patient.emergencyContactPhone}</p>
+                </div>
+              )}
 
               {patient.notes && (
                 <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
@@ -473,6 +521,16 @@ export default function ReceptionPatientDetailPage() {
             <form onSubmit={handleUpdate} className="space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
+                  <label className="font-medium text-gray-700 dark:text-gray-300">File Number</label>
+                  <input
+                    type="text"
+                    value={fileNumber}
+                    onChange={(e) => setFileNumber(e.target.value)}
+                    placeholder="e.g. MD-0001"
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 font-mono focus:border-primary"
+                  />
+                </div>
+                <div className="space-y-1">
                   <label className="font-medium text-gray-700 dark:text-gray-300">Phone</label>
                   <input
                     type="tel"
@@ -482,14 +540,89 @@ export default function ReceptionPatientDetailPage() {
                     className="w-full px-3.5 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 font-mono focus:border-primary"
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="font-medium text-gray-700 dark:text-gray-300">Email</label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 focus:border-primary"
-                  />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-medium text-gray-700 dark:text-gray-300">Email</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 focus:border-primary"
+                />
+              </div>
+
+              {/* Parent / Guardian */}
+              <div className="p-3 rounded-xl border border-sky-200 dark:border-sky-900 bg-sky-50/50 dark:bg-sky-950/20 space-y-2">
+                <span className="font-semibold text-sky-900 dark:text-sky-300 block text-[11px]">Parent / Guardian Information</span>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[10px] text-gray-500 uppercase font-mono">Name</label>
+                    <input
+                      type="text"
+                      value={guardianName}
+                      onChange={(e) => setGuardianName(e.target.value)}
+                      placeholder="Guardian name"
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-gray-500 uppercase font-mono">Phone</label>
+                    <input
+                      type="tel"
+                      value={guardianPhone}
+                      onChange={(e) => setGuardianPhone(e.target.value)}
+                      placeholder="Phone"
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 font-mono text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-gray-500 uppercase font-mono">Relationship</label>
+                    <input
+                      type="text"
+                      value={guardianRelationship}
+                      onChange={(e) => setGuardianRelationship(e.target.value)}
+                      placeholder="Mother, Father..."
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Emergency Contact */}
+              <div className="p-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-950/20 space-y-2">
+                <span className="font-semibold text-gray-700 dark:text-gray-300 block text-[11px]">Emergency Contact</span>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[10px] text-gray-500 uppercase font-mono">Name</label>
+                    <input
+                      type="text"
+                      value={emergencyContactName}
+                      onChange={(e) => setEmergencyContactName(e.target.value)}
+                      placeholder="Contact name"
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-gray-500 uppercase font-mono">Phone</label>
+                    <input
+                      type="tel"
+                      value={emergencyContactPhone}
+                      onChange={(e) => setEmergencyContactPhone(e.target.value)}
+                      placeholder="Phone"
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 font-mono text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-gray-500 uppercase font-mono">Relationship</label>
+                    <input
+                      type="text"
+                      value={emergencyContactRelationship}
+                      onChange={(e) => setEmergencyContactRelationship(e.target.value)}
+                      placeholder="Spouse, Sibling..."
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-xs"
+                    />
+                  </div>
                 </div>
               </div>
 

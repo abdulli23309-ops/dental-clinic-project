@@ -34,6 +34,7 @@ class BookingSettings:
     slot_interval_minutes: int = 15
     reminder_template: Optional[str] = None
     waiting_threshold_minutes: int = 15
+    file_number_prefix: str = "MD-"
     clinic_id: Optional[UUID] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

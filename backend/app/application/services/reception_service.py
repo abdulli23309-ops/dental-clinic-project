@@ -549,6 +549,7 @@ class ReceptionService:
         preferred_date: date,
         preferred_time: str,
         team_member_id: Optional[UUID] = None,
+        service_id: Optional[str] = None,
         slot_id: Optional[UUID] = None,
         staff_notes: Optional[str] = None,
         override_double_booking: bool = False,
@@ -561,8 +562,8 @@ class ReceptionService:
                 status_code=http_status.HTTP_404_NOT_FOUND, detail="Booking record not found."
             )
 
-        effective_team_member = team_member_id or booking.team_member_id
-        effective_service = booking.service_id
+        effective_team_member = team_member_id if team_member_id is not None else booking.team_member_id
+        effective_service = service_id if service_id is not None else booking.service_id
         conflict = None
         async with _acquire_schedule_lock(self.booking_repo, effective_team_member, preferred_date):
             if effective_team_member and preferred_time:
@@ -587,11 +588,13 @@ class ReceptionService:
 
             booking.preferred_date = preferred_date
             booking.preferred_time = preferred_time
-            if team_member_id:
+            if team_member_id is not None:
                 booking.team_member_id = team_member_id
-            if slot_id:
+            if service_id is not None:
+                booking.service_id = service_id
+            if slot_id is not None:
                 booking.slot_id = slot_id
-            if staff_notes:
+            if staff_notes is not None:
                 booking.staff_notes = staff_notes
             booking.status = "confirmed"
             saved_booking = await self.booking_repo.save(booking)

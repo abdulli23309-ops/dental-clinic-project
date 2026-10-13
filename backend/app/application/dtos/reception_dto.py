@@ -64,6 +64,7 @@ class BookingRescheduleRequest(BaseModel):
     preferredDate: date
     preferredTime: str
     teamMemberId: Optional[UUID] = None
+    serviceId: Optional[str] = None
     slotId: Optional[UUID] = None
     staffNotes: Optional[str] = None
     overrideDoubleBooking: bool = False

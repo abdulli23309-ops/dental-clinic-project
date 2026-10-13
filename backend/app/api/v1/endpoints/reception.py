@@ -143,6 +143,7 @@ async def get_schedule(
 async def list_appointments(
     date_from: Optional[date] = Query(None),
     date_to: Optional[date] = Query(None),
+    team_member_id: Optional[UUID] = Query(None),
     status: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
     clinic_id: Optional[UUID] = Query(None),
@@ -152,6 +153,7 @@ async def list_appointments(
     effective_clinic = _get_clinic_scope(current_user, clinic_id)
     bookings, _ = await reception_service.list_schedule(
         clinic_id=effective_clinic,
+        team_member_id=team_member_id,
         date_from=date_from,
         date_to=date_to,
         status=status,
@@ -286,6 +288,7 @@ async def reschedule_appointment(
         preferred_date=req.preferredDate,
         preferred_time=req.preferredTime,
         team_member_id=req.teamMemberId,
+        service_id=req.serviceId,
         slot_id=req.slotId,
         staff_notes=req.staffNotes,
         override_double_booking=req.overrideDoubleBooking,

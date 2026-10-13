@@ -4,6 +4,7 @@ import React from "react";
 import {
   Activity,
   Bell,
+  Calendar,
   Clock,
   Globe,
   Home,
@@ -22,6 +23,7 @@ import {
 
 const ADMIN_LINKS: SidebarLink[] = [
   { href: "/admin", title: "Overview", icon: Home, exact: true },
+  { href: "/admin/appointments", title: "Appointments", icon: Calendar },
   { href: "/admin/booking", title: "Booking & Closures", icon: Clock },
   { href: "/admin/locations", title: "Clinics & Branches", icon: MapPin },
   { href: "/admin/services", title: "Services & Fees", icon: Layers },

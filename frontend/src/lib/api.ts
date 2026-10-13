@@ -1965,7 +1965,15 @@ export async function updateReceptionBookingConfirmation(
 
 export async function rescheduleReceptionBooking(
   bookingId: string,
-  data: { bookingDate: string; bookingTime: string; teamMemberId?: string },
+  data: {
+    bookingDate: string;
+    bookingTime: string;
+    teamMemberId?: string | null;
+    serviceId?: string | null;
+    staffNotes?: string | null;
+    overrideDoubleBooking?: boolean;
+    overrideReason?: string | null;
+  },
   token?: string | null
 ): Promise<ReceptionBooking> {
   const res = await authorizedFetch(
@@ -1976,12 +1984,33 @@ export async function rescheduleReceptionBooking(
         preferredDate: data.bookingDate,
         preferredTime: data.bookingTime,
         teamMemberId: data.teamMemberId ?? null,
+        serviceId: data.serviceId ?? null,
+        staffNotes: data.staffNotes ?? null,
+        overrideDoubleBooking: data.overrideDoubleBooking ?? false,
+        overrideReason: data.overrideReason ?? null,
       }),
     },
     token
   );
   if (!res.ok) await apiError(res, "Failed to reschedule booking.");
   return mapBooking(await res.json());
+}
+
+export async function cancelReceptionBooking(
+  bookingId: string,
+  reason: string,
+  staffNotes?: string,
+  token?: string | null
+): Promise<ReceptionBooking> {
+  return updateReceptionBookingStatus(bookingId, "cancelled", staffNotes, token, reason);
+}
+
+export async function markNoShowReceptionBooking(
+  bookingId: string,
+  staffNotes?: string,
+  token?: string | null
+): Promise<ReceptionBooking> {
+  return updateReceptionBookingStatus(bookingId, "no_show", staffNotes, token);
 }
 
 

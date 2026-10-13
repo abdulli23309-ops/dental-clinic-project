@@ -25,6 +25,9 @@ class PostgresMessageRepository(MessageRepository):
             content=entity.content,
             channel=entity.channel,
             status=entity.status,
+            booking_id=entity.booking_id,
+            delivery_status=getattr(entity, "delivery_status", "simulated"),
+            error_detail=getattr(entity, "error_detail", None),
             created_at=entity.created_at,
         )
 
@@ -40,6 +43,9 @@ class PostgresMessageRepository(MessageRepository):
             content=orm.content,
             channel=orm.channel,
             status=orm.status,
+            booking_id=getattr(orm, "booking_id", None),
+            delivery_status=getattr(orm, "delivery_status", "simulated"),
+            error_detail=getattr(orm, "error_detail", None),
             created_at=orm.created_at,
         )
 

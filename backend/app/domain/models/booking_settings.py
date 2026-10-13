@@ -36,6 +36,10 @@ class BookingSettings:
     waiting_threshold_minutes: int = 15
     file_number_prefix: str = "MD-"
     payments_enabled: bool = True
+    quiet_hours_enabled: bool = True
+    quiet_hours_start: str = "21:00"
+    quiet_hours_end: str = "08:00"
+    messaging_provider_mode: str = "simulated"  # "simulated" | "disabled"
     clinic_id: Optional[UUID] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

@@ -2,7 +2,7 @@ from datetime import date, datetime
 from typing import Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, String, Text, Uuid, false, func
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, String, Text, Uuid, false, func, true
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -640,6 +640,12 @@ class PatientORM(Base):
     emergency_contact_relationship: Mapped[Optional[str]] = mapped_column(
         String(50),
         nullable=True,
+    )
+    messaging_opt_out: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=false(),
     )
     is_active: Mapped[bool] = mapped_column(
         Boolean,
@@ -1280,6 +1286,22 @@ class MessageORM(Base):
         String(50),
         nullable=False,
         default="logged",
+    )
+    booking_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("bookings.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    delivery_status: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="simulated",
+        server_default="simulated",
+    )
+    error_detail: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -2150,8 +2172,32 @@ class ClinicBookingSettingsORM(Base):
     payments_enabled: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
-        default=False,
-        server_default=false(),
+        default=True,
+        server_default=true(),
+    )
+    quiet_hours_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default=true(),
+    )
+    quiet_hours_start: Mapped[str] = mapped_column(
+        String(5),
+        nullable=False,
+        default="21:00",
+        server_default="21:00",
+    )
+    quiet_hours_end: Mapped[str] = mapped_column(
+        String(5),
+        nullable=False,
+        default="08:00",
+        server_default="08:00",
+    )
+    messaging_provider_mode: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="simulated",
+        server_default="simulated",
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

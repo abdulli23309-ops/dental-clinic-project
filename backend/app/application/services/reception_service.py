@@ -83,6 +83,26 @@ def normalize_pakistan_phone(phone: Optional[str]) -> str:
     return digits
 
 
+def is_in_quiet_hours(
+    now_dt: Optional[datetime] = None,
+    start_str: str = "21:00",
+    end_str: str = "08:00",
+    tz_name: str = "Asia/Karachi",
+) -> bool:
+    """Returns True if the current or given time falls within the quiet hours window (e.g. 21:00 - 08:00 PKT)."""
+    try:
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo(tz_name)
+    except Exception:
+        tz = timezone.utc
+    current_dt = (now_dt or datetime.now(timezone.utc)).astimezone(tz)
+    current_time_str = current_dt.strftime("%H:%M")
+    if start_str > end_str:
+        return current_time_str >= start_str or current_time_str < end_str
+    else:
+        return start_str <= current_time_str < end_str
+
+
 def parse_time_to_minutes(time_str: Optional[str]) -> Optional[int]:
     if not time_str or not time_str.strip():
         return None
@@ -1595,16 +1615,27 @@ class ReceptionService:
         default_tpl = (
             "Dear {patient_name}, this is a reminder for your dental appointment on "
             "{appointment_date} at {appointment_time} with {clinician_name} at Marlow Dental. "
-            "Please reply to confirm or call us if you need to reschedule."
+            "Please reply to confirm or call {clinic_phone} if you need to reschedule."
         )
         template = default_tpl
+        q_enabled = True
+        q_start = "21:00"
+        q_end = "08:00"
+        provider_mode = "simulated"
         if self.booking_settings_repo:
             try:
                 settings = await self.booking_settings_repo.get_settings(clinic_id=clinic_id)
-                if settings and settings.reminder_template:
-                    template = settings.reminder_template
+                if settings:
+                    if settings.reminder_template:
+                        template = settings.reminder_template
+                    q_enabled = getattr(settings, "quiet_hours_enabled", True)
+                    q_start = getattr(settings, "quiet_hours_start", "21:00") or "21:00"
+                    q_end = getattr(settings, "quiet_hours_end", "08:00") or "08:00"
+                    provider_mode = getattr(settings, "messaging_provider_mode", "simulated") or "simulated"
             except Exception:
                 pass
+
+        quiet_hours_active = is_in_quiet_hours(start_str=q_start, end_str=q_end) if q_enabled else False
 
         bookings, _ = await self.booking_repo.list_bookings(
             clinic_id=clinic_id,
@@ -1648,6 +1679,30 @@ class ReceptionService:
                     except Exception:
                         pass
 
+            opted_out = False
+            if b.patient_id and self.patient_repo:
+                try:
+                    patient = await self.patient_repo.get_by_id(b.patient_id)
+                    if patient:
+                        opted_out = getattr(patient, "messaging_opt_out", False)
+                except Exception:
+                    pass
+
+            delivery_status = "none"
+            last_message_at = None
+            if self.message_repo and b.patient_id:
+                try:
+                    p_msgs = await self.message_repo.get_patient_messages(b.patient_id)
+                    for m in p_msgs:
+                        if getattr(m, "booking_id", None) == b.id:
+                            delivery_status = getattr(m, "delivery_status", "simulated")
+                            last_message_at = m.created_at
+                            break
+                except Exception:
+                    pass
+            if delivery_status == "none" and b.reminded_at:
+                delivery_status = "simulated"
+
             items.append({
                 "id": b.id,
                 "confirmationId": b.confirmation_id,
@@ -1666,13 +1721,297 @@ class ReceptionService:
                 "remindedAt": b.reminded_at,
                 "remindedByUserId": b.reminded_by_user_id,
                 "remindedByName": reminded_by_name,
+                "optedOut": opted_out,
+                "deliveryStatus": delivery_status,
+                "lastMessageAt": last_message_at,
             })
 
         return {
             "targetDate": target_date,
             "template": template,
             "items": items,
+            "providerMode": provider_mode,
+            "quietHoursActive": quiet_hours_active,
+            "quietHoursStart": q_start,
+            "quietHoursEnd": q_end,
         }
+
+    async def run_automated_reminders(
+        self,
+        target_date: date,
+        clinic_id: Optional[UUID] = None,
+        user_id: Optional[UUID] = None,
+        force_quiet_hours: bool = False,
+    ) -> Dict[str, Any]:
+        default_tpl = (
+            "Dear {patient_name}, this is a reminder for your dental appointment on "
+            "{appointment_date} at {appointment_time} with {clinician_name} at Marlow Dental. "
+            "Please reply to confirm or call {clinic_phone} if you need to reschedule."
+        )
+        settings = None
+        if self.booking_settings_repo:
+            try:
+                settings = await self.booking_settings_repo.get_settings(clinic_id=clinic_id)
+            except Exception:
+                pass
+
+        provider_mode = getattr(settings, "messaging_provider_mode", "simulated") if settings else "simulated"
+        q_enabled = getattr(settings, "quiet_hours_enabled", True) if settings else True
+        q_start = getattr(settings, "quiet_hours_start", "21:00") or "21:00" if settings else "21:00"
+        q_end = getattr(settings, "quiet_hours_end", "08:00") or "08:00" if settings else "08:00"
+        template = getattr(settings, "reminder_template", None) if settings else None
+        if not template:
+            template = default_tpl
+
+        if q_enabled and is_in_quiet_hours(start_str=q_start, end_str=q_end) and not force_quiet_hours:
+            return {
+                "dispatchedCount": 0,
+                "skippedOptOutCount": 0,
+                "skippedQuietHours": True,
+                "message": f"Reminders held: Quiet hours active ({q_start} - {q_end} PKT). Automated dispatch skipped to avoid disturbing patients.",
+                "simulated": True,
+            }
+
+        bookings, _ = await self.booking_repo.list_bookings(
+            clinic_id=clinic_id,
+            date_from=target_date,
+            date_to=target_date,
+            status="confirmed",
+            limit=500,
+        )
+
+        from app.application.services.messaging_provider import get_messaging_provider
+        provider = get_messaging_provider(provider_mode)
+
+        dispatched = 0
+        skipped_opt_out = 0
+        now = datetime.now(timezone.utc)
+
+        for b in bookings:
+            opted_out = False
+            if b.patient_id and self.patient_repo:
+                try:
+                    p = await self.patient_repo.get_by_id(b.patient_id)
+                    if p and getattr(p, "messaging_opt_out", False):
+                        opted_out = True
+                except Exception:
+                    pass
+
+            if opted_out:
+                skipped_opt_out += 1
+                continue
+
+            clinician_name = "our dental team"
+            if b.team_member_id and self.team_repo:
+                try:
+                    m = await self.team_repo.get_by_id(b.team_member_id)
+                    if m:
+                        clinician_name = m.display_name or f"{m.first_name} {m.last_name}"
+                except Exception:
+                    pass
+
+            msg_text = (
+                template.replace("{patient_name}", b.patient_full_name)
+                .replace("{appointment_date}", b.preferred_date.isoformat())
+                .replace("{appointment_time}", b.preferred_time)
+                .replace("{clinician_name}", clinician_name)
+                .replace("{doctor_name}", clinician_name)
+                .replace("{clinic_phone}", "+92 300 1234567")
+                .replace("{clinic_name}", "Marlow Dental Clinic")
+                .replace("{confirmation_id}", b.confirmation_id)
+            )
+
+            send_result = await provider.send_message(
+                recipient=b.patient_phone,
+                message=msg_text,
+                channel="sms",
+            )
+
+            if self.message_repo:
+                try:
+                    msg_obj = Message(
+                        content=msg_text,
+                        sender_id=user_id,
+                        recipient_id=None,
+                        patient_id=b.patient_id,
+                        phone=b.patient_phone,
+                        email=b.patient_email,
+                        channel="sms",
+                        status="sent" if send_result.get("success") else "failed",
+                        booking_id=b.id,
+                        delivery_status=send_result.get("status", "simulated"),
+                        error_detail=send_result.get("error"),
+                    )
+                    await self.message_repo.save(msg_obj)
+                except Exception:
+                    pass
+
+            b.reminded_at = now
+            b.reminded_by_user_id = user_id
+            await self.booking_repo.save(b)
+            dispatched += 1
+
+        await record_activity(
+            self.activity_repo,
+            action="automated_reminders_dispatched",
+            entity_type="reminders",
+            user_id=user_id,
+            details={
+                "target_date": target_date.isoformat(),
+                "dispatched_count": dispatched,
+                "skipped_opt_out_count": skipped_opt_out,
+                "provider_mode": provider_mode,
+                "simulated": True,
+            },
+        )
+
+        return {
+            "dispatchedCount": dispatched,
+            "skippedOptOutCount": skipped_opt_out,
+            "skippedQuietHours": False,
+            "message": f"Dispatched {dispatched} simulated reminder(s) via {provider_mode} provider. Skipped {skipped_opt_out} opted-out patient(s).",
+            "simulated": True,
+        }
+
+    async def set_patient_messaging_opt_out(
+        self,
+        patient_id: UUID,
+        opt_out: bool,
+        user_id: UUID,
+    ) -> Patient:
+        patient = await self.patient_repo.get_by_id(patient_id)
+        if not patient:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail=f"Patient {patient_id} not found.",
+            )
+        patient.messaging_opt_out = opt_out
+        patient.updated_at = datetime.now(timezone.utc)
+        saved = await self.patient_repo.save(patient)
+
+        await record_activity(
+            self.activity_repo,
+            action="update_patient_messaging_opt_out",
+            entity_type="patient",
+            entity_id=str(patient.id),
+            user_id=user_id,
+            details={
+                "patient_id": str(patient.id),
+                "opt_out": opt_out,
+            },
+        )
+        return saved
+
+    async def get_messaging_settings(
+        self,
+        clinic_id: Optional[UUID] = None,
+    ) -> Dict[str, Any]:
+        default_tpl = (
+            "Dear {patient_name}, this is a reminder for your dental appointment on "
+            "{appointment_date} at {appointment_time} with {clinician_name} at Marlow Dental. "
+            "Please reply to confirm or call {clinic_phone} if you need to reschedule."
+        )
+        if not self.booking_settings_repo:
+            return {
+                "quietHoursEnabled": True,
+                "quietHoursStart": "21:00",
+                "quietHoursEnd": "08:00",
+                "messagingProviderMode": "simulated",
+                "reminderTemplate": default_tpl,
+            }
+        settings = await self.booking_settings_repo.get_settings(clinic_id=clinic_id)
+        return {
+            "quietHoursEnabled": getattr(settings, "quiet_hours_enabled", True),
+            "quietHoursStart": getattr(settings, "quiet_hours_start", "21:00") or "21:00",
+            "quietHoursEnd": getattr(settings, "quiet_hours_end", "08:00") or "08:00",
+            "messagingProviderMode": getattr(settings, "messaging_provider_mode", "simulated") or "simulated",
+            "reminderTemplate": getattr(settings, "reminder_template", None) or default_tpl,
+        }
+
+    async def update_messaging_settings(
+        self,
+        req_data: Dict[str, Any],
+        user_id: UUID,
+        clinic_id: Optional[UUID] = None,
+    ) -> Dict[str, Any]:
+        if not self.booking_settings_repo:
+            raise HTTPException(status_code=500, detail="Settings repository unavailable.")
+        settings = await self.booking_settings_repo.get_settings(clinic_id=clinic_id)
+        if not settings:
+            raise HTTPException(status_code=404, detail="Booking settings not found.")
+
+        before = {
+            "quiet_hours_enabled": getattr(settings, "quiet_hours_enabled", True),
+            "quiet_hours_start": getattr(settings, "quiet_hours_start", "21:00"),
+            "quiet_hours_end": getattr(settings, "quiet_hours_end", "08:00"),
+            "messaging_provider_mode": getattr(settings, "messaging_provider_mode", "simulated"),
+            "reminder_template": getattr(settings, "reminder_template", None),
+        }
+
+        if "quietHoursEnabled" in req_data and req_data["quietHoursEnabled"] is not None:
+            settings.quiet_hours_enabled = req_data["quietHoursEnabled"]
+        if "quietHoursStart" in req_data and req_data["quietHoursStart"] is not None:
+            settings.quiet_hours_start = req_data["quietHoursStart"]
+        if "quietHoursEnd" in req_data and req_data["quietHoursEnd"] is not None:
+            settings.quiet_hours_end = req_data["quietHoursEnd"]
+        if "messagingProviderMode" in req_data and req_data["messagingProviderMode"] is not None:
+            settings.messaging_provider_mode = req_data["messagingProviderMode"]
+        if "reminderTemplate" in req_data and req_data["reminderTemplate"] is not None:
+            settings.reminder_template = req_data["reminderTemplate"]
+
+        saved = await self.booking_settings_repo.update_settings(settings)
+
+        await record_activity(
+            self.activity_repo,
+            action="update_messaging_settings",
+            entity_type="booking_settings",
+            entity_id=str(saved.id),
+            user_id=user_id,
+            details={
+                "before": before,
+                "after": {
+                    "quiet_hours_enabled": saved.quiet_hours_enabled,
+                    "quiet_hours_start": saved.quiet_hours_start,
+                    "quiet_hours_end": saved.quiet_hours_end,
+                    "messaging_provider_mode": saved.messaging_provider_mode,
+                    "reminder_template": saved.reminder_template,
+                },
+            },
+        )
+
+        return {
+            "quietHoursEnabled": saved.quiet_hours_enabled,
+            "quietHoursStart": saved.quiet_hours_start,
+            "quietHoursEnd": saved.quiet_hours_end,
+            "messagingProviderMode": saved.messaging_provider_mode,
+            "reminderTemplate": saved.reminder_template or "",
+        }
+
+    async def list_all_messages(
+        self,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> Tuple[List[Dict[str, Any]], int]:
+        if not self.message_repo:
+            return [], 0
+        messages, total = await self.message_repo.list_messages(limit=limit, offset=offset)
+        items = []
+        for m in messages:
+            items.append({
+                "id": m.id,
+                "recipientPhone": m.phone,
+                "recipientEmail": m.email,
+                "content": m.content,
+                "channel": m.channel,
+                "status": m.status,
+                "deliveryStatus": getattr(m, "delivery_status", "simulated"),
+                "errorDetail": getattr(m, "error_detail", None),
+                "patientId": m.patient_id,
+                "bookingId": getattr(m, "booking_id", None),
+                "senderId": m.sender_id,
+                "createdAt": m.created_at,
+            })
+        return items, total
 
     async def get_end_of_day_unresolved(
         self,

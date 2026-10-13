@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
+  AlertTriangle,
   ArrowLeft,
   Bell,
   Calendar,
@@ -10,23 +11,27 @@ import {
   Clock,
   ExternalLink,
   MessageSquare,
+  Moon,
   Phone,
   RefreshCw,
   Search,
   Send,
+  ShieldAlert,
   User,
   UserCheck,
+  UserX,
 } from "lucide-react";
 
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { TextField } from "@/components/ui/text-field";
 import {
   getReceptionReminders,
   markAppointmentReminded,
   normalizePakistanPhone,
   ReceptionReminderItem,
+  runReminderScheduler,
+  togglePatientMessagingOptOut,
 } from "@/lib/api";
 
 function formatAppointmentDate(dateStr: string): string {
@@ -55,7 +60,10 @@ function renderTemplateMessage(
     .replace(/{appointment_date}/g, formattedDate)
     .replace(/{appointment_time}/g, item.preferredTime)
     .replace(/{clinician_name}/g, clinician)
-    .replace(/{clinic_name}/g, "Marlow Dental Clinic");
+    .replace(/{doctor_name}/g, clinician)
+    .replace(/{clinic_name}/g, "Marlow Dental Clinic")
+    .replace(/{clinic_phone}/g, "+92 300 1234567")
+    .replace(/{confirmation_id}/g, item.confirmationId);
 }
 
 export default function ReceptionRemindersPage() {
@@ -73,10 +81,16 @@ export default function ReceptionRemindersPage() {
 
   const [template, setTemplate] = useState<string>("");
   const [items, setItems] = useState<ReceptionReminderItem[]>([]);
+  const [providerMode, setProviderMode] = useState<string>("simulated");
+  const [quietHoursActive, setQuietHoursActive] = useState<boolean>(false);
+  const [quietHoursStart, setQuietHoursStart] = useState<string>("21:00");
+  const [quietHoursEnd, setQuietHoursEnd] = useState<string>("08:00");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [isDispatching, setIsDispatching] = useState<boolean>(false);
+  const [schedulerNotice, setSchedulerNotice] = useState<string | null>(null);
 
   // Per-item edited message overrides
   const [editedMessages, setEditedMessages] = useState<Record<string, string>>({});
@@ -89,6 +103,10 @@ export default function ReceptionRemindersPage() {
       const resp = await getReceptionReminders(targetDate, accessToken);
       setTemplate(resp.template);
       setItems(resp.items);
+      setProviderMode(resp.providerMode || "simulated");
+      setQuietHoursActive(!!resp.quietHoursActive);
+      setQuietHoursStart(resp.quietHoursStart || "21:00");
+      setQuietHoursEnd(resp.quietHoursEnd || "08:00");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load reminders.");
     } finally {
@@ -112,6 +130,7 @@ export default function ReceptionRemindersPage() {
                 remindedAt: updated.remindedAt,
                 remindedByUserId: updated.remindedByUserId,
                 remindedByName: updated.remindedByName || "You",
+                deliveryStatus: it.deliveryStatus === "none" ? "simulated" : it.deliveryStatus,
               }
             : it
         )
@@ -120,6 +139,44 @@ export default function ReceptionRemindersPage() {
       alert(err instanceof Error ? err.message : "Failed to mark as reminded.");
     } finally {
       setActionLoadingId(null);
+    }
+  };
+
+  const handleToggleOptOut = async (patientId: string, currentOptOut: boolean, bookingId: string) => {
+    const nextOptOut = !currentOptOut;
+    const confirmMsg = nextOptOut
+      ? "Opt out this patient from automated reminders? Receptionists can still reach out manually."
+      : "Re-enable automated reminders for this patient?";
+    if (!window.confirm(confirmMsg)) return;
+
+    setActionLoadingId(bookingId);
+    try {
+      await togglePatientMessagingOptOut(patientId, nextOptOut, accessToken);
+      setItems((prev) =>
+        prev.map((it) =>
+          it.patientId === patientId
+            ? { ...it, optedOut: nextOptOut }
+            : it
+        )
+      );
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to update opt-out status.");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleRunScheduler = async (forceQuietHours: boolean = false) => {
+    setIsDispatching(true);
+    setSchedulerNotice(null);
+    try {
+      const resp = await runReminderScheduler(selectedDate, forceQuietHours, accessToken);
+      setSchedulerNotice(resp.message);
+      await fetchReminders(selectedDate);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Scheduler execution failed.");
+    } finally {
+      setIsDispatching(false);
     }
   };
 
@@ -135,6 +192,7 @@ export default function ReceptionRemindersPage() {
 
   const remindedCount = items.filter((it) => !!it.remindedAt).length;
   const pendingCount = items.length - remindedCount;
+  const optedOutCount = items.filter((it) => it.optedOut).length;
 
   return (
     <div className="space-y-6">
@@ -143,10 +201,11 @@ export default function ReceptionRemindersPage() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Link
-              href="/reception/appointments"
-              className="text-xs text-ink-soft hover:text-ink flex items-center gap-1 transition-colors"
+              href="/reception"
+              className="text-xs text-ink-soft hover:text-ink flex items-center gap-1"
             >
-              <ArrowLeft className="h-3.5 w-3.5" /> Back to Appointments
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Back to Reception
             </Link>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-ink flex items-center gap-2.5">
@@ -158,7 +217,7 @@ export default function ReceptionRemindersPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2 bg-bone border border-line rounded-xl px-3 py-1.5 shadow-sm">
             <Calendar className="h-4 w-4 text-ink-soft" />
             <input
@@ -178,11 +237,62 @@ export default function ReceptionRemindersPage() {
             <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
+
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => handleRunScheduler(false)}
+            disabled={isDispatching}
+            className="flex items-center gap-1.5 shadow-sm"
+          >
+            <Send className={`h-3.5 w-3.5 ${isDispatching ? "animate-spin" : ""}`} />
+            Dispatch Reminders (Scheduler)
+          </Button>
         </div>
       </div>
 
+      {/* Quiet Hours Warning Banner */}
+      {quietHoursActive && (
+        <div className="p-3.5 rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200 flex items-start justify-between gap-3 text-xs shadow-sm">
+          <div className="flex items-start gap-2.5">
+            <Moon className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+            <div>
+              <span className="font-semibold">Quiet Hours Currently Active ({quietHoursStart} – {quietHoursEnd} PKT)</span>
+              <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-0.5">
+                Automated outreach is held to respect patient night resting hours. Manual WhatsApp & direct phone links remain available for staff.
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleRunScheduler(true)}
+            disabled={isDispatching}
+            className="text-[11px] text-amber-800 hover:text-amber-900 border border-amber-300 shrink-0"
+          >
+            Force Dispatch Anyway
+          </Button>
+        </div>
+      )}
+
+      {/* Scheduler Notice Banner */}
+      {schedulerNotice && (
+        <div className="p-3 rounded-xl border border-blue-200 bg-blue-50 text-blue-900 text-xs flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-blue-600" />
+            <span>{schedulerNotice}</span>
+          </div>
+          <button
+            onClick={() => setSchedulerNotice(null)}
+            className="text-xs text-blue-700 hover:underline font-medium"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Metrics Banner */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
         <Card surface="bone" shadow="card" className="p-4 flex items-center justify-between">
           <div>
             <span className="text-[11px] uppercase tracking-wider text-ink-soft block font-semibold">
@@ -218,9 +328,21 @@ export default function ReceptionRemindersPage() {
             <CheckCircle2 className="h-5 w-5" />
           </div>
         </Card>
+
+        <Card surface="bone" shadow="card" className="p-4 flex items-center justify-between">
+          <div>
+            <span className="text-[11px] uppercase tracking-wider text-ink-soft block font-semibold">
+              Opted-Out Patients
+            </span>
+            <span className="text-2xl font-extrabold text-rose-600">{optedOutCount}</span>
+          </div>
+          <div className="h-10 w-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-600">
+            <UserX className="h-5 w-5" />
+          </div>
+        </Card>
       </div>
 
-      {/* Search & Notice */}
+      {/* Search & Provider Status Notice */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-ink-soft" />
@@ -233,8 +355,12 @@ export default function ReceptionRemindersPage() {
           />
         </div>
 
-        <div className="text-[11px] text-ink-soft bg-bone border border-line px-3 py-2 rounded-xl flex items-center gap-1.5">
-          <span>WhatsApp links format phone to international Pakistan format (<strong>92...</strong>). No message is sent from the server.</span>
+        <div className="text-[11px] text-ink-soft bg-bone border border-line px-3 py-2 rounded-xl flex items-center gap-2 flex-wrap">
+          <span className="inline-flex items-center gap-1 font-medium text-ink">
+            Provider: <strong className="font-semibold uppercase text-primary">{providerMode}</strong> (honest simulated tracking)
+          </span>
+          <span className="text-ink-soft">|</span>
+          <span>WhatsApp links format phone to Pakistan international standard (<strong>92...</strong>).</span>
         </div>
       </div>
 
@@ -265,6 +391,7 @@ export default function ReceptionRemindersPage() {
             const telUrl = `tel:${item.patientPhone.replace(/\s+/g, "")}`;
             const isExpanded = expandedMessageId === item.id;
             const isReminded = !!item.remindedAt;
+            const isOptedOut = !!item.optedOut;
 
             return (
               <Card
@@ -272,7 +399,11 @@ export default function ReceptionRemindersPage() {
                 surface="bone"
                 shadow="card"
                 className={`p-4 transition-all border ${
-                  isReminded ? "border-emerald-500/20 bg-emerald-50/10" : "border-line"
+                  isOptedOut
+                    ? "border-rose-300/40 bg-rose-50/10"
+                    : isReminded
+                    ? "border-emerald-500/20 bg-emerald-50/10"
+                    : "border-line"
                 }`}
               >
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -283,6 +414,33 @@ export default function ReceptionRemindersPage() {
                       <span className="text-[11px] font-mono text-ink-soft bg-bone border border-line px-2 py-0.5 rounded-full">
                         {item.confirmationId}
                       </span>
+
+                      {/* Opted Out Pill */}
+                      {isOptedOut && (
+                        <span className="text-[10px] font-semibold text-rose-700 bg-rose-100 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <UserX className="h-3 w-3" />
+                          Opted Out of Automated Reminders
+                        </span>
+                      )}
+
+                      {/* Delivery Status Pill */}
+                      <span
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                          item.deliveryStatus === "simulated"
+                            ? "bg-blue-50 text-blue-700 border-blue-200"
+                            : item.deliveryStatus === "delivered"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : item.deliveryStatus === "failed"
+                            ? "bg-rose-50 text-rose-700 border-rose-200"
+                            : item.deliveryStatus === "opted_out"
+                            ? "bg-amber-50 text-amber-700 border-amber-200"
+                            : "bg-stone-100 text-stone-600 border-stone-200"
+                        }`}
+                      >
+                        Status: {item.deliveryStatus === "none" || !item.deliveryStatus ? "Not Dispatched" : item.deliveryStatus}
+                      </span>
+
+                      {/* Reminded Confirmation */}
                       {isReminded ? (
                         <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 px-2 py-0.5 rounded-full flex items-center gap-1">
                           <CheckCircle2 className="h-3 w-3" />
@@ -327,11 +485,33 @@ export default function ReceptionRemindersPage() {
                       {isExpanded ? "Hide Message" : "Edit Message"}
                     </Button>
 
+                    {/* Opt-out Toggle */}
+                    {item.patientId && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleToggleOptOut(item.patientId!, isOptedOut, item.id)}
+                        disabled={actionLoadingId === item.id}
+                        className={`text-xs flex items-center gap-1 ${
+                          isOptedOut ? "text-emerald-700 hover:text-emerald-800" : "text-rose-600 hover:text-rose-700"
+                        }`}
+                      >
+                        {isOptedOut ? "Opt Back In" : "Opt Out"}
+                      </Button>
+                    )}
+
                     {/* Open WhatsApp */}
                     <a
                       href={waUrl}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={(e) => {
+                        if (isOptedOut) {
+                          if (!window.confirm("Patient has opted out of automated communications. Confirm sending manual WhatsApp message?")) {
+                            e.preventDefault();
+                          }
+                        }
+                      }}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-colors"
                     >
                       <ExternalLink className="h-3.5 w-3.5" />

@@ -2223,12 +2223,19 @@ export interface ReceptionReminderItem {
   remindedAt?: string | null;
   remindedByUserId?: string | null;
   remindedByName?: string | null;
+  optedOut?: boolean;
+  deliveryStatus?: string;
+  lastMessageAt?: string | null;
 }
 
 export interface ReceptionRemindersResponse {
   targetDate: string;
   template: string;
   items: ReceptionReminderItem[];
+  providerMode?: string;
+  quietHoursActive?: boolean;
+  quietHoursStart?: string;
+  quietHoursEnd?: string;
 }
 
 export async function getReceptionReminders(
@@ -2252,6 +2259,121 @@ export async function markAppointmentReminded(
   );
   if (!res.ok) await apiError(res, "Failed to mark appointment reminded.");
   return mapBooking(await res.json());
+}
+
+export async function togglePatientMessagingOptOut(
+  patientId: string,
+  optOut: boolean,
+  token?: string | null
+): Promise<any> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/patients/${patientId}/messaging-opt-out`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ optOut }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to update patient messaging opt-out status.");
+  return res.json();
+}
+
+export interface MessagingSettings {
+  quietHoursEnabled: boolean;
+  quietHoursStart: string;
+  quietHoursEnd: string;
+  messagingProviderMode: string;
+  reminderTemplate: string;
+}
+
+export interface MessagingSettingsUpdate {
+  quietHoursEnabled?: boolean;
+  quietHoursStart?: string;
+  quietHoursEnd?: string;
+  messagingProviderMode?: string;
+  reminderTemplate?: string;
+}
+
+export interface MessageLogItem {
+  id: string;
+  recipientPhone?: string | null;
+  recipientEmail?: string | null;
+  content: string;
+  channel: string;
+  status: string;
+  deliveryStatus: string;
+  errorDetail?: string | null;
+  patientId?: string | null;
+  bookingId?: string | null;
+  senderId?: string | null;
+  createdAt: string;
+}
+
+export interface MessageLogsResponse {
+  items: MessageLogItem[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface RunSchedulerResponse {
+  dispatchedCount: number;
+  skippedOptOutCount: number;
+  skippedQuietHours: boolean;
+  message: string;
+  simulated: boolean;
+}
+
+export async function getMessagingSettings(token?: string | null): Promise<MessagingSettings> {
+  const res = await authorizedFetch("/api/v1/admin/messaging/settings", {}, token);
+  if (!res.ok) await apiError(res, "Failed to load messaging settings.");
+  return res.json();
+}
+
+export async function updateMessagingSettings(
+  payload: MessagingSettingsUpdate,
+  token?: string | null
+): Promise<MessagingSettings> {
+  const res = await authorizedFetch(
+    "/api/v1/admin/messaging/settings",
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to update messaging settings.");
+  return res.json();
+}
+
+export async function getMessageLogs(
+  limit: number = 50,
+  offset: number = 0,
+  token?: string | null
+): Promise<MessageLogsResponse> {
+  const res = await authorizedFetch(`/api/v1/admin/messaging/logs?limit=${limit}&offset=${offset}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to load message logs.");
+  return res.json();
+}
+
+export async function runReminderScheduler(
+  targetDate?: string,
+  forceQuietHours: boolean = false,
+  token?: string | null
+): Promise<RunSchedulerResponse> {
+  const params = new URLSearchParams();
+  if (targetDate) params.append("target_date", targetDate);
+  if (forceQuietHours) params.append("force_quiet_hours", "true");
+  const q = params.toString() ? `?${params.toString()}` : "";
+  const res = await authorizedFetch(
+    `/api/v1/admin/messaging/run-scheduler${q}`,
+    { method: "POST" },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to run reminder scheduler.");
+  return res.json();
 }
 
 /* --- End-of-Day Review --- */

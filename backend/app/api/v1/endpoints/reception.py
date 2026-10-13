@@ -32,6 +32,7 @@ from app.application.dtos.reception_dto import (
     MessageCreateRequest,
     MessageResponseDto,
     PatientCreateRequest,
+    PatientMessagingOptOutRequest,
     PatientProfileResponse,
     PatientResponseDto,
     PatientUpdateRequest,
@@ -661,6 +662,7 @@ async def search_patients(
                 medicalHistoryStatus=p.medical_history_status,
                 hasAlerts=has_alerts,
                 isActive=p.is_active,
+                messagingOptOut=getattr(p, "messaging_opt_out", False),
                 fileNumber=p.file_number,
                 guardianName=p.guardian_name,
                 guardianPhone=p.guardian_phone,
@@ -720,6 +722,7 @@ async def create_patient(
             medicalHistoryStatus=patient.medical_history_status,
             hasAlerts=False,
             isActive=patient.is_active,
+            messagingOptOut=getattr(patient, "messaging_opt_out", False),
             fileNumber=patient.file_number,
             guardianName=patient.guardian_name,
             guardianPhone=patient.guardian_phone,
@@ -759,6 +762,7 @@ async def get_patient_profile(
             medicalHistoryStatus=pat.medical_history_status,
             hasAlerts=has_alerts,
             isActive=pat.is_active,
+            messagingOptOut=getattr(pat, "messaging_opt_out", False),
             fileNumber=pat.file_number,
             guardianName=pat.guardian_name,
             guardianPhone=pat.guardian_phone,
@@ -874,6 +878,8 @@ async def update_patient_info(
         updates["notes"] = req.notes
     if req.isActive is not None:
         updates["is_active"] = req.isActive
+    if req.messagingOptOut is not None:
+        updates["messaging_opt_out"] = req.messagingOptOut
     if req.fileNumber is not None:
         updates["file_number"] = req.fileNumber.strip() if req.fileNumber else None
     if req.guardianName is not None:
@@ -903,6 +909,45 @@ async def update_patient_info(
         medicalHistoryStatus=pat.medical_history_status,
         hasAlerts=False,
         isActive=pat.is_active,
+        messagingOptOut=getattr(pat, "messaging_opt_out", False),
+        fileNumber=pat.file_number,
+        guardianName=pat.guardian_name,
+        guardianPhone=pat.guardian_phone,
+        guardianRelationship=pat.guardian_relationship,
+        emergencyContactName=pat.emergency_contact_name,
+        emergencyContactPhone=pat.emergency_contact_phone,
+        emergencyContactRelationship=pat.emergency_contact_relationship,
+        createdAt=pat.created_at,
+        updatedAt=pat.updated_at,
+    )
+
+
+@router.patch("/patients/{id}/messaging-opt-out", response_model=PatientResponseDto)
+async def update_patient_messaging_opt_out(
+    id: UUID,
+    req: PatientMessagingOptOutRequest,
+    current_user: User = Depends(require_receptionist),
+    reception_service: ReceptionService = Depends(get_reception_service),
+) -> PatientResponseDto:
+    pat = await reception_service.set_patient_messaging_opt_out(
+        patient_id=id,
+        opt_out=req.optOut,
+        user_id=current_user.id,
+    )
+    return PatientResponseDto(
+        id=pat.id,
+        firstName=pat.first_name,
+        lastName=pat.last_name,
+        fullName=f"{pat.first_name} {pat.last_name}",
+        phone=pat.phone,
+        email=pat.email,
+        clinicId=pat.clinic_id,
+        dateOfBirth=pat.date_of_birth,
+        notes=pat.notes,
+        medicalHistoryStatus=pat.medical_history_status,
+        hasAlerts=False,
+        isActive=pat.is_active,
+        messagingOptOut=getattr(pat, "messaging_opt_out", False),
         fileNumber=pat.file_number,
         guardianName=pat.guardian_name,
         guardianPhone=pat.guardian_phone,

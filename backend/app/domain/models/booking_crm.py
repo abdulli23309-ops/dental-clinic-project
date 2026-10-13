@@ -26,6 +26,7 @@ class Patient:
     emergency_contact_name: Optional[str] = None
     emergency_contact_phone: Optional[str] = None
     emergency_contact_relationship: Optional[str] = None
+    messaging_opt_out: bool = False
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
@@ -154,6 +155,9 @@ class Message:
     email: Optional[str] = None
     channel: str = "sms"
     status: str = "logged"
+    booking_id: Optional[UUID] = None
+    delivery_status: str = "simulated"  # "simulated" | "queued" | "sent" | "delivered" | "failed" | "opted_out" | "quiet_hours_held"
+    error_detail: Optional[str] = None
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 

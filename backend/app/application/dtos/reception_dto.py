@@ -60,6 +60,9 @@ class ReminderItemDto(BaseModel):
     remindedAt: Optional[datetime] = None
     remindedByUserId: Optional[UUID] = None
     remindedByName: Optional[str] = None
+    optedOut: bool = False
+    deliveryStatus: str = "none"
+    lastMessageAt: Optional[datetime] = None
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -68,6 +71,59 @@ class RemindersWorklistResponse(BaseModel):
     targetDate: date
     template: str
     items: List[ReminderItemDto]
+    providerMode: str = "simulated"
+    quietHoursActive: bool = False
+    quietHoursStart: str = "21:00"
+    quietHoursEnd: str = "08:00"
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class PatientMessagingOptOutRequest(BaseModel):
+    optOut: bool = True
+
+
+class MessagingSettingsDto(BaseModel):
+    quietHoursEnabled: bool = True
+    quietHoursStart: str = "21:00"
+    quietHoursEnd: str = "08:00"
+    messagingProviderMode: str = "simulated"
+    reminderTemplate: str
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class UpdateMessagingSettingsRequest(BaseModel):
+    quietHoursEnabled: Optional[bool] = None
+    quietHoursStart: Optional[str] = None
+    quietHoursEnd: Optional[str] = None
+    messagingProviderMode: Optional[str] = None
+    reminderTemplate: Optional[str] = None
+
+
+class RunSchedulerResponseDto(BaseModel):
+    dispatchedCount: int
+    skippedOptOutCount: int
+    skippedQuietHours: bool
+    message: str
+    simulated: bool = True
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class MessageLogItemDto(BaseModel):
+    id: UUID
+    recipientPhone: Optional[str] = None
+    recipientEmail: Optional[str] = None
+    content: str
+    channel: str
+    status: str
+    deliveryStatus: str
+    errorDetail: Optional[str] = None
+    patientId: Optional[UUID] = None
+    bookingId: Optional[UUID] = None
+    senderId: Optional[UUID] = None
+    createdAt: datetime
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -122,6 +178,7 @@ class PatientResponseDto(BaseModel):
     medicalHistoryStatus: str = "not_asked"
     hasAlerts: bool = False
     isActive: bool
+    messagingOptOut: bool = False
     fileNumber: Optional[str] = None
     guardianName: Optional[str] = None
     guardianPhone: Optional[str] = None
@@ -159,6 +216,7 @@ class PatientUpdateRequest(BaseModel):
     clinicId: Optional[UUID] = None
     notes: Optional[str] = None
     isActive: Optional[bool] = None
+    messagingOptOut: Optional[bool] = None
     fileNumber: Optional[str] = None
     guardianName: Optional[str] = None
     guardianPhone: Optional[str] = None

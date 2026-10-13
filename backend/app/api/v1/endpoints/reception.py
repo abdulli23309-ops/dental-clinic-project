@@ -41,6 +41,8 @@ from app.application.dtos.reception_dto import (
     TaskCreateRequest,
     TaskResponseDto,
     TaskUpdateRequest,
+    CreateWaitlistOfferTaskRequest,
+    WaitlistOfferCandidateDto,
 )
 from app.application.services.reception_service import ReceptionService
 from app.domain.models.user import User
@@ -463,6 +465,46 @@ async def reschedule_appointment(
         utmCampaign=booking.utm_campaign,
         createdAt=booking.created_at,
         updatedAt=booking.updated_at,
+    )
+
+
+@router.get("/appointments/{id}/waitlist-offers", response_model=List[WaitlistOfferCandidateDto])
+async def get_waitlist_offers_for_slot(
+    id: UUID,
+    current_user: User = Depends(require_receptionist),
+    reception_service: ReceptionService = Depends(get_reception_service),
+) -> List[WaitlistOfferCandidateDto]:
+    """Retrieves waitlist candidates that can be offered the open slot of this appointment."""
+    offers = await reception_service.get_waitlist_offers_for_slot(booking_id=id)
+    return [WaitlistOfferCandidateDto(**o) for o in offers]
+
+
+@router.post("/appointments/{id}/waitlist-offers/create-task", response_model=TaskResponseDto)
+async def create_waitlist_offer_task(
+    id: UUID,
+    req: CreateWaitlistOfferTaskRequest,
+    current_user: User = Depends(require_receptionist),
+    reception_service: ReceptionService = Depends(get_reception_service),
+) -> TaskResponseDto:
+    """Creates a linked high-priority call task to offer a slot to a waitlist patient without auto-booking."""
+    task = await reception_service.create_waitlist_offer_task(
+        booking_id=id,
+        waitlist_booking_id=req.waitlistBookingId,
+        user_id=current_user.id,
+    )
+    return TaskResponseDto(
+        id=task.id,
+        title=task.title,
+        description=task.description,
+        status=task.status,
+        priority=task.priority,
+        clinicId=task.clinic_id,
+        assignedToUserId=task.assigned_to_user_id,
+        patientId=task.patient_id,
+        bookingId=task.booking_id,
+        dueDate=task.due_date,
+        createdAt=task.created_at,
+        updatedAt=task.updated_at,
     )
 
 

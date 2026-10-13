@@ -1420,6 +1420,124 @@ class ReceptionService:
 
         return saved_task
 
+    # --- Cancellation Waitlist Offers ---
+
+    async def get_waitlist_offers_for_slot(
+        self,
+        booking_id: UUID,
+    ) -> List[Dict[str, Any]]:
+        booking = await self.booking_repo.get_by_id(booking_id)
+        if not booking:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail=f"Booking {booking_id} not found.",
+            )
+
+        # Retrieve active waitlist entries for this clinic (or overall)
+        waitlist_bookings, _ = await self.booking_repo.list_bookings(
+            clinic_id=booking.clinic_id,
+            status="waitlist",
+            limit=100,
+        )
+
+        # Preload service titles
+        service_titles = {}
+        if self.service_repo:
+            svcs = await self.service_repo.list_all(include_inactive=True)
+            for s in svcs:
+                service_titles[str(s.id).lower()] = s.title
+                service_titles[s.slug.strip().lower()] = s.title
+
+        # Check existing offer tasks for these waitlist candidates
+        open_tasks, _ = await self.task_repo.list_tasks(
+            clinic_id=booking.clinic_id,
+            status="pending",
+            limit=250,
+        )
+        task_by_booking_id = {
+            t.booking_id: t for t in open_tasks
+            if t.booking_id and "offer slot" in (t.title or "").lower()
+        }
+
+        candidates = []
+        for wb in waitlist_bookings:
+            svc_name = service_titles.get(str(wb.service_id).lower(), "Any Appointment") if wb.service_id else "Any Appointment"
+            matching_task = task_by_booking_id.get(wb.id)
+            candidates.append({
+                "waitlistBookingId": str(wb.id),
+                "confirmationId": wb.confirmation_id,
+                "patientId": str(wb.patient_id) if wb.patient_id else None,
+                "patientName": wb.patient_full_name,
+                "patientPhone": wb.patient_phone,
+                "patientEmail": wb.patient_email,
+                "preferredDate": wb.preferred_date.isoformat() if wb.preferred_date else None,
+                "preferredTime": wb.preferred_time,
+                "serviceId": wb.service_id,
+                "serviceName": svc_name,
+                "notes": wb.notes,
+                "hasOpenOfferTask": matching_task is not None,
+                "taskId": str(matching_task.id) if matching_task else None,
+            })
+
+        return candidates
+
+    async def create_waitlist_offer_task(
+        self,
+        booking_id: UUID,
+        waitlist_booking_id: UUID,
+        user_id: Optional[UUID] = None,
+    ) -> Task:
+        booking = await self.booking_repo.get_by_id(booking_id)
+        if not booking:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail=f"Cancelled booking {booking_id} not found.",
+            )
+
+        waitlist_booking = await self.booking_repo.get_by_id(waitlist_booking_id)
+        if not waitlist_booking or waitlist_booking.status != "waitlist":
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail=f"Waitlist booking {waitlist_booking_id} not found or not in waitlist status.",
+            )
+
+        now = datetime.now(timezone.utc)
+        slot_date = booking.preferred_date.isoformat() if booking.preferred_date else "upcoming"
+        slot_time = booking.preferred_time or "opening"
+
+        task = Task(
+            title=f"Offer Slot: {waitlist_booking.patient_full_name} ({slot_date} {slot_time})",
+            description=(
+                f"Slot opened due to cancellation of {booking.patient_full_name} ({booking.confirmation_id}). "
+                f"Call {waitlist_booking.patient_full_name} at {waitlist_booking.patient_phone} to offer "
+                f"opening on {slot_date} at {slot_time}. Note: NEVER auto-book."
+            ),
+            priority="high",
+            status="pending",
+            clinic_id=booking.clinic_id or waitlist_booking.clinic_id,
+            patient_id=waitlist_booking.patient_id,
+            booking_id=waitlist_booking.id,
+            due_date=now,
+        )
+        saved_task = await self.task_repo.save(task)
+
+        if self.activity_repo:
+            await self.activity_repo.log_activity(
+                action="waitlist_offer_task_created",
+                entity_type="task",
+                entity_id=str(saved_task.id),
+                user_id=user_id,
+                details={
+                    "cancelledBookingId": str(booking.id),
+                    "waitlistBookingId": str(waitlist_booking.id),
+                    "patientName": waitlist_booking.patient_full_name,
+                    "slotDate": slot_date,
+                    "slotTime": slot_time,
+                },
+            )
+
+        return saved_task
+
 
     # --- Reminders Worklist ---
 

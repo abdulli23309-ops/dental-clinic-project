@@ -24,6 +24,7 @@ import {
   updateReceptionBookingConfirmation,
   updateReceptionBookingStatus,
 } from "@/lib/api";
+import { WaitlistOfferModal } from "@/components/reception/waitlist-offer-modal";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -65,6 +66,7 @@ export default function ReceptionSchedulePage() {
   const [rescheduleBooking, setRescheduleBooking] = useState<ReceptionBooking | null>(null);
   const [rescheduleDate, setRescheduleDate] = useState("");
   const [rescheduleTime, setRescheduleTime] = useState("10:00");
+  const [waitlistModalBookingId, setWaitlistModalBookingId] = useState<string | null>(null);
 
   const loadBookings = async () => {
     setIsLoading(true);
@@ -174,6 +176,9 @@ export default function ReceptionSchedulePage() {
       }
       await updateReceptionBookingStatus(bookingId, status, undefined, accessToken, cancellationReason);
       await loadBookings();
+      if (status === "cancelled") {
+        setWaitlistModalBookingId(bookingId);
+      }
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Failed to update status.");
     }
@@ -625,6 +630,12 @@ export default function ReceptionSchedulePage() {
           </div>
         </div>
       )}
+
+      <WaitlistOfferModal
+        bookingId={waitlistModalBookingId}
+        isOpen={Boolean(waitlistModalBookingId)}
+        onClose={() => setWaitlistModalBookingId(null)}
+      />
     </div>
   );
 }

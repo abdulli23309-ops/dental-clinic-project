@@ -1777,6 +1777,22 @@ export interface ReceptionRecall {
   taskId?: string | null;
 }
 
+export interface WaitlistOfferCandidate {
+  waitlistBookingId: string;
+  confirmationId: string;
+  patientId?: string | null;
+  patientName: string;
+  patientPhone: string;
+  patientEmail?: string | null;
+  preferredDate?: string | null;
+  preferredTime?: string | null;
+  serviceId?: string | null;
+  serviceName?: string | null;
+  notes?: string | null;
+  hasOpenOfferTask: boolean;
+  taskId?: string | null;
+}
+
 /* --- Mappers: backend DTO -> frontend shape --- */
 
 function mapBooking(raw: RawBooking): ReceptionBooking {
@@ -2806,6 +2822,36 @@ export async function getReceptionWaitlist(
   if (!res.ok) throw new Error("Failed to load the waitlist.");
   const raw: RawBooking[] = await res.json();
   return raw.map(mapBooking);
+}
+
+export async function getWaitlistOffersForSlot(
+  bookingId: string,
+  token?: string | null
+): Promise<WaitlistOfferCandidate[]> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/appointments/${bookingId}/waitlist-offers`,
+    {},
+    token
+  );
+  if (!res.ok) throw new Error("Failed to load waitlist offer candidates.");
+  return res.json();
+}
+
+export async function createWaitlistOfferTask(
+  bookingId: string,
+  waitlistBookingId: string,
+  token?: string | null
+): Promise<ReceptionTask> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/appointments/${bookingId}/waitlist-offers/create-task`,
+    {
+      method: "POST",
+      body: JSON.stringify({ waitlistBookingId }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to create waitlist offer task.");
+  return mapTask(await res.json());
 }
 
 

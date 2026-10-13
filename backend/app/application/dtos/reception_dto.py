@@ -395,3 +395,27 @@ class RecallItemDto(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True)
 
+
+# --- Waitlist Offer DTOs ---
+
+class WaitlistOfferCandidateDto(BaseModel):
+    waitlistBookingId: UUID
+    confirmationId: str
+    patientId: Optional[UUID] = None
+    patientName: str
+    patientPhone: str
+    patientEmail: Optional[str] = None
+    preferredDate: Optional[date] = None
+    preferredTime: Optional[str] = None
+    serviceId: Optional[str] = None
+    serviceName: Optional[str] = None
+    notes: Optional[str] = None
+    hasOpenOfferTask: bool = False
+    taskId: Optional[UUID] = None
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class CreateWaitlistOfferTaskRequest(BaseModel):
+    waitlistBookingId: UUID
+

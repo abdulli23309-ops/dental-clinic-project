@@ -45,6 +45,7 @@ from app.domain.repositories.user_repo import (
     UserRepository,
     UserSessionRepository,
 )
+from app.domain.repositories.visit_payment_repo import VisitPaymentRepository
 from app.domain.services.storage_service import StorageService
 from app.infrastructure.repositories.postgres_activity_repo import PostgresActivityLogRepository
 from app.infrastructure.repositories.postgres_announcement_repo import PostgresAnnouncementRepository
@@ -72,6 +73,7 @@ from app.infrastructure.repositories.postgres_user_repo import (
     PostgresUserRepository,
     PostgresUserSessionRepository,
 )
+from app.infrastructure.repositories.postgres_visit_payment_repo import PostgresVisitPaymentRepository
 from app.infrastructure.storage.local_storage import LocalStorageService
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -201,6 +203,12 @@ def get_availability_service(
     )
 
 
+def get_visit_payment_repository(
+    session: AsyncSession = Depends(get_db_session),
+) -> VisitPaymentRepository:
+    return PostgresVisitPaymentRepository(session)
+
+
 # --- Application Services ---
 
 def get_appointment_service(
@@ -274,6 +282,7 @@ def get_reception_service(
     booking_settings_repo: BookingSettingsRepository = Depends(get_booking_settings_repository),
     team_repo: TeamMemberRepository = Depends(get_team_repository),
     user_repo: UserRepository = Depends(get_user_repository),
+    payment_repo: VisitPaymentRepository = Depends(get_visit_payment_repository),
 ) -> ReceptionService:
     return ReceptionService(
         booking_repo,
@@ -287,6 +296,7 @@ def get_reception_service(
         booking_settings_repo,
         team_repo,
         user_repo,
+        payment_repo,
     )
 
 

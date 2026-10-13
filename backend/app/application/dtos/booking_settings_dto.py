@@ -75,6 +75,7 @@ class BookingSettingsResponse(BaseModel):
     reminderTemplate: Optional[str] = None
     waitingThresholdMinutes: int = 15
     fileNumberPrefix: Optional[str] = "MD-"
+    paymentsEnabled: bool = False
     isResumePassed: bool = False
 
 
@@ -110,6 +111,7 @@ class OnlineBookingRulesUpdateRequest(BaseModel):
     reminderTemplate: Optional[str] = None
     waitingThresholdMinutes: int = Field(default=15, ge=1, le=180)
     fileNumberPrefix: Optional[str] = Field(default="MD-", max_length=20)
+    paymentsEnabled: Optional[bool] = None
 
 
 class ReminderTemplateUpdateRequest(BaseModel):

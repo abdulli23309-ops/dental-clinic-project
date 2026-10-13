@@ -13,6 +13,7 @@ from fastapi import HTTPException, status as http_status
 from sqlalchemy import text
 
 from app.domain.models.booking_crm import Booking, Lead, Message, Patient, Task
+from app.domain.models.visit_payment import VisitPayment
 from app.domain.models.appointment import Appointment, AppointmentStatus
 from app.domain.repositories.appointment_repo import AppointmentRepository
 from app.domain.repositories.booking_repo import BookingRepository
@@ -24,6 +25,7 @@ from app.domain.repositories.service_repo import ServiceRepository
 from app.domain.repositories.task_repo import TaskRepository
 from app.domain.repositories.team_repo import TeamMemberRepository
 from app.domain.repositories.user_repo import UserRepository
+from app.domain.repositories.visit_payment_repo import VisitPaymentRepository
 from app.infrastructure.repositories.postgres_activity_repo import (
     PostgresActivityLogRepository,
     record_activity,
@@ -138,6 +140,7 @@ class ReceptionService:
         booking_settings_repo: Optional[BookingSettingsRepository] = None,
         team_repo: Optional[TeamMemberRepository] = None,
         user_repo: Optional[UserRepository] = None,
+        payment_repo: Optional[VisitPaymentRepository] = None,
     ):
         self.booking_repo = booking_repo
         self.patient_repo = patient_repo
@@ -150,6 +153,7 @@ class ReceptionService:
         self.booking_settings_repo = booking_settings_repo
         self.team_repo = team_repo
         self.user_repo = user_repo
+        self.payment_repo = payment_repo
 
     async def snooze_queue_item(
         self,
@@ -1816,4 +1820,192 @@ class ReceptionService:
         )
 
         return saved
+
+    # --- Visit Payments ---
+
+    async def record_visit_payment(
+        self,
+        booking_id: UUID,
+        amount_cents: int,
+        currency: str = "PKR",
+        method: str = "cash",
+        notes: Optional[str] = None,
+        patient_id: Optional[UUID] = None,
+        user_id: Optional[UUID] = None,
+    ) -> VisitPayment:
+        booking = await self.booking_repo.get_by_id(booking_id)
+        if not booking:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail=f"Booking {booking_id} not found.",
+            )
+
+        if self.booking_settings_repo:
+            try:
+                settings = await self.booking_settings_repo.get_settings(clinic_id=booking.clinic_id)
+                if settings and not getattr(settings, "payments_enabled", False):
+                    raise HTTPException(
+                        status_code=http_status.HTTP_400_BAD_REQUEST,
+                        detail="Visit payments are currently disabled in clinic settings.",
+                    )
+            except HTTPException:
+                raise
+            except Exception:
+                pass
+
+        if not self.payment_repo:
+            raise HTTPException(
+                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Payment repository is not configured.",
+            )
+
+        payment = VisitPayment(
+            amount_cents=amount_cents,
+            currency=currency.upper(),
+            method=method.lower(),
+            notes=notes,
+            clinic_id=booking.clinic_id,
+            booking_id=booking.id,
+            patient_id=patient_id or booking.patient_id,
+            recorded_by_user_id=user_id,
+        )
+        saved = await self.payment_repo.create(payment)
+
+        user_name = "Staff"
+        if self.user_repo and user_id:
+            try:
+                u = await self.user_repo.get_by_id(user_id)
+                if u:
+                    user_name = u.full_name
+            except Exception:
+                pass
+
+        await record_activity(
+            self.activity_repo,
+            action="visit_payment_recorded",
+            entity_type="visit_payment",
+            entity_id=str(saved.id),
+            user_id=user_id,
+            details={
+                "paymentId": str(saved.id),
+                "bookingId": str(booking.id),
+                "confirmationId": booking.confirmation_id,
+                "patientName": booking.patient_full_name,
+                "amountCents": saved.amount_cents,
+                "currency": saved.currency,
+                "method": saved.method,
+                "recordedByName": user_name,
+                "notes": saved.notes,
+            },
+        )
+        return saved
+
+    async def get_booking_payments(self, booking_id: UUID) -> List[Dict[str, Any]]:
+        booking = await self.booking_repo.get_by_id(booking_id)
+        if not booking:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail=f"Booking {booking_id} not found.",
+            )
+        if not self.payment_repo:
+            return []
+
+        payments = await self.payment_repo.list_by_booking_id(booking_id)
+        staff_names = {}
+        if self.user_repo:
+            for p in payments:
+                if p.recorded_by_user_id and p.recorded_by_user_id not in staff_names:
+                    try:
+                        u = await self.user_repo.get_by_id(p.recorded_by_user_id)
+                        if u:
+                            staff_names[p.recorded_by_user_id] = u.full_name
+                    except Exception:
+                        pass
+
+        result = []
+        for p in payments:
+            result.append({
+                "id": p.id,
+                "clinicId": p.clinic_id,
+                "bookingId": p.booking_id,
+                "patientId": p.patient_id,
+                "amountCents": p.amount_cents,
+                "amountFormatted": p.amount_formatted,
+                "currency": p.currency,
+                "method": p.method,
+                "notes": p.notes,
+                "recordedByUserId": p.recorded_by_user_id,
+                "recordedByName": staff_names.get(p.recorded_by_user_id, "Staff") if p.recorded_by_user_id else None,
+                "createdAt": p.created_at,
+            })
+        return result
+
+    async def get_end_of_day_payments_summary(
+        self,
+        target_date: date,
+        clinic_id: Optional[UUID] = None,
+    ) -> Dict[str, Any]:
+        if not self.payment_repo:
+            return {
+                "targetDate": target_date,
+                "totalCents": 0,
+                "cashCents": 0,
+                "cardCents": 0,
+                "transferCents": 0,
+                "paymentCount": 0,
+                "payments": [],
+            }
+
+        payments = await self.payment_repo.list_by_date(target_date=target_date, clinic_id=clinic_id)
+        staff_names = {}
+        if self.user_repo:
+            for p in payments:
+                if p.recorded_by_user_id and p.recorded_by_user_id not in staff_names:
+                    try:
+                        u = await self.user_repo.get_by_id(p.recorded_by_user_id)
+                        if u:
+                            staff_names[p.recorded_by_user_id] = u.full_name
+                    except Exception:
+                        pass
+
+        total_cents = 0
+        cash_cents = 0
+        card_cents = 0
+        transfer_cents = 0
+        payment_dtos = []
+
+        for p in payments:
+            total_cents += p.amount_cents
+            if p.method == "cash":
+                cash_cents += p.amount_cents
+            elif p.method == "card":
+                card_cents += p.amount_cents
+            elif p.method in ("bank_transfer", "transfer"):
+                transfer_cents += p.amount_cents
+
+            payment_dtos.append({
+                "id": p.id,
+                "clinicId": p.clinic_id,
+                "bookingId": p.booking_id,
+                "patientId": p.patient_id,
+                "amountCents": p.amount_cents,
+                "amountFormatted": p.amount_formatted,
+                "currency": p.currency,
+                "method": p.method,
+                "notes": p.notes,
+                "recordedByUserId": p.recorded_by_user_id,
+                "recordedByName": staff_names.get(p.recorded_by_user_id, "Staff") if p.recorded_by_user_id else None,
+                "createdAt": p.created_at,
+            })
+
+        return {
+            "targetDate": target_date,
+            "totalCents": total_cents,
+            "cashCents": cash_cents,
+            "cardCents": card_cents,
+            "transferCents": transfer_cents,
+            "paymentCount": len(payments),
+            "payments": payment_dtos,
+        }
+
 

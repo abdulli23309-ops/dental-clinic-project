@@ -22,6 +22,7 @@ import {
   updateReceptionBookingStatus,
 } from "@/lib/api";
 import { WaitlistOfferModal } from "@/components/reception/waitlist-offer-modal";
+import { RecordPaymentModal } from "@/components/reception/record-payment-modal";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useDirectory } from "@/lib/directory";
 import {
@@ -42,6 +43,7 @@ export default function ReceptionAppointmentsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [waitlistModalBookingId, setWaitlistModalBookingId] = useState<string | null>(null);
+  const [selectedPaymentBooking, setSelectedPaymentBooking] = useState<{ id: string; patientName: string } | null>(null);
 
   const loadBookings = async () => {
     setIsLoading(true);
@@ -299,6 +301,17 @@ export default function ReceptionAppointmentsPage() {
                           </button>
                         )}
 
+                        {!isCancelled(b.status) && (
+                          <button
+                            onClick={() => {
+                              setSelectedPaymentBooking({ id: b.id, patientName: b.patientName });
+                            }}
+                            className="px-3 py-1 rounded-full border border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-[11px] font-medium hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors cursor-pointer"
+                          >
+                            Payment
+                          </button>
+                        )}
+
                         {!isCancelled(b.status) && !isCompleted(b.status) && b.status !== APPOINTMENT_STATUS.WAITLIST && (
                           <button
                             onClick={() => handleStatusChange(b.id, APPOINTMENT_STATUS.WAITLIST)}
@@ -321,6 +334,13 @@ export default function ReceptionAppointmentsPage() {
         bookingId={waitlistModalBookingId}
         isOpen={Boolean(waitlistModalBookingId)}
         onClose={() => setWaitlistModalBookingId(null)}
+      />
+
+      <RecordPaymentModal
+        bookingId={selectedPaymentBooking?.id ?? null}
+        patientName={selectedPaymentBooking?.patientName}
+        isOpen={Boolean(selectedPaymentBooking)}
+        onClose={() => setSelectedPaymentBooking(null)}
       />
     </div>
   );

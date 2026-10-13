@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   AlertTriangle,
   ArrowLeft,
+  Banknote,
   Calendar,
   CheckCircle2,
   Clock,
@@ -28,6 +29,8 @@ import { StatCard } from "@/components/dashboard/stat-card";
 import { TextField } from "@/components/ui/text-field";
 import {
   getReceptionEndOfDayUnresolved,
+  getEndOfDayPaymentsSummary,
+  EndOfDayPaymentsSummary,
   normalizePakistanPhone,
   ReceptionEndOfDayItem,
   ReceptionEndOfDayResponse,
@@ -85,6 +88,7 @@ export default function ReceptionEndOfDayPage() {
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
 
   const [data, setData] = useState<ReceptionEndOfDayResponse | null>(null);
+  const [paymentsSummary, setPaymentsSummary] = useState<EndOfDayPaymentsSummary | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
@@ -109,8 +113,12 @@ export default function ReceptionEndOfDayPage() {
     else setIsRefreshing(true);
     setError("");
     try {
-      const res = await getReceptionEndOfDayUnresolved(selectedDate, accessToken);
+      const [res, payments] = await Promise.all([
+        getReceptionEndOfDayUnresolved(selectedDate, accessToken),
+        getEndOfDayPaymentsSummary(selectedDate, accessToken).catch(() => null),
+      ]);
       setData(res);
+      setPaymentsSummary(payments);
     } catch (err: unknown) {
       setError(
         err instanceof Error ? err.message : "Failed to load unresolved appointments."
@@ -294,6 +302,52 @@ export default function ReceptionEndOfDayPage() {
           hint="Actioned by you"
         />
       </div>
+
+      {/* End-of-Day Financial Reconciliation Card */}
+      <Card surface="bone" shadow="subtle" className="p-4 sm:p-5 space-y-3">
+        <div className="flex items-center justify-between border-b border-line pb-3">
+          <div className="flex items-center gap-2">
+            <span className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
+              <Banknote className="h-4 w-4" />
+            </span>
+            <div>
+              <h3 className="text-sm font-semibold text-ink">
+                Daily Financial Reconciliation ({formatDateDisplay(selectedDate)})
+              </h3>
+              <p className="text-[11px] text-ink-soft">
+                Payments collected at reception for this clinic date ({paymentsSummary?.paymentCount ?? 0} transactions).
+              </p>
+            </div>
+          </div>
+          <div className="text-right">
+            <span className="text-[11px] text-ink-soft block">Total Collected</span>
+            <span className="text-base sm:text-lg font-bold text-emerald-700 dark:text-emerald-400">
+              Rs {((paymentsSummary?.totalCents ?? 0) / 100).toLocaleString()}
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3 text-xs">
+          <div className="p-3 rounded-xl bg-paper border border-line">
+            <span className="text-ink-soft text-[11px] block">Cash Collections</span>
+            <span className="text-sm font-semibold text-ink">
+              Rs {((paymentsSummary?.cashCents ?? 0) / 100).toLocaleString()}
+            </span>
+          </div>
+          <div className="p-3 rounded-xl bg-paper border border-line">
+            <span className="text-ink-soft text-[11px] block">Card Payments</span>
+            <span className="text-sm font-semibold text-ink">
+              Rs {((paymentsSummary?.cardCents ?? 0) / 100).toLocaleString()}
+            </span>
+          </div>
+          <div className="p-3 rounded-xl bg-paper border border-line">
+            <span className="text-ink-soft text-[11px] block">Bank Transfers</span>
+            <span className="text-sm font-semibold text-ink">
+              Rs {((paymentsSummary?.transferCents ?? 0) / 100).toLocaleString()}
+            </span>
+          </div>
+        </div>
+      </Card>
 
       {/* Search and Filters */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">

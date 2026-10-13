@@ -129,6 +129,7 @@ export default function AdminBookingPage() {
   const [advanceDays, setAdvanceDays] = useState(60);
   const [reminderTemplate, setReminderTemplate] = useState("");
   const [fileNumberPrefix, setFileNumberPrefix] = useState("MD-");
+  const [paymentsEnabled, setPaymentsEnabled] = useState(false);
   const [isSavingRules, setIsSavingRules] = useState(false);
 
   const loadAll = async () => {
@@ -150,6 +151,7 @@ export default function AdminBookingPage() {
       setMinLeadTime(settingsData.minLeadTimeHours ?? 2);
       setAdvanceDays(settingsData.advanceBookingDays || 60);
       setFileNumberPrefix(settingsData.fileNumberPrefix || "MD-");
+      setPaymentsEnabled(Boolean(settingsData.paymentsEnabled));
       setReminderTemplate(
         settingsData.reminderTemplate ||
           "Dear {patient_name}, this is a reminder for your dental appointment on {appointment_date} at {appointment_time} with {clinician_name} at Marlow Dental. Please reply to confirm or call us if you need to reschedule."
@@ -470,6 +472,7 @@ export default function AdminBookingPage() {
           advanceBookingDays: Number(advanceDays),
           reminderTemplate: reminderTemplate,
           fileNumberPrefix: fileNumberPrefix.trim() || "MD-",
+          paymentsEnabled: paymentsEnabled,
         },
         accessToken
       );
@@ -1101,6 +1104,24 @@ export default function AdminBookingPage() {
                   <code className="bg-bone px-1 py-0.5 rounded border border-line">{"{appointment_time}"}</code>,{" "}
                   <code className="bg-bone px-1 py-0.5 rounded border border-line">{"{clinician_name}"}</code>,{" "}
                   <code className="bg-bone px-1 py-0.5 rounded border border-line">{"{clinic_name}"}</code>.
+                </p>
+              </div>
+
+              {/* Optional Front Desk Visit Payments Toggle */}
+              <div className="p-3.5 rounded-xl border border-line bg-bone/60 space-y-1">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={paymentsEnabled}
+                    onChange={(e) => setPaymentsEnabled(e.target.checked)}
+                    className="rounded border-line text-forest focus:ring-forest h-4 w-4"
+                  />
+                  <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">
+                    Enable Front Desk Visit Payment Collection
+                  </span>
+                </label>
+                <p className="text-[11px] text-gray-500 pl-6">
+                  Allows receptionists to record visit payments (cash, card, bank transfer) and view cash reconciliation totals at end-of-day.
                 </p>
               </div>
             </div>

@@ -139,6 +139,7 @@ class BookingSettingsService:
             reminderTemplate=settings.reminder_template,
             waitingThresholdMinutes=getattr(settings, "waiting_threshold_minutes", 15) or 15,
             fileNumberPrefix=getattr(settings, "file_number_prefix", "MD-") or "MD-",
+            paymentsEnabled=getattr(settings, "payments_enabled", False) or False,
             isResumePassed=is_resume_passed,
         )
 
@@ -222,6 +223,8 @@ class BookingSettingsService:
             slotIntervalMinutes=updated_settings.slot_interval_minutes,
             reminderTemplate=updated_settings.reminder_template,
             waitingThresholdMinutes=getattr(updated_settings, "waiting_threshold_minutes", 15) or 15,
+            fileNumberPrefix=getattr(updated_settings, "file_number_prefix", "MD-") or "MD-",
+            paymentsEnabled=getattr(updated_settings, "payments_enabled", False) or False,
             isResumePassed=is_resume_passed,
         )
 
@@ -572,6 +575,7 @@ class BookingSettingsService:
         reminder_template: Optional[str] = None,
         waiting_threshold_minutes: Optional[int] = None,
         file_number_prefix: Optional[str] = None,
+        payments_enabled: Optional[bool] = None,
         user_id: Optional[UUID] = None,
     ) -> BookingSettingsResponse:
         current = await self.repository.get_settings()
@@ -582,6 +586,7 @@ class BookingSettingsService:
             "reminder_template": current.reminder_template,
             "waiting_threshold_minutes": getattr(current, "waiting_threshold_minutes", 15) or 15,
             "file_number_prefix": getattr(current, "file_number_prefix", "MD-") or "MD-",
+            "payments_enabled": getattr(current, "payments_enabled", False) or False,
         }
         current.slot_interval_minutes = slot_interval_minutes
         current.min_lead_time_hours = min_lead_time_hours
@@ -592,6 +597,8 @@ class BookingSettingsService:
             current.waiting_threshold_minutes = waiting_threshold_minutes
         if file_number_prefix is not None:
             current.file_number_prefix = file_number_prefix.strip()
+        if payments_enabled is not None:
+            current.payments_enabled = payments_enabled
         updated = await self.repository.update_settings(current)
 
         await record_activity(
@@ -609,6 +616,7 @@ class BookingSettingsService:
                     "reminder_template": updated.reminder_template,
                     "waiting_threshold_minutes": updated.waiting_threshold_minutes,
                     "file_number_prefix": updated.file_number_prefix,
+                    "payments_enabled": updated.payments_enabled,
                 },
             },
         )

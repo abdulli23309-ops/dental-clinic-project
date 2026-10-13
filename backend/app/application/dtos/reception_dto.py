@@ -419,3 +419,42 @@ class WaitlistOfferCandidateDto(BaseModel):
 class CreateWaitlistOfferTaskRequest(BaseModel):
     waitlistBookingId: UUID
 
+
+# --- Visit Payments DTOs ---
+
+class VisitPaymentDto(BaseModel):
+    id: UUID
+    clinicId: Optional[UUID] = None
+    bookingId: Optional[UUID] = None
+    patientId: Optional[UUID] = None
+    amountCents: int
+    amountFormatted: str
+    currency: str = "PKR"
+    method: str = "cash"
+    notes: Optional[str] = None
+    recordedByUserId: Optional[UUID] = None
+    recordedByName: Optional[str] = None
+    createdAt: datetime
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class RecordVisitPaymentRequest(BaseModel):
+    amountCents: int = Field(gt=0, description="Amount in cents/smallest currency unit")
+    currency: str = Field(default="PKR", max_length=3)
+    method: str = Field(default="cash", pattern="^(cash|card|bank_transfer)$")
+    notes: Optional[str] = None
+    patientId: Optional[UUID] = None
+
+
+class EndOfDayPaymentsSummaryDto(BaseModel):
+    targetDate: date
+    totalCents: int
+    cashCents: int
+    cardCents: int
+    transferCents: int
+    paymentCount: int
+    payments: List[VisitPaymentDto]
+
+    model_config = ConfigDict(populate_by_name=True)
+

@@ -251,6 +251,7 @@ export interface AdminBookingSettings {
   slotIntervalMinutes: number;
   reminderTemplate?: string | null;
   fileNumberPrefix?: string | null;
+  paymentsEnabled?: boolean;
   isResumePassed: boolean;
 }
 
@@ -1250,6 +1251,7 @@ export async function adminUpdateOnlineBookingRules(
     reminderTemplate?: string;
     waitingThresholdMinutes?: number;
     fileNumberPrefix?: string;
+    paymentsEnabled?: boolean;
   },
   token?: string | null
 ): Promise<AdminBookingSettings> {
@@ -1792,6 +1794,32 @@ export interface WaitlistOfferCandidate {
   hasOpenOfferTask: boolean;
   taskId?: string | null;
 }
+
+export interface VisitPayment {
+  id: string;
+  clinicId?: string | null;
+  bookingId?: string | null;
+  patientId?: string | null;
+  amountCents: number;
+  amountFormatted: string;
+  currency: string;
+  method: "cash" | "card" | "bank_transfer" | string;
+  notes?: string | null;
+  recordedByUserId?: string | null;
+  recordedByName?: string | null;
+  createdAt: string;
+}
+
+export interface EndOfDayPaymentsSummary {
+  targetDate: string;
+  totalCents: number;
+  cashCents: number;
+  cardCents: number;
+  transferCents: number;
+  paymentCount: number;
+  payments: VisitPayment[];
+}
+
 
 /* --- Mappers: backend DTO -> frontend shape --- */
 
@@ -2853,6 +2881,57 @@ export async function createWaitlistOfferTask(
   if (!res.ok) await apiError(res, "Failed to create waitlist offer task.");
   return mapTask(await res.json());
 }
+
+export async function getBookingPayments(
+  bookingId: string,
+  token?: string | null
+): Promise<VisitPayment[]> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/appointments/${bookingId}/payments`,
+    {},
+    token
+  );
+  if (!res.ok) throw new Error("Failed to load visit payments.");
+  return res.json();
+}
+
+export async function recordBookingPayment(
+  bookingId: string,
+  data: {
+    amountCents: number;
+    currency?: string;
+    method?: string;
+    notes?: string;
+    patientId?: string;
+  },
+  token?: string | null
+): Promise<VisitPayment> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/appointments/${bookingId}/payments`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to record payment.");
+  return res.json();
+}
+
+export async function getEndOfDayPaymentsSummary(
+  date?: string,
+  token?: string | null
+): Promise<EndOfDayPaymentsSummary> {
+  const q = date ? `?date=${encodeURIComponent(date)}` : "";
+  const res = await authorizedFetch(
+    `/api/v1/reception/end-of-day/payments-summary${q}`,
+    {},
+    token
+  );
+  if (!res.ok) throw new Error("Failed to load end of day payments summary.");
+  return res.json();
+}
+
 
 
 /* --- Doctor workspace (backend: /doctor) --- */

@@ -191,6 +191,7 @@ async def update_online_booking_rules(
         reminder_template=req.reminderTemplate,
         waiting_threshold_minutes=req.waitingThresholdMinutes,
         file_number_prefix=req.fileNumberPrefix,
+        payments_enabled=req.paymentsEnabled,
         user_id=current_user.id,
     )
 

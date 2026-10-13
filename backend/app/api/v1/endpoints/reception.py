@@ -43,6 +43,9 @@ from app.application.dtos.reception_dto import (
     TaskUpdateRequest,
     CreateWaitlistOfferTaskRequest,
     WaitlistOfferCandidateDto,
+    EndOfDayPaymentsSummaryDto,
+    RecordVisitPaymentRequest,
+    VisitPaymentDto,
 )
 from app.application.services.reception_service import ReceptionService
 from app.domain.models.user import User
@@ -383,6 +386,24 @@ async def get_end_of_day_unresolved(
     return EndOfDayUnresolvedResponse(**result)
 
 
+@router.get("/end-of-day/payments-summary", response_model=EndOfDayPaymentsSummaryDto)
+async def get_end_of_day_payments_summary(
+    date_val: Optional[date] = Query(None, alias="date"),
+    clinic_id: Optional[UUID] = Query(None),
+    current_user: User = Depends(require_receptionist),
+    reception_service: ReceptionService = Depends(get_reception_service),
+) -> EndOfDayPaymentsSummaryDto:
+    """Retrieves payment totals (cash, card, bank transfer) and list for end-of-day financial reconciliation."""
+    effective_clinic = _get_clinic_scope(current_user, clinic_id)
+    target = date_val or date.today()
+    summary = await reception_service.get_end_of_day_payments_summary(
+        target_date=target,
+        clinic_id=effective_clinic,
+    )
+    return EndOfDayPaymentsSummaryDto(**summary)
+
+
+
 @router.post("/end-of-day/resolve", response_model=BookingResponseDto)
 async def resolve_end_of_day(
     req: EndOfDayResolveRequest,
@@ -505,6 +526,54 @@ async def create_waitlist_offer_task(
         dueDate=task.due_date,
         createdAt=task.created_at,
         updatedAt=task.updated_at,
+    )
+
+
+@router.get("/appointments/{id}/payments", response_model=List[VisitPaymentDto])
+async def get_appointment_payments(
+    id: UUID,
+    current_user: User = Depends(require_receptionist),
+    reception_service: ReceptionService = Depends(get_reception_service),
+) -> List[VisitPaymentDto]:
+    """Lists visit payments recorded for this appointment."""
+    payments = await reception_service.get_booking_payments(booking_id=id)
+    return [VisitPaymentDto(**p) for p in payments]
+
+
+@router.post(
+    "/appointments/{id}/payments",
+    response_model=VisitPaymentDto,
+    status_code=status.HTTP_201_CREATED,
+)
+async def record_appointment_payment(
+    id: UUID,
+    req: RecordVisitPaymentRequest,
+    current_user: User = Depends(require_receptionist),
+    reception_service: ReceptionService = Depends(get_reception_service),
+) -> VisitPaymentDto:
+    """Records a visit payment (cash, card, transfer) at reception. Audited."""
+    payment = await reception_service.record_visit_payment(
+        booking_id=id,
+        amount_cents=req.amountCents,
+        currency=req.currency,
+        method=req.method,
+        notes=req.notes,
+        patient_id=req.patientId,
+        user_id=current_user.id,
+    )
+    return VisitPaymentDto(
+        id=payment.id,
+        clinicId=payment.clinic_id,
+        bookingId=payment.booking_id,
+        patientId=payment.patient_id,
+        amountCents=payment.amount_cents,
+        amountFormatted=payment.amount_formatted,
+        currency=payment.currency,
+        method=payment.method,
+        notes=payment.notes,
+        recordedByUserId=payment.recorded_by_user_id,
+        recordedByName=current_user.full_name,
+        createdAt=payment.created_at,
     )
 
 

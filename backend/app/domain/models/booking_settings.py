@@ -35,6 +35,7 @@ class BookingSettings:
     reminder_template: Optional[str] = None
     waiting_threshold_minutes: int = 15
     file_number_prefix: str = "MD-"
+    payments_enabled: bool = False
     clinic_id: Optional[UUID] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

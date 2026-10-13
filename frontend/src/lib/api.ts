@@ -2265,7 +2265,7 @@ export async function togglePatientMessagingOptOut(
   patientId: string,
   optOut: boolean,
   token?: string | null
-): Promise<any> {
+): Promise<Record<string, unknown>> {
   const res = await authorizedFetch(
     `/api/v1/reception/patients/${patientId}/messaging-opt-out`,
     {

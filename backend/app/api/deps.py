@@ -502,3 +502,11 @@ require_receptionist = require_role("receptionist", "Receptionist", "admin", "Ad
 require_doctor = require_role("doctor", "Doctor", "admin", "Admin", "Super Admin")
 require_doctor_strictly = require_role("doctor", "Doctor")
 
+
+def require_roles(allowed_roles: list) -> Callable:
+    """
+    Dependency checking that current user role is one of the provided roles (supports UserRole enum or str).
+    """
+    role_strings = [r.value if hasattr(r, "value") else str(r) for r in allowed_roles]
+    return require_role(*role_strings)
+

@@ -12,23 +12,24 @@ import {
   FileText,
   History,
   Lock,
-  PlusCircle,
   RefreshCw,
   Save,
   ShieldCheck,
   Stethoscope,
-  User,
   X,
 } from "lucide-react";
 
 import {
   amendEncounterClinicalNote,
+  applyTemplateToDraftNote,
   ClinicalEncounter,
+  ClinicalNoteTemplate,
   ClinicalSOAPNote,
   createClinicalEncounter,
   finishDoctorAppointment,
   getActiveEncounterByBooking,
   getClinicalEncounter,
+  getClinicalNoteTemplates,
   getDoctorSchedule,
   getDoctorUnsignedNotes,
   getEncounterClinicalNote,
@@ -83,12 +84,32 @@ export default function DoctorDashboardPage() {
   const [followUpNote, setFollowUpNote] = useState("");
   const [isFinishing, setIsFinishing] = useState(false);
 
+  // Note Templates State (B3)
+  const [templates, setTemplates] = useState<ClinicalNoteTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [currentTime, setCurrentTime] = useState<number>(0);
+
+  useEffect(() => {
+    queueMicrotask(() => setCurrentTime(Date.now()));
+    const ticker = setInterval(() => setCurrentTime(Date.now()), 30000);
+    return () => clearInterval(ticker);
+  }, []);
+
   const loadUnsignedNotes = async () => {
     try {
       const data = await getDoctorUnsignedNotes(accessToken);
       setUnsignedNotes(data);
     } catch (err) {
       console.error("Failed to load unsigned notes:", err);
+    }
+  };
+
+  const loadTemplates = async () => {
+    try {
+      const data = await getClinicalNoteTemplates(true, accessToken);
+      setTemplates(data || []);
+    } catch (err) {
+      console.error("Failed to load note templates:", err);
     }
   };
 
@@ -106,8 +127,11 @@ export default function DoctorDashboardPage() {
   };
 
   useEffect(() => {
-    loadSchedule();
-    loadUnsignedNotes();
+    queueMicrotask(() => {
+      loadSchedule();
+      loadUnsignedNotes();
+      loadTemplates();
+    });
 
     const handleVisibilityChange = () => {
       if (!document.hidden) {
@@ -267,6 +291,54 @@ export default function DoctorDashboardPage() {
     } finally {
       setIsActionLoading(false);
     }
+  };
+
+  const handleApplyTemplate = async () => {
+    if (!selectedTemplateId) return;
+    const tmpl = templates.find((t) => t.id === selectedTemplateId);
+    if (!tmpl) return;
+
+    if (currentNote?.isSigned && !isAmending) {
+      alert("Signed notes are immutable and cannot be modified by note templates.");
+      return;
+    }
+
+    const hasExistingText = Boolean(
+      subjective.trim() || objective.trim() || assessment.trim() || plan.trim()
+    );
+
+    if (hasExistingText) {
+      const confirmed = confirm(
+        `The draft note already contains text.\n\nApplying template "${tmpl.name}" will overwrite current content with the standard structure.\n\nDo you want to proceed?`
+      );
+      if (!confirmed) return;
+    }
+
+    if (currentNote?.id) {
+      try {
+        const res = await applyTemplateToDraftNote(
+          currentNote.id,
+          { templateId: tmpl.id, overwriteConfirmed: true },
+          accessToken
+        );
+        setSubjective(res.subjective);
+        setObjective(res.objective);
+        setAssessment(res.assessment);
+        setPlan(res.plan);
+        setSuccessMsg(`Template "${tmpl.name}" applied successfully.`);
+        setTimeout(() => setSuccessMsg(null), 3000);
+        return;
+      } catch (err) {
+        console.warn("Server apply template fallback:", err);
+      }
+    }
+
+    setSubjective(tmpl.subjective);
+    setObjective(tmpl.objective);
+    setAssessment(tmpl.assessment);
+    setPlan(tmpl.plan);
+    setSuccessMsg(`Template "${tmpl.name}" applied.`);
+    setTimeout(() => setSuccessMsg(null), 3000);
   };
 
   const handleSaveDraft = async (e: React.FormEvent) => {
@@ -444,8 +516,8 @@ export default function DoctorDashboardPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {arrivedPatients.map((b) => {
-              const mins = b.arrivedAt
-                ? Math.max(0, Math.floor((Date.now() - new Date(b.arrivedAt).getTime()) / 60000))
+              const mins = b.arrivedAt && currentTime > 0
+                ? Math.max(0, Math.floor((currentTime - new Date(b.arrivedAt).getTime()) / 60000))
                 : 0;
               const cat = getWaitingTimeCategory(mins);
               const badgeClasses =
@@ -873,6 +945,37 @@ export default function DoctorDashboardPage() {
                         onChange={(e) => setAmendmentReason(e.target.value)}
                         className="w-full p-2.5 rounded-lg border border-amber-300 bg-white text-ink text-xs focus:border-amber-600"
                       />
+                    </div>
+                  )}
+
+                  {(!currentNote?.isSigned || isAmending) && templates.length > 0 && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-sand/30 rounded-xl border border-line">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-primary shrink-0" />
+                        <span className="text-xs font-semibold text-ink">Template:</span>
+                        <select
+                          value={selectedTemplateId}
+                          onChange={(e) => setSelectedTemplateId(e.target.value)}
+                          className="text-xs bg-surface border border-line rounded px-2.5 py-1 text-ink focus:outline-none"
+                        >
+                          <option value="">Select standard structure...</option>
+                          {templates.map((t) => (
+                            <option key={t.id} value={t.id}>
+                              {t.name.toUpperCase()}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={!selectedTemplateId}
+                        onClick={handleApplyTemplate}
+                        className="text-xs h-7 gap-1"
+                      >
+                        Apply Template
+                      </Button>
                     </div>
                   )}
 

@@ -41,7 +41,9 @@ export default function ReceptionRecallsPage() {
   };
 
   useEffect(() => {
-    loadRecalls();
+    queueMicrotask(() => {
+      loadRecalls();
+    });
   }, [accessToken]);
 
   const handleCreateTask = async (recall: ReceptionRecall) => {

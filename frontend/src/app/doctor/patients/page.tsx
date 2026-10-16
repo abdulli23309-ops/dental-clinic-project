@@ -29,7 +29,9 @@ export default function DoctorPatientsPage() {
   };
 
   useEffect(() => {
-    loadPatients();
+    queueMicrotask(() => {
+      loadPatients();
+    });
   }, [accessToken]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {

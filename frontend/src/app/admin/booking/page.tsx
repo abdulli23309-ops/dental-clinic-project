@@ -170,22 +170,26 @@ export default function AdminBookingPage() {
   };
 
   useEffect(() => {
-    loadAll();
+    queueMicrotask(() => {
+      loadAll();
+    });
   }, [accessToken]);
 
   // Load clinician availability and time off when selected clinician changes
   useEffect(() => {
     if (!selectedClinicianId || !accessToken) return;
-    setSchedulesLoading(true);
-    Promise.all([
-      adminGetProviderAvailabilities(selectedClinicianId, accessToken).catch(() => []),
-      adminGetProviderTimeOff(selectedClinicianId, false, accessToken).catch(() => []),
-    ])
-      .then(([avails, timeOffs]) => {
-        setClinicianAvails(avails);
-        setClinicianTimeOffs(timeOffs);
-      })
-      .finally(() => setSchedulesLoading(false));
+    queueMicrotask(() => {
+      setSchedulesLoading(true);
+      Promise.all([
+        adminGetProviderAvailabilities(selectedClinicianId, accessToken).catch(() => []),
+        adminGetProviderTimeOff(selectedClinicianId, false, accessToken).catch(() => []),
+      ])
+        .then(([avails, timeOffs]) => {
+          setClinicianAvails(avails);
+          setClinicianTimeOffs(timeOffs);
+        })
+        .finally(() => setSchedulesLoading(false));
+    });
   }, [selectedClinicianId, accessToken]);
 
   // Mode Change Handlers
@@ -545,7 +549,7 @@ export default function AdminBookingPage() {
               : "text-gray-600 dark:text-gray-400 hover:text-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800"
           }`}
         >
-          Emergency Mode &amp; Operating Hours
+          Booking Mode &amp; Working Hours
         </button>
         <button
           onClick={() => setActiveTab("clinicians")}
@@ -625,7 +629,7 @@ export default function AdminBookingPage() {
                     }`}
                   />
                   <h2 className="text-lg font-semibold text-gray-900 dark:text-white capitalize">
-                    Public Booking Status: {currentMode}
+                    Booking Mode: {currentMode}
                   </h2>
                 </div>
 
@@ -693,7 +697,7 @@ export default function AdminBookingPage() {
               <div>
                 <h3 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                   <Clock className="h-4 w-4 text-forest" />
-                  <span>Clinic Weekly Operating Hours</span>
+                  <span>Working Hours</span>
                 </h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                   Controls the master operating envelope for all 7 days in Asia/Karachi timezone.
@@ -712,7 +716,7 @@ export default function AdminBookingPage() {
             <div className="mt-4 divide-y divide-gray-100 dark:divide-gray-800">
               {workingHours.map((wh, idx) => (
                 <div
-                  key={wh.dayOfWeek}
+                  key={wh.id}
                   className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
                 >
                   <div className="w-28 font-medium text-gray-800 dark:text-gray-200">
@@ -1155,7 +1159,7 @@ export default function AdminBookingPage() {
                   className="w-full rounded-xl border border-line bg-bone px-3 py-2"
                 >
                   {DAY_NAMES.map((name, i) => (
-                    <option key={i} value={i}>{name}</option>
+                    <option key={name} value={i}>{name}</option>
                   ))}
                 </select>
               </div>

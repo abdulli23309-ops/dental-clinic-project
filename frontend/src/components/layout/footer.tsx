@@ -19,14 +19,14 @@ export function Footer() {
   const firstNamePart = nameParts[0] || "Marlow";
   const restNameParts = nameParts.slice(1).join(" ") || "Dental";
 
-  const phone = content.general?.phone || primaryLocation?.phone || "(312) 555-0147";
+  const phone = content.general?.phone || primaryLocation?.phone || "Clinic Phone";
   const cleanPhone = phone.replace(/[^0-9+]/g, "");
-  const email = content.general?.email || primaryLocation?.email || "care@marlowdental.com";
+  const email = content.general?.email || primaryLocation?.email || "";
 
-  const addressLine1 = primaryLocation?.addressLine1 || "214 Alder Street, Suite 3";
+  const addressLine1 = primaryLocation?.addressLine1 || "Clinic Address";
   const addressLine2 = primaryLocation?.city && primaryLocation?.state
     ? `${primaryLocation.city}, ${primaryLocation.state} ${primaryLocation.postalCode || ""}`
-    : "Chicago, IL 60614";
+    : (primaryLocation?.city || "Practice Location");
 
   const tagline =
     content.footer?.tagline ||
@@ -34,7 +34,7 @@ export function Footer() {
     "Comprehensive, ethical dental care from our dedicated clinical team.";
 
   const licenseText = director?.licenseNumber
-    ? `${director.displayName} · ${director.licenseState || "IL"} License ${director.licenseNumber}`
+    ? `${director.displayName} · License #${director.licenseNumber}`
     : "";
 
   return (
@@ -105,7 +105,7 @@ export function Footer() {
               </li>
               <li>
                 <Link href="/#faq" className="hover:text-gray-900 dark:hover:text-white transition-colors">
-                  Insurance &amp; Billing
+                  Frequently Asked Questions
                 </Link>
               </li>
               <li>
@@ -171,23 +171,8 @@ export function Footer() {
                 );
               }
               return (
-                <div className="mt-3 space-y-1.5 text-[13px] text-gray-600 dark:text-gray-400">
-                  <div className="flex justify-between border-b border-gray-200 dark:border-gray-800 pb-1">
-                    <span>Mon – Thu</span>
-                    <span className="font-mono text-gray-900 dark:text-white text-[12px]">8:00 AM – 6:00 PM</span>
-                  </div>
-                  <div className="flex justify-between border-b border-gray-200 dark:border-gray-800 pb-1">
-                    <span>Friday</span>
-                    <span className="font-mono text-gray-900 dark:text-white text-[12px]">8:00 AM – 2:00 PM</span>
-                  </div>
-                  <div className="flex justify-between border-b border-gray-200 dark:border-gray-800 pb-1">
-                    <span>Saturday</span>
-                    <span className="font-mono text-gray-900 dark:text-white text-[12px]">9:00 AM – 1:00 PM</span>
-                  </div>
-                  <div className="flex justify-between text-gray-400 dark:text-gray-500">
-                    <span>Sunday</span>
-                    <span>Closed</span>
-                  </div>
+                <div className="mt-3 text-[13px] text-gray-500">
+                  Contact practice reception for current consultation and office hours.
                 </div>
               );
             })()}
@@ -207,9 +192,6 @@ export function Footer() {
           <div className="flex items-center gap-4 text-center">
             <Link href="/privacy" className="hover:text-gray-900 dark:hover:text-white transition-colors">
               Privacy
-            </Link>
-            <Link href="/hipaa" className="hover:text-gray-900 dark:hover:text-white transition-colors">
-              HIPAA
             </Link>
             <Link href="/accessibility" className="hover:text-gray-900 dark:hover:text-white transition-colors">
               Accessibility

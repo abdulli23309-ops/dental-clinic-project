@@ -61,8 +61,8 @@ function renderTemplateMessage(
     .replace(/{appointment_time}/g, item.preferredTime)
     .replace(/{clinician_name}/g, clinician)
     .replace(/{doctor_name}/g, clinician)
-    .replace(/{clinic_name}/g, "Marlow Dental Clinic")
-    .replace(/{clinic_phone}/g, "+92 300 1234567")
+    .replace(/{clinic_name}/g, "Dental Clinic")
+    .replace(/{clinic_phone}/g, "[Clinic Phone]")
     .replace(/{confirmation_id}/g, item.confirmationId);
 }
 
@@ -115,7 +115,9 @@ export default function ReceptionRemindersPage() {
   };
 
   useEffect(() => {
-    fetchReminders(selectedDate);
+    queueMicrotask(() => {
+      fetchReminders(selectedDate);
+    });
   }, [selectedDate, accessToken]);
 
   const handleMarkReminded = async (itemId: string) => {

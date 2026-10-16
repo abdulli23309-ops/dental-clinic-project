@@ -412,7 +412,9 @@ async def test_unlinked_doctor_fails_closed_and_admin_has_oversight(client_with_
     assert note_resp.status_code == 403
     assert "not linked" in note_resp.json()["detail"]
 
-    # Admin oversight: Admin can view doctor schedule and update notes
+    # Admin oversight: Admin can still view the doctor schedule (read-only).
+    # Notes writes are doctor-only since the clinical-write tightening:
+    # admin is denied with 403 on PATCH /doctor/appointments/{id}/notes.
     admin_headers = admin_auth["headers"]
     admin_sched = await client_with_db.get(
         f"/api/v1/doctor/schedule?target_date={date.today().isoformat()}",
@@ -426,7 +428,7 @@ async def test_unlinked_doctor_fails_closed_and_admin_has_oversight(client_with_
         json={"staffNotes": "Admin oversight note update."},
         headers=admin_headers,
     )
-    assert admin_note.status_code == 200
-    assert admin_note.json()["staffNotes"] == "Admin oversight note update."
+    assert admin_note.status_code == 403
+    assert "Access forbidden" in admin_note.json()["detail"]
 
 

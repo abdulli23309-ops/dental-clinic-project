@@ -54,7 +54,9 @@ export default function ReceptionCheckInPage() {
   };
 
   useEffect(() => {
-    loadFlow();
+    queueMicrotask(() => {
+      loadFlow();
+    });
     // Auto-refresh every 30 seconds for live waiting room
     const interval = setInterval(loadFlow, 30000);
     return () => clearInterval(interval);

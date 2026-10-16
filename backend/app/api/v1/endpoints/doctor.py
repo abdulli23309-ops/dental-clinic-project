@@ -18,6 +18,7 @@ from app.api.deps import (
     get_reception_service,
     get_visit_payment_repository,
     require_doctor,
+    require_doctor_strictly,
 )
 from app.application.services.medical_alert_service import MedicalAlertService
 from app.application.services.reception_service import ReceptionService
@@ -216,28 +217,31 @@ async def get_appointment_detail(
 @router.post("/appointments/{id}/start", response_model=BookingResponseDto)
 async def start_doctor_appointment(
     id: UUID,
-    current_user: User = Depends(require_doctor),
+    current_user: User = Depends(require_doctor_strictly),
     reception_service: ReceptionService = Depends(get_reception_service),
     doctor_service: DoctorService = Depends(get_doctor_service),
 ) -> BookingResponseDto:
     """
     Transitions an arrived appointment to in_progress and records started_at.
     """
-    booking = await doctor_service.get_appointment(id)
     user_role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
-    is_admin_level = user_role_str.lower() in ("admin", "super admin", "platform owner")
+    if user_role_str.lower() != "doctor":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access forbidden: Doctor role strictly required to start appointment.",
+        )
+    booking = await doctor_service.get_appointment(id)
 
-    if not is_admin_level:
-        if not current_user.team_member_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access forbidden: Doctor account is not linked to a clinical staff profile.",
-            )
-        if booking.team_member_id and booking.team_member_id != current_user.team_member_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access forbidden: You cannot start an appointment for another doctor's assigned patient.",
-            )
+    if not current_user.team_member_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access forbidden: Doctor account is not linked to a clinical staff profile.",
+        )
+    if booking.team_member_id and booking.team_member_id != current_user.team_member_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access forbidden: You cannot start an appointment for another doctor's assigned patient.",
+        )
 
     updated = await reception_service.update_booking_status(
         booking_id=id,
@@ -308,7 +312,7 @@ async def get_doctor_unsigned_notes(
 async def finish_doctor_appointment(
     id: UUID,
     req: Optional[FinishVisitRequestDto] = None,
-    current_user: User = Depends(require_doctor),
+    current_user: User = Depends(require_doctor_strictly),
     doctor_service: DoctorService = Depends(get_doctor_service),
     encounter_service: EncounterService = Depends(get_encounter_service),
     reception_service: ReceptionService = Depends(get_reception_service),
@@ -320,21 +324,24 @@ async def finish_doctor_appointment(
     3. An unsigned draft does NOT block finishing, but remains in the unsigned list.
     4. Optional follow-up creates a linked task for reception.
     """
-    booking = await doctor_service.get_appointment(id)
     user_role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
-    is_admin_level = user_role_str.lower() in ("admin", "super admin", "platform owner")
+    if user_role_str.lower() != "doctor":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access forbidden: Doctor role strictly required to finish appointment.",
+        )
+    booking = await doctor_service.get_appointment(id)
 
-    if not is_admin_level:
-        if not current_user.team_member_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access forbidden: Doctor account is not linked to a clinical staff profile.",
-            )
-        if booking.team_member_id and booking.team_member_id != current_user.team_member_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access forbidden: You cannot finish an appointment assigned to another clinician.",
-            )
+    if not current_user.team_member_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access forbidden: Doctor account is not linked to a clinical staff profile.",
+        )
+    if booking.team_member_id and booking.team_member_id != current_user.team_member_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access forbidden: You cannot finish an appointment assigned to another clinician.",
+        )
 
     # Validate that an encounter exists for this booking
     encounter = await encounter_service.get_any_encounter_by_booking(booking.id)
@@ -401,7 +408,7 @@ async def finish_doctor_appointment(
 async def update_appointment_notes(
     id: UUID,
     req: DoctorNoteUpdateRequest,
-    current_user: User = Depends(require_doctor),
+    current_user: User = Depends(require_doctor_strictly),
     doctor_service: DoctorService = Depends(get_doctor_service),
 ) -> BookingResponseDto:
     b = await doctor_service.get_appointment(id)
@@ -449,7 +456,7 @@ async def update_appointment_notes(
 @router.post("/encounters", response_model=EncounterResponseDto, status_code=status.HTTP_201_CREATED)
 async def create_clinical_encounter(
     req: CreateEncounterRequestDto,
-    current_user: User = Depends(require_doctor),
+    current_user: User = Depends(require_doctor_strictly),
     encounter_service: EncounterService = Depends(get_encounter_service),
 ) -> EncounterResponseDto:
     user_role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
@@ -649,7 +656,7 @@ async def list_patient_encounters(
 async def update_encounter_status(
     id: UUID,
     req: UpdateEncounterStatusRequestDto,
-    current_user: User = Depends(require_doctor),
+    current_user: User = Depends(require_doctor_strictly),
     encounter_service: EncounterService = Depends(get_encounter_service),
 ) -> EncounterResponseDto:
     user_role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
@@ -750,7 +757,7 @@ async def get_encounter_clinical_note(
 async def save_encounter_draft_note(
     id: UUID,
     req: SaveDraftNoteRequestDto,
-    current_user: User = Depends(require_doctor),
+    current_user: User = Depends(require_doctor_strictly),
     note_service: ClinicalNoteService = Depends(get_clinical_note_service),
 ) -> ClinicalNoteResponseDto:
     user_role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
@@ -813,7 +820,7 @@ async def save_encounter_draft_note(
 @router.post("/encounters/{id}/note/sign", response_model=ClinicalNoteResponseDto)
 async def sign_encounter_clinical_note(
     id: UUID,
-    current_user: User = Depends(require_doctor),
+    current_user: User = Depends(require_doctor_strictly),
     note_service: ClinicalNoteService = Depends(get_clinical_note_service),
 ) -> ClinicalNoteResponseDto:
     user_role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
@@ -876,7 +883,7 @@ async def sign_encounter_clinical_note(
 async def amend_encounter_clinical_note(
     id: UUID,
     req: AmendNoteRequestDto,
-    current_user: User = Depends(require_doctor),
+    current_user: User = Depends(require_doctor_strictly),
     note_service: ClinicalNoteService = Depends(get_clinical_note_service),
 ) -> ClinicalNoteResponseDto:
     user_role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
@@ -1159,7 +1166,7 @@ async def get_encounter_dental_chart(
 async def record_dental_finding(
     id: UUID,
     req: RecordFindingRequestDto,
-    current_user: User = Depends(require_doctor),
+    current_user: User = Depends(require_doctor_strictly),
     chart_service: DentalChartService = Depends(get_dental_chart_service),
 ) -> DentalChartFindingResponseDto:
     team_member_id, clinic_id, is_admin_level, user_id = _chart_identity(current_user)
@@ -1193,7 +1200,7 @@ async def record_dental_finding(
 async def correct_dental_finding(
     finding_id: UUID,
     req: CorrectFindingRequestDto,
-    current_user: User = Depends(require_doctor),
+    current_user: User = Depends(require_doctor_strictly),
     chart_service: DentalChartService = Depends(get_dental_chart_service),
 ) -> DentalChartFindingResponseDto:
     team_member_id, clinic_id, is_admin_level, user_id = _chart_identity(current_user)
@@ -1227,7 +1234,7 @@ async def correct_dental_finding(
 async def resolve_dental_finding(
     finding_id: UUID,
     req: Optional[ResolveFindingRequestDto] = None,
-    current_user: User = Depends(require_doctor),
+    current_user: User = Depends(require_doctor_strictly),
     chart_service: DentalChartService = Depends(get_dental_chart_service),
 ) -> DentalChartFindingResponseDto:
     team_member_id, clinic_id, is_admin_level, user_id = _chart_identity(current_user)
@@ -1263,7 +1270,7 @@ async def resolve_dental_finding(
 async def create_planned_procedure(
     id: UUID,
     req: CreateProcedureRequestDto,
-    current_user: User = Depends(require_doctor),
+    current_user: User = Depends(require_doctor_strictly),
     chart_service: DentalChartService = Depends(get_dental_chart_service),
 ) -> DentalProcedureResponseDto:
     team_member_id, clinic_id, is_admin_level, user_id = _chart_identity(current_user)
@@ -1295,7 +1302,7 @@ async def create_planned_procedure(
 async def update_procedure_status(
     procedure_id: UUID,
     req: UpdateProcedureStatusRequestDto,
-    current_user: User = Depends(require_doctor),
+    current_user: User = Depends(require_doctor_strictly),
     chart_service: DentalChartService = Depends(get_dental_chart_service),
 ) -> DentalProcedureResponseDto:
     team_member_id, clinic_id, is_admin_level, user_id = _chart_identity(current_user)
@@ -1362,6 +1369,7 @@ class DoctorPatientDetailDto(BaseModel):
     fullName: str
     phone: str
     email: Optional[str] = None
+    fileNumber: Optional[str] = None
     dateOfBirth: Optional[date] = None
     notes: Optional[str] = None
     clinicId: Optional[UUID] = None
@@ -1449,6 +1457,7 @@ async def get_doctor_patient_detail(
         fullName=f"{patient.first_name} {patient.last_name}".strip(),
         phone=patient.phone,
         email=patient.email,
+        fileNumber=getattr(patient, "file_number", None),
         dateOfBirth=patient.date_of_birth,
         notes=patient.notes,
         clinicId=patient.clinic_id,

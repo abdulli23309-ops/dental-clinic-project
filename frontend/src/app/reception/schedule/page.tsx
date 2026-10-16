@@ -88,7 +88,9 @@ export default function ReceptionSchedulePage() {
   };
 
   useEffect(() => {
-    loadBookings();
+    queueMicrotask(() => {
+      loadBookings();
+    });
   }, [selectedDate, statusFilter, accessToken]);
 
   const handleDateChange = (daysOffset: number) => {

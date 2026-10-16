@@ -61,7 +61,6 @@ const ADMIN_MANAGEMENT: SidebarLink[] = [
   { href: "/admin/users", title: "Staff Accounts", icon: User },
   { href: "/admin/announcements", title: "Announcements", icon: Bell },
   { href: "/admin/website", title: "Website CMS", icon: Globe },
-  { href: "/admin/permissions", title: "Role Permissions", icon: ShieldCheck },
 ];
 
 const ADMIN_SYSTEM: SidebarLink[] = [

@@ -20,6 +20,8 @@ import { TextField } from "@/components/ui/text-field";
 import { Card } from "@/components/ui/card";
 import SiteHeader from "@/components/layout/site-header";
 import Footer from "@/components/layout/footer";
+import { BookingPausedBanner } from "@/components/booking/booking-paused-banner";
+import { BookingSlotPicker } from "@/components/booking/booking-slot-picker";
 import { getStoredUtmParams } from "@/lib/utm";
 import {
   submitBookingRequest,
@@ -125,24 +127,28 @@ function BookingWizard() {
 
   // Sync state if URL changes (e.g. user clicks browser back/forward)
   useEffect(() => {
-    if (urlStepParam !== null) {
-      const parsed = Math.min(3, Math.max(0, parseInt(urlStepParam, 10))) as WizardStep;
-      setStep(parsed);
-    }
+    queueMicrotask(() => {
+      if (urlStepParam !== null) {
+        const parsed = Math.min(3, Math.max(0, parseInt(urlStepParam, 10))) as WizardStep;
+        setStep(parsed);
+      }
+    });
   }, [urlStepParam]);
 
   useEffect(() => {
-    if (preselectedService) {
-      setService(preselectedService);
-    }
+    queueMicrotask(() => {
+      if (preselectedService) {
+        setService(preselectedService);
+      }
 
-    // Default appointment date to tomorrow (or next non-Sunday)
-    const nextDate = new Date();
-    nextDate.setDate(nextDate.getDate() + 1);
-    if (nextDate.getDay() === 0) {
+      // Default appointment date to tomorrow (or next non-Sunday)
+      const nextDate = new Date();
       nextDate.setDate(nextDate.getDate() + 1);
-    }
-    setDate(nextDate.toISOString().split("T")[0]);
+      if (nextDate.getDay() === 0) {
+        nextDate.setDate(nextDate.getDate() + 1);
+      }
+      setDate(nextDate.toISOString().split("T")[0]);
+    });
   }, [preselectedService]);
 
   /** Checks availability of a given date against advance window, weekly closed days, and calendar closures */
@@ -191,41 +197,43 @@ function BookingWizard() {
 
   // Fetch dynamic available slots from availability engine when date or service changes
   useEffect(() => {
-    if (!date) {
-      setAvailableSlots([]);
-      setTime("");
-      return;
-    }
-
-    const dateCheck = getDateAvailability(date);
-    if (!dateCheck.available) {
-      setAvailableSlots([]);
-      setTime("");
-      return;
-    }
-
     let isCurrent = true;
-    setLoadingSlots(true);
-    setSlotError(null);
-
-    getPublicAvailability({ date, serviceId: service })
-      .then((data) => {
-        if (!isCurrent) return;
-        const slots = data?.slots || [];
-        setAvailableSlots(slots);
-        setTime((prev) => (slots.includes(prev) ? prev : slots[0] || ""));
-      })
-      .catch(() => {
-        if (!isCurrent) return;
+    queueMicrotask(() => {
+      if (!date) {
         setAvailableSlots([]);
         setTime("");
-        setSlotError("Unable to retrieve available time slots. Please select another date or contact our clinic.");
-      })
-      .finally(() => {
-        if (isCurrent) {
-          setLoadingSlots(false);
-        }
-      });
+        return;
+      }
+
+      const dateCheck = getDateAvailability(date);
+      if (!dateCheck.available) {
+        setAvailableSlots([]);
+        setTime("");
+        return;
+      }
+
+      setLoadingSlots(true);
+      setSlotError(null);
+
+      getPublicAvailability({ date, serviceId: service })
+        .then((data) => {
+          if (!isCurrent) return;
+          const slots = data?.slots || [];
+          setAvailableSlots(slots);
+          setTime((prev) => (slots.includes(prev) ? prev : slots[0] || ""));
+        })
+        .catch(() => {
+          if (!isCurrent) return;
+          setAvailableSlots([]);
+          setTime("");
+          setSlotError("Unable to retrieve available time slots. Please select another date or contact our clinic.");
+        })
+        .finally(() => {
+          if (isCurrent) {
+            setLoadingSlots(false);
+          }
+        });
+    });
 
     return () => {
       isCurrent = false;
@@ -383,34 +391,7 @@ function BookingWizard() {
 
       <main className="flex-1 container-x py-12 md:py-16">
         {/* Prominent Emergency Pause Alert Banner when not open */}
-        {isBookingPaused && (
-          <div className="mx-auto max-w-2xl mb-8 rounded-2xl border-2 border-amber-400 bg-amber-50 dark:bg-amber-950/60 p-6 shadow-sm space-y-3">
-            <div className="flex items-start gap-3.5">
-              <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-              <div className="space-y-1.5 flex-1">
-                <h2 className="text-base font-semibold text-amber-950 dark:text-amber-100">
-                  Online Scheduling Is Currently {bookingStatus.mode === "paused" ? "Paused" : "Closed"}
-                </h2>
-                <p className="text-xs sm:text-sm text-amber-900 dark:text-amber-200 leading-relaxed">
-                  {bookingStatus.message ||
-                    "Online booking submissions are temporarily disabled. Our reception team remains available by phone to schedule and assist you."}
-                </p>
-                <div className="pt-2 flex items-center gap-2">
-                  <span className="text-xs text-amber-800 dark:text-amber-300">
-                    Call our desk to schedule:
-                  </span>
-                  <a
-                    href={`tel:${cleanContactPhone}`}
-                    className="inline-flex items-center gap-1.5 font-bold text-amber-950 dark:text-amber-100 bg-amber-200/80 dark:bg-amber-900 px-3 py-1 rounded-full text-xs hover:underline"
-                  >
-                    <Phone className="h-3 w-3" />
-                    <span>{contactPhone}</span>
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <BookingPausedBanner status={bookingStatus} fallbackPhone={phone} />
 
         {submittedData ? (
           /* Confirmation Screen */
@@ -512,7 +493,7 @@ function BookingWizard() {
                       What can we help you with?
                     </h1>
                     <p className="mt-2 text-sm text-ink-soft">
-                      Pick the closest procedure. Dr. Marlow will confirm specifics during your visit.
+                      Pick the closest procedure. Your clinician will confirm specifics during your visit.
                     </p>
                   </div>
 
@@ -614,40 +595,13 @@ function BookingWizard() {
                       <label className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-soft/80 mb-2">
                         Preferred Time Slot (12-Hour Asia/Karachi)
                       </label>
-                      {loadingSlots ? (
-                        <div className="flex items-center justify-center p-8 rounded-[var(--radius-card)] border border-line bg-cream/40">
-                          <div className="h-5 w-5 animate-spin rounded-full border-2 border-forest border-t-transparent mr-2" />
-                          <span className="text-xs text-ink-soft">Checking clinic availability...</span>
-                        </div>
-                      ) : availableSlots.length > 0 ? (
-                        <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1">
-                          {availableSlots.map((slot) => {
-                            const isSelected = time === slot;
-                            return (
-                              <button
-                                key={slot}
-                                type="button"
-                                onClick={() => setTime(slot)}
-                                className={`rounded-[var(--radius-card)] border py-2.5 text-xs font-mono font-medium transition-all cursor-pointer ${
-                                  isSelected
-                                    ? "border-forest bg-forest text-[#FAF7F2]"
-                                    : "border-line bg-cream hover:border-forest/40 text-ink"
-                                }`}
-                              >
-                                {slot}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="rounded-xl border border-line bg-cream/60 p-5 text-center">
-                          <Clock className="h-5 w-5 text-ink-soft mx-auto mb-1.5 opacity-60" />
-                          <p className="text-xs font-medium text-ink">No appointment slots available</p>
-                          <p className="text-[11px] text-ink-soft mt-0.5">
-                            {slotError || "All slots are reserved for this date. Please select another day."}
-                          </p>
-                        </div>
-                      )}
+                      <BookingSlotPicker
+                        loading={loadingSlots}
+                        slots={availableSlots}
+                        selectedSlot={time}
+                        onSelectSlot={setTime}
+                        error={slotError}
+                      />
                     </div>
                   </div>
 

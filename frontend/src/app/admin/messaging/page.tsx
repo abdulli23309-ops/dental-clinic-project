@@ -25,6 +25,8 @@ import {
   MessageLogItem,
   MessagingSettings,
   runReminderScheduler,
+  sendTestMessage,
+  SendTestMessageResponse,
   updateMessagingSettings,
 } from "@/lib/api";
 
@@ -48,12 +50,23 @@ export default function AdminMessagingPage() {
   const [quietHoursEnd, setQuietHoursEnd] = useState<string>("08:00");
   const [providerMode, setProviderMode] = useState<string>("simulated");
   const [template, setTemplate] = useState<string>("");
+  const [templateUrdu, setTemplateUrdu] = useState<string>("");
+  const [reminder24hEnabled, setReminder24hEnabled] = useState<boolean>(true);
+  const [reminder2hEnabled, setReminder2hEnabled] = useState<boolean>(true);
 
   // UI state
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Send Test Message State
+  const [testRecipient, setTestRecipient] = useState<string>("");
+  const [testMessageBody, setTestMessageBody] = useState<string>("");
+  const [testChannel, setTestChannel] = useState<"sms" | "whatsapp">("sms");
+  const [isSendingTest, setIsSendingTest] = useState<boolean>(false);
+  const [testResult, setTestResult] = useState<SendTestMessageResponse | null>(null);
+  const [testError, setTestError] = useState<string | null>(null);
 
   // Scheduler Runner State
   const [schedulerDate, setSchedulerDate] = useState<string>(() => {
@@ -84,6 +97,9 @@ export default function AdminMessagingPage() {
       setQuietHoursEnd(s.quietHoursEnd);
       setProviderMode(s.messagingProviderMode);
       setTemplate(s.reminderTemplate);
+      setTemplateUrdu(s.reminderTemplateUrdu || "");
+      setReminder24hEnabled(s.reminder24hEnabled ?? true);
+      setReminder2hEnabled(s.reminder2hEnabled ?? true);
 
       setIsLoadingLogs(true);
       const l = await getMessageLogs(50, 0, accessToken);
@@ -98,7 +114,17 @@ export default function AdminMessagingPage() {
   };
 
   useEffect(() => {
-    fetchSettingsAndLogs();
+    let active = true;
+    const load = async () => {
+      await Promise.resolve();
+      if (active) {
+        fetchSettingsAndLogs();
+      }
+    };
+    void load();
+    return () => {
+      active = false;
+    };
   }, [accessToken]);
 
   const handleSaveSettings = async (e: React.FormEvent) => {
@@ -114,6 +140,9 @@ export default function AdminMessagingPage() {
           quietHoursEnd,
           messagingProviderMode: providerMode,
           reminderTemplate: template,
+          reminderTemplateUrdu: templateUrdu || undefined,
+          reminder24hEnabled,
+          reminder2hEnabled,
         },
         accessToken
       );
@@ -124,6 +153,32 @@ export default function AdminMessagingPage() {
       setSaveError(err instanceof Error ? err.message : "Failed to update settings.");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSendTestMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!testRecipient.trim() || !testMessageBody.trim()) return;
+    setIsSendingTest(true);
+    setTestError(null);
+    setTestResult(null);
+    try {
+      const res = await sendTestMessage(
+        {
+          recipient: testRecipient.trim(),
+          message: testMessageBody.trim(),
+          channel: testChannel,
+        },
+        accessToken
+      );
+      setTestResult(res);
+      const l = await getMessageLogs(50, 0, accessToken);
+      setLogs(l.items);
+      setLogsTotal(l.total);
+    } catch (err: unknown) {
+      setTestError(err instanceof Error ? err.message : "Failed to send test message.");
+    } finally {
+      setIsSendingTest(false);
     }
   };
 
@@ -146,14 +201,14 @@ export default function AdminMessagingPage() {
 
   // Preview interpolation
   const previewText = template
-    .replace(/{patient_name}/g, "Zainab Malik")
+    .replace(/{patient_name}/g, "Patient Name")
     .replace(/{appointment_date}/g, schedulerDate)
     .replace(/{appointment_time}/g, "10:30 AM")
-    .replace(/{doctor_name}/g, "Dr. Ayesha Khan")
-    .replace(/{clinician_name}/g, "Dr. Ayesha Khan")
-    .replace(/{clinic_name}/g, "Marlow Dental Clinic")
-    .replace(/{clinic_phone}/g, "+92 300 1234567")
-    .replace(/{confirmation_id}/g, "MD-2026-8841");
+    .replace(/{doctor_name}/g, "Attending Clinician")
+    .replace(/{clinician_name}/g, "Attending Clinician")
+    .replace(/{clinic_name}/g, "Dental Clinic")
+    .replace(/{clinic_phone}/g, "[Clinic Phone]")
+    .replace(/{confirmation_id}/g, "MD-CONFIRMATION");
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12">
@@ -330,17 +385,55 @@ export default function AdminMessagingPage() {
             <span className="text-xs text-ink-soft">Strictly non-clinical logistical reminder</span>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-ink block">
-              Message Template Body
-            </label>
-            <textarea
-              rows={4}
-              value={template}
-              onChange={(e) => setTemplate(e.target.value)}
-              required
-              className="w-full text-xs rounded-xl border border-line bg-bone p-3 text-ink focus:outline-none focus:ring-1 focus:ring-primary"
-            />
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-4 p-3 rounded-xl border border-line bg-cream/40">
+              <label className="flex items-center gap-2 text-xs font-semibold text-ink cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={reminder24hEnabled}
+                  onChange={(e) => setReminder24hEnabled(e.target.checked)}
+                  className="rounded border-line text-primary focus:ring-primary h-4 w-4"
+                />
+                <span>24h Reminder Enabled (Automated cadence)</span>
+              </label>
+
+              <label className="flex items-center gap-2 text-xs font-semibold text-ink cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={reminder2hEnabled}
+                  onChange={(e) => setReminder2hEnabled(e.target.checked)}
+                  className="rounded border-line text-primary focus:ring-primary h-4 w-4"
+                />
+                <span>2h Reminder Enabled (Automated cadence)</span>
+              </label>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-ink block">
+                English Message Template Body
+              </label>
+              <textarea
+                rows={3}
+                value={template}
+                onChange={(e) => setTemplate(e.target.value)}
+                required
+                className="w-full text-xs rounded-xl border border-line bg-bone p-3 text-ink focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-ink block">
+                Urdu Message Template Body (اردو)
+              </label>
+              <textarea
+                rows={3}
+                dir="rtl"
+                value={templateUrdu}
+                onChange={(e) => setTemplateUrdu(e.target.value)}
+                placeholder="محترم/محترمہ {patient_first_name}، آپ کا اپوائنٹمنٹ {date} کو {time} بجے شیڈول ہے۔ رابطہ: {clinic_phone}"
+                className="w-full text-xs rounded-xl border border-line bg-bone p-3 text-ink focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+              />
+            </div>
           </div>
 
           {/* Variables Legend */}
@@ -390,6 +483,113 @@ export default function AdminMessagingPage() {
           </div>
         </Card>
       </form>
+
+      {/* Send Test Message Section */}
+      <Card surface="bone" shadow="card" className="p-5 space-y-4">
+        <div className="flex items-center justify-between border-b border-line pb-3">
+          <div className="flex items-center gap-2">
+            <Send className="h-5 w-5 text-primary" />
+            <h2 className="text-sm font-bold text-ink">Send Test Message</h2>
+          </div>
+          <span className="text-xs text-ink-soft">Dispatches through active provider</span>
+        </div>
+
+        <p className="text-xs text-ink-soft">
+          Send an immediate test dispatch to any recipient number to verify provider configuration and channel delivery.
+        </p>
+
+        <form onSubmit={handleSendTestMessage} className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-ink mb-1">
+                Recipient Phone Number *
+              </label>
+              <input
+                type="text"
+                placeholder="+92 300 1234567"
+                value={testRecipient}
+                onChange={(e) => setTestRecipient(e.target.value)}
+                required
+                className="w-full text-xs rounded-xl border border-line bg-bone px-3 py-2 text-ink focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-ink mb-1">
+                Channel
+              </label>
+              <select
+                value={testChannel}
+                onChange={(e) => setTestChannel(e.target.value as "sms" | "whatsapp")}
+                className="w-full text-xs rounded-xl border border-line bg-bone px-3 py-2 text-ink focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="sms">SMS</option>
+                <option value="whatsapp">WhatsApp</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-ink mb-1">
+              Test Message Body *
+            </label>
+            <textarea
+              rows={2}
+              placeholder="Test message from Marlow Dental Clinic..."
+              value={testMessageBody}
+              onChange={(e) => setTestMessageBody(e.target.value)}
+              required
+              className="w-full text-xs rounded-xl border border-line bg-bone p-3 text-ink focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+
+          <div className="flex items-center justify-between pt-1">
+            <div className="text-[11px] text-ink-soft">
+              Active Provider: <strong>{providerMode}</strong>
+            </div>
+
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              disabled={isSendingTest}
+              className="flex items-center gap-1.5 shadow-sm"
+            >
+              <Send className={`h-3.5 w-3.5 ${isSendingTest ? "animate-spin" : ""}`} />
+              {isSendingTest ? "Sending Test..." : "Send Test Message"}
+            </Button>
+          </div>
+        </form>
+
+        {testResult && (
+          <div
+            className={`p-3.5 rounded-xl border text-xs space-y-1 ${
+              testResult.success
+                ? "bg-emerald-50 border-emerald-300 text-emerald-900"
+                : "bg-rose-50 border-rose-300 text-rose-900"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 font-semibold">
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+                <span>Test message processed via provider: {testResult.provider}</span>
+              </div>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border border-current">
+                {testResult.status === "simulated" ? "Simulated, not delivered" : testResult.status}
+              </span>
+            </div>
+            {testResult.details && <p className="text-[11px]">{testResult.details}</p>}
+            {testResult.error && <p className="text-[11px] text-rose-700 font-semibold">{testResult.error}</p>}
+          </div>
+        )}
+
+        {testError && (
+          <div className="p-3 rounded-xl border border-rose-300 bg-rose-50 text-rose-900 text-xs flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+            <span>{testError}</span>
+          </div>
+        )}
+      </Card>
 
       {/* Manual Scheduler Runner */}
       <Card surface="bone" shadow="card" className="p-5 space-y-4">
@@ -524,7 +724,9 @@ export default function AdminMessagingPage() {
                             : "bg-stone-100 text-stone-600 border-stone-200"
                         }`}
                       >
-                        {log.deliveryStatus}
+                        {log.deliveryStatus === "simulated"
+                          ? "Simulated, not delivered"
+                          : log.deliveryStatus}
                       </span>
                     </td>
                   </tr>

@@ -62,6 +62,9 @@ class PostgresBookingSettingsRepository(BookingSettingsRepository):
             min_lead_time_hours=getattr(orm, "min_lead_time_hours", 2) or 2,
             slot_interval_minutes=orm.slot_interval_minutes,
             reminder_template=getattr(orm, "reminder_template", None),
+            reminder_template_urdu=getattr(orm, "reminder_template_urdu", None),
+            reminder_24h_enabled=getattr(orm, "reminder_24h_enabled", True) if getattr(orm, "reminder_24h_enabled", None) is not None else True,
+            reminder_2h_enabled=getattr(orm, "reminder_2h_enabled", True) if getattr(orm, "reminder_2h_enabled", None) is not None else True,
             waiting_threshold_minutes=getattr(orm, "waiting_threshold_minutes", 15) or 15,
             file_number_prefix=getattr(orm, "file_number_prefix", "MD-") or "MD-",
             payments_enabled=getattr(orm, "payments_enabled", True) if getattr(orm, "payments_enabled", None) is not None else True,
@@ -91,6 +94,9 @@ class PostgresBookingSettingsRepository(BookingSettingsRepository):
         orm.min_lead_time_hours = settings.min_lead_time_hours
         orm.slot_interval_minutes = settings.slot_interval_minutes
         orm.reminder_template = settings.reminder_template
+        orm.reminder_template_urdu = getattr(settings, "reminder_template_urdu", None)
+        orm.reminder_24h_enabled = getattr(settings, "reminder_24h_enabled", True)
+        orm.reminder_2h_enabled = getattr(settings, "reminder_2h_enabled", True)
         orm.waiting_threshold_minutes = settings.waiting_threshold_minutes
         orm.file_number_prefix = getattr(settings, "file_number_prefix", "MD-") or "MD-"
         orm.payments_enabled = getattr(settings, "payments_enabled", True)
@@ -113,6 +119,9 @@ class PostgresBookingSettingsRepository(BookingSettingsRepository):
             min_lead_time_hours=orm.min_lead_time_hours,
             slot_interval_minutes=orm.slot_interval_minutes,
             reminder_template=orm.reminder_template,
+            reminder_template_urdu=getattr(orm, "reminder_template_urdu", None),
+            reminder_24h_enabled=getattr(orm, "reminder_24h_enabled", True),
+            reminder_2h_enabled=getattr(orm, "reminder_2h_enabled", True),
             waiting_threshold_minutes=orm.waiting_threshold_minutes,
             file_number_prefix=getattr(orm, "file_number_prefix", "MD-") or "MD-",
             payments_enabled=getattr(orm, "payments_enabled", True),

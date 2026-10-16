@@ -33,6 +33,8 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useDirectory } from "@/lib/directory";
+import { PatientAttachmentsTab } from "@/components/clinical/patient-attachments-tab";
+import { PatientBillingSection } from "@/components/reception/patient-billing-section";
 
 export default function ReceptionPatientDetailPage() {
   const params = useParams();
@@ -57,6 +59,7 @@ export default function ReceptionPatientDetailPage() {
   const [emergencyContactName, setEmergencyContactName] = useState("");
   const [emergencyContactPhone, setEmergencyContactPhone] = useState("");
   const [emergencyContactRelationship, setEmergencyContactRelationship] = useState("");
+  const [preferredChannel, setPreferredChannel] = useState<"sms" | "whatsapp" | "none">("sms");
   const [isSaving, setIsSaving] = useState(false);
 
   // Quick Message Modal
@@ -94,6 +97,7 @@ export default function ReceptionPatientDetailPage() {
       setEmergencyContactName(data.emergencyContactName || "");
       setEmergencyContactPhone(data.emergencyContactPhone || "");
       setEmergencyContactRelationship(data.emergencyContactRelationship || "");
+      setPreferredChannel(((data.preferredChannel as "sms" | "whatsapp" | "none") || "sms"));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load patient chart.");
     } finally {
@@ -102,7 +106,17 @@ export default function ReceptionPatientDetailPage() {
   };
 
   useEffect(() => {
-    if (patientId) loadPatient();
+    let active = true;
+    const load = async () => {
+      await Promise.resolve();
+      if (active && patientId) {
+        loadPatient();
+      }
+    };
+    void load();
+    return () => {
+      active = false;
+    };
   }, [patientId, accessToken]);
 
   const handleUpdate = async (e: React.FormEvent) => {
@@ -115,6 +129,7 @@ export default function ReceptionPatientDetailPage() {
           phone,
           email: email || undefined,
           notes: notes || undefined,
+          preferredChannel,
           fileNumber: fileNumber.trim() || undefined,
           guardianName: guardianName.trim() || undefined,
           guardianPhone: guardianPhone.trim() || undefined,
@@ -255,6 +270,9 @@ export default function ReceptionPatientDetailPage() {
                 {patient.fileNumber}
               </span>
             )}
+            <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 uppercase">
+              Channel: {patient.preferredChannel || "sms"}
+            </span>
             <span className="text-xs font-mono px-3 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
               Patient since {new Date(patient.createdAt).toLocaleDateString()}
             </span>
@@ -502,6 +520,21 @@ export default function ReceptionPatientDetailPage() {
         </div>
       </div>
 
+      <PatientBillingSection
+        patientId={patient.id}
+        patientName={patient.fullName}
+        bookings={[...patient.upcomingBookings, ...patient.pastBookings]}
+      />
+
+      {/* Patient Consent & Document Attachments (Reception-Scoped: consent & other) */}
+      <div className="pt-6 border-t border-gray-200 dark:border-gray-800">
+        <PatientAttachmentsTab
+          patientId={patient.id}
+          role="receptionist"
+          patientName={patient.fullName}
+        />
+      </div>
+
       {/* Edit Demographic Modal */}
       {isEditOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
@@ -542,14 +575,28 @@ export default function ReceptionPatientDetailPage() {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="font-medium text-gray-700 dark:text-gray-300">Email</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 focus:border-primary"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-medium text-gray-700 dark:text-gray-300">Email</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 focus:border-primary"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-medium text-gray-700 dark:text-gray-300">Preferred Channel</label>
+                  <select
+                    value={preferredChannel}
+                    onChange={(e) => setPreferredChannel(e.target.value as "sms" | "whatsapp" | "none")}
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 focus:border-primary text-xs"
+                  >
+                    <option value="sms">SMS</option>
+                    <option value="whatsapp">WhatsApp</option>
+                    <option value="none">None (Opt-Out)</option>
+                  </select>
+                </div>
               </div>
 
               {/* Parent / Guardian */}
@@ -767,7 +814,7 @@ export default function ReceptionPatientDetailPage() {
                 <label className="font-medium text-gray-700 dark:text-gray-300">Priority</label>
                 <select
                   value={taskPriority}
-                  onChange={(e) => setTaskPriority(e.target.value as any)}
+                  onChange={(e) => setTaskPriority(e.target.value as "low" | "medium" | "high" | "urgent")}
                   className="w-full px-3.5 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 focus:border-primary"
                 >
                   <option value="low">Low</option>

@@ -1,18 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
-  Activity,
   ArrowLeft,
   Calendar,
-  Clock,
-  FileText,
   Mail,
   Phone,
   ShieldAlert,
-  Stethoscope,
   User,
 } from "lucide-react";
 
@@ -26,6 +22,9 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DentalChart } from "@/components/doctor/dental-chart";
 import { ClinicalAlertBanner } from "@/components/doctor/clinical-alert-banner";
+import TreatmentPlanTab from "@/components/doctor/treatment-plan-tab";
+import { ClinicalDocumentsTab } from "@/components/doctor/clinical-documents-tab";
+import { PatientAttachmentsTab } from "@/components/clinical/patient-attachments-tab";
 
 export default function DoctorPatientDetailPage() {
   const params = useParams();
@@ -36,9 +35,11 @@ export default function DoctorPatientDetailPage() {
   const [patient, setPatient] = useState<DoctorPatientDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "chart" | "encounters">("overview");
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "chart" | "treatment-plan" | "documents" | "attachments" | "encounters"
+  >("overview");
 
-  const loadPatient = async () => {
+  const loadPatient = useCallback(async () => {
     if (!patientId) return;
     setIsLoading(true);
     setError(null);
@@ -50,10 +51,24 @@ export default function DoctorPatientDetailPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [patientId, accessToken]);
 
   useEffect(() => {
-    loadPatient();
+    if (!patientId) return;
+    let isMounted = true;
+    getDoctorPatientDetail(patientId, accessToken)
+      .then((data) => {
+        if (isMounted) setPatient(data);
+      })
+      .catch((err: unknown) => {
+        if (isMounted) setError(err instanceof Error ? err.message : "Failed to load patient details.");
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
   }, [patientId, accessToken]);
 
   if (isLoading) {
@@ -133,10 +148,10 @@ export default function DoctorPatientDetailPage() {
       <ClinicalAlertBanner patientId={patient.id} onAlertsChange={loadPatient} />
 
       {/* Workspace Tabs */}
-      <div className="flex items-center gap-2 border-b border-line pb-2">
+      <div className="flex flex-wrap items-center gap-2 border-b border-line pb-2">
         <button
           onClick={() => setActiveTab("overview")}
-          className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
+          className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors ${
             activeTab === "overview"
               ? "bg-primary text-white"
               : "text-ink-soft hover:text-ink hover:bg-sand/60"
@@ -146,7 +161,7 @@ export default function DoctorPatientDetailPage() {
         </button>
         <button
           onClick={() => setActiveTab("chart")}
-          className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
+          className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors ${
             activeTab === "chart"
               ? "bg-primary text-white"
               : "text-ink-soft hover:text-ink hover:bg-sand/60"
@@ -155,8 +170,38 @@ export default function DoctorPatientDetailPage() {
           Odontogram Dental Chart
         </button>
         <button
+          onClick={() => setActiveTab("treatment-plan")}
+          className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors ${
+            activeTab === "treatment-plan"
+              ? "bg-primary text-white"
+              : "text-ink-soft hover:text-ink hover:bg-sand/60"
+          }`}
+        >
+          Treatment Plan
+        </button>
+        <button
+          onClick={() => setActiveTab("documents")}
+          className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors ${
+            activeTab === "documents"
+              ? "bg-primary text-white"
+              : "text-ink-soft hover:text-ink hover:bg-sand/60"
+          }`}
+        >
+          Prescriptions & Referrals
+        </button>
+        <button
+          onClick={() => setActiveTab("attachments")}
+          className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors ${
+            activeTab === "attachments"
+              ? "bg-primary text-white"
+              : "text-ink-soft hover:text-ink hover:bg-sand/60"
+          }`}
+        >
+          Attachments & Consents
+        </button>
+        <button
           onClick={() => setActiveTab("encounters")}
-          className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
+          className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors ${
             activeTab === "encounters"
               ? "bg-primary text-white"
               : "text-ink-soft hover:text-ink hover:bg-sand/60"
@@ -258,6 +303,34 @@ export default function DoctorPatientDetailPage() {
             onUpdate={loadPatient}
           />
         </div>
+      )}
+
+      {/* Tab: Treatment Plan */}
+      {activeTab === "treatment-plan" && (
+        <TreatmentPlanTab
+          patientId={patient.id}
+          patientName={patient.fullName}
+          patientFileNumber={patient.fileNumber || undefined}
+          onRefreshParent={loadPatient}
+        />
+      )}
+
+      {/* Tab: Prescriptions & Referrals */}
+      {activeTab === "documents" && (
+        <ClinicalDocumentsTab
+          encounterId={patient.encounters[0]?.id || patient.id}
+          patientId={patient.id}
+          patientName={patient.fullName}
+        />
+      )}
+
+      {/* Tab: Attachments & Consents */}
+      {activeTab === "attachments" && (
+        <PatientAttachmentsTab
+          patientId={patient.id}
+          role="doctor"
+          patientName={patient.fullName}
+        />
       )}
 
       {/* Tab: Encounters */}

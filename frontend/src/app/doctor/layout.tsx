@@ -3,6 +3,7 @@
 import React from "react";
 import {
   Calendar,
+  FileText,
   ListTodo,
   Mail,
   Users,
@@ -16,6 +17,8 @@ import {
 const DOCTOR_LINKS: SidebarLink[] = [
   { href: "/doctor", title: "Daily Schedule", icon: Calendar, exact: true },
   { href: "/doctor/patients", title: "Patients", icon: Users },
+  { href: "/doctor/tasks", title: "Tasks", icon: ListTodo },
+  { href: "/doctor/templates", title: "Note Templates", icon: FileText },
 ];
 
 export default function DoctorLayout({ children }: { children: React.ReactNode }) {

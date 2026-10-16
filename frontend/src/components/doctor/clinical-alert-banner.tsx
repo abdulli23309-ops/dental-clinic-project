@@ -54,7 +54,9 @@ export function ClinicalAlertBanner({
   };
 
   useEffect(() => {
-    loadAlerts();
+    queueMicrotask(() => {
+      loadAlerts();
+    });
   }, [patientId, accessToken]);
 
   const handleReviewAtVisit = async () => {

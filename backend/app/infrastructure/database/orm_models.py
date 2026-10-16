@@ -79,7 +79,13 @@ class PermissionORM(Base):
 
 
 class RolePermissionORM(Base):
-    """Join table associating roles with permissions."""
+    """Join table associating roles with permissions.
+
+    RETAINED FOR SCHEMA COMPATIBILITY ONLY: the /admin/permissions GET and PUT
+    endpoints (the only readers/writers of this table) were removed because
+    authorization is enforced exclusively through require_role() closures in
+    app/api/deps.py, and no code reads role_permissions anymore.
+    """
     __tablename__ = "role_permissions"
 
     id: Mapped[UUID] = mapped_column(
@@ -647,6 +653,12 @@ class PatientORM(Base):
         default=False,
         server_default=false(),
     )
+    preferred_channel: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        default="sms",
+        server_default="sms",
+    )
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
@@ -1191,6 +1203,12 @@ class TaskORM(Base):
         nullable=True,
         index=True,
     )
+    created_by_user_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     patient_id: Mapped[Optional[UUID]] = mapped_column(
         Uuid(as_uuid=True),
         ForeignKey("patients.id", ondelete="SET NULL"),
@@ -1301,6 +1319,35 @@ class MessageORM(Base):
     )
     error_detail: Mapped[Optional[str]] = mapped_column(
         Text,
+        nullable=True,
+    )
+    provider: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="simulated",
+        server_default="simulated",
+    )
+    provider_message_id: Mapped[Optional[str]] = mapped_column(
+        String(128),
+        nullable=True,
+    )
+    attempts: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    scheduled_for: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
+    sent_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    reminder_type: Mapped[Optional[str]] = mapped_column(
+        String(32),
         nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
@@ -1514,7 +1561,7 @@ class AppointmentORM(Base):
     """
     Defines the structure of the 'appointments' table in the PostgreSQL database.
     """
-    __tablename__ = "appointments"
+    __tablename__ = "appointments_legacy"
 
     id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),
@@ -1631,7 +1678,7 @@ class ClinicalEncounterORM(Base):
     )
     appointment_id: Mapped[Optional[UUID]] = mapped_column(
         Uuid(as_uuid=True),
-        ForeignKey("appointments.id", ondelete="SET NULL"),
+        ForeignKey("appointments_legacy.id", ondelete="SET NULL"),
         nullable=True,
     )
     status: Mapped[str] = mapped_column(
@@ -2157,6 +2204,22 @@ class ClinicBookingSettingsORM(Base):
         Text,
         nullable=True,
     )
+    reminder_template_urdu: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    reminder_24h_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default=true(),
+    )
+    reminder_2h_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default=true(),
+    )
     waiting_threshold_minutes: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
@@ -2479,5 +2542,128 @@ class VisitPaymentORM(Base):
         nullable=False,
         server_default=func.now(),
     )
+
+
+class TreatmentPlanItemORM(Base):
+    """
+    Stores individual planned procedures within a patient's overall treatment plan.
+    """
+    __tablename__ = "treatment_plan_items"
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    patient_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True)
+    tooth_number: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
+    service_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    procedure_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="proposed", server_default="proposed")
+    estimated_cost_cents: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    decision_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    completed_procedure_id: Mapped[Optional[UUID]] = mapped_column(Uuid(as_uuid=True), ForeignKey("dental_procedures.id", ondelete="SET NULL"), nullable=True)
+    created_by_user_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+
+class ClinicalNoteTemplateORM(Base):
+    """
+    Neutral note structure templates with prompts and section headings.
+    """
+    __tablename__ = "clinical_note_templates"
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
+    subjective: Mapped[str] = mapped_column(Text, nullable=False)
+    objective: Mapped[str] = mapped_column(Text, nullable=False)
+    assessment: Mapped[str] = mapped_column(Text, nullable=False)
+    plan: Mapped[str] = mapped_column(Text, nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=true())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+
+class PatientAttachmentORM(Base):
+    """
+    Stores private patient attachments (x-rays, photos, consent scans, etc.) outside public web root.
+    """
+    __tablename__ = "patient_attachments"
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    patient_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True)
+    encounter_id: Mapped[Optional[UUID]] = mapped_column(Uuid(as_uuid=True), ForeignKey("clinical_encounters.id", ondelete="SET NULL"), nullable=True, index=True)
+    category: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    size: Mapped[int] = mapped_column(Integer, nullable=False)
+    stored_name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    uploaded_by: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    voided: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=false())
+    void_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    voided_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    voided_by: Mapped[Optional[UUID]] = mapped_column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+
+class PatientConsentORM(Base):
+    """
+    Tracks informed consent records for patients, encounters, and procedures.
+    """
+    __tablename__ = "patient_consents"
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    patient_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True)
+    encounter_id: Mapped[Optional[UUID]] = mapped_column(Uuid(as_uuid=True), ForeignKey("clinical_encounters.id", ondelete="SET NULL"), nullable=True, index=True)
+    procedure_id: Mapped[Optional[UUID]] = mapped_column(Uuid(as_uuid=True), ForeignKey("dental_procedures.id", ondelete="SET NULL"), nullable=True)
+    consent_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    consent_text_version: Mapped[str] = mapped_column(String(50), nullable=False, default="1.0", server_default="1.0")
+    method: Mapped[str] = mapped_column(String(32), nullable=False)
+    signed_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    attachment_id: Mapped[Optional[UUID]] = mapped_column(Uuid(as_uuid=True), ForeignKey("patient_attachments.id", ondelete="SET NULL"), nullable=True)
+    obtained_by: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    voided: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=false())
+    void_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    voided_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    voided_by: Mapped[Optional[UUID]] = mapped_column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+
+class PrescriptionORM(Base):
+    """
+    Prescription orders linked to encounters.
+    """
+    __tablename__ = "prescriptions"
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    encounter_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("clinical_encounters.id", ondelete="CASCADE"), nullable=False, index=True)
+    patient_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="draft", server_default="draft")
+    items_json: Mapped[str] = mapped_column(Text, nullable=False)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    doctor_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    signed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    signed_by_user_id: Mapped[Optional[UUID]] = mapped_column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+
+class ReferralLetterORM(Base):
+    """
+    Referral letters linked to encounters.
+    """
+    __tablename__ = "referral_letters"
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    encounter_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("clinical_encounters.id", ondelete="CASCADE"), nullable=False, index=True)
+    patient_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="draft", server_default="draft")
+    recipient: Mapped[str] = mapped_column(String(255), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    doctor_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    signed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    signed_by_user_id: Mapped[Optional[UUID]] = mapped_column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
 
 

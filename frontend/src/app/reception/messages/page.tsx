@@ -44,7 +44,9 @@ export default function ReceptionMessagesPage() {
   };
 
   useEffect(() => {
-    loadMessages();
+    queueMicrotask(() => {
+      loadMessages();
+    });
   }, [channelFilter, accessToken]);
 
   const handlePatientSearch = async (query: string) => {

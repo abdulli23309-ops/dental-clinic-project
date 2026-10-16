@@ -98,6 +98,7 @@ export interface User {
   clinicId?: string | null;
   teamMemberId?: string | null;
   organizationId?: string | null;
+  requiresPasswordChange?: boolean;
   inactivityEnabled?: boolean;
   inactivityTimeoutMinutes?: number;
   inactivityWarningSeconds?: number;
@@ -638,6 +639,26 @@ export async function getMe(accessToken?: string): Promise<User> {
   return res.json();
 }
 
+/** Changes the authenticated user's own password. Satisfies requiresPasswordChange. */
+export async function changePassword(
+  payload: { oldPassword: string; newPassword: string },
+  token?: string
+): Promise<{ success: boolean; message: string }> {
+  const res = await authorizedFetch(
+    "/api/v1/auth/change-password",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to change password.");
+  }
+  return res.json();
+}
+
 export async function updateInactivitySettings(
   payload: {
     inactivityEnabled: boolean;
@@ -733,6 +754,57 @@ export async function adminToggleServiceStatus(id: string, isActive: boolean, to
     token
   );
   if (!res.ok) throw new Error("Failed to update service status.");
+  return res.json();
+}
+
+/** Persists the display order of services from an ordered list of IDs. */
+export async function adminReorderServices(orderedIds: string[], token?: string) {
+  const res = await authorizedFetch(
+    `/api/v1/admin/services/reorder`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ orderedIds }),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to reorder services.");
+  }
+  return res.json();
+}
+
+/** Persists the display order of team members from an ordered list of IDs. */
+export async function adminReorderTeam(orderedIds: string[], token?: string) {
+  const res = await authorizedFetch(
+    `/api/v1/admin/team/reorder`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ orderedIds }),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to reorder team members.");
+  }
+  return res.json();
+}
+
+/** Persists the display order of FAQ items from an ordered list of IDs. */
+export async function adminReorderFaqs(orderedIds: string[], token?: string) {
+  const res = await authorizedFetch(
+    `/api/v1/admin/faq/reorder`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ orderedIds }),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to reorder FAQs.");
+  }
   return res.json();
 }
 
@@ -1540,6 +1612,8 @@ interface RawPatient {
   emergencyContactName?: string | null;
   emergencyContactPhone?: string | null;
   emergencyContactRelationship?: string | null;
+  messagingOptOut?: boolean;
+  preferredChannel?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -1702,6 +1776,8 @@ export interface ReceptionPatient {
   emergencyContactName?: string | null;
   emergencyContactPhone?: string | null;
   emergencyContactRelationship?: string | null;
+  messagingOptOut?: boolean;
+  preferredChannel?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -2285,6 +2361,9 @@ export interface MessagingSettings {
   quietHoursEnd: string;
   messagingProviderMode: string;
   reminderTemplate: string;
+  reminderTemplateUrdu?: string | null;
+  reminder24hEnabled: boolean;
+  reminder2hEnabled: boolean;
 }
 
 export interface MessagingSettingsUpdate {
@@ -2293,6 +2372,20 @@ export interface MessagingSettingsUpdate {
   quietHoursEnd?: string;
   messagingProviderMode?: string;
   reminderTemplate?: string;
+  reminderTemplateUrdu?: string | null;
+  reminder24hEnabled?: boolean;
+  reminder2hEnabled?: boolean;
+}
+
+export interface SendTestMessageResponse {
+  success: boolean;
+  status: string;
+  channel: string;
+  provider: string;
+  recipient: string;
+  details?: string | null;
+  error?: string | null;
+  providerMessageId?: string | null;
 }
 
 export interface MessageLogItem {
@@ -2345,6 +2438,23 @@ export async function updateMessagingSettings(
     token
   );
   if (!res.ok) await apiError(res, "Failed to update messaging settings.");
+  return res.json();
+}
+
+export async function sendTestMessage(
+  payload: { recipient: string; message: string; channel?: string },
+  token?: string | null
+): Promise<SendTestMessageResponse> {
+  const res = await authorizedFetch(
+    "/api/v1/admin/messaging/send-test",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to send test message.");
   return res.json();
 }
 
@@ -2612,6 +2722,7 @@ export async function createReceptionPatient(
     emergencyContactName?: string;
     emergencyContactPhone?: string;
     emergencyContactRelationship?: string;
+    preferredChannel?: string;
     bypassDuplicateCheck?: boolean;
   },
   token?: string | null
@@ -2630,6 +2741,7 @@ export async function createReceptionPatient(
         email: data.email ?? null,
         dateOfBirth: data.dateOfBirth ?? null,
         notes: data.notes ?? null,
+        preferredChannel: data.preferredChannel ?? "sms",
         fileNumber: data.fileNumber ?? null,
         guardianName: data.guardianName ?? null,
         guardianPhone: data.guardianPhone ?? null,
@@ -2667,6 +2779,7 @@ export async function updateReceptionPatient(
     emergencyContactName: string;
     emergencyContactPhone: string;
     emergencyContactRelationship: string;
+    preferredChannel: string;
   }>,
   token?: string | null
 ): Promise<ReceptionPatient> {
@@ -2682,6 +2795,7 @@ export async function updateReceptionPatient(
         dateOfBirth: data.dateOfBirth ?? null,
         notes: data.notes ?? null,
         isActive: data.isActive ?? null,
+        preferredChannel: data.preferredChannel ?? null,
         fileNumber: data.fileNumber ?? null,
         guardianName: data.guardianName ?? null,
         guardianPhone: data.guardianPhone ?? null,
@@ -3035,6 +3149,7 @@ export async function recordBookingPayment(
     currency?: string;
     method?: string;
     notes?: string;
+    overrideReason?: string;
     patientId?: string;
   },
   token?: string | null
@@ -3167,6 +3282,7 @@ export interface DoctorPatientDetail {
   fullName: string;
   phone: string;
   email?: string | null;
+  fileNumber?: string | null;
   dateOfBirth?: string | null;
   notes?: string | null;
   clinicId?: string | null;
@@ -3783,5 +3899,899 @@ export async function adminResetUserPassword(
   if (!res.ok) await apiError(res, "Failed to reset password.");
   return res.json();
 }
+
+/* -------------------------------------------------------------
+ * PART B: CLINICAL DEPTH APIS
+ * ------------------------------------------------------------- */
+
+export interface DoctorTaskItem {
+  id: string;
+  title: string;
+  description?: string | null;
+  priority: "low" | "medium" | "high" | "urgent";
+  status: "pending" | "done";
+  patientId?: string | null;
+  patientName?: string | null;
+  dueDate?: string | null;
+  createdByUserId?: string | null;
+  createdByName?: string | null;
+  isCreatedByMe?: boolean;
+  createdAt?: string;
+  completedAt?: string | null;
+}
+
+export interface TreatmentPlanItem {
+  id: string;
+  patientId: string;
+  toothNumber?: number | null;
+  serviceId?: string | null;
+  procedureName: string;
+  status: "proposed" | "accepted" | "declined" | "completed";
+  estimatedCostCents: number;
+  estimatedCostFormatted: string;
+  decisionDate?: string | null;
+  notes?: string | null;
+  completedProcedureId?: string | null;
+  createdByUserId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TreatmentPlanResponse {
+  patientId: string;
+  items: TreatmentPlanItem[];
+  groupedByTooth: Record<string, TreatmentPlanItem[]>;
+  totalItems: number;
+  totalEstimatedCents: number;
+  totalEstimatedFormatted: string;
+  acceptedEstimatedCents: number;
+  acceptedEstimatedFormatted: string;
+}
+
+export interface ClinicalNoteTemplate {
+  id: string;
+  name: string;
+  subjective: string;
+  objective: string;
+  assessment: string;
+  plan: string;
+  active: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PatientAttachmentItem {
+  id: string;
+  patientId: string;
+  encounterId?: string | null;
+  category: "xray" | "photo" | "consent" | "referral" | "other";
+  originalFilename: string;
+  contentType: string;
+  size: number;
+  uploadedAt: string;
+  voided: boolean;
+  voidedAt?: string | null;
+  voidReason?: string | null;
+}
+
+export interface PatientConsentItem {
+  id: string;
+  patientId: string;
+  encounterId?: string | null;
+  procedureId?: string | null;
+  consentType: string;
+  consentTextVersion: string;
+  method: "typed" | "scanned";
+  signedName: string;
+  attachmentId?: string | null;
+  recordedAt: string;
+  voided: boolean;
+  voidedAt?: string | null;
+  voidReason?: string | null;
+}
+
+export interface PrescriptionItem {
+  id: string;
+  encounterId: string;
+  patientId: string;
+  doctorId: string;
+  items: Array<{
+    drug: string;
+    dose: string;
+    frequency: string;
+    duration: string;
+    instructions?: string;
+  }>;
+  notes?: string | null;
+  status: "draft" | "signed";
+  signedAt?: string | null;
+  createdAt: string;
+}
+
+export interface PrescriptionPrintView {
+  id: string;
+  encounterId: string;
+  patientId: string;
+  patientName: string;
+  patientPhone?: string;
+  patientDob?: string | null;
+  status: string;
+  items: Array<{
+    drug: string;
+    dose: string;
+    frequency: string;
+    duration: string;
+    instructions?: string;
+  }>;
+  notes?: string | null;
+  doctorName: string;
+  licenceNumber: string;
+  signedAt?: string | null;
+  clinicHeader: string;
+  watermark: string;
+  legalDisclaimer: string;
+}
+
+export interface ReferralLetterItem {
+  id: string;
+  encounterId: string;
+  patientId: string;
+  recipient: string;
+  reason: string;
+  summary: string;
+  status: "draft" | "signed";
+  signedAt?: string | null;
+  createdAt: string;
+}
+
+export interface ReferralLetterPrintView {
+  id: string;
+  encounterId: string;
+  patientId: string;
+  patientName: string;
+  patientPhone?: string;
+  patientDob?: string | null;
+  status: string;
+  recipient: string;
+  reason: string;
+  summary: string;
+  doctorName: string;
+  licenceNumber: string;
+  signedAt?: string | null;
+  clinicHeader: string;
+  watermark: string;
+  legalDisclaimer: string;
+}
+
+// B1: Doctor Tasks
+export async function getDoctorTasks(
+  clinicId?: string,
+  token?: string | null
+): Promise<{ items: DoctorTaskItem[]; total: number }> {
+  const q = clinicId ? `?clinicId=${clinicId}` : "";
+  const res = await authorizedFetch(`/api/v1/doctor/tasks${q}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to load doctor tasks.");
+  return res.json();
+}
+
+export async function createDoctorTask(
+  data: {
+    title: string;
+    patientId: string;
+    description?: string;
+    priority?: string;
+    dueDate?: string;
+  },
+  token?: string | null
+): Promise<DoctorTaskItem> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/tasks`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to create task for reception.");
+  return res.json();
+}
+
+export async function markDoctorTaskDone(
+  taskId: string,
+  token?: string | null
+): Promise<DoctorTaskItem> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/tasks/${taskId}/done`,
+    {
+      method: "POST",
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to mark task done.");
+  return res.json();
+}
+
+// B2: Treatment Plans
+export async function getPatientTreatmentPlan(
+  patientId: string,
+  token?: string | null
+): Promise<TreatmentPlanResponse> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/treatment-plans/patient/${patientId}`,
+    {},
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to load patient treatment plan.");
+  return res.json();
+}
+
+export async function addTreatmentPlanItem(
+  data: {
+    patientId: string;
+    procedureName: string;
+    toothNumber?: number | null;
+    serviceId?: string | null;
+    estimatedCostCents?: number | null;
+    notes?: string | null;
+  },
+  token?: string | null
+): Promise<TreatmentPlanItem> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/treatment-plans`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to add treatment plan item.");
+  return res.json();
+}
+
+export async function updateTreatmentPlanItemStatus(
+  itemId: string,
+  data: {
+    status: string;
+    decisionDate?: string | null;
+    completedProcedureId?: string | null;
+    notes?: string | null;
+  },
+  token?: string | null
+): Promise<TreatmentPlanItem> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/treatment-plans/${itemId}/status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to update treatment plan item status.");
+  return res.json();
+}
+
+// B3: Note Templates
+export async function getClinicalNoteTemplates(
+  activeOnly: boolean = true,
+  token?: string | null
+): Promise<ClinicalNoteTemplate[]> {
+  const q = activeOnly ? "" : "?include_inactive=true";
+  const res = await authorizedFetch(`/api/v1/clinical-note-templates${q}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to load clinical note templates.");
+  return res.json();
+}
+
+export async function createClinicalNoteTemplate(
+  data: {
+    name: string;
+    subjective?: string;
+    objective?: string;
+    assessment?: string;
+    plan?: string;
+    active?: boolean;
+  },
+  token?: string | null
+): Promise<ClinicalNoteTemplate> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/note-templates`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to create note template.");
+  return res.json();
+}
+
+export async function updateClinicalNoteTemplate(
+  templateId: string,
+  data: {
+    name?: string;
+    subjective?: string;
+    objective?: string;
+    assessment?: string;
+    plan?: string;
+    active?: boolean;
+  },
+  token?: string | null
+): Promise<ClinicalNoteTemplate> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/note-templates/${templateId}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to update note template.");
+  return res.json();
+}
+
+export async function applyTemplateToDraftNote(
+  noteId: string,
+  data: {
+    templateId: string;
+    overwriteConfirmed?: boolean;
+  },
+  token?: string | null
+): Promise<{
+  noteId: string;
+  templateName: string;
+  subjective: string;
+  objective: string;
+  assessment: string;
+  plan: string;
+}> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/clinical-notes/${noteId}/apply-template`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to apply template to note.");
+  return res.json();
+}
+
+// B4: Attachments & Consents
+export async function getPatientAttachments(
+  patientId: string,
+  category?: string,
+  token?: string | null
+): Promise<PatientAttachmentItem[]> {
+  const q = category ? `?category=${category}` : "";
+  const res = await authorizedFetch(`/api/v1/attachments/patient/${patientId}${q}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to load attachments.");
+  return res.json();
+}
+
+export async function uploadPatientAttachment(
+  formData: FormData,
+  token?: string | null
+): Promise<PatientAttachmentItem> {
+  const res = await authorizedFetch(
+    `/api/v1/attachments/upload`,
+    {
+      method: "POST",
+      body: formData,
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to upload attachment.");
+  return res.json();
+}
+
+export async function voidPatientAttachment(
+  attachmentId: string,
+  reason: string,
+  token?: string | null
+): Promise<{ voided: boolean }> {
+  const res = await authorizedFetch(
+    `/api/v1/attachments/${attachmentId}/void`,
+    {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to void attachment.");
+  return res.json();
+}
+
+export async function downloadPatientAttachmentBlob(
+  attachmentId: string,
+  token?: string | null
+): Promise<Blob> {
+  const res = await authorizedFetch(
+    `/api/v1/attachments/${attachmentId}/download`,
+    {},
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to download attachment.");
+  return res.blob();
+}
+
+export async function getPatientConsents(
+  patientId: string,
+  token?: string | null
+): Promise<PatientConsentItem[]> {
+  const res = await authorizedFetch(`/api/v1/consents/patient/${patientId}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to load consents.");
+  return res.json();
+}
+
+export async function recordPatientConsent(
+  data: {
+    patientId: string;
+    consentType: string;
+    method: "typed" | "scanned";
+    signedName: string;
+    encounterId?: string;
+    procedureId?: string;
+    attachmentId?: string;
+    consentTextVersion?: string;
+  },
+  token?: string | null
+): Promise<PatientConsentItem> {
+  const res = await authorizedFetch(
+    `/api/v1/consents`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to record patient consent.");
+  return res.json();
+}
+
+export async function voidPatientConsent(
+  consentId: string,
+  reason: string,
+  token?: string | null
+): Promise<{ voided: boolean }> {
+  const res = await authorizedFetch(
+    `/api/v1/consents/${consentId}/void`,
+    {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to void consent.");
+  return res.json();
+}
+
+// B5: Clinical Documents (Prescriptions & Referrals)
+export async function getEncounterPrescriptions(
+  encounterId: string,
+  token?: string | null
+): Promise<PrescriptionItem[]> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/documents/prescriptions/encounter/${encounterId}`,
+    {},
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to load prescriptions.");
+  return res.json();
+}
+
+export async function createPrescription(
+  data: {
+    encounterId: string;
+    patientId: string;
+    items: Array<{
+      drug: string;
+      dose: string;
+      frequency: string;
+      duration: string;
+      instructions?: string;
+    }>;
+    notes?: string;
+  },
+  token?: string | null
+): Promise<PrescriptionItem> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/documents/prescriptions`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to create prescription.");
+  return res.json();
+}
+
+export async function signPrescription(
+  id: string,
+  token?: string | null
+): Promise<PrescriptionItem> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/documents/prescriptions/${id}/sign`,
+    {
+      method: "POST",
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to sign prescription.");
+  return res.json();
+}
+
+export async function getPrescriptionPrintView(
+  id: string,
+  token?: string | null
+): Promise<PrescriptionPrintView> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/documents/prescriptions/${id}/print`,
+    {},
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to load prescription print view.");
+  return res.json();
+}
+
+export async function getEncounterReferrals(
+  encounterId: string,
+  token?: string | null
+): Promise<ReferralLetterItem[]> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/documents/referrals/encounter/${encounterId}`,
+    {},
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to load referrals.");
+  return res.json();
+}
+
+export async function createReferralLetter(
+  data: {
+    encounterId: string;
+    patientId: string;
+    recipient: string;
+    reason: string;
+    summary?: string;
+  },
+  token?: string | null
+): Promise<ReferralLetterItem> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/documents/referrals`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to create referral letter.");
+  return res.json();
+}
+
+export async function signReferralLetter(
+  id: string,
+  token?: string | null
+): Promise<ReferralLetterItem> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/documents/referrals/${id}/sign`,
+    {
+      method: "POST",
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to sign referral letter.");
+  return res.json();
+}
+
+export async function getReferralLetterPrintView(
+  id: string,
+  token?: string | null
+): Promise<ReferralLetterPrintView> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/documents/referrals/${id}/print`,
+    {},
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to load referral print view.");
+  return res.json();
+}
+
+/* -------------------------------------------------------------
+ * PART C: ADMIN AUDIT VIEWER & ADVANCED OPERATIONAL REPORTS
+ * ------------------------------------------------------------- */
+
+export interface ActivityLogItem {
+  id: string;
+  userId?: string | null;
+  userEmail?: string | null;
+  userFullName?: string | null;
+  userRole?: string | null;
+  action: string;
+  entityType: string;
+  entityId?: string | null;
+  details?: Record<string, unknown> | null;
+  ipAddress?: string | null;
+  createdAt?: string | null;
+}
+
+export interface PaginatedActivityLogsResponse {
+  items: ActivityLogItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface AuditLogFilters {
+  actor?: string;
+  action?: string;
+  entity?: string;
+  patient?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export async function getAuditLogs(
+  filters: AuditLogFilters = {},
+  token?: string | null
+): Promise<PaginatedActivityLogsResponse> {
+  const params = new URLSearchParams();
+  if (filters.page) params.set("page", String(filters.page));
+  if (filters.pageSize) params.set("pageSize", String(filters.pageSize));
+  if (filters.actor) params.set("actor", filters.actor);
+  if (filters.action) params.set("action", filters.action);
+  if (filters.entity) params.set("entity", filters.entity);
+  if (filters.patient) params.set("patient", filters.patient);
+  if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
+  if (filters.dateTo) params.set("dateTo", filters.dateTo);
+
+  const query = params.toString() ? `?${params.toString()}` : "";
+  const res = await authorizedFetch(`/api/v1/admin/audit${query}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to load audit logs.");
+  return res.json();
+}
+
+export async function downloadAuthorizedCsv(
+  endpoint: string,
+  defaultFilename: string,
+  token?: string | null
+): Promise<void> {
+  const res = await authorizedFetch(endpoint, {}, token);
+  if (!res.ok) {
+    await apiError(res, "Failed to download export file.");
+  }
+  const blob = await res.blob();
+  let filename = defaultFilename;
+  const disposition = res.headers.get("Content-Disposition");
+  if (disposition && disposition.includes("filename=")) {
+    const match = disposition.match(/filename="?([^";]+)"?/);
+    if (match && match[1]) {
+      filename = match[1];
+    }
+  }
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+}
+
+export interface AppointmentsReportData {
+  period: { dateFrom: string | null; dateTo: string | null };
+  summary: {
+    total: number;
+    completed: number;
+    cancelled: number;
+    noShow: number;
+    pending: number;
+    confirmed: number;
+    other: number;
+  };
+  byStatus: Array<{ status: string; count: number; percentage: number }>;
+  byClinician: Array<{
+    clinicianId: string;
+    clinicianName: string;
+    total: number;
+    statuses: Record<string, number>;
+  }>;
+  dailyTimeline: Array<{
+    date: string;
+    total: number;
+    completed: number;
+    cancelled: number;
+  }>;
+}
+
+interface AppointmentsReportResponse {
+  startDate: string | null;
+  endDate: string | null;
+  totalAppointments: number;
+  byStatus: Record<string, number>;
+  byClinician: AppointmentsReportData["byClinician"];
+  dailyCounts: AppointmentsReportData["dailyTimeline"];
+}
+
+export async function getAppointmentsReport(
+  filters: { dateFrom?: string; dateTo?: string; clinicianId?: string; status?: string } = {},
+  token?: string | null
+): Promise<AppointmentsReportData> {
+  const params = new URLSearchParams();
+  if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
+  if (filters.dateTo) params.set("dateTo", filters.dateTo);
+  if (filters.clinicianId) params.set("clinicianId", filters.clinicianId);
+  if (filters.status) params.set("status", filters.status);
+
+  const query = params.toString() ? `?${params.toString()}` : "";
+  const res = await authorizedFetch(`/api/v1/admin/reports/appointments${query}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to load appointments report.");
+  const payload: unknown = await res.json();
+  if (!payload || typeof payload !== "object") {
+    throw new Error("Appointments report returned an invalid response.");
+  }
+
+  const report = payload as Partial<AppointmentsReportResponse>;
+  if (
+    typeof report.totalAppointments !== "number" ||
+    !report.byStatus ||
+    typeof report.byStatus !== "object" ||
+    Array.isArray(report.byStatus) ||
+    !Array.isArray(report.byClinician) ||
+    !Array.isArray(report.dailyCounts)
+  ) {
+    throw new Error("Appointments report returned an invalid response.");
+  }
+
+  const total = report.totalAppointments;
+  const statusCounts = report.byStatus;
+  const statuses = Object.entries(statusCounts).map(([status, count]) => {
+    if (typeof count !== "number") {
+      throw new Error("Appointments report returned an invalid status count.");
+    }
+    return {
+      status,
+      count,
+      percentage: total > 0 ? Math.round((count / total) * 100) : 0,
+    };
+  });
+  const knownStatuses = ["completed", "cancelled", "no_show", "requested", "confirmed"];
+  const knownTotal = knownStatuses.reduce((sum, status) => sum + (statusCounts[status] ?? 0), 0);
+
+  return {
+    period: { dateFrom: report.startDate ?? null, dateTo: report.endDate ?? null },
+    summary: {
+      total,
+      completed: statusCounts.completed ?? 0,
+      cancelled: statusCounts.cancelled ?? 0,
+      noShow: statusCounts.no_show ?? 0,
+      pending: statusCounts.requested ?? statusCounts.pending ?? 0,
+      confirmed: statusCounts.confirmed ?? 0,
+      other: Math.max(0, total - knownTotal),
+    },
+    byStatus: statuses,
+    byClinician: report.byClinician,
+    dailyTimeline: report.dailyCounts,
+  };
+}
+
+export interface CancellationsReportData {
+  period: { dateFrom: string | null; dateTo: string | null };
+  summary: {
+    totalCancellations: number;
+    totalNoShows: number;
+    combinedLoss: number;
+    cancellationRatePercent: number;
+  };
+  cancellationReasons: Array<{ reason: string; count: number; percentage: number }>;
+  items: Array<{
+    bookingId: string;
+    appointmentDate: string;
+    appointmentTime: string;
+    patientName: string;
+    patientPhone: string;
+    clinicianName: string;
+    serviceName: string;
+    status: string;
+    reason: string;
+    cancelledAt: string | null;
+    cancelledBy: string;
+  }>;
+}
+
+export async function getCancellationsReport(
+  filters: { dateFrom?: string; dateTo?: string; clinicianId?: string } = {},
+  token?: string | null
+): Promise<CancellationsReportData> {
+  const params = new URLSearchParams();
+  if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
+  if (filters.dateTo) params.set("dateTo", filters.dateTo);
+  if (filters.clinicianId) params.set("clinicianId", filters.clinicianId);
+
+  const query = params.toString() ? `?${params.toString()}` : "";
+  const res = await authorizedFetch(`/api/v1/admin/reports/cancellations-no-shows${query}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to load cancellations and no-shows report.");
+  return res.json();
+}
+
+export interface RecallComplianceReportData {
+  period: { dateFrom: string | null; dateTo: string | null };
+  summary: {
+    totalRecalls: number;
+    completedRecalls: number;
+    duePending: number;
+    overdue: number;
+    complianceRatePercent: number;
+  };
+  byReason: Array<{ reason: string; total: number; completed: number; complianceRatePercent: number }>;
+  timeline: Array<{ month: string; scheduled: number; completed: number; complianceRatePercent: number }>;
+  records: Array<{
+    id: string;
+    patientName: string;
+    patientPhone: string;
+    reason: string;
+    intervalMonths: number;
+    dueDate: string;
+    status: string;
+    lastVisitDate: string | null;
+    completedAt: string | null;
+    isOverdue: boolean;
+  }>;
+}
+
+export async function getRecallComplianceReport(
+  filters: { dateFrom?: string; dateTo?: string; status?: string } = {},
+  token?: string | null
+): Promise<RecallComplianceReportData> {
+  const params = new URLSearchParams();
+  if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
+  if (filters.dateTo) params.set("dateTo", filters.dateTo);
+  if (filters.status) params.set("status", filters.status);
+
+  const query = params.toString() ? `?${params.toString()}` : "";
+  const res = await authorizedFetch(`/api/v1/admin/reports/recall-compliance${query}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to load recall compliance report.");
+  return res.json();
+}
+
+export interface OperationalTimingReportData {
+  period: { dateFrom: string | null; dateTo: string | null };
+  aggregate: {
+    totalCompletedVisits: number;
+    medianWaitMinutes: number | null;
+    averageWaitMinutes: number | null;
+    medianChairMinutes: number | null;
+    averageChairMinutes: number | null;
+    medianTotalCycleMinutes: number | null;
+    averageTotalCycleMinutes: number | null;
+  };
+  waitingTimeDistribution: Array<{ bracket: string; count: number; percentage: number }>;
+  chairTimeDistribution: Array<{ bracket: string; count: number; percentage: number }>;
+  dailyTrends: Array<{
+    date: string;
+    completedEncounters: number;
+    medianWaitMinutes: number | null;
+    medianChairMinutes: number | null;
+  }>;
+}
+
+export async function getOperationalTimingReport(
+  filters: { dateFrom?: string; dateTo?: string; clinicianId?: string } = {},
+  token?: string | null
+): Promise<OperationalTimingReportData> {
+  const params = new URLSearchParams();
+  if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
+  if (filters.dateTo) params.set("dateTo", filters.dateTo);
+  if (filters.clinicianId) params.set("clinicianId", filters.clinicianId);
+
+  const query = params.toString() ? `?${params.toString()}` : "";
+  const res = await authorizedFetch(`/api/v1/admin/reports/operational-timing${query}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to load operational timing report.");
+  return res.json();
+}
+
 
 

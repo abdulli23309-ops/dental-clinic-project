@@ -36,6 +36,7 @@ class PostgresPatientRepository(PatientRepository):
             emergency_contact_phone=entity.emergency_contact_phone,
             emergency_contact_relationship=entity.emergency_contact_relationship,
             messaging_opt_out=entity.messaging_opt_out,
+            preferred_channel=getattr(entity, "preferred_channel", "sms") or "sms",
             created_at=entity.created_at,
             updated_at=entity.updated_at,
         )
@@ -62,6 +63,7 @@ class PostgresPatientRepository(PatientRepository):
             emergency_contact_phone=getattr(orm, "emergency_contact_phone", None),
             emergency_contact_relationship=getattr(orm, "emergency_contact_relationship", None),
             messaging_opt_out=getattr(orm, "messaging_opt_out", False),
+            preferred_channel=getattr(orm, "preferred_channel", "sms") or "sms",
             created_at=orm.created_at,
             updated_at=orm.updated_at,
         )
@@ -86,6 +88,7 @@ class PostgresPatientRepository(PatientRepository):
             existing.emergency_contact_phone = patient.emergency_contact_phone
             existing.emergency_contact_relationship = patient.emergency_contact_relationship
             existing.messaging_opt_out = patient.messaging_opt_out
+            existing.preferred_channel = getattr(patient, "preferred_channel", "sms") or "sms"
             await self._session.flush()
             await self._session.refresh(existing)
             return self._to_domain(existing)

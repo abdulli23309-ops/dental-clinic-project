@@ -50,8 +50,8 @@ async def test_patient_profile_tasks_and_messages_linking(receptionist_auth, tes
 
     # 4. Create Task 1 directly linked to Patient A
     task1_payload = {
-        "title": "Call Alice regarding insurance",
-        "description": "Verify private insurance details",
+        "title": "Call Alice regarding appointment confirmation",
+        "description": "Verify visit preparation details",
         "priority": "high",
         "patientId": str(saved_pat_a.id),
     }

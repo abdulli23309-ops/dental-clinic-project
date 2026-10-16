@@ -29,3 +29,20 @@ def test_settings_debug_tolerant_of_non_boolean_values():
 
     s_zero = Settings(DEBUG="0")
     assert s_zero.DEBUG is False
+
+
+def test_production_refuses_default_jwt_secret():
+    # Production with default dev secret must raise ValueError
+    with pytest.raises(ValueError, match="Production startup refused"):
+        Settings(
+            ENVIRONMENT="production",
+            JWT_SECRET_KEY="dev-marlow-dental-insecure-secret-key-change-in-production-2026",
+        )
+
+    # Production with robust custom secret succeeds
+    valid_prod = Settings(
+        ENVIRONMENT="production",
+        JWT_SECRET_KEY="super-secret-random-hex-production-key-at-least-32-chars-long",
+    )
+    assert valid_prod.ENVIRONMENT == "production"
+

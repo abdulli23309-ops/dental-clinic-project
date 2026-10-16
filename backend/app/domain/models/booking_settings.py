@@ -33,13 +33,16 @@ class BookingSettings:
     min_lead_time_hours: int = 2
     slot_interval_minutes: int = 15
     reminder_template: Optional[str] = None
+    reminder_template_urdu: Optional[str] = None
+    reminder_24h_enabled: bool = True
+    reminder_2h_enabled: bool = True
     waiting_threshold_minutes: int = 15
     file_number_prefix: str = "MD-"
     payments_enabled: bool = True
     quiet_hours_enabled: bool = True
     quiet_hours_start: str = "21:00"
     quiet_hours_end: str = "08:00"
-    messaging_provider_mode: str = "simulated"  # "simulated" | "disabled"
+    messaging_provider_mode: str = "simulated"  # "simulated" | "disabled" | "twilio" | "whatsapp"
     clinic_id: Optional[UUID] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

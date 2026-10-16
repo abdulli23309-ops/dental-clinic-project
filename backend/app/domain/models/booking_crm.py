@@ -27,6 +27,7 @@ class Patient:
     emergency_contact_phone: Optional[str] = None
     emergency_contact_relationship: Optional[str] = None
     messaging_opt_out: bool = False
+    preferred_channel: str = "sms"  # sms | whatsapp | none
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
@@ -131,6 +132,7 @@ class Task:
     title: str
     clinic_id: Optional[UUID] = None
     assigned_to_user_id: Optional[UUID] = None
+    created_by_user_id: Optional[UUID] = None
     patient_id: Optional[UUID] = None
     booking_id: Optional[UUID] = None
     description: Optional[str] = None
@@ -156,8 +158,14 @@ class Message:
     channel: str = "sms"
     status: str = "logged"
     booking_id: Optional[UUID] = None
-    delivery_status: str = "simulated"  # "simulated" | "queued" | "sent" | "delivered" | "failed" | "opted_out" | "quiet_hours_held"
+    delivery_status: str = "simulated"  # "simulated" | "queued" | "sent" | "delivered" | "failed" | "opted_out" | "quiet_hours_held" | "cancelled"
     error_detail: Optional[str] = None
+    provider: str = "simulated"  # "simulated" | "twilio" | "whatsapp"
+    provider_message_id: Optional[str] = None
+    attempts: int = 0
+    scheduled_for: Optional[datetime] = None
+    sent_at: Optional[datetime] = None
+    reminder_type: Optional[str] = None  # "reminder_24h" | "reminder_2h" | "manual"
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 

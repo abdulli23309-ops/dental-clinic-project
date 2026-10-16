@@ -9,6 +9,8 @@ from app.application.dtos.reception_dto import (
     MessageLogItemDto,
     MessagingSettingsDto,
     RunSchedulerResponseDto,
+    SendTestMessageRequest,
+    SendTestMessageResponse,
     UpdateMessagingSettingsRequest,
 )
 from app.application.services.reception_service import ReceptionService
@@ -47,6 +49,25 @@ async def update_messaging_settings(
         clinic_id=clinic_id,
     )
     return MessagingSettingsDto(**res)
+
+
+@router.post("/test", response_model=SendTestMessageResponse)
+@router.post("/send-test", response_model=SendTestMessageResponse)
+async def send_test_message(
+    req: SendTestMessageRequest,
+    clinic_id: Optional[UUID] = Query(None),
+    current_user: User = Depends(require_admin),
+    reception_service: ReceptionService = Depends(get_reception_service),
+) -> SendTestMessageResponse:
+    """Dispatches a test message to number X through the active messaging provider. Admin only."""
+    res = await reception_service.send_test_message(
+        recipient=req.recipient,
+        message=req.message,
+        channel=req.channel,
+        clinic_id=clinic_id,
+        user_id=current_user.id,
+    )
+    return SendTestMessageResponse(**res)
 
 
 @router.get("/logs", response_model=Dict[str, Any])

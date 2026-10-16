@@ -89,6 +89,9 @@ class MessagingSettingsDto(BaseModel):
     quietHoursEnd: str = "08:00"
     messagingProviderMode: str = "simulated"
     reminderTemplate: str
+    reminderTemplateUrdu: Optional[str] = None
+    reminder24hEnabled: bool = True
+    reminder2hEnabled: bool = True
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -99,6 +102,28 @@ class UpdateMessagingSettingsRequest(BaseModel):
     quietHoursEnd: Optional[str] = None
     messagingProviderMode: Optional[str] = None
     reminderTemplate: Optional[str] = None
+    reminderTemplateUrdu: Optional[str] = None
+    reminder24hEnabled: Optional[bool] = None
+    reminder2hEnabled: Optional[bool] = None
+
+
+class SendTestMessageRequest(BaseModel):
+    recipient: str = Field(..., min_length=5, max_length=50)
+    message: str = Field(..., min_length=1, max_length=1000)
+    channel: str = Field(default="sms", pattern="^(sms|whatsapp)$")
+
+
+class SendTestMessageResponse(BaseModel):
+    success: bool
+    status: str
+    channel: str
+    provider: str
+    recipient: str
+    details: Optional[str] = None
+    error: Optional[str] = None
+    providerMessageId: Optional[str] = None
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class RunSchedulerResponseDto(BaseModel):
@@ -123,6 +148,12 @@ class MessageLogItemDto(BaseModel):
     patientId: Optional[UUID] = None
     bookingId: Optional[UUID] = None
     senderId: Optional[UUID] = None
+    provider: str = "simulated"
+    providerMessageId: Optional[str] = None
+    attempts: int = 0
+    scheduledFor: Optional[datetime] = None
+    sentAt: Optional[datetime] = None
+    reminderType: Optional[str] = None
     createdAt: datetime
 
     model_config = ConfigDict(populate_by_name=True)
@@ -179,6 +210,7 @@ class PatientResponseDto(BaseModel):
     hasAlerts: bool = False
     isActive: bool
     messagingOptOut: bool = False
+    preferredChannel: str = "sms"
     fileNumber: Optional[str] = None
     guardianName: Optional[str] = None
     guardianPhone: Optional[str] = None
@@ -198,6 +230,7 @@ class PatientCreateRequest(BaseModel):
     dateOfBirth: Optional[date] = None
     clinicId: Optional[UUID] = None
     notes: Optional[str] = None
+    preferredChannel: Optional[str] = Field(default="sms", pattern="^(sms|whatsapp|none)$")
     fileNumber: Optional[str] = None
     guardianName: Optional[str] = None
     guardianPhone: Optional[str] = None
@@ -217,6 +250,7 @@ class PatientUpdateRequest(BaseModel):
     notes: Optional[str] = None
     isActive: Optional[bool] = None
     messagingOptOut: Optional[bool] = None
+    preferredChannel: Optional[str] = Field(default=None, pattern="^(sms|whatsapp|none)$")
     fileNumber: Optional[str] = None
     guardianName: Optional[str] = None
     guardianPhone: Optional[str] = None
@@ -511,6 +545,7 @@ class RecordVisitPaymentRequest(BaseModel):
     currency: str = Field(default="PKR", max_length=3)
     method: str = Field(default="cash", pattern="^(cash|card|bank_transfer)$")
     notes: Optional[str] = None
+    overrideReason: Optional[str] = Field(default=None, max_length=500, description="Reason if charged fee overrides standard service catalog fee")
     patientId: Optional[UUID] = None
 
 

@@ -102,7 +102,9 @@ export default function AdminAppointmentsPage() {
   };
 
   useEffect(() => {
-    loadData();
+    queueMicrotask(() => {
+      loadData();
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate, selectedStatus, selectedClinician]);
 

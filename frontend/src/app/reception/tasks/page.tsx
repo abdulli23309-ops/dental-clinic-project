@@ -61,7 +61,9 @@ export default function ReceptionTasksPage() {
   };
 
   useEffect(() => {
-    loadTasks();
+    queueMicrotask(() => {
+      loadTasks();
+    });
   }, [statusFilter, priorityFilter, accessToken]);
 
   const handleCreateTask = async (e: React.FormEvent) => {
@@ -108,7 +110,7 @@ export default function ReceptionTasksPage() {
             Operational Tasks Board
           </h1>
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Front-desk to-do items, patient chart follow-ups, insurance verification, and recalls.
+            Front-desk to-do items, patient chart follow-ups, appointment confirmations, and recalls.
           </p>
         </div>
 
@@ -282,7 +284,7 @@ export default function ReceptionTasksPage() {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Call patient to verify secondary insurance"
+                  placeholder="e.g. Call patient regarding appointment confirmation"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   className="w-full px-3.5 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white focus:border-primary"

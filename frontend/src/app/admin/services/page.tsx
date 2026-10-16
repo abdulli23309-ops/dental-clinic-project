@@ -17,6 +17,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import {
   adminCreateService,
   adminGetServices,
+  adminReorderServices,
   adminToggleServiceStatus,
   adminUpdateService,
   getTeamMembers,
@@ -77,10 +78,12 @@ export default function AdminServicesPage() {
   };
 
   useEffect(() => {
-    loadServices();
-    getTeamMembers()
-      .then((members) => setTeamMembers(members.filter((m) => m.isActive)))
-      .catch(() => {});
+    queueMicrotask(() => {
+      loadServices();
+      getTeamMembers()
+        .then((members) => setTeamMembers(members.filter((m) => m.isActive)))
+        .catch(() => {});
+    });
   }, [accessToken]);
 
   const openAddModal = () => {
@@ -91,10 +94,10 @@ export default function AdminServicesPage() {
       title: "",
       shortDesc: "",
       fullDesc: "",
-      cashPrice: "from Rs ",
-      duration: "45 to 60 min",
-      code: "CDT D0150",
-      insuranceNote: "Usually covered by PPO dental plans.",
+      cashPrice: "",
+      duration: "45 min",
+      code: "SRV-01",
+      insuranceNote: "",
       recommendedInterval: "Every 6 months",
       recallIntervalDays: 180,
       displayOrder: services.length,
@@ -180,6 +183,25 @@ export default function AdminServicesPage() {
       loadServices();
     } catch (err: any) {
       setErrorMessage(err.message || "Failed to toggle status.");
+    }
+  };
+
+  // Simple reorder control: swaps the service with its neighbour and persists
+  // the full ordered ID list to PATCH /admin/services/reorder.
+  const handleMove = async (index: number, direction: -1 | 1) => {
+    if (!accessToken) return;
+    const target = index + direction;
+    if (target < 0 || target >= services.length) return;
+    const ordered = [...services];
+    const [moved] = ordered.splice(index, 1);
+    ordered.splice(target, 0, moved);
+    try {
+      await adminReorderServices(ordered.map((s) => s.id), accessToken);
+      setServices(ordered);
+      setSuccessMessage("Service display order saved.");
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to reorder services.");
     }
   };
 
@@ -310,6 +332,28 @@ export default function AdminServicesPage() {
 
               {/* Actions */}
               <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                {/* Reorder controls: move the service up or down in the public list */}
+                <div className="flex flex-col gap-0.5 mr-1" role="group" aria-label="Reorder service">
+                  <button
+                    type="button"
+                    onClick={() => handleMove(services.indexOf(svc), -1)}
+                    disabled={services.indexOf(svc) === 0}
+                    aria-label={`Move ${svc.name} up`}
+                    className="h-5 w-6 rounded border border-line text-ink-soft hover:text-ink hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed text-[10px] leading-none"
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleMove(services.indexOf(svc), 1)}
+                    disabled={services.indexOf(svc) === services.length - 1}
+                    aria-label={`Move ${svc.name} down`}
+                    className="h-5 w-6 rounded border border-line text-ink-soft hover:text-ink hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed text-[10px] leading-none"
+                  >
+                    ▼
+                  </button>
+                </div>
+
                 <Button onClick={() => openEditModal(svc)} variant="secondary" size="sm">
                   <Edit className="h-3.5 w-3.5 mr-1" />
                   <span>Edit</span>
@@ -437,14 +481,7 @@ export default function AdminServicesPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <TextField
-                    id="service-ins"
-                    label="Insurance Copay Note"
-                    value={form.insuranceNote}
-                    onChange={(e) => setForm({ ...form, insuranceNote: e.target.value })}
-                    placeholder="Typically 100% covered..."
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <TextField
                     id="service-rec"
                     label="Recommended Interval Text"

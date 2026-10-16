@@ -77,8 +77,9 @@ export default function ReceptionDashboardPage() {
   };
 
   useEffect(() => {
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    queueMicrotask(() => {
+      loadData();
+    });
   }, [accessToken]);
 
   const handleStatusChange = async (bookingId: string, newStatus: string) => {

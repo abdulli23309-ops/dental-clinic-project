@@ -1,17 +1,28 @@
+from typing import Dict
+
 import json
+from datetime import date, datetime, timezone, timedelta
+from uuid import UUID, uuid4
+
 import pytest
-from datetime import date, datetime, timezone
-from uuid import uuid4
 from sqlalchemy import select
 
+from app.core.security import create_access_token, hash_password
 from app.domain.models.booking_crm import Booking, Patient
 from app.domain.models.clinical_note import ClinicalNote
 from app.domain.models.encounter import ClinicalEncounter
+from app.domain.models.user import User, UserSession, UserRole
+from app.domain.models.team_member import TeamMember
 from app.infrastructure.database.orm_models import ActivityLogORM
 from app.infrastructure.repositories.postgres_booking_repo import PostgresBookingRepository
 from app.infrastructure.repositories.postgres_clinical_note_repo import PostgresClinicalNoteRepository
 from app.infrastructure.repositories.postgres_encounter_repo import PostgresEncounterRepository
 from app.infrastructure.repositories.postgres_patient_repo import PostgresPatientRepository
+from app.infrastructure.repositories.postgres_team_repo import PostgresTeamMemberRepository
+from app.infrastructure.repositories.postgres_user_repo import (
+    PostgresUserRepository,
+    PostgresUserSessionRepository,
+)
 
 
 @pytest.mark.asyncio
@@ -214,3 +225,114 @@ async def test_clinical_reads_audit_logs(doctor_auth, admin_auth, test_session):
     )
     chart_logs = res_chart.scalars().all()
     assert len(chart_logs) >= 1
+
+
+async def _behaviour_auth_headers(session, role: UserRole, team_member_id=None) -> Dict[str, str]:
+    """Mint a Bearer token for a freshly persisted user (no HTTP login)."""
+    user_repo = PostgresUserRepository(session)
+    user = User(
+        email=f"behav_{role.value}_{uuid4().hex[:8]}@marlowdental.com",
+        hashed_password=hash_password("BehavTest123!"),
+        full_name=f"Behaviour {role.value}",
+        role=role,
+        team_member_id=team_member_id,
+        is_active=True,
+    )
+    await user_repo.save(user)
+    await session.commit()
+
+    session_row = UserSession(
+        user_id=user.id,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+    )
+    await PostgresUserSessionRepository(session).save(session_row)
+    await session.commit()
+
+    token = create_access_token(
+        subject=str(user.id),
+        role=role.value,
+        session_id=str(session_row.id),
+    )
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.mark.asyncio
+async def test_cross_doctor_encounter_read_denied(test_session, client_with_db):
+    """A doctor must not read another doctor's encounter (403 scoping denial)."""
+    client = client_with_db
+
+    # Two doctors, each with their own linked clinical staff profile.
+    tm_repo = PostgresTeamMemberRepository(test_session)
+    tm_a = await tm_repo.save(
+        TeamMember(
+            organization_id=uuid4(),
+            first_name="Doctor",
+            last_name="One",
+            display_name="Dr. One",
+            professional_title="Dentist",
+            role="Doctor",
+            is_active=True,
+        )
+    )
+    tm_b = await tm_repo.save(
+        TeamMember(
+            organization_id=uuid4(),
+            first_name="Doctor",
+            last_name="Two",
+            display_name="Dr. Two",
+            professional_title="Dentist",
+            role="Doctor",
+            is_active=True,
+        )
+    )
+    await test_session.commit()
+
+    headers_a = await _behaviour_auth_headers(test_session, UserRole.DOCTOR, tm_a.id)
+    headers_b = await _behaviour_auth_headers(test_session, UserRole.DOCTOR, tm_b.id)
+
+    # Doctor A owns a patient and an encounter.
+    patient_repo = PostgresPatientRepository(test_session)
+    patient = Patient(
+        first_name="Cross", last_name="Doctor", phone="5550001111",
+    )
+    saved_patient = await patient_repo.save(patient)
+    await test_session.commit()
+
+    enc_repo = PostgresEncounterRepository(test_session)
+    encounter = ClinicalEncounter(
+        patient_id=saved_patient.id,
+        clinician_id=tm_a.id,
+        chief_complaint="Owner-only encounter.",
+        status="in_progress",
+    )
+    saved_encounter = await enc_repo.save(encounter)
+    await test_session.commit()
+
+    # Doctor B reads Doctor A's encounter -> must be denied (403).
+    resp_b = await client.get(
+        f"/api/v1/doctor/encounters/{saved_encounter.id}",
+        headers=headers_b,
+    )
+    assert resp_b.status_code == 403, resp_b.text
+
+
+@pytest.mark.asyncio
+async def test_reception_cannot_read_alert_details(test_session, client_with_db):
+    """Receptionists can create pending alerts but may not read alert details (403)."""
+    client = client_with_db
+
+    headers_rec = await _behaviour_auth_headers(test_session, UserRole.RECEPTIONIST)
+
+    patient_repo = PostgresPatientRepository(test_session)
+    patient = Patient(
+        first_name="Alert", last_name="Patient", phone="5559990000",
+    )
+    saved_patient = await patient_repo.save(patient)
+    await test_session.commit()
+
+    # Receptionist attempts to read full alert details for the patient.
+    resp = await client.get(
+        f"/api/v1/clinical/patients/{saved_patient.id}/alerts",
+        headers=headers_rec,
+    )
+    assert resp.status_code == 403, resp.text

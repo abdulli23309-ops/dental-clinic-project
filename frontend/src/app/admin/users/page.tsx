@@ -91,7 +91,9 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     if (accessToken) {
-      loadData();
+      queueMicrotask(() => {
+        loadData();
+      });
     }
   }, [accessToken]);
 
@@ -407,7 +409,7 @@ export default function AdminUsersPage() {
 
       {/* CREATE MODAL */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-ink/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div role="dialog" aria-modal="true" aria-label="Create New Staff Account" className="fixed inset-0 bg-ink/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-surface rounded-[var(--radius-modal)] border border-line shadow-xl w-full max-w-md p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-line pb-3">
               <h3 className="font-semibold text-ink text-base flex items-center gap-2">
@@ -428,7 +430,7 @@ export default function AdminUsersPage() {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Dr. Robert Vance"
+                  placeholder="e.g. Staff Full Name"
                   value={createForm.fullName}
                   onChange={(e) => setCreateForm({ ...createForm, fullName: e.target.value })}
                   className="h-9 px-3 border border-line rounded-[var(--radius-input)] text-xs bg-surface text-ink w-full focus:outline-none focus:border-primary"

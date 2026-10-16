@@ -31,10 +31,10 @@ class OrganizationService:
             org = Organization(
                 name="Marlow Dental",
                 display_name="Marlow Dental Practice",
-                tagline="Comprehensive, unhurried dental care in Lincoln Park, Chicago.",
+                tagline="Comprehensive, unhurried dental care.",
                 description="Independent dental practice focused on direct doctor continuity and upfront fee transparency.",
                 contact_email="care@marlowdental.com",
-                contact_phone="(312) 555-0147",
+                contact_phone="+92 300 1234567",
                 website_url="https://marlowdental.com",
             )
             org = await self.org_repo.save(org)

@@ -8,6 +8,7 @@ from app.api.deps import (
     get_medical_alert_service,
     get_reception_service,
     require_receptionist,
+    require_role,
 )
 from app.application.dtos.medical_alert_dto import (
     CreatePendingAlertRequest,
@@ -563,6 +564,7 @@ async def record_appointment_payment(
         patient_id=req.patientId,
         user_id=current_user.id,
         amount_charged_cents=req.amountChargedCents,
+        override_reason=req.overrideReason,
     )
     return VisitPaymentDto(
         id=payment.id,
@@ -663,6 +665,7 @@ async def search_patients(
                 hasAlerts=has_alerts,
                 isActive=p.is_active,
                 messagingOptOut=getattr(p, "messaging_opt_out", False),
+                preferredChannel=getattr(p, "preferred_channel", "sms") or "sms",
                 fileNumber=p.file_number,
                 guardianName=p.guardian_name,
                 guardianPhone=p.guardian_phone,
@@ -707,6 +710,7 @@ async def create_patient(
         emergency_contact_phone=req.emergencyContactPhone,
         emergency_contact_relationship=req.emergencyContactRelationship,
         user_id=current_user.id,
+        preferred_channel=req.preferredChannel or "sms",
     )
     return {
         "patient": PatientResponseDto(
@@ -723,6 +727,7 @@ async def create_patient(
             hasAlerts=False,
             isActive=patient.is_active,
             messagingOptOut=getattr(patient, "messaging_opt_out", False),
+            preferredChannel=getattr(patient, "preferred_channel", "sms") or "sms",
             fileNumber=patient.file_number,
             guardianName=patient.guardian_name,
             guardianPhone=patient.guardian_phone,
@@ -763,6 +768,7 @@ async def get_patient_profile(
             hasAlerts=has_alerts,
             isActive=pat.is_active,
             messagingOptOut=getattr(pat, "messaging_opt_out", False),
+            preferredChannel=getattr(pat, "preferred_channel", "sms") or "sms",
             fileNumber=pat.file_number,
             guardianName=pat.guardian_name,
             guardianPhone=pat.guardian_phone,
@@ -894,6 +900,8 @@ async def update_patient_info(
         updates["emergency_contact_phone"] = req.emergencyContactPhone.strip() if req.emergencyContactPhone else None
     if req.emergencyContactRelationship is not None:
         updates["emergency_contact_relationship"] = req.emergencyContactRelationship.strip() if req.emergencyContactRelationship else None
+    if req.preferredChannel is not None:
+        updates["preferred_channel"] = req.preferredChannel
 
     pat = await reception_service.update_patient(id, updates, user_id=current_user.id)
     return PatientResponseDto(
@@ -910,6 +918,7 @@ async def update_patient_info(
         hasAlerts=False,
         isActive=pat.is_active,
         messagingOptOut=getattr(pat, "messaging_opt_out", False),
+        preferredChannel=getattr(pat, "preferred_channel", "sms") or "sms",
         fileNumber=pat.file_number,
         guardianName=pat.guardian_name,
         guardianPhone=pat.guardian_phone,
@@ -948,6 +957,7 @@ async def update_patient_messaging_opt_out(
         hasAlerts=False,
         isActive=pat.is_active,
         messagingOptOut=getattr(pat, "messaging_opt_out", False),
+        preferredChannel=getattr(pat, "preferred_channel", "sms") or "sms",
         fileNumber=pat.file_number,
         guardianName=pat.guardian_name,
         guardianPhone=pat.guardian_phone,
@@ -1346,7 +1356,7 @@ async def get_waitlist(
 async def record_pending_alert(
     patient_id: UUID,
     req: CreatePendingAlertRequest,
-    current_user: User = Depends(require_receptionist),
+    current_user: User = Depends(require_role("receptionist", "Clinic Branch Manager")),
     medical_alert_service: MedicalAlertService = Depends(get_medical_alert_service),
 ) -> MedicalAlertDto:
     """

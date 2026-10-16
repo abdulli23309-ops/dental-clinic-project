@@ -61,7 +61,9 @@ export default function ReceptionWaitlistPage() {
   };
 
   useEffect(() => {
-    loadWaitlist();
+    queueMicrotask(() => {
+      loadWaitlist();
+    });
   }, [accessToken]);
 
   useEffect(() => {

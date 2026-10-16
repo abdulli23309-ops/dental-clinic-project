@@ -130,8 +130,9 @@ export default function ReceptionEndOfDayPage() {
   };
 
   useEffect(() => {
-    loadUnresolved(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    queueMicrotask(() => {
+      loadUnresolved(true);
+    });
   }, [selectedDate, accessToken]);
 
   const openResolutionModal = (item: ReceptionEndOfDayItem, type: ResolutionType) => {

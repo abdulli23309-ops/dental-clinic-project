@@ -260,7 +260,7 @@ async def test_task_board_active_filtering_and_lifecycle(receptionist_auth):
     # 1. Create a task (defaults to pending)
     create_resp = await client.post(
         "/api/v1/reception/tasks",
-        json={"title": "Verify insurance eligibility", "priority": "urgent"},
+        json={"title": "Verify appointment confirmation", "priority": "urgent"},
         headers=headers,
     )
     assert create_resp.status_code == 201

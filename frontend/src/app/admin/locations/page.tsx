@@ -41,13 +41,12 @@ export default function AdminLocationsPage() {
     name: "",
     addressLine1: "",
     addressLine2: "",
-    city: "Chicago",
-    state: "Illinois",
-    postalCode: "60614",
-    country: "US",
-    phone: "(312) 555-0147",
-    email: "care@marlowdental.com",
-    hoursInfo: "Monday – Thursday: 8:00 AM – 6:00 PM\nFriday: 8:00 AM – 2:00 PM\nSaturday – Sunday: Closed",
+    city: "",
+    state: "",
+    postalCode: "",
+    country: "",
+    email: "",
+    hoursInfo: "",
     isPrimary: false,
     displayOrder: 0,
   });
@@ -68,7 +67,9 @@ export default function AdminLocationsPage() {
 
   useEffect(() => {
     if (accessToken) {
-      loadLocations();
+      queueMicrotask(() => {
+        loadLocations();
+      });
     }
   }, [accessToken]);
 
@@ -78,13 +79,12 @@ export default function AdminLocationsPage() {
       name: "",
       addressLine1: "",
       addressLine2: "",
-      city: "Chicago",
-      state: "Illinois",
-      postalCode: "60614",
-      country: "US",
-      phone: "(312) 555-0147",
-      email: "care@marlowdental.com",
-      hoursInfo: "Monday – Thursday: 8:00 AM – 6:00 PM\nFriday: 8:00 AM – 2:00 PM\nSaturday – Sunday: Closed",
+      city: "",
+      state: "",
+      postalCode: "",
+      country: "",
+      email: "",
+      hoursInfo: "",
       isPrimary: locations.length === 0,
       displayOrder: locations.length,
     });
@@ -417,7 +417,7 @@ export default function AdminLocationsPage() {
                     label="City *"
                     value={form.city}
                     onChange={(e) => setForm({ ...form, city: e.target.value })}
-                    placeholder="e.g. Chicago"
+                    placeholder="e.g. City Name"
                     required
                   />
                 </div>
@@ -427,7 +427,7 @@ export default function AdminLocationsPage() {
                     label="State / Province *"
                     value={form.state}
                     onChange={(e) => setForm({ ...form, state: e.target.value })}
-                    placeholder="e.g. Illinois"
+                    placeholder="e.g. State / Province"
                     required
                   />
                 </div>

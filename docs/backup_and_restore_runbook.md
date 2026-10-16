@@ -96,9 +96,9 @@ Get-Item $BackupFile | Select-Object Name, Length, LastWriteTime
 
 ---
 
-## 3. Retention & Rotation Policy
+## 3. Retention & Rotation Policy (Illustrative Example)
 
-To comply with health data retention compliance while managing disk storage capacity:
+To manage disk storage capacity while retaining operational recovery history (example rotation policy for clinic operations):
 
 | Tier | Frequency | Retention Period | Target Storage |
 |---|---|---|---|
@@ -246,9 +246,34 @@ SELECT count(*) FROM activity_logs;
 >    **Clinical attachments, diagnostic X-rays (DICOM), intraoral camera photographs, signed consent PDFs, and patient medical files MUST NEVER be saved to the local `uploads/` directory.**
 >
 > 4. **Required Clinical Storage Architecture**:
->    Clinical attachments require:
->    - Dedicated, HIPAA-compliant, encrypted object storage (e.g., AWS S3 with SSE-KMS, Azure Blob with Customer-Managed Keys, or GCP Cloud Storage).
->    - Server-side encryption at rest (AES-256 / KMS).
->    - Pre-signed, time-limited URLs for clinician-only retrieval.
->    - Comprehensive audit logging on every read/download in `activity_logs`.
->    - Independent lifecycle and versioning backup policies with geo-replication.
+>    - Dedicated encrypted storage for private patient files.
+>    - Server-side encryption at rest.
+>    - Clinician-only authentication for retrieval.
+>    - Audit logging on every download in the database activity table.
+
+> [!IMPORTANT]
+> **DISASTER RECOVERY REQUIREMENT: BACKUPS MUST INCLUDE `ATTACHMENT_DIR`**
+>
+> All private patient attachments (such as diagnostic X-rays, intraoral camera photos, signed patient consent forms, and specialist referrals) are stored on disk in the dedicated, non-public directory specified by `Settings.ATTACHMENT_DIR` (or environment variable `ATTACHMENT_DIR`).
+>
+> Because PostgreSQL `pg_dump` dumps only the relational metadata rows in `patient_attachments` and `patient_consents`, **disaster recovery routines, snapshot procedures, and backup schedules MUST explicitly back up and archive the entire `ATTACHMENT_DIR` alongside database dumps**. Failure to include `ATTACHMENT_DIR` in scheduled backups will result in orphaned database records without underlying encrypted attachment payloads upon restoration.
+
+---
+
+## 6. Audit Trail Immutability & Least Privilege Database Roles
+
+> [!IMPORTANT]
+> **APPLICATION DATABASE ROLE MUST NOT HAVE UPDATE OR DELETE PRIVILEGES ON `activity_logs`**
+>
+> In production environments:
+> 1. The PostgreSQL user / role used by the FastAPI application service (e.g., `marlow_app_user`) must be granted only `SELECT` and `INSERT` permissions on the `activity_logs` table.
+> 2. `UPDATE` and `DELETE` permissions must be explicitly revoked for the application role:
+>    ```sql
+>    -- Ensure append-only audit trail: revoke mutation and deletion privileges
+>    REVOKE UPDATE, DELETE, TRUNCATE ON TABLE activity_logs FROM marlow_app_user;
+>    GRANT SELECT, INSERT ON TABLE activity_logs TO marlow_app_user;
+>    ```
+> 3. This guarantees the tamper-evident, append-only integrity of the clinical and administrative audit trail even in the event of an application credential compromise or SQL injection vulnerability.
+> 4. Neither the backend API nor the frontend administrative interface provides any mutation or deletion endpoints for audit logs.
+
+

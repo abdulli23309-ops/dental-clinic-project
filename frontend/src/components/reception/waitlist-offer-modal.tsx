@@ -39,39 +39,41 @@ export function WaitlistOfferModal({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isOpen || !bookingId) {
-      setCandidates([]);
-      setError(null);
-      setSuccessMessage(null);
-      return;
-    }
-
     let isMounted = true;
-    const fetchOffers = async () => {
-      setIsLoading(true);
-      setError(null);
-      setSuccessMessage(null);
-      try {
-        const data = await getWaitlistOffersForSlot(bookingId, accessToken);
-        if (isMounted) {
-          setCandidates(data);
-        }
-      } catch (err: unknown) {
-        if (isMounted) {
-          setError(
-            err instanceof Error
-              ? err.message
-              : "Failed to load waitlist candidates for this opening."
-          );
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+    queueMicrotask(() => {
+      if (!isOpen || !bookingId) {
+        setCandidates([]);
+        setError(null);
+        setSuccessMessage(null);
+        return;
       }
-    };
 
-    fetchOffers();
+      const fetchOffers = async () => {
+        setIsLoading(true);
+        setError(null);
+        setSuccessMessage(null);
+        try {
+          const data = await getWaitlistOffersForSlot(bookingId, accessToken);
+          if (isMounted) {
+            setCandidates(data);
+          }
+        } catch (err: unknown) {
+          if (isMounted) {
+            setError(
+              err instanceof Error
+                ? err.message
+                : "Failed to load waitlist candidates for this opening."
+            );
+          }
+        } finally {
+          if (isMounted) {
+            setIsLoading(false);
+          }
+        }
+      };
+
+      fetchOffers();
+    });
 
     return () => {
       isMounted = false;

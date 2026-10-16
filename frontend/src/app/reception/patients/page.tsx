@@ -42,6 +42,7 @@ export default function ReceptionPatientsPage() {
   const [emergencyContactPhone, setEmergencyContactPhone] = useState("");
   const [emergencyContactRelationship, setEmergencyContactRelationship] = useState("");
   const [notes, setNotes] = useState("");
+  const [preferredChannel, setPreferredChannel] = useState<"sms" | "whatsapp" | "none">("sms");
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -78,7 +79,17 @@ export default function ReceptionPatientsPage() {
   };
 
   useEffect(() => {
-    loadPatients();
+    let active = true;
+    const load = async () => {
+      await Promise.resolve();
+      if (active) {
+        loadPatients();
+      }
+    };
+    void load();
+    return () => {
+      active = false;
+    };
   }, [accessToken]);
 
   const handleCreatePatient = async (bypass = false) => {
@@ -93,6 +104,7 @@ export default function ReceptionPatientsPage() {
           email: email || undefined,
           dateOfBirth: dob || undefined,
           notes: notes || undefined,
+          preferredChannel,
           fileNumber: fileNumber.trim() || undefined,
           guardianName: guardianName.trim() || undefined,
           guardianPhone: guardianPhone.trim() || undefined,
@@ -133,6 +145,7 @@ export default function ReceptionPatientsPage() {
     setEmergencyContactPhone("");
     setEmergencyContactRelationship("");
     setNotes("");
+    setPreferredChannel("sms");
     setDuplicateWarning(null);
   };
 
@@ -398,7 +411,7 @@ export default function ReceptionPatientsPage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
                     Phone Number *
@@ -408,7 +421,7 @@ export default function ReceptionPatientsPage() {
                     required
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="e.g. +1-555-0199"
+                    placeholder="e.g. +92 300 1234567"
                     className="w-full px-3.5 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 text-xs font-mono text-gray-900 dark:text-white focus:border-primary"
                   />
                 </div>
@@ -423,6 +436,20 @@ export default function ReceptionPatientsPage() {
                     placeholder="patient@example.com"
                     className="w-full px-3.5 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 text-xs text-gray-900 dark:text-white focus:border-primary"
                   />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                    Preferred Channel
+                  </label>
+                  <select
+                    value={preferredChannel}
+                    onChange={(e) => setPreferredChannel(e.target.value as "sms" | "whatsapp" | "none")}
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 text-xs text-gray-900 dark:text-white focus:border-primary"
+                  >
+                    <option value="sms">SMS</option>
+                    <option value="whatsapp">WhatsApp</option>
+                    <option value="none">None (Opt-out)</option>
+                  </select>
                 </div>
               </div>
 

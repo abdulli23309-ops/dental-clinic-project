@@ -73,7 +73,9 @@ export default function ReceptionAppointmentsPage() {
   };
 
   useEffect(() => {
-    loadBookings();
+    queueMicrotask(() => {
+      loadBookings();
+    });
   }, [activeTab, accessToken]);
 
   const handleStatusChange = async (bookingId: string, status: string) => {

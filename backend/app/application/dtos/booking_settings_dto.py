@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import List, Optional
 from uuid import UUID
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class PublicBookingStatusResponse(BaseModel):
@@ -121,6 +121,7 @@ class ReminderTemplateUpdateRequest(BaseModel):
 class ProviderAvailabilityDto(BaseModel):
     id: UUID
     teamMemberId: UUID
+    clinicId: Optional[UUID] = None
     dayOfWeek: int
     dayName: str
     startTime: str
@@ -132,6 +133,7 @@ class ProviderAvailabilityDto(BaseModel):
 
 class ProviderAvailabilityCreateRequest(BaseModel):
     teamMemberId: UUID
+    clinicId: Optional[UUID] = None
     dayOfWeek: int
     startTime: str
     endTime: str
@@ -165,6 +167,7 @@ class PublicAvailabilityResponse(BaseModel):
     date: date
     serviceId: Optional[str] = None
     teamMemberId: Optional[UUID] = None
+    clinicId: Optional[UUID] = None
     timezone: str = "Asia/Karachi"
     slots: List[str]
 
@@ -177,5 +180,75 @@ class CreateProviderTimeOffResponse(BaseModel):
 class CreateProviderAvailabilityResponse(BaseModel):
     availability: ProviderAvailabilityDto
     affectedBookings: List[AffectedBookingDto]
+
+
+class BookingFlowSettingsDto(BaseModel):
+    id: UUID
+    organizationId: UUID
+    followupGapsMinutes: List[int]
+    maxAttempts: int
+    coldWaitHours: int
+    holdMinutes: int
+    fallbackOwnerUserId: Optional[UUID] = None
+    autoConfirmOnline: bool
+    daysShown: int
+    showPatientsTreated: bool
+    leadCaptureNotice: str
+
+
+class BookingFlowSettingsUpdateRequest(BaseModel):
+    followupGapsMinutes: List[int] = Field(..., description="Minutes between automated recovery attempts")
+    maxAttempts: int = Field(..., gt=0, description="Maximum number of contact attempts before cold")
+    coldWaitHours: int = Field(..., gt=0, description="Hours of silence before transitioning to cold")
+    holdMinutes: int = Field(..., gt=0, description="Duration of call desk lock on lead")
+    fallbackOwnerUserId: Optional[UUID] = Field(default=None, description="Staff user ID to assign cold/failed tasks")
+    autoConfirmOnline: bool = Field(default=True, description="Instantly confirm web bookings")
+    daysShown: int = Field(..., gt=0, description="Number of days shown in doctor booking horizon")
+    showPatientsTreated: bool = Field(default=True, description="Global visibility of patients treated badges")
+    leadCaptureNotice: str = Field(..., min_length=5, description="Disclosure notice displayed at phone capture")
+
+    @model_validator(mode="after")
+    def validate_settings(self) -> "BookingFlowSettingsUpdateRequest":
+        if len(self.followupGapsMinutes) != self.maxAttempts:
+            raise ValueError(f"followupGapsMinutes length ({len(self.followupGapsMinutes)}) must equal maxAttempts ({self.maxAttempts}).")
+        for g in self.followupGapsMinutes:
+            if g <= 0:
+                raise ValueError("All followup gap intervals must be positive integers.")
+        if not self.leadCaptureNotice.strip():
+            raise ValueError("leadCaptureNotice cannot be empty.")
+        return self
+
+
+class StaffUserPickerItem(BaseModel):
+    id: UUID
+    fullName: str
+    email: str
+    role: str
+
+
+class BookabilityCheckItem(BaseModel):
+    serviceId: UUID
+    serviceSlug: str
+    serviceTitle: str
+    category: str
+    isActive: bool
+    isBookableOnline: bool
+    isEligible: bool
+    status: str
+    reasons: List[str]
+    reasonMessages: List[str]
+    fixLink: str
+    eligibleClinicsCount: int
+    eligibleDoctorsCount: int
+    firstAvailableDate: Optional[str] = None
+    firstAvailableSlot: Optional[str] = None
+
+
+class BookabilityCheckResponse(BaseModel):
+    totalServices: int
+    bookableServices: int
+    unbookableServices: int
+    items: List[BookabilityCheckItem]
+
 
 

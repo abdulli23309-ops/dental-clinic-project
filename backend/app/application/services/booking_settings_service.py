@@ -648,13 +648,18 @@ class BookingSettingsService:
     async def list_provider_availabilities(
         self,
         team_member_id: Optional[UUID] = None,
+        clinic_id: Optional[UUID] = None,
     ) -> List[ProviderAvailabilityDto]:
-        avails = await self.repository.list_provider_availabilities(team_member_id=team_member_id)
+        avails = await self.repository.list_provider_availabilities(
+            team_member_id=team_member_id,
+            clinic_id=clinic_id,
+        )
         day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         return [
             ProviderAvailabilityDto(
                 id=a.id,
                 teamMemberId=a.team_member_id,
+                clinicId=a.clinic_id,
                 dayOfWeek=a.day_of_week,
                 dayName=day_names[a.day_of_week] if 0 <= a.day_of_week < 7 else f"Day {a.day_of_week}",
                 startTime=a.start_time,
@@ -674,6 +679,7 @@ class BookingSettingsService:
         domain = ProviderAvailability(
             id=uuid4(),
             team_member_id=req.teamMemberId,
+            clinic_id=req.clinicId,
             day_of_week=req.dayOfWeek,
             start_time=req.startTime,
             end_time=req.endTime,
@@ -693,6 +699,7 @@ class BookingSettingsService:
             user_id=user_id,
             details={
                 "team_member_id": str(saved.team_member_id),
+                "clinic_id": str(saved.clinic_id) if saved.clinic_id else None,
                 "day_of_week": saved.day_of_week,
                 "start_time": saved.start_time,
                 "end_time": saved.end_time,
@@ -702,6 +709,7 @@ class BookingSettingsService:
         dto = ProviderAvailabilityDto(
             id=saved.id,
             teamMemberId=saved.team_member_id,
+            clinicId=saved.clinic_id,
             dayOfWeek=saved.day_of_week,
             dayName=day_names[saved.day_of_week] if 0 <= saved.day_of_week < 7 else f"Day {saved.day_of_week}",
             startTime=saved.start_time,

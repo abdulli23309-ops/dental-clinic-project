@@ -1,7 +1,7 @@
 import csv
 import io
 import statistics
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
@@ -19,11 +19,13 @@ from app.api.deps import (
 from app.domain.models.user import User
 from app.infrastructure.database.orm_models import (
     BookingORM,
+    LeadORM,
     ServiceORM,
     PatientORM,
     TaskORM,
     TeamMemberORM,
 )
+from app.domain.models.booking_flow import LeadStatus
 from app.infrastructure.repositories.postgres_activity_repo import (
     PostgresActivityLogRepository,
     record_activity,
@@ -81,6 +83,32 @@ class OperationalTimingReportResponse(BaseModel):
     averageChairMinutes: Optional[float] = None
     waitTimeDistribution: Dict[str, int]
     chairTimeDistribution: Dict[str, int]
+
+
+class LeadFunnelMetrics(BaseModel):
+    captured: int
+    unconverted: int
+    converted: int
+    patient: int
+    cold: int
+    failed: int
+
+
+class LeadSourcePerformance(BaseModel):
+    source: str
+    totalLeads: int
+    convertedLeads: int
+    patientLeads: int
+    coldLeads: int
+    failedLeads: int
+    conversionRatePercent: float
+
+
+class LeadFunnelReportResponse(BaseModel):
+    startDate: str
+    endDate: str
+    funnel: LeadFunnelMetrics
+    sources: List[LeadSourcePerformance]
 
 
 # ---------------------------------------------------------------------------
@@ -772,3 +800,170 @@ async def export_operational_timing_csv(
     csv_data = output.getvalue()
     filename = f"operational_timing_{s_date}_{e_date}.csv"
     return Response(content=csv_data, media_type="text/csv", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
+
+# ---------------------------------------------------------------------------
+# 5. Lead Funnel & Acquisition Report
+# ---------------------------------------------------------------------------
+
+@router.get("/lead-funnel", response_model=LeadFunnelReportResponse)
+async def get_lead_funnel_report(
+    start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD)"),
+    session: AsyncSession = Depends(get_db_session),
+) -> LeadFunnelReportResponse:
+    """
+    Returns lead funnel counts (captured, converted, patient, cold, failed)
+    and source performance breakdown.
+    Aggregate metrics only (no patient names or phones).
+    """
+    today = date.today()
+    s_date = start_date or (today - timedelta(days=30))
+    e_date = end_date or today
+
+    try:
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo("Asia/Karachi")
+        s_dt = datetime.combine(s_date, datetime.min.time(), tzinfo=tz).astimezone(timezone.utc)
+        e_dt = datetime.combine(e_date, datetime.max.time(), tzinfo=tz).astimezone(timezone.utc)
+    except Exception:
+        s_dt = datetime.combine(s_date, datetime.min.time()).replace(tzinfo=timezone.utc)
+        e_dt = datetime.combine(e_date, datetime.max.time()).replace(tzinfo=timezone.utc)
+
+    conditions = [
+        LeadORM.created_at >= s_dt,
+        LeadORM.created_at <= e_dt,
+    ]
+
+    # Status counts query
+    status_stmt = (
+        select(LeadORM.status, func.count(LeadORM.id))
+        .where(*conditions)
+        .group_by(LeadORM.status)
+    )
+    status_res = await session.execute(status_stmt)
+    status_counts = {r[0]: r[1] for r in status_res.all()}
+
+    unconverted = status_counts.get(LeadStatus.UNCONVERTED.value, 0)
+    converted = status_counts.get(LeadStatus.CONVERTED.value, 0)
+    patient = status_counts.get(LeadStatus.PATIENT.value, 0)
+    cold = status_counts.get(LeadStatus.COLD.value, 0)
+    failed = status_counts.get(LeadStatus.FAILED_CONVERSION.value, 0)
+    captured = sum(status_counts.values())
+
+    # Source breakdown query
+    source_stmt = (
+        select(
+            func.coalesce(LeadORM.utm_source, "unspecified").label("source"),
+            LeadORM.status,
+            func.count(LeadORM.id),
+        )
+        .where(*conditions)
+        .group_by(func.coalesce(LeadORM.utm_source, "unspecified"), LeadORM.status)
+    )
+    src_res = await session.execute(source_stmt)
+    sources_map: Dict[str, Dict[str, int]] = {}
+    for src, st, cnt in src_res.all():
+        src_name = src or "unspecified"
+        if src_name not in sources_map:
+            sources_map[src_name] = {}
+        sources_map[src_name][st] = cnt
+
+    sources_list: List[LeadSourcePerformance] = []
+    for src_name, counts in sorted(sources_map.items(), key=lambda x: -sum(x[1].values())):
+        total_src = sum(counts.values())
+        conv_src = counts.get(LeadStatus.CONVERTED.value, 0)
+        pat_src = counts.get(LeadStatus.PATIENT.value, 0)
+        cold_src = counts.get(LeadStatus.COLD.value, 0)
+        failed_src = counts.get(LeadStatus.FAILED_CONVERSION.value, 0)
+        conv_rate = round(((conv_src + pat_src) / total_src * 100.0), 1) if total_src > 0 else 0.0
+
+        sources_list.append(
+            LeadSourcePerformance(
+                source=src_name,
+                totalLeads=total_src,
+                convertedLeads=conv_src,
+                patientLeads=pat_src,
+                coldLeads=cold_src,
+                failedLeads=failed_src,
+                conversionRatePercent=conv_rate,
+            )
+        )
+
+    return LeadFunnelReportResponse(
+        startDate=s_date.isoformat(),
+        endDate=e_date.isoformat(),
+        funnel=LeadFunnelMetrics(
+            captured=captured,
+            unconverted=unconverted,
+            converted=converted,
+            patient=patient,
+            cold=cold,
+            failed=failed,
+        ),
+        sources=sources_list,
+    )
+
+
+@router.get("/export/lead-funnel")
+async def export_lead_funnel_report(
+    request: Request,
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+    session: AsyncSession = Depends(get_db_session),
+    activity_repo: PostgresActivityLogRepository = Depends(get_activity_log_repository),
+    current_user: User = Depends(get_current_user),
+) -> Response:
+    """Exports aggregate lead funnel metrics and source performance as CSV. Audited."""
+    today = date.today()
+    s_date = start_date or (today - timedelta(days=30))
+    e_date = end_date or today
+
+    report = await get_lead_funnel_report(start_date=s_date, end_date=e_date, session=session)
+
+    await record_activity(
+        activity_repo=activity_repo,
+        action="export",
+        entity_type="report_lead_funnel",
+        entity_id="lead_funnel_csv",
+        user_id=current_user.id,
+        details={
+            "captured": report.funnel.captured,
+            "startDate": s_date.isoformat(),
+            "endDate": e_date.isoformat(),
+        },
+        ip_address=request.client.host if request.client else None,
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["# LEAD FUNNEL AGGREGATE REPORT", f"{s_date} to {e_date}"])
+    writer.writerow([])
+    writer.writerow(["Funnel Stage", "Lead Count"])
+    writer.writerow(["Total Captured", report.funnel.captured])
+    writer.writerow(["Unconverted", report.funnel.unconverted])
+    writer.writerow(["Converted (Booking Created)", report.funnel.converted])
+    writer.writerow(["Patient (First Visit Completed)", report.funnel.patient])
+    writer.writerow(["Cold", report.funnel.cold])
+    writer.writerow(["Failed Conversion", report.funnel.failed])
+    writer.writerow([])
+    writer.writerow(["Source", "Total Leads", "Converted", "Patient", "Cold", "Failed Conversion", "Conversion Rate (%)"])
+    for s in report.sources:
+        writer.writerow([
+            s.source,
+            s.totalLeads,
+            s.convertedLeads,
+            s.patientLeads,
+            s.coldLeads,
+            s.failedLeads,
+            f"{s.conversionRatePercent}%",
+        ])
+
+    csv_data = output.getvalue()
+    filename = f"lead_funnel_{s_date}_{e_date}.csv"
+    return Response(
+        content=csv_data,
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+

@@ -18,7 +18,11 @@ class DoctorService:
         clinic_id: Optional[UUID] = None,
         target_date: Optional[date] = None,
     ) -> List[Booking]:
-        target = target_date or datetime.now(timezone.utc).date()
+        try:
+            from zoneinfo import ZoneInfo
+            target = target_date or datetime.now(ZoneInfo("Asia/Karachi")).date()
+        except Exception:
+            target = target_date or date.today()
         bookings, _ = await self.booking_repo.list_bookings(
             clinic_id=clinic_id,
             team_member_id=team_member_id,

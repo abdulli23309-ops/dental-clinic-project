@@ -3,16 +3,21 @@
 import { useEffect, useState } from "react";
 import {
   AlertTriangle,
+  Building2,
   Calendar,
   Check,
   Clock,
   Edit2,
+  ExternalLink,
+  HelpCircle,
   Info,
   Pause,
+  PhoneCall,
   Play,
   Plus,
   RefreshCw,
   Settings,
+  ShieldCheck,
   Trash2,
   UserCheck,
   Users,
@@ -29,23 +34,33 @@ import {
   adminDeleteClosure,
   adminDeleteProviderAvailability,
   adminDeleteProviderTimeOff,
+  adminGetAffectedBookings,
+  adminGetBookabilityCheck,
+  adminGetBookingFlowSettings,
   adminGetBookingSettings,
   adminGetClosures,
+  adminGetLocations,
   adminGetProviderAvailabilities,
   adminGetProviderTimeOff,
+  adminGetStaffUsers,
   adminGetWorkingHours,
   adminSaveProviderAvailability,
   adminSaveProviderTimeOff,
+  adminUpdateBookingFlowSettings,
   adminUpdateBookingMode,
   adminUpdateClosure,
   adminUpdateOnlineBookingRules,
   adminUpdateWorkingHours,
   AdminBookingSettings,
   AffectedBookingItem,
+  BookabilityCheckItem,
+  BookingFlowSettingsDto,
   ClinicClosureItem,
+  ClinicItem,
   getTeamMembers,
   ProviderAvailabilityItem,
   ProviderTimeOffItem,
+  StaffUserDto,
   TeamMember,
   WorkingHoursItem,
 } from "@/lib/api";
@@ -64,7 +79,7 @@ export default function AdminBookingPage() {
   const { accessToken } = useAuth();
 
   // Tab State
-  const [activeTab, setActiveTab] = useState<"hours" | "clinicians" | "rules">("hours");
+  const [activeTab, setActiveTab] = useState<"hours" | "clinicians" | "rules" | "bookability" | "leads">("hours");
 
   // Settings State
   const [settings, setSettings] = useState<AdminBookingSettings | null>(null);
@@ -106,6 +121,10 @@ export default function AdminBookingPage() {
   const [clinicianTimeOffs, setClinicianTimeOffs] = useState<ProviderTimeOffItem[]>([]);
   const [schedulesLoading, setSchedulesLoading] = useState(false);
 
+  // Clinics List & Shift Clinic Selection
+  const [clinics, setClinics] = useState<ClinicItem[]>([]);
+  const [shiftClinicId, setShiftClinicId] = useState<string>("");
+
   // Clinician Shift Modal State
   const [shiftModalOpen, setShiftModalOpen] = useState(false);
   const [shiftDayOfWeek, setShiftDayOfWeek] = useState(0);
@@ -132,19 +151,32 @@ export default function AdminBookingPage() {
   const [paymentsEnabled, setPaymentsEnabled] = useState(true);
   const [isSavingRules, setIsSavingRules] = useState(false);
 
+  // Bookability Check State
+  const [bookabilityItems, setBookabilityItems] = useState<BookabilityCheckItem[]>([]);
+  const [bookabilityLoading, setBookabilityLoading] = useState(false);
+
+  // Lead Follow-up & Call Desk Settings State
+  const [flowSettings, setFlowSettings] = useState<BookingFlowSettingsDto | null>(null);
+  const [staffUsers, setStaffUsers] = useState<StaffUserDto[]>([]);
+  const [flowSettingsLoading, setFlowSettingsLoading] = useState(false);
+  const [flowSettingsSaving, setFlowSettingsSaving] = useState(false);
+  const [gapsInput, setGapsInput] = useState<string>("15, 60, 240");
+
   const loadAll = async () => {
     setLoading(true);
     setError("");
     try {
-      const [settingsData, hoursData, closuresData, membersData] = await Promise.all([
+      const [settingsData, hoursData, closuresData, membersData, clinicsData] = await Promise.all([
         adminGetBookingSettings(accessToken),
         adminGetWorkingHours(accessToken),
         adminGetClosures(accessToken),
         getTeamMembers().catch(() => []),
+        adminGetLocations(accessToken).catch(() => []),
       ]);
       setSettings(settingsData);
       setWorkingHours(hoursData);
       setClosures(closuresData);
+      setClinics(clinicsData);
       setModeMessage(settingsData.pauseMessage || "");
       setResumeOn(settingsData.resumeOn || "");
       setSlotInterval(settingsData.slotIntervalMinutes || 15);
@@ -169,11 +201,60 @@ export default function AdminBookingPage() {
     }
   };
 
+  const loadBookability = async () => {
+    if (!accessToken) return;
+    setBookabilityLoading(true);
+    try {
+      const items = await adminGetBookabilityCheck(accessToken);
+      setBookabilityItems(items);
+    } catch (err: any) {
+      setError(err.message || "Failed to load bookability check.");
+    } finally {
+      setBookabilityLoading(false);
+    }
+  };
+
+  const loadFlowSettings = async () => {
+    if (!accessToken) return;
+    setFlowSettingsLoading(true);
+    try {
+      const [settingsData, usersData] = await Promise.all([
+        adminGetBookingFlowSettings(accessToken),
+        adminGetStaffUsers(accessToken).catch(() => []),
+      ]);
+      setFlowSettings(settingsData);
+      setStaffUsers(usersData);
+      setGapsInput((settingsData.followupGapsMinutes || []).join(", "));
+    } catch (err: any) {
+      setError(err.message || "Failed to load booking flow settings.");
+    } finally {
+      setFlowSettingsLoading(false);
+    }
+  };
+
   useEffect(() => {
     queueMicrotask(() => {
       loadAll();
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        const tabParam = params.get("tab");
+        if (tabParam && ["hours", "clinicians", "rules", "bookability", "leads"].includes(tabParam)) {
+          setActiveTab(tabParam as any);
+        }
+      }
     });
   }, [accessToken]);
+
+  // Load bookability or flow settings when their tab is opened
+  useEffect(() => {
+    queueMicrotask(() => {
+      if (activeTab === "bookability") {
+        loadBookability();
+      } else if (activeTab === "leads") {
+        loadFlowSettings();
+      }
+    });
+  }, [activeTab, accessToken]);
 
   // Load clinician availability and time off when selected clinician changes
   useEffect(() => {
@@ -181,7 +262,7 @@ export default function AdminBookingPage() {
     queueMicrotask(() => {
       setSchedulesLoading(true);
       Promise.all([
-        adminGetProviderAvailabilities(selectedClinicianId, accessToken).catch(() => []),
+        adminGetProviderAvailabilities(selectedClinicianId, undefined, accessToken).catch(() => []),
         adminGetProviderTimeOff(selectedClinicianId, false, accessToken).catch(() => []),
       ])
         .then(([avails, timeOffs]) => {
@@ -383,6 +464,7 @@ export default function AdminBookingPage() {
           endTime: shiftEndTime,
           breakStartTime: shiftBreakStart.trim() || null,
           breakEndTime: shiftBreakEnd.trim() || null,
+          clinicId: shiftClinicId || null,
           isActive: true,
         },
         accessToken
@@ -400,6 +482,81 @@ export default function AdminBookingPage() {
       setError(err.message || "Failed to save clinician schedule.");
     } finally {
       setIsSavingShift(false);
+    }
+  };
+
+  const handleSaveFlowSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!flowSettings || !accessToken) return;
+    setError("");
+    setSuccessMsg("");
+
+    // Parse followup gaps
+    const gaps = gapsInput
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((s) => Number(s));
+
+    // Validation
+    if (gaps.length !== Number(flowSettings.maxAttempts)) {
+      setError(
+        `Validation error: Follow-up gaps list has ${gaps.length} items, but Max Attempts is ${flowSettings.maxAttempts}. The list length must strictly equal Max Attempts.`
+      );
+      return;
+    }
+
+    for (const g of gaps) {
+      if (isNaN(g) || g <= 0) {
+        setError("Validation error: All follow-up gap intervals must be positive numbers (> 0).");
+        return;
+      }
+    }
+
+    if (Number(flowSettings.daysShown) <= 0) {
+      setError("Validation error: Days shown must be a positive integer.");
+      return;
+    }
+    if (Number(flowSettings.holdMinutes) <= 0) {
+      setError("Validation error: Hold minutes must be a positive integer.");
+      return;
+    }
+    if (Number(flowSettings.maxAttempts) <= 0) {
+      setError("Validation error: Max attempts must be a positive integer.");
+      return;
+    }
+    if (Number(flowSettings.coldWaitHours) <= 0) {
+      setError("Validation error: Cold wait hours must be a positive integer.");
+      return;
+    }
+    if (!flowSettings.leadCaptureNotice.trim()) {
+      setError("Validation error: Capture notice text cannot be empty.");
+      return;
+    }
+
+    setFlowSettingsSaving(true);
+    try {
+      const updated = await adminUpdateBookingFlowSettings(
+        {
+          daysShown: Number(flowSettings.daysShown),
+          showPatientsTreated: Boolean(flowSettings.showPatientsTreated),
+          autoConfirmOnline: Boolean(flowSettings.autoConfirmOnline),
+          holdMinutes: Number(flowSettings.holdMinutes),
+          maxAttempts: Number(flowSettings.maxAttempts),
+          coldWaitHours: Number(flowSettings.coldWaitHours),
+          followupGapsMinutes: gaps,
+          fallbackOwnerUserId: flowSettings.fallbackOwnerUserId || null,
+          leadCaptureNotice: flowSettings.leadCaptureNotice.trim(),
+        },
+        accessToken
+      );
+      setFlowSettings(updated);
+      setGapsInput(updated.followupGapsMinutes.join(", "));
+      setSuccessMsg("Booking flow and call desk settings saved successfully.");
+    } catch (err: any) {
+      setError(err.message || "Failed to save booking flow settings.");
+    } finally {
+      setFlowSettingsSaving(false);
     }
   };
 
@@ -570,6 +727,28 @@ export default function AdminBookingPage() {
           }`}
         >
           Online Booking Rules
+        </button>
+        <button
+          onClick={() => setActiveTab("bookability")}
+          className={`px-4 py-2 text-xs sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+            activeTab === "bookability"
+              ? "bg-forest text-white shadow-sm"
+              : "text-gray-600 dark:text-gray-400 hover:text-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800"
+          }`}
+        >
+          <ShieldCheck className="h-3.5 w-3.5" />
+          <span>Bookability Check</span>
+        </button>
+        <button
+          onClick={() => setActiveTab("leads")}
+          className={`px-4 py-2 text-xs sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+            activeTab === "leads"
+              ? "bg-forest text-white shadow-sm"
+              : "text-gray-600 dark:text-gray-400 hover:text-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800"
+          }`}
+        >
+          <PhoneCall className="h-3.5 w-3.5" />
+          <span>Lead Follow-up &amp; Call Desk</span>
         </button>
       </div>
 
@@ -900,8 +1079,11 @@ export default function AdminBookingPage() {
                           className="rounded-xl border border-line bg-bone p-3.5 flex items-center justify-between gap-3 text-xs"
                         >
                           <div>
-                            <div className="font-semibold text-gray-900 dark:text-white">
-                              {DAY_NAMES[a.dayOfWeek]}
+                            <div className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                              <span>{DAY_NAMES[a.dayOfWeek]}</span>
+                              <span className="rounded-full bg-forest/10 px-2 py-0.5 text-[10px] text-forest font-semibold">
+                                {clinics.find((c) => c.id === a.clinicId)?.name || (a.clinicId ? "Clinic Shift" : "All Facilities")}
+                              </span>
                             </div>
                             <div className="text-gray-600 dark:text-gray-300 font-mono text-[11.5px] mt-0.5">
                               {a.startTime} – {a.endTime}
@@ -1139,6 +1321,425 @@ export default function AdminBookingPage() {
         </Card>
       )}
 
+      {/* TAB 4: BOOKABILITY CHECK */}
+      {activeTab === "bookability" && (
+        <div className="space-y-6">
+          <Card surface="cream" shadow="subtle" className="p-6 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-line">
+              <div>
+                <h3 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5 text-forest" />
+                  <span>Service Bookability Diagnostics</span>
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Automated pre-flight check across active clinics, doctor assignments, clinician shifts, and scheduling horizon slots.
+                </p>
+              </div>
+
+              <Button
+                onClick={loadBookability}
+                variant="secondary"
+                size="sm"
+                disabled={bookabilityLoading}
+                className="gap-1.5 self-start sm:self-auto"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${bookabilityLoading ? "animate-spin" : ""}`} />
+                <span>Re-run Diagnostics</span>
+              </Button>
+            </div>
+
+            {/* Metric counters */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="rounded-xl border border-line bg-bone p-4">
+                <span className="text-xs text-ink-soft uppercase font-semibold">Total Catalog Services</span>
+                <p className="text-2xl font-display font-semibold text-ink mt-1">
+                  {bookabilityItems.length}
+                </p>
+              </div>
+              <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/50 dark:bg-emerald-950/20 p-4">
+                <span className="text-xs text-emerald-800 dark:text-emerald-300 uppercase font-semibold">
+                  Online Bookable &amp; Healthy
+                </span>
+                <p className="text-2xl font-display font-semibold text-emerald-700 dark:text-emerald-300 mt-1">
+                  {bookabilityItems.filter((i) => i.isEligible).length}
+                </p>
+              </div>
+              <div className="rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/20 p-4">
+                <span className="text-xs text-amber-800 dark:text-amber-300 uppercase font-semibold">
+                  Issues Preventing Online Booking
+                </span>
+                <p className="text-2xl font-display font-semibold text-amber-700 dark:text-amber-300 mt-1">
+                  {bookabilityItems.filter((i) => !i.isEligible).length}
+                </p>
+              </div>
+            </div>
+
+            {/* Bookability Table */}
+            {bookabilityLoading ? (
+              <div className="py-12 flex justify-center items-center">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-forest border-t-transparent" />
+              </div>
+            ) : bookabilityItems.length === 0 ? (
+              <p className="text-xs text-ink-soft italic py-6 text-center">No services found.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-line bg-sand/40">
+                      <th className="py-2.5 px-3 font-semibold text-ink">Service / Procedure</th>
+                      <th className="py-2.5 px-3 font-semibold text-ink">Category</th>
+                      <th className="py-2.5 px-3 font-semibold text-ink">Online Status</th>
+                      <th className="py-2.5 px-3 font-semibold text-ink">Health Status &amp; Reason</th>
+                      <th className="py-2.5 px-3 font-semibold text-ink text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line/60">
+                    {bookabilityItems.map((item) => (
+                      <tr key={item.serviceId} className="hover:bg-cream/60 transition-colors">
+                        <td className="py-3 px-3">
+                          <div className="font-semibold text-ink">{item.serviceTitle}</div>
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className="rounded-full bg-sand/60 px-2 py-0.5 text-[10.5px] font-semibold text-clay uppercase">
+                            {item.category}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3">
+                          {item.bookableOnline ? (
+                            <span className="rounded-full bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:text-emerald-300">
+                              Enabled
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-gray-200 dark:bg-gray-800 px-2 py-0.5 text-[10px] font-semibold text-gray-700 dark:text-gray-300">
+                              Staff Only
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-3">
+                          <div className="space-y-1 max-w-md">
+                            <div className="flex items-center gap-2">
+                              {item.isEligible ? (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 text-[10.5px] font-semibold text-emerald-800 dark:text-emerald-300">
+                                  <Check className="h-3 w-3" />
+                                  Bookable
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-950 px-2 py-0.5 text-[10.5px] font-semibold text-amber-800 dark:text-amber-300">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  Ineligible
+                                </span>
+                              )}
+                              {item.reasonCode && (
+                                <span className="font-mono text-[10px] uppercase tracking-wider text-ink-soft bg-sand/40 px-1.5 py-0.5 rounded">
+                                  {item.reasonCode}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-ink-soft leading-relaxed">
+                              {item.message}
+                            </p>
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 text-right">
+                          <a
+                            href={item.fixUrl}
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-forest underline hover:text-forest/80"
+                          >
+                            <span>Fix</span>
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* TAB 5: LEAD FOLLOW-UP & CALL DESK */}
+      {activeTab === "leads" && (
+        <div className="space-y-6">
+          <Card surface="cream" shadow="subtle" className="p-6 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-line">
+              <div>
+                <h3 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                  <PhoneCall className="h-5 w-5 text-forest" />
+                  <span>Lead Follow-up &amp; Reception Call Desk</span>
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Configure booking horizon window, contact cadence, call desk dial gaps, fallback owner, and legal capture notice text.
+                </p>
+              </div>
+
+              <Button
+                onClick={loadFlowSettings}
+                variant="secondary"
+                size="sm"
+                disabled={flowSettingsLoading}
+                className="gap-1.5 self-start sm:self-auto"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${flowSettingsLoading ? "animate-spin" : ""}`} />
+                <span>Reload</span>
+              </Button>
+            </div>
+
+            {flowSettingsLoading || !flowSettings ? (
+              <div className="py-12 flex justify-center items-center">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-forest border-t-transparent" />
+              </div>
+            ) : (
+              <form onSubmit={handleSaveFlowSettings} className="space-y-6">
+                {/* Section 1: Online Booking Horizon & Clinician Metrics */}
+                <div className="space-y-4">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-ink-soft border-b border-line pb-1">
+                    Booking Window &amp; Trust Signals
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="flow-days-shown" className="block text-xs font-semibold text-ink mb-1">
+                        Days Shown in Horizon (Doctor Step)
+                      </label>
+                      <input
+                        id="flow-days-shown"
+                        type="number"
+                        min={1}
+                        max={90}
+                        required
+                        value={flowSettings.daysShown}
+                        onChange={(e) =>
+                          setFlowSettings({ ...flowSettings, daysShown: parseInt(e.target.value, 10) || 1 })
+                        }
+                        className="w-full rounded-xl border border-line bg-bone px-3 py-2 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-forest"
+                      />
+                      <p className="text-[11px] text-ink-soft mt-1">
+                        Number of upcoming days evaluated and presented in the slot picker on /book.
+                      </p>
+                    </div>
+
+                    <div className="p-3 rounded-xl border border-line bg-bone/60 space-y-1">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          id="flow-patients-treated-default"
+                          checked={flowSettings.showPatientsTreated}
+                          onChange={(e) =>
+                            setFlowSettings({
+                              ...flowSettings,
+                              showPatientsTreated: e.target.checked,
+                            })
+                          }
+                          className="rounded border-line text-forest focus:ring-forest h-4 w-4"
+                        />
+                        <span className="text-xs font-semibold text-ink">
+                          Show Patients Treated Count by Default
+                        </span>
+                      </label>
+                      <p className="text-[11px] text-ink-soft pl-6">
+                        When enabled, doctor cards display verified treated patient numbers unless toggled off per doctor in /admin/team.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="p-3 rounded-xl border border-line bg-bone/60 space-y-1">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          id="flow-auto-confirm-online"
+                          checked={flowSettings.autoConfirmOnline}
+                          onChange={(e) =>
+                            setFlowSettings({
+                              ...flowSettings,
+                              autoConfirmOnline: e.target.checked,
+                            })
+                          }
+                          className="rounded border-line text-forest focus:ring-forest h-4 w-4"
+                        />
+                        <span className="text-xs font-semibold text-ink">
+                          Auto-Confirm Online Bookings
+                        </span>
+                      </label>
+                      <p className="text-[11px] text-ink-soft pl-6">
+                        Immediately confirms bookings when a specific clinician is selected (or auto-selected when only 1 is eligible).
+                      </p>
+                    </div>
+
+                    <div>
+                      <label htmlFor="flow-grace-mins" className="block text-xs font-semibold text-ink mb-1">
+                        Tentative Hold Grace Period (Minutes)
+                      </label>
+                      <input
+                        id="flow-grace-mins"
+                        type="number"
+                        min={1}
+                        max={120}
+                        required
+                        value={flowSettings.holdMinutes}
+                        onChange={(e) =>
+                          setFlowSettings({
+                            ...flowSettings,
+                            holdMinutes: parseInt(e.target.value, 10) || 1,
+                          })
+                        }
+                        className="w-full rounded-xl border border-line bg-bone px-3 py-2 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-forest"
+                      />
+                      <p className="text-[11px] text-ink-soft mt-1">
+                        Minutes a slot remains reserved while patient completes their booking.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Contact Cadence & Call Desk */}
+                <div className="space-y-4">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-ink-soft border-b border-line pb-1">
+                    Follow-up Sequence &amp; Call Desk Timing
+                  </h4>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="flow-max-attempts" className="block text-xs font-semibold text-ink mb-1">
+                        Maximum Follow-up Attempts
+                      </label>
+                      <input
+                        id="flow-max-attempts"
+                        type="number"
+                        min={1}
+                        max={10}
+                        required
+                        value={flowSettings.maxAttempts}
+                        onChange={(e) =>
+                          setFlowSettings({
+                            ...flowSettings,
+                            maxAttempts: parseInt(e.target.value, 10) || 1,
+                          })
+                        }
+                        className="w-full rounded-xl border border-line bg-bone px-3 py-2 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-forest"
+                      />
+                      <p className="text-[11px] text-ink-soft mt-1">
+                        Total number of follow-up attempts allowed before marking a lead cold.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label htmlFor="flow-gaps-input" className="block text-xs font-semibold text-ink mb-1">
+                        Follow-up Gaps (Minutes, comma-separated)
+                      </label>
+                      <input
+                        id="flow-gaps-input"
+                        type="text"
+                        required
+                        value={gapsInput}
+                        onChange={(e) => setGapsInput(e.target.value)}
+                        placeholder="15, 60, 240"
+                        className="w-full rounded-xl border border-line bg-bone px-3 py-2 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-forest font-mono"
+                      />
+                      <p className="text-[11px] text-ink-soft mt-1">
+                        Must contain exactly {flowSettings.maxAttempts} positive numbers matching Max Attempts. (e.g. 15, 60, 240)
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="flow-cold-days" className="block text-xs font-semibold text-ink mb-1">
+                        Mark Cold After (Hours of Inactivity)
+                      </label>
+                      <input
+                        id="flow-cold-days"
+                        type="number"
+                        min={1}
+                        max={720}
+                        required
+                        value={flowSettings.coldWaitHours}
+                        onChange={(e) =>
+                          setFlowSettings({
+                            ...flowSettings,
+                            coldWaitHours: parseInt(e.target.value, 10) || 1,
+                          })
+                        }
+                        className="w-full rounded-xl border border-line bg-bone px-3 py-2 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-forest"
+                      />
+                      <p className="text-[11px] text-ink-soft mt-1">
+                        Hours since last contact attempt before transitioning lead status to &apos;cold&apos;.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label htmlFor="flow-fallback-owner" className="block text-xs font-semibold text-ink mb-1">
+                        Fallback Lead Owner (Active Staff User)
+                      </label>
+                      <select
+                        id="flow-fallback-owner"
+                        value={flowSettings.fallbackOwnerUserId || ""}
+                        onChange={(e) =>
+                          setFlowSettings({
+                            ...flowSettings,
+                            fallbackOwnerUserId: e.target.value || null,
+                          })
+                        }
+                        className="w-full rounded-xl border border-line bg-bone px-3 py-2 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-forest"
+                      >
+                        <option value="">-- Unassigned (General Reception Queue) --</option>
+                        {staffUsers.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            {u.fullName} ({u.role.toUpperCase()} • {u.email})
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-[11px] text-ink-soft mt-1">
+                        Assigned staff user for newly captured online leads when clinic staff is unassigned.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 3: Legal Capture Notice Text */}
+                <div className="space-y-4">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-ink-soft border-b border-line pb-1">
+                    Consent &amp; Legal Notice
+                  </h4>
+
+                  <div>
+                    <label htmlFor="flow-notice-text" className="block text-xs font-semibold text-ink mb-1">
+                      Lead Capture Notice Text
+                    </label>
+                    <textarea
+                      id="flow-notice-text"
+                      rows={3}
+                      required
+                      value={flowSettings.leadCaptureNotice}
+                      onChange={(e) =>
+                        setFlowSettings({ ...flowSettings, leadCaptureNotice: e.target.value })
+                      }
+                      className="w-full rounded-xl border border-line bg-bone px-3 py-2 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-forest"
+                      placeholder="We save your details so we can help you finish booking."
+                    />
+                    <p className="text-[11px] text-ink-soft mt-1">
+                      Displayed immediately below the mobile number input on /book before patient submits.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-line flex justify-end">
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="sm"
+                    disabled={flowSettingsSaving}
+                  >
+                    {flowSettingsSaving ? "Saving Settings..." : "Save Flow & Desk Settings"}
+                  </Button>
+                </div>
+              </form>
+            )}
+          </Card>
+        </div>
+      )}
+
       {/* MODAL: Shift / Recurring Availability */}
       {shiftModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -1151,6 +1752,25 @@ export default function AdminBookingPage() {
             </div>
 
             <form onSubmit={handleSaveShift} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-medium mb-1">Clinic / Facility Location</label>
+                <select
+                  value={shiftClinicId}
+                  onChange={(e) => setShiftClinicId(e.target.value)}
+                  className="w-full rounded-xl border border-line bg-bone px-3 py-2 text-xs"
+                >
+                  <option value="">All Facilities / Inherit</option>
+                  {clinics.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} {c.isPrimary ? "(Primary)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[10.5px] text-gray-500 mt-1">
+                  Doctors can work at different clinics on different days.
+                </p>
+              </div>
+
               <div>
                 <label className="block font-medium mb-1">Day of the Week</label>
                 <select

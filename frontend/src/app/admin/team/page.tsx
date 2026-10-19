@@ -67,6 +67,7 @@ export default function AdminTeamPage() {
     photoUrl: string;
     locationId: string | null;
     displayOrder: number;
+    showPatientsTreated: boolean;
   }>({
     firstName: "",
     lastName: "",
@@ -82,6 +83,7 @@ export default function AdminTeamPage() {
     photoUrl: "",
     locationId: null,
     displayOrder: 0,
+    showPatientsTreated: true,
   });
 
   const [isUploading, setIsUploading] = useState(false);
@@ -127,6 +129,7 @@ export default function AdminTeamPage() {
       photoUrl: "",
       locationId: locations[0]?.id || null,
       displayOrder: team.length,
+      showPatientsTreated: true,
     });
     setShowModal(true);
   };
@@ -148,6 +151,7 @@ export default function AdminTeamPage() {
       photoUrl: member.photoUrl || "",
       locationId: member.locationId || null,
       displayOrder: member.displayOrder,
+      showPatientsTreated: member.showPatientsTreated !== false,
     });
     setShowModal(true);
   };
@@ -193,6 +197,7 @@ export default function AdminTeamPage() {
       photoUrl: form.photoUrl.trim() || null,
       locationId: form.locationId || null,
       displayOrder: Number(form.displayOrder) || 0,
+      showPatientsTreated: Boolean(form.showPatientsTreated),
       isActive: true,
     };
 
@@ -205,8 +210,22 @@ export default function AdminTeamPage() {
         setSuccessMessage("New team member added successfully.");
       }
       setShowModal(false);
+      loadData();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to save team member.";
+      setErrorMessage(msg);
+    }
+  };
+
+  const handleTogglePatientsTreated = async (member: TeamMember) => {
+    if (!accessToken) return;
+    const nextVal = member.showPatientsTreated === false ? true : false;
+    try {
+      await adminUpdateTeamMember(member.id, { showPatientsTreated: nextVal }, accessToken);
+      setSuccessMessage(`Patients treated counter ${nextVal ? "enabled" : "hidden"} for ${member.displayName}.`);
+      loadData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to toggle patients treated switch.";
       setErrorMessage(msg);
     }
   };
@@ -328,6 +347,15 @@ export default function AdminTeamPage() {
                         Deactivated / Inactive
                       </span>
                     )}
+                    {member.showPatientsTreated !== false ? (
+                      <span className="rounded-full bg-blue-100 dark:bg-blue-950 px-2 py-0.5 text-[10px] font-semibold text-blue-800 dark:text-blue-300">
+                        Patients Treated: On
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-gray-200 dark:bg-gray-800 px-2 py-0.5 text-[10px] font-semibold text-gray-700 dark:text-gray-300">
+                        Patients Treated: Off
+                      </span>
+                    )}
                   </div>
 
                   <p className="text-xs text-ink-soft font-medium">
@@ -362,7 +390,7 @@ export default function AdminTeamPage() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center gap-2 self-end sm:self-center">
+              <div className="flex items-center gap-2 self-end sm:self-center flex-wrap">
                 <div className="flex flex-col gap-0.5 mr-1" role="group" aria-label="Reorder team member">
                   <button
                     type="button"
@@ -383,6 +411,15 @@ export default function AdminTeamPage() {
                     ▼
                   </button>
                 </div>
+
+                <Button
+                  onClick={() => handleTogglePatientsTreated(member)}
+                  variant="secondary"
+                  size="sm"
+                  title="Toggle patients treated count visibility on booking flow"
+                >
+                  <span>{member.showPatientsTreated !== false ? "Hide Treated Count" : "Show Treated Count"}</span>
+                </Button>
 
                 <Button onClick={() => openEditModal(member)} variant="secondary" size="sm">
                   <Edit className="h-3.5 w-3.5 mr-1" />
@@ -572,6 +609,22 @@ export default function AdminTeamPage() {
                       </span>
                     )}
                   </div>
+                </div>
+
+                <div className="rounded-xl border border-line bg-cream/40 p-4 space-y-1.5">
+                  <label className="flex items-center gap-2 text-xs font-medium text-ink dark:text-gray-200 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      id="member-patients-treated"
+                      checked={form.showPatientsTreated}
+                      onChange={(e) => setForm({ ...form, showPatientsTreated: e.target.checked })}
+                      className="rounded border-line text-forest focus:ring-forest"
+                    />
+                    <span className="font-semibold">Show Patients Treated Count</span>
+                  </label>
+                  <p className="text-[11px] text-ink-soft">
+                    When checked, the public booking flow displays verified patient count (&quot;N+ patients treated&quot;) for this clinician.
+                  </p>
                 </div>
 
                 <div className="pt-4 border-t border-line dark:border-gray-800 flex justify-end gap-2.5">

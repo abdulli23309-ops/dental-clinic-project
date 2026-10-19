@@ -25,18 +25,20 @@ import { useAuth } from "@/components/providers/auth-provider";
 import {
   AppointmentsReportData,
   CancellationsReportData,
+  LeadFunnelReport,
   OperationalTimingReportData,
   RecallComplianceReportData,
   adminGetTeam,
   downloadAuthorizedCsv,
   getAppointmentsReport,
   getCancellationsReport,
+  getLeadFunnelReport,
   getOperationalTimingReport,
   getRecallComplianceReport,
   TeamMember,
 } from "@/lib/api";
 
-type ReportTab = "appointments" | "cancellations" | "recalls" | "operations";
+type ReportTab = "appointments" | "cancellations" | "recalls" | "operations" | "lead_funnel";
 
 export default function AdminReportsPage() {
   const { accessToken } = useAuth();
@@ -61,6 +63,7 @@ export default function AdminReportsPage() {
   const [cancData, setCancData] = useState<CancellationsReportData | null>(null);
   const [recallData, setRecallData] = useState<RecallComplianceReportData | null>(null);
   const [opsData, setOpsData] = useState<OperationalTimingReportData | null>(null);
+  const [funnelData, setFunnelData] = useState<LeadFunnelReport | null>(null);
 
   // Fetch Team for Clinician selector
   useEffect(() => {
@@ -121,6 +124,13 @@ export default function AdminReportsPage() {
           accessToken
         );
         setOpsData(res);
+      } else if (activeTab === "lead_funnel") {
+        const res = await getLeadFunnelReport(
+          dateFrom || undefined,
+          dateTo || undefined,
+          accessToken
+        );
+        setFunnelData(res);
       }
     } catch (err: any) {
       setError(err?.message || `Failed to generate ${activeTab} report.`);
@@ -162,6 +172,9 @@ export default function AdminReportsPage() {
         if (clinicianId) params.set("clinicianId", clinicianId);
         endpoint = `/api/v1/admin/reports/operational-timing/export`;
         defaultFilename = `operational_timing_report_${dateFrom}_to_${dateTo}.csv`;
+      } else if (activeTab === "lead_funnel") {
+        endpoint = `/api/v1/admin/reports/export/lead-funnel`;
+        defaultFilename = `lead_funnel_report_${dateFrom}_to_${dateTo}.csv`;
       }
 
       const qs = params.toString() ? `?${params.toString()}` : "";
@@ -265,6 +278,18 @@ export default function AdminReportsPage() {
         >
           <Timer className="h-4 w-4" />
           Operational Timing (Medians)
+        </button>
+
+        <button
+          onClick={() => setActiveTab("lead_funnel")}
+          className={`pb-3 px-4 font-medium transition-colors border-b-2 flex items-center gap-2 ${
+            activeTab === "lead_funnel"
+              ? "border-primary text-primary font-semibold"
+              : "border-transparent text-ink-soft hover:text-ink"
+          }`}
+        >
+          <TrendingUp className="h-4 w-4" />
+          Lead Funnel &amp; Acquisition
         </button>
       </div>
 
@@ -794,6 +819,118 @@ export default function AdminReportsPage() {
                         </td>
                         <td className="py-2.5 px-4 font-mono text-emerald-600">
                           {d.medianChairMinutes !== null ? `${d.medianChairMinutes} min` : "—"}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* 5. Lead Funnel Report */}
+      {activeTab === "lead_funnel" && funnelData && !loading && (
+        <div className="space-y-6">
+          {/* Funnel KPI Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <Card className="p-4 bg-card border-line shadow-xs">
+              <p className="text-[10px] font-mono uppercase text-ink-soft font-semibold">Captured</p>
+              <p className="text-2xl font-bold font-display text-ink mt-1">
+                {funnelData.funnel.captured}
+              </p>
+              <p className="text-[10px] text-ink-soft mt-0.5">Total Inquiries</p>
+            </Card>
+
+            <Card className="p-4 bg-card border-line shadow-xs">
+              <p className="text-[10px] font-mono uppercase text-amber-600 font-semibold">Unconverted</p>
+              <p className="text-2xl font-bold font-display text-amber-700 dark:text-amber-400 mt-1">
+                {funnelData.funnel.unconverted}
+              </p>
+              <p className="text-[10px] text-ink-soft mt-0.5">In follow-up</p>
+            </Card>
+
+            <Card className="p-4 bg-card border-line shadow-xs">
+              <p className="text-[10px] font-mono uppercase text-primary font-semibold">Converted</p>
+              <p className="text-2xl font-bold font-display text-primary mt-1">
+                {funnelData.funnel.converted}
+              </p>
+              <p className="text-[10px] text-ink-soft mt-0.5">Booking created</p>
+            </Card>
+
+            <Card className="p-4 bg-card border-line shadow-xs">
+              <p className="text-[10px] font-mono uppercase text-emerald-600 font-semibold">Patient</p>
+              <p className="text-2xl font-bold font-display text-emerald-600 mt-1">
+                {funnelData.funnel.patient}
+              </p>
+              <p className="text-[10px] text-ink-soft mt-0.5">First visit complete</p>
+            </Card>
+
+            <Card className="p-4 bg-card border-line shadow-xs">
+              <p className="text-[10px] font-mono uppercase text-blue-600 font-semibold">Cold</p>
+              <p className="text-2xl font-bold font-display text-blue-600 mt-1">
+                {funnelData.funnel.cold}
+              </p>
+              <p className="text-[10px] text-ink-soft mt-0.5">Max attempts reached</p>
+            </Card>
+
+            <Card className="p-4 bg-card border-line shadow-xs">
+              <p className="text-[10px] font-mono uppercase text-rose-600 font-semibold">Failed</p>
+              <p className="text-2xl font-bold font-display text-rose-600 mt-1">
+                {funnelData.funnel.failed}
+              </p>
+              <p className="text-[10px] text-ink-soft mt-0.5">Channels failed</p>
+            </Card>
+          </div>
+
+          {/* Source Breakdown Table */}
+          <Card className="overflow-hidden border-line shadow-sm bg-card">
+            <div className="p-4 border-b border-line bg-surface flex items-center justify-between">
+              <div>
+                <h3 className="font-display font-semibold text-ink text-sm">
+                  Acquisition Source Breakdown
+                </h3>
+                <p className="text-xs text-ink-soft">
+                  Performance across booking channels, website recovery, missed calls, and call desk.
+                </p>
+              </div>
+              <span className="text-[11px] font-mono text-ink-soft">
+                Aggregate only · Zero PII
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-ink">
+                <thead className="bg-surface/60 border-b border-line text-ink-soft uppercase text-[10px] tracking-wider font-semibold">
+                  <tr>
+                    <th className="py-3 px-4">Channel / Source</th>
+                    <th className="py-3 px-4">Total Leads</th>
+                    <th className="py-3 px-4">Converted</th>
+                    <th className="py-3 px-4">Patient</th>
+                    <th className="py-3 px-4">Cold</th>
+                    <th className="py-3 px-4">Failed</th>
+                    <th className="py-3 px-4 text-right">Conversion Rate</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line/60">
+                  {funnelData.sources.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-ink-soft">
+                        No lead records found for this reporting window.
+                      </td>
+                    </tr>
+                  ) : (
+                    funnelData.sources.map((s) => (
+                      <tr key={s.source} className="hover:bg-surface/50">
+                        <td className="py-3 px-4 font-semibold font-mono text-ink">{s.source}</td>
+                        <td className="py-3 px-4 font-bold">{s.totalLeads}</td>
+                        <td className="py-3 px-4 text-primary font-medium">{s.convertedLeads}</td>
+                        <td className="py-3 px-4 text-emerald-600 font-bold">{s.patientLeads}</td>
+                        <td className="py-3 px-4 text-blue-600">{s.coldLeads}</td>
+                        <td className="py-3 px-4 text-rose-600">{s.failedLeads}</td>
+                        <td className="py-3 px-4 text-right font-mono font-bold text-ink">
+                          {s.conversionRatePercent}%
                         </td>
                       </tr>
                     ))

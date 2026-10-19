@@ -3,10 +3,23 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_booking_settings_service, require_admin
+from app.api.deps import (
+    get_activity_log_repository,
+    get_booking_eligibility_service,
+    get_booking_flow_settings_repository,
+    get_booking_settings_service,
+    get_db_session,
+    require_admin,
+)
 from app.application.dtos.booking_settings_dto import (
     AffectedBookingDto,
+    BookabilityCheckItem,
+    BookabilityCheckResponse,
+    BookingFlowSettingsDto,
+    BookingFlowSettingsUpdateRequest,
     BookingModeUpdateRequest,
     BookingModeUpdateResponse,
     BookingSettingsResponse,
@@ -24,11 +37,20 @@ from app.application.dtos.booking_settings_dto import (
     ReminderTemplateUpdateRequest,
     RescheduleTasksRequest,
     RescheduleTasksResponse,
+    StaffUserPickerItem,
     WorkingHoursDto,
     WorkingHoursUpdateRequest,
 )
+from app.application.services.booking_eligibility_service import BookingEligibilityService
 from app.application.services.booking_settings_service import BookingSettingsService
+from app.domain.models.booking_flow import BookingFlowSettings
 from app.domain.models.user import User
+from app.domain.repositories.booking_flow_settings_repo import BookingFlowSettingsRepository
+from app.infrastructure.database.orm_models import ServiceORM, UserORM
+from app.infrastructure.repositories.postgres_activity_repo import (
+    PostgresActivityLogRepository,
+    record_activity,
+)
 
 router = APIRouter(prefix="/admin/booking", tags=["Admin Booking Settings"], dependencies=[Depends(require_admin)])
 
@@ -212,10 +234,11 @@ async def update_reminder_template(
 @router.get("/provider-availability", response_model=List[ProviderAvailabilityDto])
 async def list_provider_availabilities(
     teamMemberId: Optional[UUID] = Query(None),
+    clinicId: Optional[UUID] = Query(None),
     service: BookingSettingsService = Depends(get_booking_settings_service),
 ) -> List[ProviderAvailabilityDto]:
     """Retrieves weekly recurring shift schedules and breaks for clinicians."""
-    return await service.list_provider_availabilities(team_member_id=teamMemberId)
+    return await service.list_provider_availabilities(team_member_id=teamMemberId, clinic_id=clinicId)
 
 
 @router.post("/provider-availability", response_model=CreateProviderAvailabilityResponse)
@@ -274,4 +297,203 @@ async def delete_provider_time_off(
 ) -> None:
     """Removes a clinician time off record."""
     await service.delete_provider_time_off(time_off_id=time_off_id, user_id=current_user.id)
+
+
+# ---------------------------------------------------------------------------
+# Booking Flow & Call Desk Settings
+# ---------------------------------------------------------------------------
+
+@router.get("/flow-settings", response_model=BookingFlowSettingsDto)
+async def get_booking_flow_settings(
+    flow_settings_repo: BookingFlowSettingsRepository = Depends(get_booking_flow_settings_repository),
+) -> BookingFlowSettingsDto:
+    """Retrieves organization booking flow, lead capture, and call desk settings."""
+    settings = await flow_settings_repo.get_settings()
+    return BookingFlowSettingsDto(
+        id=settings.id,
+        organizationId=settings.organization_id,
+        followupGapsMinutes=settings.followup_gaps_minutes,
+        maxAttempts=settings.max_attempts,
+        coldWaitHours=settings.cold_wait_hours,
+        holdMinutes=settings.hold_minutes,
+        fallbackOwnerUserId=settings.fallback_owner_user_id,
+        autoConfirmOnline=settings.auto_confirm_online,
+        daysShown=settings.days_shown,
+        showPatientsTreated=settings.show_patients_treated,
+        leadCaptureNotice=settings.lead_capture_notice,
+    )
+
+
+@router.put("/flow-settings", response_model=BookingFlowSettingsDto)
+async def update_booking_flow_settings(
+    req: BookingFlowSettingsUpdateRequest,
+    current_user: User = Depends(require_admin),
+    flow_settings_repo: BookingFlowSettingsRepository = Depends(get_booking_flow_settings_repository),
+    activity_repo: PostgresActivityLogRepository = Depends(get_activity_log_repository),
+) -> BookingFlowSettingsDto:
+    """Updates organization booking flow settings with validation. Audited."""
+    current = await flow_settings_repo.get_settings()
+    before_state = {
+        "followup_gaps_minutes": current.followup_gaps_minutes,
+        "max_attempts": current.max_attempts,
+        "cold_wait_hours": current.cold_wait_hours,
+        "hold_minutes": current.hold_minutes,
+        "fallback_owner_user_id": str(current.fallback_owner_user_id) if current.fallback_owner_user_id else None,
+        "auto_confirm_online": current.auto_confirm_online,
+        "days_shown": current.days_shown,
+        "show_patients_treated": current.show_patients_treated,
+        "lead_capture_notice": current.lead_capture_notice,
+    }
+    updated = BookingFlowSettings(
+        id=current.id,
+        organization_id=current.organization_id,
+        followup_gaps_minutes=req.followupGapsMinutes,
+        max_attempts=req.maxAttempts,
+        cold_wait_hours=req.coldWaitHours,
+        hold_minutes=req.holdMinutes,
+        fallback_owner_user_id=req.fallbackOwnerUserId,
+        auto_confirm_online=req.autoConfirmOnline,
+        days_shown=req.daysShown,
+        show_patients_treated=req.showPatientsTreated,
+        lead_capture_notice=req.leadCaptureNotice.strip(),
+    )
+    saved = await flow_settings_repo.update_settings(updated)
+    after_state = {
+        "followup_gaps_minutes": saved.followup_gaps_minutes,
+        "max_attempts": saved.max_attempts,
+        "cold_wait_hours": saved.cold_wait_hours,
+        "hold_minutes": saved.hold_minutes,
+        "fallback_owner_user_id": str(saved.fallback_owner_user_id) if saved.fallback_owner_user_id else None,
+        "auto_confirm_online": saved.auto_confirm_online,
+        "days_shown": saved.days_shown,
+        "show_patients_treated": saved.show_patients_treated,
+        "lead_capture_notice": saved.lead_capture_notice,
+    }
+    await record_activity(
+        activity_repo,
+        action="update_booking_flow_settings",
+        entity_type="booking_flow_settings",
+        entity_id=str(saved.id),
+        user_id=current_user.id,
+        details={"before": before_state, "after": after_state},
+    )
+    return BookingFlowSettingsDto(
+        id=saved.id,
+        organizationId=saved.organization_id,
+        followupGapsMinutes=saved.followup_gaps_minutes,
+        maxAttempts=saved.max_attempts,
+        coldWaitHours=saved.cold_wait_hours,
+        holdMinutes=saved.hold_minutes,
+        fallbackOwnerUserId=saved.fallback_owner_user_id,
+        autoConfirmOnline=saved.auto_confirm_online,
+        daysShown=saved.days_shown,
+        showPatientsTreated=saved.show_patients_treated,
+        leadCaptureNotice=saved.lead_capture_notice,
+    )
+
+
+@router.get("/staff-users", response_model=List[StaffUserPickerItem])
+async def list_staff_users_for_picker(
+    db_session: AsyncSession = Depends(get_db_session),
+) -> List[StaffUserPickerItem]:
+    """Returns active staff users eligible for task fallback ownership."""
+    stmt = (
+        select(UserORM)
+        .where(
+            UserORM.is_active.is_(True),
+            UserORM.role.in_(["admin", "doctor", "receptionist"]),
+        )
+        .order_by(UserORM.full_name.asc())
+    )
+    res = await db_session.execute(stmt)
+    users = res.scalars().all()
+    return [
+        StaffUserPickerItem(
+            id=u.id,
+            fullName=u.full_name,
+            email=u.email,
+            role=u.role.value if hasattr(u.role, "value") else str(u.role),
+        )
+        for u in users
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Bookability Check
+# ---------------------------------------------------------------------------
+
+REASON_MESSAGES = {
+    "NO_ACTIVE_CLINIC": "No active clinic branch offers this service.",
+    "NO_ELIGIBLE_DOCTOR": "No active doctor is assigned or qualified to perform this procedure at offered clinics.",
+    "NO_ACTIVE_SCHEDULE": "No assigned doctor has active working hours or shifts on the schedule.",
+    "NO_SLOTS_IN_HORIZON": "All appointments are booked or doctors are on time off during the booking horizon window.",
+}
+
+REASON_FIX_LINKS = {
+    "NO_ACTIVE_CLINIC": "/admin/services",
+    "NO_ELIGIBLE_DOCTOR": "/admin/services",
+    "NO_ACTIVE_SCHEDULE": "/admin/booking?tab=clinicians",
+    "NO_SLOTS_IN_HORIZON": "/admin/booking?tab=clinicians",
+}
+
+
+@router.get("/bookability-check", response_model=BookabilityCheckResponse)
+async def check_catalog_bookability(
+    eligibility_service: BookingEligibilityService = Depends(get_booking_eligibility_service),
+    db_session: AsyncSession = Depends(get_db_session),
+) -> BookabilityCheckResponse:
+    """
+    Evaluates every procedure in the catalog against clinics, doctors, schedules, and slots.
+    Identifies unbookable services and returns actionable direct links to fix each issue.
+    """
+    stmt = select(ServiceORM).order_by(ServiceORM.display_order.asc(), ServiceORM.title.asc())
+    res = await db_session.execute(stmt)
+    all_services = list(res.scalars().all())
+
+    items: List[BookabilityCheckItem] = []
+    bookable_count = 0
+
+    for svc in all_services:
+        eval_result = await eligibility_service.evaluate_service(svc, clinic_id=None)
+        is_eligible = eval_result.is_eligible and svc.is_active and getattr(svc, "bookable_online", True)
+        if is_eligible:
+            bookable_count += 1
+
+        reasons = list(eval_result.reasons)
+        if not svc.is_active:
+            reasons.append("SERVICE_INACTIVE")
+        if not getattr(svc, "bookable_online", True):
+            reasons.append("ONLINE_BOOKING_DISABLED")
+
+        messages = [REASON_MESSAGES.get(r, f"Condition unmet: {r}") for r in reasons]
+        primary_reason = reasons[0] if reasons else None
+        fix_link = REASON_FIX_LINKS.get(primary_reason, "/admin/services") if primary_reason else "/admin/services"
+
+        items.append(
+            BookabilityCheckItem(
+                serviceId=svc.id,
+                serviceSlug=svc.slug,
+                serviceTitle=svc.title,
+                category=svc.category,
+                isActive=svc.is_active,
+                isBookableOnline=getattr(svc, "bookable_online", True),
+                isEligible=is_eligible,
+                status="eligible" if is_eligible else "ineligible",
+                reasons=reasons,
+                reasonMessages=messages,
+                fixLink=fix_link,
+                eligibleClinicsCount=len(eval_result.eligible_clinics),
+                eligibleDoctorsCount=len(eval_result.eligible_doctors),
+                firstAvailableDate=eval_result.first_available_date.isoformat() if eval_result.first_available_date else None,
+                firstAvailableSlot=eval_result.first_available_slot,
+            )
+        )
+
+    return BookabilityCheckResponse(
+        totalServices=len(items),
+        bookableServices=bookable_count,
+        unbookableServices=len(items) - bookable_count,
+        items=items,
+    )
+
 

@@ -42,6 +42,7 @@ async def list_all_team_members(
             servicesOffered=m.services_offered,
             displayOrder=m.display_order,
             isActive=m.is_active,
+            showPatientsTreated=getattr(m, "show_patients_treated", True),
             createdAt=m.created_at,
             updatedAt=m.updated_at,
         )
@@ -75,6 +76,7 @@ async def create_team_member(
         servicesOffered=m.services_offered,
         displayOrder=m.display_order,
         isActive=m.is_active,
+        showPatientsTreated=getattr(m, "show_patients_treated", True),
         createdAt=m.created_at,
         updatedAt=m.updated_at,
     )
@@ -106,6 +108,7 @@ async def get_team_member(
         servicesOffered=m.services_offered,
         displayOrder=m.display_order,
         isActive=m.is_active,
+        showPatientsTreated=getattr(m, "show_patients_treated", True),
         createdAt=m.created_at,
         updatedAt=m.updated_at,
     )
@@ -138,6 +141,7 @@ async def update_team_member(
         servicesOffered=m.services_offered,
         displayOrder=m.display_order,
         isActive=m.is_active,
+        showPatientsTreated=getattr(m, "show_patients_treated", True),
         createdAt=m.created_at,
         updatedAt=m.updated_at,
     )

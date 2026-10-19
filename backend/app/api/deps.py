@@ -9,6 +9,7 @@ from app.application.services.announcement_service import AnnouncementService
 from app.application.services.appointment_service import AppointmentService
 from app.application.services.auth_service import AuthService
 from app.application.services.availability_service import AvailabilityService
+from app.application.services.booking_eligibility_service import BookingEligibilityService
 from app.application.services.booking_settings_service import BookingSettingsService
 from app.application.services.cms_service import CmsService
 from app.application.services.dental_chart_service import DentalChartService
@@ -25,13 +26,16 @@ from app.core.security import decode_access_token
 from app.domain.models.user import User, UserRole
 from app.domain.repositories.announcement_repo import AnnouncementRepository
 from app.domain.repositories.appointment_repo import AppointmentRepository
+from app.domain.repositories.booking_flow_settings_repo import BookingFlowSettingsRepository
 from app.domain.repositories.booking_repo import BookingRepository
 from app.domain.repositories.booking_settings_repo import BookingSettingsRepository
+from app.domain.repositories.clinic_service_repo import ClinicServiceRepository
 from app.domain.repositories.clinical_note_repo import ClinicalNoteRepository
 from app.domain.repositories.cms_repo import CmsRepository
 from app.domain.repositories.dental_chart_repo import DentalChartRepository
 from app.domain.repositories.dental_procedure_repo import DentalProcedureRepository
 from app.domain.repositories.encounter_repo import EncounterRepository
+from app.domain.repositories.lead_event_repo import LeadEventRepository
 from app.domain.repositories.lead_repo import LeadRepository
 from app.domain.repositories.medical_alert_repo import MedicalAlertRepository
 from app.domain.repositories.message_repo import MessageRepository
@@ -51,13 +55,16 @@ from app.infrastructure.repositories.postgres_activity_repo import PostgresActiv
 from app.infrastructure.repositories.postgres_announcement_repo import PostgresAnnouncementRepository
 from app.infrastructure.repositories.postgres_medical_alert_repo import PostgresMedicalAlertRepository
 from app.infrastructure.repositories.postgres_appointment_repo import PostgresAppointmentRepository
+from app.infrastructure.repositories.postgres_booking_flow_settings_repo import PostgresBookingFlowSettingsRepository
 from app.infrastructure.repositories.postgres_booking_repo import PostgresBookingRepository
 from app.infrastructure.repositories.postgres_booking_settings_repo import PostgresBookingSettingsRepository
+from app.infrastructure.repositories.postgres_clinic_service_repo import PostgresClinicServiceRepository
 from app.infrastructure.repositories.postgres_clinical_note_repo import PostgresClinicalNoteRepository
 from app.infrastructure.repositories.postgres_cms_repo import PostgresCmsRepository
 from app.infrastructure.repositories.postgres_dental_chart_repo import PostgresDentalChartRepository
 from app.infrastructure.repositories.postgres_dental_procedure_repo import PostgresDentalProcedureRepository
 from app.infrastructure.repositories.postgres_encounter_repo import PostgresEncounterRepository
+from app.infrastructure.repositories.postgres_lead_event_repo import PostgresLeadEventRepository
 from app.infrastructure.repositories.postgres_lead_repo import PostgresLeadRepository
 from app.infrastructure.repositories.postgres_message_repo import PostgresMessageRepository
 from app.infrastructure.repositories.postgres_organization_repo import (
@@ -209,7 +216,41 @@ def get_visit_payment_repository(
     return PostgresVisitPaymentRepository(session)
 
 
+def get_clinic_service_repository(
+    session: AsyncSession = Depends(get_db_session),
+) -> ClinicServiceRepository:
+    return PostgresClinicServiceRepository(session)
+
+
+def get_lead_event_repository(
+    session: AsyncSession = Depends(get_db_session),
+) -> LeadEventRepository:
+    return PostgresLeadEventRepository(session)
+
+
+def get_booking_flow_settings_repository(
+    session: AsyncSession = Depends(get_db_session),
+) -> BookingFlowSettingsRepository:
+    return PostgresBookingFlowSettingsRepository(session)
+
+
 # --- Application Services ---
+
+def get_booking_eligibility_service(
+    session: AsyncSession = Depends(get_db_session),
+    clinic_service_repo: ClinicServiceRepository = Depends(get_clinic_service_repository),
+    booking_flow_settings_repo: BookingFlowSettingsRepository = Depends(get_booking_flow_settings_repository),
+    booking_settings_repo: BookingSettingsRepository = Depends(get_booking_settings_repository),
+    availability_service: AvailabilityService = Depends(get_availability_service),
+) -> BookingEligibilityService:
+    return BookingEligibilityService(
+        session=session,
+        clinic_service_repo=clinic_service_repo,
+        booking_flow_settings_repo=booking_flow_settings_repo,
+        booking_settings_repo=booking_settings_repo,
+        availability_service=availability_service,
+    )
+
 
 def get_appointment_service(
     repository: AppointmentRepository = Depends(get_appointment_repository),
@@ -217,6 +258,10 @@ def get_appointment_service(
     patient_repo: PatientRepository = Depends(get_patient_repository),
     booking_settings_repo: BookingSettingsRepository = Depends(get_booking_settings_repository),
     availability_service: AvailabilityService = Depends(get_availability_service),
+    lead_repo: LeadRepository = Depends(get_lead_repository),
+    lead_event_repo: LeadEventRepository = Depends(get_lead_event_repository),
+    booking_flow_settings_repo: BookingFlowSettingsRepository = Depends(get_booking_flow_settings_repository),
+    eligibility_service: BookingEligibilityService = Depends(get_booking_eligibility_service),
     session: AsyncSession = Depends(get_db_session),
 ) -> AppointmentService:
     return AppointmentService(
@@ -226,6 +271,10 @@ def get_appointment_service(
         booking_settings_repo,
         availability_service,
         session=session,
+        lead_repo=lead_repo,
+        lead_event_repo=lead_event_repo,
+        booking_flow_settings_repo=booking_flow_settings_repo,
+        eligibility_service=eligibility_service,
     )
 
 
@@ -247,8 +296,15 @@ def get_team_service(
 def get_service_service(
     service_repo: ServiceRepository = Depends(get_service_repository),
     booking_settings_repo: BookingSettingsRepository = Depends(get_booking_settings_repository),
+    clinic_service_repo: ClinicServiceRepository = Depends(get_clinic_service_repository),
+    activity_repo: PostgresActivityLogRepository = Depends(get_activity_log_repository),
 ) -> ServiceService:
-    return ServiceService(service_repo, booking_settings_repo)
+    return ServiceService(
+        service_repo=service_repo,
+        booking_settings_repo=booking_settings_repo,
+        clinic_service_repo=clinic_service_repo,
+        activity_repo=activity_repo,
+    )
 
 
 def get_cms_service(
@@ -298,6 +354,13 @@ def get_reception_service(
         user_repo,
         payment_repo,
     )
+
+
+def get_call_desk_service(
+    session: AsyncSession = Depends(get_db_session),
+):
+    from app.application.services.call_desk_service import CallDeskService
+    return CallDeskService(session)
 
 
 def get_doctor_service(
@@ -496,6 +559,14 @@ def get_medical_alert_service(
     return MedicalAlertService(alert_repo, patient_repo, activity_repo)
 
 
+def get_lead_status_service(
+    session: AsyncSession = Depends(get_db_session),
+    activity_repo: PostgresActivityLogRepository = Depends(get_activity_log_repository),
+):
+    from app.application.services.lead_status_service import LeadStatusService
+    return LeadStatusService(session, activity_repo)
+
+
 # Pre-configured role dependencies
 require_admin = require_role("admin", "Platform Owner", "Super Admin")
 require_receptionist = require_role("receptionist", "Receptionist", "admin", "Admin", "Super Admin", "Clinic Branch Manager")
@@ -509,4 +580,95 @@ def require_roles(allowed_roles: list) -> Callable:
     """
     role_strings = [r.value if hasattr(r, "value") else str(r) for r in allowed_roles]
     return require_role(*role_strings)
+
+
+# ---------------------------------------------------------
+# Integration Client Dependencies
+# ---------------------------------------------------------
+
+def get_integration_client_repository(
+    session: AsyncSession = Depends(get_db_session),
+):
+    from app.infrastructure.repositories.postgres_integration_client_repo import (
+        PostgresIntegrationClientRepository,
+    )
+    return PostgresIntegrationClientRepository(session)
+
+
+def get_integration_client_service(
+    client_repo=Depends(get_integration_client_repository),
+):
+    from app.application.services.integration_client_service import (
+        IntegrationClientService,
+    )
+    return IntegrationClientService(client_repo)
+
+
+async def get_current_integration_client(
+    request: Request,
+    service=Depends(get_integration_client_service),
+    activity_repo: PostgresActivityLogRepository = Depends(get_activity_log_repository),
+):
+    from app.domain.models.integration import IntegrationClient
+
+    raw_key = request.headers.get("X-Marlow-Key")
+    if not raw_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing API key in X-Marlow-Key header",
+        )
+
+    # Resolve client IP
+    client_ip = request.headers.get("X-Forwarded-For")
+    if client_ip:
+        client_ip = client_ip.split(",")[0].strip()
+    elif request.client:
+        client_ip = request.client.host
+    else:
+        client_ip = None
+
+    client: Optional[IntegrationClient] = await service.authenticate_key(
+        raw_key=raw_key.strip(),
+        client_ip=client_ip,
+    )
+    if not client:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or revoked API key",
+        )
+
+    # Audit integration call with client ID
+    try:
+        await activity_repo.log_activity(
+            action="integration_api_call",
+            entity_type="integration_client",
+            entity_id=str(client.id),
+            user_id=client.created_by_user_id,
+            details={
+                "client_name": client.name,
+                "endpoint": request.url.path,
+                "method": request.method,
+                "scopes": client.scopes,
+            },
+            ip_address=client_ip,
+        )
+    except Exception:
+        pass
+
+    return client
+
+
+def require_integration_scope(required_scope: str):
+    async def scope_checker(
+        client=Depends(get_current_integration_client),
+    ):
+        if not client.has_scope(required_scope):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Forbidden: integration client lacks required scope '{required_scope}'",
+            )
+        return client
+
+    scope_checker.required_scope = required_scope
+    return scope_checker
 

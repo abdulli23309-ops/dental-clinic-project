@@ -326,12 +326,24 @@ export default function ReceptionSchedulePage() {
                       {b.bookingTime}
                     </td>
                     <td className="px-5 py-4">
-                      <Link
-                        href={`/reception/patients/${b.patientId}`}
-                        className="font-medium text-primary hover:underline"
-                      >
-                        {b.patientName || "Patient"}
-                      </Link>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Link
+                          href={`/reception/patients/${b.patientId}`}
+                          className="font-medium text-primary hover:underline"
+                        >
+                          {b.patientName || "Patient"}
+                        </Link>
+                        {b.source && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-sand border border-line text-ink-soft">
+                            {b.source}
+                          </span>
+                        )}
+                        {b.leadStatus && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-semibold border border-amber-200">
+                            {b.leadStatus}
+                          </span>
+                        )}
+                      </div>
                       {b.patientPhone && (
                         <span className="text-[11px] text-ink-soft font-mono block mt-0.5">{b.patientPhone}</span>
                       )}
@@ -579,9 +591,23 @@ export default function ReceptionSchedulePage() {
             </div>
 
             <form onSubmit={handleReschedule} className="space-y-4">
-              <p className="text-xs text-ink-soft">
-                Patient: <strong className="text-ink">{rescheduleBooking.patientName}</strong>
-              </p>
+              <div className="flex items-center justify-between text-xs text-ink-soft">
+                <span>
+                  Patient: <strong className="text-ink">{rescheduleBooking.patientName}</strong>
+                </span>
+                <div className="flex items-center gap-1.5 font-mono text-[10px]">
+                  {rescheduleBooking.source && (
+                    <span className="px-1.5 py-0.5 rounded bg-sand border border-line text-ink-soft">
+                      {rescheduleBooking.source}
+                    </span>
+                  )}
+                  {rescheduleBooking.leadStatus && (
+                    <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-semibold border border-amber-200">
+                      {rescheduleBooking.leadStatus}
+                    </span>
+                  )}
+                </div>
+              </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">

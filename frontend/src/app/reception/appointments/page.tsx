@@ -214,15 +214,27 @@ export default function ReceptionAppointmentsPage() {
                       <span className="text-gray-500">{b.bookingTime}</span>
                     </td>
                     <td className="px-5 py-4">
-                      <Link
-                        href={`/reception/patients/${b.patientId}`}
-                        className="font-medium text-primary hover:underline flex items-center gap-1"
-                      >
-                        <User className="h-3 w-3" />
-                        <span>{b.patientName || "Patient"}</span>
-                      </Link>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Link
+                          href={`/reception/patients/${b.patientId}`}
+                          className="font-medium text-primary hover:underline flex items-center gap-1"
+                        >
+                          <User className="h-3 w-3" />
+                          <span>{b.patientName || "Patient"}</span>
+                        </Link>
+                        {b.source && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400">
+                            {b.source}
+                          </span>
+                        )}
+                        {b.leadStatus && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-semibold border border-amber-200">
+                            {b.leadStatus}
+                          </span>
+                        )}
+                      </div>
                       {b.patientPhone && (
-                        <span className="text-[11px] text-gray-400 block">{b.patientPhone}</span>
+                        <span className="text-[11px] text-gray-400 block mt-0.5">{b.patientPhone}</span>
                       )}
                     </td>
                     <td className="px-5 py-4 text-gray-700 dark:text-gray-300">

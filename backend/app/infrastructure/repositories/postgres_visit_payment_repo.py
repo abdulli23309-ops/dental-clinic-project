@@ -94,8 +94,14 @@ class PostgresVisitPaymentRepository(VisitPaymentRepository):
         target_date: date,
         clinic_id: Optional[UUID] = None,
     ) -> List[VisitPayment]:
-        start_dt = datetime.combine(target_date, time.min).replace(tzinfo=timezone.utc)
-        end_dt = datetime.combine(target_date, time.max).replace(tzinfo=timezone.utc)
+        try:
+            from zoneinfo import ZoneInfo
+            tz = ZoneInfo("Asia/Karachi")
+            start_dt = datetime.combine(target_date, time.min, tzinfo=tz).astimezone(timezone.utc)
+            end_dt = datetime.combine(target_date, time.max, tzinfo=tz).astimezone(timezone.utc)
+        except Exception:
+            start_dt = datetime.combine(target_date, time.min).replace(tzinfo=timezone.utc)
+            end_dt = datetime.combine(target_date, time.max).replace(tzinfo=timezone.utc)
 
         stmt = (
             select(VisitPaymentORM)

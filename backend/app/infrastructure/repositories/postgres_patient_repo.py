@@ -16,6 +16,8 @@ class PostgresPatientRepository(PatientRepository):
 
     @staticmethod
     def _to_orm(entity: Patient) -> PatientORM:
+        from app.domain.models.phone_utils import normalize_pakistan_phone
+        phone_norm = entity.phone_normalized or normalize_pakistan_phone(entity.phone)
         return PatientORM(
             id=entity.id,
             organization_id=entity.organization_id,
@@ -23,6 +25,7 @@ class PostgresPatientRepository(PatientRepository):
             first_name=entity.first_name,
             last_name=entity.last_name,
             phone=entity.phone,
+            phone_normalized=phone_norm,
             email=entity.email,
             date_of_birth=entity.date_of_birth,
             notes=entity.notes,
@@ -43,6 +46,7 @@ class PostgresPatientRepository(PatientRepository):
 
     @staticmethod
     def _to_domain(orm: PatientORM) -> Patient:
+        from app.domain.models.phone_utils import normalize_pakistan_phone
         return Patient(
             id=orm.id,
             organization_id=orm.organization_id,
@@ -50,6 +54,7 @@ class PostgresPatientRepository(PatientRepository):
             first_name=orm.first_name,
             last_name=orm.last_name,
             phone=orm.phone,
+            phone_normalized=getattr(orm, "phone_normalized", "") or normalize_pakistan_phone(orm.phone),
             email=orm.email,
             date_of_birth=orm.date_of_birth,
             notes=orm.notes,
@@ -74,6 +79,8 @@ class PostgresPatientRepository(PatientRepository):
             existing.first_name = patient.first_name
             existing.last_name = patient.last_name
             existing.phone = patient.phone
+            from app.domain.models.phone_utils import normalize_pakistan_phone
+            existing.phone_normalized = normalize_pakistan_phone(patient.phone)
             existing.email = patient.email
             existing.clinic_id = patient.clinic_id
             existing.date_of_birth = patient.date_of_birth

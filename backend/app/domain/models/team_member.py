@@ -26,6 +26,7 @@ class TeamMember:
     license_state: Optional[str] = None
     services_offered: Optional[str] = None
     is_active: bool = True
+    show_patients_treated: bool = True
     display_order: int = 0
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))

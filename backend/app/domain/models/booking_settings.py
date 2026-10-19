@@ -68,6 +68,7 @@ class ProviderAvailability:
     day_of_week: int
     start_time: str
     end_time: str
+    clinic_id: Optional[UUID] = None
     break_start_time: Optional[str] = None
     break_end_time: Optional[str] = None
     is_active: bool = True

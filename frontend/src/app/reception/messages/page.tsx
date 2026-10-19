@@ -1,10 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Inbox, Plus, Search, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  CheckCircle2,
+  Inbox,
+  MessageSquare,
+  Phone,
+  PhoneCall,
+  Plus,
+  RefreshCw,
+  Search,
+  Send,
+  User,
+  X,
+} from "lucide-react";
 
 import {
   getReceptionMessages,
+  logInboundNote,
   ReceptionMessage,
   searchReceptionPatients,
   sendReceptionMessage,
@@ -16,25 +32,26 @@ export default function ReceptionMessagesPage() {
 
   const [messages, setMessages] = useState<ReceptionMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [channelFilter, setChannelFilter] = useState("");
+  const [searchFilter, setSearchFilter] = useState("");
+  const [activePhone, setActivePhone] = useState<string | null>(null);
 
-  // New Message Modal
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [patientSearch, setPatientSearch] = useState("");
-  const [patientResults, setPatientResults] = useState<Array<{ id: string; fullName: string; phone: string }>>([]);
-  const [channel, setChannel] = useState<"sms" | "email" | "portal" | "whatsapp">("sms");
-  const [recipient, setRecipient] = useState("");
-  const [body, setBody] = useState("");
-  const [isInternalNote, setIsInternalNote] = useState(false);
-  const [isSending, setIsSending] = useState(false);
+  // Send / Log states
+  const [actionTab, setActionTab] = useState<"inbound" | "outbound">("inbound");
+  const [inputContent, setInputContent] = useState("");
+  const [inputChannel, setInputChannel] = useState<"whatsapp" | "sms" | "email" | "portal">("whatsapp");
+  const [outboundPurpose, setOutboundPurpose] = useState<"manual" | "reminder" | "confirmation" | "lead_recovery">("manual");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // New Conversation Modal State
+  const [isNewConvoOpen, setIsNewConvoOpen] = useState(false);
+  const [newPhone, setNewPhone] = useState("");
+  const [initialNote, setInitialNote] = useState("");
+  const [initialType, setInitialType] = useState<"inbound" | "outbound">("inbound");
 
   const loadMessages = async () => {
     setIsLoading(true);
     try {
-      const data = await getReceptionMessages(
-        { channel: channelFilter || undefined },
-        accessToken
-      );
+      const data = await getReceptionMessages(undefined, accessToken);
       setMessages(data);
     } catch (err) {
       console.error(err);
@@ -47,287 +64,528 @@ export default function ReceptionMessagesPage() {
     queueMicrotask(() => {
       loadMessages();
     });
-  }, [channelFilter, accessToken]);
+  }, [accessToken]);
 
-  const handlePatientSearch = async (query: string) => {
-    setPatientSearch(query);
-    if (query.trim().length < 2) {
-      setPatientResults([]);
-      return;
+  // Group messages by phone number
+  const conversations = useMemo(() => {
+    const groups: Record<string, ReceptionMessage[]> = {};
+    for (const m of messages) {
+      const phoneKey = m.phoneNormalized || m.phone || m.recipient || "Unspecified";
+      if (!groups[phoneKey]) {
+        groups[phoneKey] = [];
+      }
+      groups[phoneKey].push(m);
     }
+
+    // Sort messages in each thread chronologically ascending
+    for (const key of Object.keys(groups)) {
+      groups[key].sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+    }
+
+    // Sort conversations by latest message timestamp descending
+    return Object.entries(groups)
+      .map(([phone, thread]) => {
+        const lastMsg = thread[thread.length - 1];
+        return {
+          phone,
+          messages: thread,
+          lastMessage: lastMsg,
+          updatedAt: lastMsg ? new Date(lastMsg.createdAt).getTime() : 0,
+        };
+      })
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+  }, [messages]);
+
+  // Filtered conversation list
+  const filteredConversations = useMemo(() => {
+    if (!searchFilter.trim()) return conversations;
+    const q = searchFilter.toLowerCase();
+    return conversations.filter(
+      (c) =>
+        c.phone.toLowerCase().includes(q) ||
+        c.messages.some((m) => m.content.toLowerCase().includes(q))
+    );
+  }, [conversations, searchFilter]);
+
+  // Derived active phone: selected or first available
+  const effectivePhone = activePhone || (conversations.length > 0 ? conversations[0].phone : null);
+
+  const activeThread = useMemo(() => {
+    if (!effectivePhone) return null;
+    return conversations.find((c) => c.phone === effectivePhone) || null;
+  }, [conversations, effectivePhone]);
+
+  const handleSendOrLog = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!effectivePhone || !inputContent.trim()) return;
+
+    setIsSubmitting(true);
     try {
-      const res = await searchReceptionPatients({ search: query, limit: 5 }, accessToken);
-      setPatientResults(res.items.map((p) => ({ id: p.id, fullName: p.fullName, phone: p.phone })));
-    } catch (err) {
-      console.error(err);
+      if (actionTab === "inbound") {
+        await logInboundNote(
+          {
+            phone: effectivePhone,
+            content: inputContent.trim(),
+            channel: inputChannel,
+          },
+          accessToken
+        );
+      } else {
+        await sendReceptionMessage(
+          {
+            channel: inputChannel,
+            recipient: effectivePhone,
+            body: inputContent.trim(),
+            direction: "outbound",
+            purpose: outboundPurpose,
+          },
+          accessToken
+        );
+      }
+      setInputContent("");
+      await loadMessages();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to record message.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
+  const handleCreateNewConversation = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!body.trim()) return;
+    if (!newPhone.trim() || !initialNote.trim()) return;
 
-    setIsSending(true);
+    setIsSubmitting(true);
     try {
-      await sendReceptionMessage(
-        {
-          channel,
-          recipient: recipient || undefined,
-          body: isInternalNote ? `[Internal Note] ${body}` : body,
-        },
-        accessToken
-      );
-      setIsModalOpen(false);
-      setPatientSearch("");
-      setBody("");
-      setRecipient("");
-      setIsInternalNote(false);
+      if (initialType === "inbound") {
+        await logInboundNote(
+          {
+            phone: newPhone.trim(),
+            content: initialNote.trim(),
+            channel: inputChannel,
+          },
+          accessToken
+        );
+      } else {
+        await sendReceptionMessage(
+          {
+            channel: inputChannel,
+            recipient: newPhone.trim(),
+            body: initialNote.trim(),
+            direction: "outbound",
+            purpose: outboundPurpose,
+          },
+          accessToken
+        );
+      }
+      setActivePhone(newPhone.trim());
+      setIsNewConvoOpen(false);
+      setNewPhone("");
+      setInitialNote("");
       await loadMessages();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to log message.");
+      alert(err instanceof Error ? err.message : "Failed to start conversation.");
     } finally {
-      setIsSending(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Persistent Disclaimer Banner */}
-      <div className="p-4 rounded-2xl border border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 text-xs flex items-center gap-3">
-        <span className="font-semibold uppercase tracking-wider font-mono text-[11px] px-2 py-0.5 rounded bg-amber-200/60 dark:bg-amber-900/60">Notice</span>
-        <span>Internal communication log only. Nothing is delivered to patients from this screen.</span>
-      </div>
-
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-display font-semibold text-gray-900 dark:text-white">
-            Practice Communications Center
+            Patient &amp; Lead Conversations
           </h1>
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Internal communication log only. Nothing is delivered to patients from this screen.
+            Real-time message history grouped by contact phone number with simulated delivery audit.
           </p>
         </div>
+      </div>
 
+      {/* Persistent Honest Notice */}
+      <div className="p-4 rounded-2xl border border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 text-xs flex items-center justify-between gap-3 shadow-xs">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold uppercase tracking-wider font-mono text-[10px] px-2 py-0.5 rounded bg-amber-200/60 dark:bg-amber-900/60">
+            Simulated Delivery Mode
+          </span>
+          <span>
+            Internal communication log only. Nothing is delivered to patients from this screen.
+          </span>
+        </div>
         <button
-          onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-white text-xs font-semibold hover:bg-primary/90 shadow-xs transition-colors cursor-pointer"
+          onClick={() => setIsNewConvoOpen(true)}
+          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary text-white text-xs font-semibold hover:bg-primary/90 transition-colors shrink-0 cursor-pointer shadow-xs"
         >
-          <Plus className="h-4 w-4" />
-          <span>Log Communication</span>
+          <Plus className="h-3.5 w-3.5" />
+          <span>New Thread</span>
         </button>
       </div>
 
-      {/* Filter Bar */}
-      <div className="p-3 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-xs flex items-center justify-between">
-        <div className="flex items-center gap-1">
-          {[
-            { id: "", label: "All Channels" },
-            { id: "sms", label: "SMS" },
-            { id: "email", label: "Email" },
-            { id: "portal", label: "Portal" },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setChannelFilter(tab.id)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
-                channelFilter === tab.id
-                  ? "bg-primary text-white font-semibold shadow-xs"
-                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+      {/* Main Conversation Split View */}
+      <div className="h-[74vh] rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden shadow-xs grid grid-cols-1 md:grid-cols-12">
+        {/* Left Panel: Conversation Threads */}
+        <div className="md:col-span-5 lg:col-span-4 border-r border-gray-200 dark:border-gray-800 flex flex-col h-full bg-gray-50/50 dark:bg-gray-950/40">
+          <div className="p-3.5 border-b border-gray-200 dark:border-gray-800 space-y-2">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xs font-semibold font-display uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                Conversations ({conversations.length})
+              </h2>
+              <button
+                onClick={loadMessages}
+                className="p-1 rounded-md text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                title="Refresh messages"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search phone or text..."
+                value={searchFilter}
+                onChange={(e) => setSearchFilter(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-xs focus:border-primary"
+              />
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
+            {isLoading ? (
+              <div className="p-8 text-center text-xs font-mono text-gray-400">
+                Loading conversations...
+              </div>
+            ) : filteredConversations.length === 0 ? (
+              <div className="p-8 text-center text-xs text-gray-400 space-y-2">
+                <Inbox className="h-6 w-6 mx-auto text-gray-300" />
+                <p>No conversation threads found</p>
+              </div>
+            ) : (
+              filteredConversations.map((c) => {
+                const isSelected = effectivePhone === c.phone;
+                return (
+                  <button
+                    key={c.phone}
+                    data-testid={`thread-${c.phone}`}
+                    onClick={() => setActivePhone(c.phone)}
+                    className={`w-full p-3.5 text-left transition-colors flex flex-col gap-1 cursor-pointer ${
+                      isSelected
+                        ? "bg-primary/10 border-l-4 border-l-primary"
+                        : "hover:bg-gray-100/70 dark:hover:bg-gray-800/40"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="font-mono font-semibold text-xs text-gray-900 dark:text-white truncate">
+                        {c.phone}
+                      </span>
+                      <span className="text-[10px] text-gray-400 font-mono shrink-0">
+                        {c.lastMessage ? new Date(c.lastMessage.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : ""}
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] text-gray-500 truncate">
+                      {c.lastMessage?.content || "No message content"}
+                    </p>
+
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span
+                        className={`inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-mono uppercase font-semibold ${
+                          c.lastMessage?.direction === "inbound"
+                            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                            : "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300"
+                        }`}
+                      >
+                        {c.lastMessage?.direction === "inbound" ? (
+                          <ArrowDownLeft className="h-2.5 w-2.5" />
+                        ) : (
+                          <ArrowUpRight className="h-2.5 w-2.5" />
+                        )}
+                        {c.lastMessage?.direction || "outbound"}
+                      </span>
+                      <span className="px-1.5 py-0.2 rounded text-[9px] font-mono text-gray-500 bg-gray-200/60 dark:bg-gray-800">
+                        {c.lastMessage?.channel || "sms"}
+                      </span>
+                      <span className="text-[10px] text-gray-400 font-mono ml-auto">
+                        {c.messages.length} msg{c.messages.length > 1 ? "s" : ""}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* Right Panel: Conversation View & Action Desk */}
+        <div className="md:col-span-7 lg:col-span-8 flex flex-col h-full bg-white dark:bg-gray-900">
+          {activeThread ? (
+            <>
+              {/* Thread Header */}
+              <div className="p-3.5 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between gap-3 bg-white dark:bg-gray-900">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
+                    <Phone className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-mono font-bold text-xs text-gray-900 dark:text-white">
+                      {activeThread.phone}
+                    </h3>
+                    <p className="text-[10px] text-gray-400">
+                      {activeThread.messages.length} logged communications
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {/* Link to Call Desk with phone parameter */}
+                  <Link
+                    href={`/reception/call-desk?phone=${encodeURIComponent(activeThread.phone)}`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary/30 text-primary hover:bg-primary/10 text-xs font-semibold transition-colors"
+                  >
+                    <PhoneCall className="h-3.5 w-3.5" />
+                    <span>Open in Call Desk</span>
+                  </Link>
+                </div>
+              </div>
+
+              {/* Message Bubbles Area */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-gray-50/40 dark:bg-gray-950/20">
+                {activeThread.messages.map((m) => {
+                  const isInbound = m.direction === "inbound";
+                  return (
+                    <div
+                      key={m.id}
+                      className={`flex flex-col ${isInbound ? "items-start" : "items-end"}`}
+                    >
+                      <div
+                        className={`max-w-[80%] rounded-2xl p-3.5 text-xs shadow-2xs space-y-1.5 ${
+                          isInbound
+                            ? "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-tl-xs"
+                            : "bg-primary text-white rounded-tr-xs"
+                        }`}
+                      >
+                        <p className="whitespace-pre-wrap leading-relaxed">{m.content}</p>
+
+                        <div
+                          className={`flex flex-wrap items-center gap-1.5 text-[10px] font-mono pt-1 border-t ${
+                            isInbound
+                              ? "border-gray-100 dark:border-gray-700 text-gray-500"
+                              : "border-white/20 text-white/80"
+                          }`}
+                        >
+                          <span className="font-semibold uppercase">{m.channel}</span>
+                          <span>·</span>
+                          <span className="capitalize">{m.purpose || "general"}</span>
+
+                          {/* Honest Simulated Label */}
+                          {!isInbound && m.deliveryStatus === "simulated" && (
+                            <span className="px-1.5 py-0.2 rounded font-semibold bg-amber-400 text-amber-950 font-mono text-[9px]">
+                              Simulated (Not Delivered)
+                            </span>
+                          )}
+
+                          {!isInbound && m.deliveryStatus === "delivered" && (
+                            <span className="px-1.5 py-0.2 rounded font-semibold bg-emerald-400 text-emerald-950 font-mono text-[9px]">
+                              Delivered
+                            </span>
+                          )}
+
+                          <span className="ml-auto opacity-75">
+                            {new Date(m.createdAt).toLocaleTimeString(undefined, {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Action Section: Log Inbound Note or Outbound Message */}
+              <div className="p-3.5 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 space-y-3">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActionTab("inbound")}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors cursor-pointer ${
+                      actionTab === "inbound"
+                        ? "bg-emerald-600 text-white shadow-xs"
+                        : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                    }`}
+                  >
+                    Log Inbound Note
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActionTab("outbound")}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors cursor-pointer ${
+                      actionTab === "outbound"
+                        ? "bg-primary text-white shadow-xs"
+                        : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                    }`}
+                  >
+                    Log Outbound Message (Simulated)
+                  </button>
+
+                  <div className="ml-auto flex items-center gap-1.5">
+                    <span className="text-[10px] text-gray-400 uppercase font-mono">Channel:</span>
+                    <select
+                      value={inputChannel}
+                      onChange={(e) => setInputChannel(e.target.value as any)}
+                      className="px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 text-xs font-mono"
+                    >
+                      <option value="whatsapp">WhatsApp</option>
+                      <option value="sms">SMS</option>
+                      <option value="email">Email</option>
+                      <option value="portal">Portal</option>
+                    </select>
+
+                    {actionTab === "outbound" && (
+                      <select
+                        value={outboundPurpose}
+                        onChange={(e) => setOutboundPurpose(e.target.value as any)}
+                        className="px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 text-xs font-mono"
+                      >
+                        <option value="manual">Manual Message</option>
+                        <option value="reminder">Appointment Reminder</option>
+                        <option value="confirmation">Confirmation</option>
+                        <option value="lead_recovery">Lead Follow-up</option>
+                      </select>
+                    )}
+                  </div>
+                </div>
+
+                <form onSubmit={handleSendOrLog} className="flex gap-2">
+                  <textarea
+                    rows={2}
+                    required
+                    placeholder={
+                      actionTab === "inbound"
+                        ? "Type staff note regarding patient/lead phone call or message..."
+                        : "Type message content to record in log (simulated)..."
+                    }
+                    value={inputContent}
+                    onChange={(e) => setInputContent(e.target.value)}
+                    className="flex-1 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 text-xs focus:border-primary resize-none"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || !inputContent.trim()}
+                    className={`px-4 rounded-xl text-white font-semibold flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+                      actionTab === "inbound"
+                        ? "bg-emerald-600 hover:bg-emerald-700"
+                        : "bg-primary hover:bg-primary/90"
+                    }`}
+                  >
+                    {actionTab === "inbound" ? (
+                      <span>Save Note</span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1">
+                        <span>Log</span>
+                        <Send className="h-3.5 w-3.5" />
+                      </span>
+                    )}
+                  </button>
+                </form>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-gray-400 space-y-2">
+              <MessageSquare className="h-8 w-8 text-gray-300" />
+              <p className="text-sm font-semibold">Select a conversation</p>
+              <p className="text-xs">Choose a thread from the left or create a new conversation.</p>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Message Feed */}
-      <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden shadow-xs">
-        {isLoading ? (
-          <div className="p-12 text-center text-xs font-mono text-gray-500">
-            Loading communication log...
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="p-12 text-center space-y-2">
-            <Inbox className="h-8 w-8 text-gray-400 mx-auto" />
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">
-              No communication records found
-            </p>
-            <p className="text-xs text-gray-500">Click &quot;Log Communication&quot; to create a log entry.</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-100 dark:divide-gray-800">
-            {messages.map((m) => (
-              <div
-                key={m.id}
-                className="p-4 hover:bg-gray-50/60 dark:hover:bg-gray-800/30 transition-colors space-y-2 text-xs"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`
-                        px-2.5 py-0.5 rounded-full font-mono uppercase text-[10px] font-bold
-                        ${
-                          m.channel === "sms"
-                            ? "bg-primary/10 text-primary font-semibold"
-                            : m.channel === "email"
-                            ? "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-                            : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                        }
-                      `}
-                    >
-                      {m.channel}
-                    </span>
-                    <span className="font-mono text-[10px] text-gray-400 uppercase">
-                      {m.status}
-                    </span>
-                  </div>
-                  <span className="text-[11px] text-gray-400 font-mono">
-                    {m.createdAt ? new Date(m.createdAt).toLocaleString() : ""}
-                  </span>
-                </div>
-
-                <p className="text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl border border-gray-100 dark:border-gray-800">
-                  {m.content}
-                </p>
-                {m.recipient && (
-                  <p className="font-mono text-[11px] text-gray-500">
-                    Recipient: {m.recipient}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Message Modal */}
-      {isModalOpen && (
+      {/* New Conversation Modal */}
+      {isNewConvoOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
           <div className="w-full max-w-md rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-800">
-              <div>
-                <h2 className="text-base font-display font-semibold text-gray-900 dark:text-white">
-                  Log Communication or Internal Note
-                </h2>
-                <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
-                  Internal communication log only. Nothing is delivered to patients.
-                </p>
-              </div>
+              <h2 className="text-base font-display font-semibold text-gray-900 dark:text-white">
+                New Conversation Thread
+              </h2>
               <button
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => setIsNewConvoOpen(false)}
                 className="p-1.5 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSendMessage} className="space-y-4 text-xs">
+            <form onSubmit={handleCreateNewConversation} className="space-y-4 text-xs">
               <div className="space-y-1">
-                <label className="font-medium text-gray-700 dark:text-gray-300">
-                  Search Patient (Optional)
-                </label>
-                <div className="relative">
-                  <Search className="h-3.5 w-3.5 text-gray-400 absolute left-2.5 top-2.5" />
-                  <input
-                    type="text"
-                    placeholder="Type name or phone..."
-                    value={patientSearch}
-                    onChange={(e) => handlePatientSearch(e.target.value)}
-                    className="w-full pl-8 pr-3 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 focus:border-primary"
-                  />
-                </div>
-                {patientResults.length > 0 && (
-                  <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-1 max-h-32 overflow-y-auto">
-                    {patientResults.map((p) => (
-                      <button
-                        type="button"
-                        key={p.id}
-                        onClick={() => {
-                          setPatientSearch(`${p.fullName} (${p.phone})`);
-                          setRecipient(p.phone);
-                          setPatientResults([]);
-                        }}
-                        className="w-full text-left px-3 py-2 rounded-lg hover:bg-primary/10 hover:text-primary flex justify-between cursor-pointer transition-colors"
-                      >
-                        <span>{p.fullName}</span>
-                        <span className="font-mono text-gray-400">{p.phone}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-1">
-                <label className="font-medium text-gray-700 dark:text-gray-300">Channel</label>
-                <select
-                  value={channel}
-                  onChange={(e) => setChannel(e.target.value as "sms" | "email" | "portal" | "whatsapp")}
-                  className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 focus:border-primary"
-                >
-                  <option value="sms">SMS</option>
-                  <option value="email">Email</option>
-                  <option value="portal">Portal</option>
-                  <option value="whatsapp">WhatsApp</option>
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="font-medium text-gray-700 dark:text-gray-300">
-                  Recipient {channel === "email" ? "Email" : "Phone"}
-                </label>
+                <label className="font-medium text-gray-700 dark:text-gray-300">Phone Number *</label>
                 <input
-                  type={channel === "email" ? "email" : "tel"}
-                  placeholder={channel === "email" ? "patient@example.com" : "+1-555-0199"}
-                  value={recipient}
-                  onChange={(e) => setRecipient(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 font-mono focus:border-primary"
-                />
-              </div>
-
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isInternalNote}
-                  onChange={(e) => setIsInternalNote(e.target.checked)}
-                  className="rounded border-gray-300 text-primary focus:ring-primary"
-                />
-                <span className="font-medium text-gray-700 dark:text-gray-300">
-                  Internal Note Only (prefixes the log entry and hides it from patient-facing records)
-                </span>
-              </label>
-
-              <div className="space-y-1">
-                <label className="font-medium text-gray-700 dark:text-gray-300">Message Content *</label>
-                <textarea
-                  rows={3}
+                  type="tel"
                   required
-                  placeholder="Enter message text or note..."
-                  value={body}
-                  onChange={(e) => setBody(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 focus:border-primary"
+                  placeholder="+92 300 1234567"
+                  value={newPhone}
+                  onChange={(e) => setNewPhone(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 font-mono focus:border-primary"
                 />
               </div>
 
-              <p className="text-[11px] text-gray-400 italic">
-                Note: Logging records internal message activity into the patient chart and staff audit logs.
-              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-medium text-gray-700 dark:text-gray-300">Direction</label>
+                  <select
+                    value={initialType}
+                    onChange={(e) => setInitialType(e.target.value as any)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 focus:border-primary"
+                  >
+                    <option value="inbound">Inbound Note</option>
+                    <option value="outbound">Outbound (Simulated)</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="font-medium text-gray-700 dark:text-gray-300">Channel</label>
+                  <select
+                    value={inputChannel}
+                    onChange={(e) => setInputChannel(e.target.value as any)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 focus:border-primary"
+                  >
+                    <option value="whatsapp">WhatsApp</option>
+                    <option value="sms">SMS</option>
+                    <option value="email">Email</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-medium text-gray-700 dark:text-gray-300">Message / Note Content *</label>
+                <textarea
+                  required
+                  rows={3}
+                  placeholder="Record initial message or notes..."
+                  value={initialNote}
+                  onChange={(e) => setInitialNote(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 focus:border-primary"
+                />
+              </div>
 
               <div className="pt-2 flex justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => setIsNewConvoOpen(false)}
                   className="px-4 py-2 rounded-full border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={isSending}
+                  disabled={isSubmitting}
                   className="px-4 py-2 rounded-full bg-primary text-white font-semibold hover:bg-primary/90 cursor-pointer transition-colors"
                 >
-                  {isSending ? "Saving..." : "Save Log Entry"}
+                  {isSubmitting ? "Starting..." : "Start Thread"}
                 </button>
               </div>
             </form>

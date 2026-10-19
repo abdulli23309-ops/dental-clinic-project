@@ -4,6 +4,7 @@ import hashlib
 import json
 import random
 import re
+import secrets
 import string
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
@@ -13,6 +14,7 @@ from fastapi import HTTPException, status as http_status
 from sqlalchemy import text
 
 from app.domain.models.booking_crm import Booking, Lead, Message, Patient, Task
+from app.domain.models.booking_flow import LeadStatus, is_valid_lead_transition
 from app.domain.models.visit_payment import VisitPayment
 from app.domain.models.appointment import Appointment, AppointmentStatus
 from app.domain.repositories.appointment_repo import AppointmentRepository
@@ -325,9 +327,19 @@ class ReceptionService:
         self, clinic_id: Optional[UUID] = None
     ) -> Dict[str, Any]:
         now = datetime.now(timezone.utc)
-        today = now.date()
-        tomorrow = today + timedelta(days=1)
-        yesterday = today - timedelta(days=1)
+        utc_today = now.date()
+        try:
+            from zoneinfo import ZoneInfo
+            local_today = datetime.now(ZoneInfo("Asia/Karachi")).date()
+        except Exception:
+            local_today = date.today()
+
+        today_from = min(utc_today, local_today)
+        today_to = max(utc_today, local_today)
+        tomorrow_from = today_from + timedelta(days=1)
+        tomorrow_to = today_to + timedelta(days=1)
+        yesterday_to = today_from - timedelta(days=1)
+        yesterday = yesterday_to
 
         # Configurable waiting threshold
         waiting_threshold_minutes = 15
@@ -341,12 +353,16 @@ class ReceptionService:
         # 1. Today's bookings
         today_bookings, total_today = await self.booking_repo.list_bookings(
             clinic_id=clinic_id,
-            date_from=today,
-            date_to=today,
+            date_from=today_from,
+            date_to=today_to,
             limit=200,
         )
 
-        counts = await self.booking_repo.get_counts_for_date(today, clinic_id=clinic_id)
+        counts = await self.booking_repo.get_counts_for_date(today_from, clinic_id=clinic_id)
+        if today_to != today_from:
+            counts2 = await self.booking_repo.get_counts_for_date(today_to, clinic_id=clinic_id)
+            for k, v in counts2.items():
+                counts[k] = counts.get(k, 0) + v
         confirmed_count = counts.get("confirmed", 0)
         unconfirmed_count = counts.get("requested", 0)
         checked_in_count = counts.get("checked_in", 0)
@@ -366,7 +382,7 @@ class ReceptionService:
         ]
 
         leads, total_leads = await self.lead_repo.list_leads(
-            clinic_id=clinic_id, status="new", limit=100
+            clinic_id=clinic_id, status=LeadStatus.UNCONVERTED.value, limit=100
         )
 
         # Helper to safely convert datetime to timezone-aware UTC
@@ -427,8 +443,8 @@ class ReceptionService:
         # Category 2: Unconfirmed appointments for the next day
         tomorrow_bookings, _ = await self.booking_repo.list_bookings(
             clinic_id=clinic_id,
-            date_from=tomorrow,
-            date_to=tomorrow,
+            date_from=tomorrow_from,
+            date_to=tomorrow_to,
             limit=100,
         )
         for b in tomorrow_bookings:
@@ -669,14 +685,16 @@ class ReceptionService:
         self,
         patient_full_name: str,
         patient_phone: str,
-        patient_email: str,
         preferred_date: date,
         preferred_time: str,
+        patient_email: Optional[str] = None,
         clinic_id: Optional[UUID] = None,
         patient_id: Optional[UUID] = None,
         service_id: Optional[str] = None,
         team_member_id: Optional[UUID] = None,
         slot_id: Optional[UUID] = None,
+        lead_id: Optional[UUID] = None,
+        source: str = "reception",
         status: str = "confirmed",
         notes: Optional[str] = None,
         staff_notes: Optional[str] = None,
@@ -751,6 +769,8 @@ class ReceptionService:
                 patient_email=patient_email,
                 clinic_id=clinic_id,
                 patient_id=patient_id,
+                lead_id=lead_id,
+                source=source,
                 service_id=service_id,
                 team_member_id=team_member_id,
                 slot_id=slot_id,
@@ -759,6 +779,17 @@ class ReceptionService:
                 staff_notes=staff_notes,
             )
             saved_booking = await self.booking_repo.save(booking)
+
+            # Convert matching lead if one exists (by lead_id or matching phone)
+            session = getattr(self.booking_repo, "_session", None) or getattr(self.lead_repo, "_session", None)
+            if session:
+                try:
+                    from app.application.services.lead_status_service import LeadStatusService
+                    await LeadStatusService(session, self.activity_repo).on_booking_created(
+                        saved_booking, user_id=user_id
+                    )
+                except Exception:
+                    pass
 
         if conflict and override_double_booking:
             await record_activity(
@@ -920,6 +951,16 @@ class ReceptionService:
                     await self.message_repo.cancel_pending_reminders(saved.id)
                 except Exception:
                     pass
+            if normalized_new == "completed":
+                session = getattr(self.booking_repo, "_session", None) or getattr(self.lead_repo, "_session", None)
+                if session:
+                    try:
+                        from app.application.services.lead_status_service import LeadStatusService
+                        await LeadStatusService(session, self.activity_repo).on_booking_completed(
+                            saved, user_id=user_id
+                        )
+                    except Exception:
+                        pass
 
         return saved
 
@@ -1312,20 +1353,38 @@ class ReceptionService:
         sender_id: Optional[UUID] = None,
         recipient_id: Optional[UUID] = None,
         patient_id: Optional[UUID] = None,
+        lead_id: Optional[UUID] = None,
         phone: Optional[str] = None,
         email: Optional[str] = None,
         channel: str = "sms",
         status: str = "logged",
+        direction: str = "outbound",
+        purpose: str = "manual",
+        delivery_status: Optional[str] = None,
     ) -> Message:
+        if phone:
+            session = getattr(self.message_repo, "_session", None)
+            from app.application.services.call_desk_service import can_send_message
+            if not await can_send_message(phone, purpose=purpose, session=session):
+                raise ValueError(
+                    f"Message blocked: contact {phone} is currently held by Call Desk; purpose '{purpose}' is suppressed."
+                )
+
+        if delivery_status is None:
+            delivery_status = "received" if direction == "inbound" else "simulated"
         msg = Message(
             content=content,
             sender_id=sender_id,
             recipient_id=recipient_id,
             patient_id=patient_id,
+            lead_id=lead_id,
             phone=phone,
             email=email,
             channel=channel,
             status=status,
+            direction=direction,
+            purpose=purpose,
+            delivery_status=delivery_status,
         )
         return await self.message_repo.save(msg)
 
@@ -1350,10 +1409,15 @@ class ReceptionService:
         email: Optional[str] = None,
         clinic_id: Optional[UUID] = None,
         lead_source_id: Optional[UUID] = None,
-        status: str = "new",
+        status: str = LeadStatus.UNCONVERTED.value,
         notes: Optional[str] = None,
         utm_source: Optional[str] = None,
         utm_campaign: Optional[str] = None,
+        service_id: Optional[str] = None,
+        team_member_id: Optional[UUID] = None,
+        attempts: int = 0,
+        capture_token: Optional[str] = None,
+        consent_notice_version: Optional[str] = None,
     ) -> Lead:
         lead = Lead(
             full_name=full_name,
@@ -1365,6 +1429,11 @@ class ReceptionService:
             notes=notes,
             utm_source=utm_source,
             utm_campaign=utm_campaign,
+            service_id=service_id,
+            team_member_id=team_member_id,
+            attempts=attempts,
+            capture_token=capture_token or secrets.token_urlsafe(24),
+            consent_notice_version=consent_notice_version,
         )
         return await self.lead_repo.save(lead)
 
@@ -1376,6 +1445,20 @@ class ReceptionService:
             raise HTTPException(
                 status_code=http_status.HTTP_404_NOT_FOUND, detail="Lead not found."
             )
+        if "status" in updates and updates["status"] is not None:
+            new_status = updates["status"]
+            try:
+                LeadStatus(new_status)
+            except ValueError:
+                raise HTTPException(
+                    status_code=http_status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid lead status '{new_status}'. Allowed statuses: {[s.value for s in LeadStatus]}",
+                )
+            if not is_valid_lead_transition(lead.status, new_status, is_manual=True):
+                raise HTTPException(
+                    status_code=http_status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid lead status transition from '{lead.status}' to '{new_status}'.",
+                )
         for k, v in updates.items():
             if hasattr(lead, k) and v is not None:
                 setattr(lead, k, v)
@@ -2051,6 +2134,13 @@ class ReceptionService:
                 if not b or b.status in ("cancelled", "no_show", "completed"):
                     msg.delivery_status = "cancelled"
                     await self.message_repo.save(msg)
+                    continue
+
+            # Check hold: a contact hold suppresses ONLY lead-recovery messages (reminders/confirmations never blocked)
+            if getattr(msg, "purpose", None) == "lead_recovery":
+                from app.application.services.call_desk_service import is_held as _is_held
+                msg_phone = getattr(msg, "phone_normalized", None) or getattr(msg, "phone", None)
+                if msg_phone and await _is_held(msg_phone, session=session):
                     continue
 
             # Check quiet hours right now

@@ -147,7 +147,7 @@ export default function LoginPage() {
                 label="Email Address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@marlowdental.com"
+                placeholder="staff@example.com"
                 required
                 autoComplete="email"
               />

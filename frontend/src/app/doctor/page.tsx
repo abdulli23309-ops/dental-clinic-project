@@ -540,9 +540,21 @@ export default function DoctorDashboardPage() {
                 >
                   <div>
                     <div className="flex items-start justify-between gap-2">
-                      <p className="font-semibold text-xs text-ink truncate">
-                        {b.patientName}
-                      </p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="font-semibold text-xs text-ink truncate">
+                          {b.patientName}
+                        </p>
+                        {b.source && (
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-sand border border-line text-ink-soft">
+                            {b.source}
+                          </span>
+                        )}
+                        {b.isFirstVisit && (
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-950/60 dark:text-purple-300">
+                            First Visit
+                          </span>
+                        )}
+                      </div>
                       <span
                         className={`inline-flex items-center gap-1 font-mono text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 ${badgeClasses}`}
                       >
@@ -673,6 +685,16 @@ export default function DoctorDashboardPage() {
                         <span className="font-semibold text-ink">
                           {b.patientName || "Patient"}
                         </span>
+                        {b.source && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-sand border border-line text-ink-soft">
+                            {b.source}
+                          </span>
+                        )}
+                        {b.isFirstVisit && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-800 border border-purple-300 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800">
+                            First Visit
+                          </span>
+                        )}
                         {b.paymentStatus === "paid" && (
                           <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800">
                             Paid

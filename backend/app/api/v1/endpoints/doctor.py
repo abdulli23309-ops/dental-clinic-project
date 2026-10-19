@@ -13,6 +13,7 @@ from app.api.deps import (
     get_doctor_service,
     get_encounter_repository,
     get_encounter_service,
+    get_lead_status_service,
     get_medical_alert_service,
     get_patient_repository,
     get_reception_service,
@@ -20,6 +21,7 @@ from app.api.deps import (
     require_doctor,
     require_doctor_strictly,
 )
+from app.application.services.lead_status_service import LeadStatusService
 from app.application.services.medical_alert_service import MedicalAlertService
 from app.application.services.reception_service import ReceptionService
 from app.domain.repositories.booking_repo import BookingRepository
@@ -54,7 +56,7 @@ from app.application.dtos.encounter_dto import (
     UnsignedNoteItemDto,
     UpdateEncounterStatusRequestDto,
 )
-from app.application.dtos.reception_dto import BookingResponseDto
+from app.application.dtos.reception_dto import BookingResponseDto, DoctorScheduleBookingDto
 from app.application.services.clinical_note_service import ClinicalNoteService
 from app.application.services.dental_chart_service import DentalChartService
 from app.application.services.doctor_service import DoctorService
@@ -94,15 +96,17 @@ async def _determine_payment_status(payment_repo: Optional[VisitPaymentRepositor
         return "unpaid"
 
 
-@router.get("/schedule", response_model=List[BookingResponseDto])
+@router.get("/schedule", response_model=List[DoctorScheduleBookingDto])
 async def get_doctor_schedule(
     target_date: Optional[date] = Query(None),
+    date: Optional[date] = Query(None),
     clinic_id: Optional[UUID] = Query(None),
     current_user: User = Depends(require_doctor),
     doctor_service: DoctorService = Depends(get_doctor_service),
     medical_alert_service: MedicalAlertService = Depends(get_medical_alert_service),
+    lead_status_service: LeadStatusService = Depends(get_lead_status_service),
     payment_repo: VisitPaymentRepository = Depends(get_visit_payment_repository),
-) -> List[BookingResponseDto]:
+) -> List[DoctorScheduleBookingDto]:
     user_role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
     is_admin_level = user_role_str.lower() in ("admin", "super admin", "platform owner")
 
@@ -112,11 +116,14 @@ async def get_doctor_schedule(
 
     effective_clinic = current_user.clinic_id or clinic_id
     effective_team_member = current_user.team_member_id if not is_admin_level else None
+    effective_date = target_date or date
     bookings = await doctor_service.get_doctor_schedule(
         team_member_id=effective_team_member,
         clinic_id=effective_clinic,
-        target_date=target_date,
+        target_date=effective_date,
     )
+
+    first_visit_map, _ = await lead_status_service.enrich_bookings_with_lead_and_first_visit(bookings)
 
     patient_ids = [b.patient_id for b in bookings if b.patient_id]
     patients_with_alerts = set()
@@ -128,7 +135,7 @@ async def get_doctor_schedule(
     for b in bookings:
         status_val = await _determine_payment_status(payment_repo, b.id)
         response.append(
-            BookingResponseDto(
+            DoctorScheduleBookingDto(
                 id=b.id,
                 confirmationId=b.confirmation_id,
                 preferredDate=b.preferred_date,
@@ -136,16 +143,16 @@ async def get_doctor_schedule(
                 patientFullName=b.patient_full_name,
                 patientPhone=b.patient_phone,
                 patientEmail=b.patient_email,
+                phoneNormalized=getattr(b, "phone_normalized", None),
                 status=b.status,
                 clinicId=b.clinic_id,
                 patientId=b.patient_id,
+                source=getattr(b, "source", "reception") or "reception",
                 serviceId=b.service_id,
                 teamMemberId=b.team_member_id,
                 slotId=b.slot_id,
                 notes=b.notes,
                 staffNotes=b.staff_notes,
-                utmSource=b.utm_source,
-                utmCampaign=b.utm_campaign,
                 arrivedAt=b.arrived_at,
                 startedAt=b.started_at,
                 completedAt=b.completed_at,
@@ -153,6 +160,7 @@ async def get_doctor_schedule(
                 cancelledByUserId=b.cancelled_by_user_id,
                 hasAlerts=b.patient_id in patients_with_alerts if b.patient_id else False,
                 paymentStatus=status_val,
+                isFirstVisit=first_visit_map.get(b.id, True),
                 createdAt=b.created_at,
                 updatedAt=b.updated_at,
             )
@@ -165,6 +173,7 @@ async def get_appointment_detail(
     id: UUID,
     current_user: User = Depends(require_doctor),
     doctor_service: DoctorService = Depends(get_doctor_service),
+    lead_status_service: LeadStatusService = Depends(get_lead_status_service),
     payment_repo: VisitPaymentRepository = Depends(get_visit_payment_repository),
 ) -> BookingResponseDto:
     b = await doctor_service.get_appointment(id)
@@ -184,6 +193,7 @@ async def get_appointment_detail(
                 detail="Access forbidden: You cannot view appointment details for another doctor's assigned patient.",
             )
 
+    first_visit_map, _ = await lead_status_service.enrich_bookings_with_lead_and_first_visit([b])
     status_val = await _determine_payment_status(payment_repo, b.id)
     return BookingResponseDto(
         id=b.id,
@@ -196,22 +206,27 @@ async def get_appointment_detail(
         status=b.status,
         clinicId=b.clinic_id,
         patientId=b.patient_id,
+        leadId=None,  # Doctor sees no lead details
+        source=getattr(b, "source", "reception") or "reception",
         serviceId=b.service_id,
         teamMemberId=b.team_member_id,
         slotId=b.slot_id,
         notes=b.notes,
         staffNotes=b.staff_notes,
-        utmSource=b.utm_source,
-        utmCampaign=b.utm_campaign,
+        utmSource=None,  # Doctor sees no marketing CRM details
+        utmCampaign=None,
         arrivedAt=b.arrived_at,
         startedAt=b.started_at,
         completedAt=b.completed_at,
         cancellationReason=b.cancellation_reason,
         cancelledByUserId=b.cancelled_by_user_id,
         paymentStatus=status_val,
+        leadStatus=None,  # Doctor sees no lead details
+        isFirstVisit=first_visit_map.get(b.id, True),
         createdAt=b.created_at,
         updatedAt=b.updated_at,
     )
+
 
 
 @router.post("/appointments/{id}/start", response_model=BookingResponseDto)

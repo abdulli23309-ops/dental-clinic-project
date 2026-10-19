@@ -2,14 +2,18 @@ from datetime import date, timedelta
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.deps import (
+    get_call_desk_service,
+    get_lead_status_service,
     get_medical_alert_service,
     get_reception_service,
     require_receptionist,
     require_role,
 )
+from app.application.services.call_desk_service import CallDeskService
+from app.application.services.lead_status_service import LeadStatusService
 from app.application.dtos.medical_alert_dto import (
     CreatePendingAlertRequest,
     MedicalAlertDto,
@@ -20,15 +24,24 @@ from app.application.dtos.reception_dto import (
     BookingRescheduleRequest,
     BookingResponseDto,
     BookingStatusUpdateRequest,
+    CallDeskHoldDto,
+    CallDeskLookupResponse,
+    CallDeskOutcomeRequest,
+    CallDeskOutcomeResponse,
+    ContactHoldCreateRequest,
     CreateRecallTaskRequest,
     DashboardSnoozeRequest,
     DashboardSummaryResponse,
     EndOfDayItemDto,
     EndOfDayResolveRequest,
     EndOfDayUnresolvedResponse,
+    LeadAttemptRequest,
     LeadConvertRequest,
     LeadCreateRequest,
+    LeadFailedConversionRequest,
     LeadResponseDto,
+    LeadStatusUpdateRequest,
+    LeadTimelineItemDto,
     LeadUpdateRequest,
     MessageCreateRequest,
     MessageResponseDto,
@@ -133,6 +146,7 @@ async def get_schedule(
     clinic_id: Optional[UUID] = Query(None),
     current_user: User = Depends(require_receptionist),
     reception_service: ReceptionService = Depends(get_reception_service),
+    lead_status_service: LeadStatusService = Depends(get_lead_status_service),
 ) -> List[BookingResponseDto]:
     effective_clinic = _get_clinic_scope(current_user, clinic_id)
     bookings, _ = await reception_service.list_schedule(
@@ -144,6 +158,7 @@ async def get_schedule(
         search=search,
         limit=200,
     )
+    first_visit_map, lead_status_map = await lead_status_service.enrich_bookings_with_lead_and_first_visit(bookings)
     return [
         BookingResponseDto(
             id=b.id,
@@ -153,9 +168,12 @@ async def get_schedule(
             patientFullName=b.patient_full_name,
             patientPhone=b.patient_phone,
             patientEmail=b.patient_email,
+            phoneNormalized=b.phone_normalized,
             status=b.status,
             clinicId=b.clinic_id,
             patientId=b.patient_id,
+            leadId=b.lead_id,
+            source=getattr(b, "source", "reception") or "reception",
             serviceId=b.service_id,
             teamMemberId=b.team_member_id,
             slotId=b.slot_id,
@@ -163,6 +181,8 @@ async def get_schedule(
             staffNotes=b.staff_notes,
             utmSource=b.utm_source,
             utmCampaign=b.utm_campaign,
+            leadStatus=lead_status_map.get(b.id),
+            isFirstVisit=first_visit_map.get(b.id, True),
             createdAt=b.created_at,
             updatedAt=b.updated_at,
         )
@@ -180,6 +200,7 @@ async def list_appointments(
     clinic_id: Optional[UUID] = Query(None),
     current_user: User = Depends(require_receptionist),
     reception_service: ReceptionService = Depends(get_reception_service),
+    lead_status_service: LeadStatusService = Depends(get_lead_status_service),
 ) -> List[BookingResponseDto]:
     effective_clinic = _get_clinic_scope(current_user, clinic_id)
     bookings, _ = await reception_service.list_schedule(
@@ -191,6 +212,7 @@ async def list_appointments(
         search=search,
         limit=200,
     )
+    first_visit_map, lead_status_map = await lead_status_service.enrich_bookings_with_lead_and_first_visit(bookings)
     return [
         BookingResponseDto(
             id=b.id,
@@ -200,9 +222,12 @@ async def list_appointments(
             patientFullName=b.patient_full_name,
             patientPhone=b.patient_phone,
             patientEmail=b.patient_email,
+            phoneNormalized=b.phone_normalized,
             status=b.status,
             clinicId=b.clinic_id,
             patientId=b.patient_id,
+            leadId=b.lead_id,
+            source=getattr(b, "source", "reception") or "reception",
             serviceId=b.service_id,
             teamMemberId=b.team_member_id,
             slotId=b.slot_id,
@@ -210,11 +235,63 @@ async def list_appointments(
             staffNotes=b.staff_notes,
             utmSource=b.utm_source,
             utmCampaign=b.utm_campaign,
+            leadStatus=lead_status_map.get(b.id),
+            isFirstVisit=first_visit_map.get(b.id, True),
             createdAt=b.created_at,
             updatedAt=b.updated_at,
         )
         for b in bookings
     ]
+
+
+@router.get("/appointments/{id}", response_model=BookingResponseDto)
+async def get_reception_appointment_detail(
+    id: UUID,
+    current_user: User = Depends(require_receptionist),
+    reception_service: ReceptionService = Depends(get_reception_service),
+    lead_status_service: LeadStatusService = Depends(get_lead_status_service),
+) -> BookingResponseDto:
+    booking = await reception_service.get_booking(id)
+    if not booking:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Appointment not found.",
+        )
+    first_visit_map, lead_status_map = await lead_status_service.enrich_bookings_with_lead_and_first_visit([booking])
+    return BookingResponseDto(
+        id=booking.id,
+        confirmationId=booking.confirmation_id,
+        preferredDate=booking.preferred_date,
+        preferredTime=booking.preferred_time,
+        patientFullName=booking.patient_full_name,
+        patientPhone=booking.patient_phone,
+        patientEmail=booking.patient_email,
+        phoneNormalized=booking.phone_normalized,
+        status=booking.status,
+        clinicId=booking.clinic_id,
+        patientId=booking.patient_id,
+        leadId=booking.lead_id,
+        source=booking.source or "reception",
+        serviceId=booking.service_id,
+        teamMemberId=booking.team_member_id,
+        slotId=booking.slot_id,
+        notes=booking.notes,
+        staffNotes=booking.staff_notes,
+        utmSource=booking.utm_source,
+        utmCampaign=booking.utm_campaign,
+        arrivedAt=booking.arrived_at,
+        startedAt=booking.started_at,
+        completedAt=booking.completed_at,
+        cancellationReason=booking.cancellation_reason,
+        cancelledByUserId=booking.cancelled_by_user_id,
+        remindedAt=booking.reminded_at,
+        remindedByUserId=booking.reminded_by_user_id,
+        leadStatus=lead_status_map.get(booking.id),
+        isFirstVisit=first_visit_map.get(booking.id, True),
+        createdAt=booking.created_at,
+        updatedAt=booking.updated_at,
+    )
+
 
 
 @router.post("/appointments", response_model=BookingResponseDto, status_code=status.HTTP_201_CREATED)
@@ -235,6 +312,8 @@ async def create_appointment(
         service_id=req.serviceId,
         team_member_id=req.teamMemberId,
         slot_id=req.slotId,
+        lead_id=req.leadId,
+        source=req.source,
         status=req.status,
         notes=req.notes,
         staff_notes=req.staffNotes,
@@ -250,9 +329,12 @@ async def create_appointment(
         patientFullName=booking.patient_full_name,
         patientPhone=booking.patient_phone,
         patientEmail=booking.patient_email,
+        phoneNormalized=booking.phone_normalized,
         status=booking.status,
         clinicId=booking.clinic_id,
         patientId=booking.patient_id,
+        leadId=booking.lead_id,
+        source=booking.source,
         serviceId=booking.service_id,
         teamMemberId=booking.team_member_id,
         slotId=booking.slot_id,
@@ -1078,22 +1160,35 @@ async def update_task(
 
 @router.get("/messages", response_model=List[MessageResponseDto])
 async def list_messages(
+    phone: Optional[str] = Query(None),
     clinic_id: Optional[UUID] = Query(None),
     current_user: User = Depends(require_receptionist),
     reception_service: ReceptionService = Depends(get_reception_service),
 ) -> List[MessageResponseDto]:
     effective_clinic = _get_clinic_scope(current_user, clinic_id)
     messages, _ = await reception_service.list_messages(clinic_id=effective_clinic)
+    if phone and phone.strip():
+        norm = normalize_pakistan_phone(phone)
+        messages = [
+            m for m in messages
+            if (getattr(m, "phone_normalized", "") == norm or getattr(m, "phone", "") == phone.strip())
+        ]
     return [
         MessageResponseDto(
             id=m.id,
             content=m.content,
+            patientId=getattr(m, "patient_id", None),
+            leadId=getattr(m, "lead_id", None),
             senderId=m.sender_id,
             recipientId=m.recipient_id,
             phone=m.phone,
+            phoneNormalized=getattr(m, "phone_normalized", None),
             email=m.email,
             channel=m.channel,
             status=m.status,
+            direction=getattr(m, "direction", "outbound"),
+            purpose=getattr(m, "purpose", "manual"),
+            deliveryStatus=getattr(m, "delivery_status", "simulated"),
             createdAt=m.created_at,
         )
         for m in messages
@@ -1106,26 +1201,65 @@ async def send_message(
     current_user: User = Depends(require_receptionist),
     reception_service: ReceptionService = Depends(get_reception_service),
 ) -> MessageResponseDto:
-    msg = await reception_service.create_message(
-        content=req.content,
-        sender_id=current_user.id,
-        recipient_id=req.recipientId,
-        patient_id=req.patientId,
-        phone=req.phone,
-        email=req.email,
-        channel=req.channel,
-    )
+    try:
+        msg = await reception_service.create_message(
+            content=req.content,
+            sender_id=current_user.id,
+            recipient_id=req.recipientId,
+            patient_id=req.patientId,
+            lead_id=req.leadId,
+            phone=req.phone,
+            email=req.email,
+            channel=req.channel,
+            direction=req.direction,
+            purpose=req.purpose,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     return MessageResponseDto(
         id=msg.id,
         content=msg.content,
         patientId=msg.patient_id,
+        leadId=getattr(msg, "lead_id", None),
         senderId=msg.sender_id,
         recipientId=msg.recipient_id,
         phone=msg.phone,
+        phoneNormalized=getattr(msg, "phone_normalized", None),
         email=msg.email,
         channel=msg.channel,
         status=msg.status,
+        direction=getattr(msg, "direction", "outbound"),
+        purpose=getattr(msg, "purpose", "manual"),
+        deliveryStatus=getattr(msg, "delivery_status", "simulated"),
         createdAt=msg.created_at,
+    )
+
+
+def _lead_to_dto(l: Lead) -> LeadResponseDto:
+    return LeadResponseDto(
+        id=l.id,
+        fullName=l.full_name,
+        phone=l.phone,
+        phoneNormalized=l.phone_normalized,
+        email=l.email,
+        clinicId=l.clinic_id,
+        patientId=l.patient_id,
+        leadSourceId=l.lead_source_id,
+        serviceId=l.service_id,
+        teamMemberId=l.team_member_id,
+        status=l.status,
+        attempts=l.attempts,
+        lastContactedAt=l.last_contacted_at,
+        nextAttemptAt=l.next_attempt_at,
+        coldAt=l.cold_at,
+        lastActivityAt=l.last_activity_at,
+        captureToken=l.capture_token,
+        consentNoticeVersion=l.consent_notice_version,
+        notes=l.notes,
+        utmSource=l.utm_source,
+        utmCampaign=l.utm_campaign,
+        createdAt=l.created_at,
+        updatedAt=l.updated_at,
     )
 
 
@@ -1143,24 +1277,7 @@ async def list_leads(
     leads, _ = await reception_service.list_leads(
         clinic_id=effective_clinic, status=status, search=search
     )
-    return [
-        LeadResponseDto(
-            id=l.id,
-            fullName=l.full_name,
-            phone=l.phone,
-            email=l.email,
-            clinicId=l.clinic_id,
-            patientId=l.patient_id,
-            leadSourceId=l.lead_source_id,
-            status=l.status,
-            notes=l.notes,
-            utmSource=l.utm_source,
-            utmCampaign=l.utm_campaign,
-            createdAt=l.created_at,
-            updatedAt=l.updated_at,
-        )
-        for l in leads
-    ]
+    return [_lead_to_dto(l) for l in leads]
 
 
 @router.post("/leads", response_model=LeadResponseDto, status_code=status.HTTP_201_CREATED)
@@ -1180,22 +1297,12 @@ async def create_lead(
         notes=req.notes,
         utm_source=req.utmSource,
         utm_campaign=req.utmCampaign,
+        service_id=req.serviceId,
+        team_member_id=req.teamMemberId,
+        capture_token=req.captureToken,
+        consent_notice_version=req.consentNoticeVersion,
     )
-    return LeadResponseDto(
-        id=lead.id,
-        fullName=lead.full_name,
-        phone=lead.phone,
-        email=lead.email,
-        clinicId=lead.clinic_id,
-        patientId=lead.patient_id,
-        leadSourceId=lead.lead_source_id,
-        status=lead.status,
-        notes=lead.notes,
-        utmSource=lead.utm_source,
-        utmCampaign=lead.utm_campaign,
-        createdAt=lead.created_at,
-        updatedAt=lead.updated_at,
-    )
+    return _lead_to_dto(lead)
 
 
 @router.patch("/leads/{id}", response_model=LeadResponseDto)
@@ -1220,23 +1327,25 @@ async def update_lead(
         updates["clinic_id"] = req.clinicId
     if req.leadSourceId is not None:
         updates["lead_source_id"] = req.leadSourceId
+    if req.serviceId is not None:
+        updates["service_id"] = req.serviceId
+    if req.teamMemberId is not None:
+        updates["team_member_id"] = req.teamMemberId
+    if req.attempts is not None:
+        updates["attempts"] = req.attempts
+    if req.lastContactedAt is not None:
+        updates["last_contacted_at"] = req.lastContactedAt
+    if req.nextAttemptAt is not None:
+        updates["next_attempt_at"] = req.nextAttemptAt
+    if req.coldAt is not None:
+        updates["cold_at"] = req.coldAt
+    if req.lastActivityAt is not None:
+        updates["last_activity_at"] = req.lastActivityAt
+    if req.consentNoticeVersion is not None:
+        updates["consent_notice_version"] = req.consentNoticeVersion
 
     lead = await reception_service.update_lead(id, updates)
-    return LeadResponseDto(
-        id=lead.id,
-        fullName=lead.full_name,
-        phone=lead.phone,
-        email=lead.email,
-        clinicId=lead.clinic_id,
-        patientId=lead.patient_id,
-        leadSourceId=lead.lead_source_id,
-        status=lead.status,
-        notes=lead.notes,
-        utmSource=lead.utm_source,
-        utmCampaign=lead.utm_campaign,
-        createdAt=lead.created_at,
-        updatedAt=lead.updated_at,
-    )
+    return _lead_to_dto(lead)
 
 
 @router.post("/leads/{id}/convert", response_model=PatientResponseDto)
@@ -1267,6 +1376,71 @@ async def convert_lead_to_patient(
         createdAt=patient.created_at,
         updatedAt=patient.updated_at,
     )
+
+
+@router.patch("/leads/{id}/status", response_model=LeadResponseDto)
+async def update_lead_status(
+    id: UUID,
+    req: LeadStatusUpdateRequest,
+    current_user: User = Depends(require_receptionist),
+    lead_status_service: LeadStatusService = Depends(get_lead_status_service),
+) -> LeadResponseDto:
+    lead = await lead_status_service.change_status_manual(
+        lead_id=id,
+        new_status=req.status,
+        reason=req.reason,
+        user_id=current_user.id,
+    )
+    await lead_status_service.session.commit()
+    await lead_status_service.session.refresh(lead)
+    return _lead_to_dto(lead)
+
+
+@router.post("/leads/{id}/failed-conversion", response_model=LeadResponseDto)
+async def mark_lead_failed_conversion(
+    id: UUID,
+    req: LeadFailedConversionRequest,
+    current_user: User = Depends(require_receptionist),
+    lead_status_service: LeadStatusService = Depends(get_lead_status_service),
+) -> LeadResponseDto:
+    lead = await lead_status_service.mark_failed_conversion(
+        lead_id=id,
+        reason=req.reason,
+        actor_type="user",
+        actor_id=str(current_user.id),
+    )
+    await lead_status_service.session.commit()
+    await lead_status_service.session.refresh(lead)
+    return _lead_to_dto(lead)
+
+
+@router.post("/leads/{id}/attempt", response_model=LeadResponseDto)
+async def log_lead_attempt(
+    id: UUID,
+    req: LeadAttemptRequest,
+    current_user: User = Depends(require_receptionist),
+    lead_status_service: LeadStatusService = Depends(get_lead_status_service),
+) -> LeadResponseDto:
+    lead = await lead_status_service.log_contact_attempt(
+        lead_id=id,
+        channel=req.channel,
+        result=req.result,
+        note=req.note,
+        user_id=current_user.id,
+    )
+    await lead_status_service.session.commit()
+    await lead_status_service.session.refresh(lead)
+    return _lead_to_dto(lead)
+
+
+@router.get("/leads/{id}/timeline", response_model=List[LeadTimelineItemDto])
+async def get_lead_timeline(
+    id: UUID,
+    current_user: User = Depends(require_receptionist),
+    lead_status_service: LeadStatusService = Depends(get_lead_status_service),
+) -> List[LeadTimelineItemDto]:
+    timeline = await lead_status_service.get_lead_timeline(lead_id=id)
+    return [LeadTimelineItemDto(**t) for t in timeline]
 
 
 # --- 7. Recalls & Waitlist ---
@@ -1383,4 +1557,80 @@ async def record_pending_alert(
         createdAt=saved.created_at,
         updatedAt=saved.updated_at,
     )
+
+
+# --- Call Desk Endpoints (Receptionist and Admin only, Audited) ---
+
+@router.get(
+    "/call-desk/lookup",
+    response_model=CallDeskLookupResponse,
+)
+async def call_desk_lookup(
+    phone: str = Query(..., min_length=3, description="Caller phone number to look up"),
+    current_user: User = Depends(require_receptionist),
+    call_desk_service: CallDeskService = Depends(get_call_desk_service),
+) -> CallDeskLookupResponse:
+    """
+    Looks up normalized number, matching patients (including family members),
+    leads with attempts and event history, upcoming bookings, and recent messages. Audited.
+    """
+    return await call_desk_service.lookup(phone=phone, user_id=current_user.id)
+
+
+@router.post(
+    "/call-desk/holds",
+    response_model=CallDeskHoldDto,
+)
+async def call_desk_start_or_extend_hold(
+    req: ContactHoldCreateRequest,
+    current_user: User = Depends(require_receptionist),
+    call_desk_service: CallDeskService = Depends(get_call_desk_service),
+) -> CallDeskHoldDto:
+    """
+    Starts a contact hold or extends an existing active hold.
+    Blocks automated lead-recovery messages while staff are on the call. Audited.
+    """
+    return await call_desk_service.start_or_extend_hold(
+        phone=req.phone,
+        hold_minutes=req.holdMinutes,
+        user_id=current_user.id,
+        reason=req.reason,
+    )
+
+
+@router.delete(
+    "/call-desk/holds",
+)
+async def call_desk_release_hold(
+    phone: Optional[str] = Query(None, description="Caller phone number whose hold should be released"),
+    payload: Optional[Dict[str, Any]] = None,
+    current_user: User = Depends(require_receptionist),
+    call_desk_service: CallDeskService = Depends(get_call_desk_service),
+) -> Dict[str, Any]:
+    """
+    Releases active contact holds for the phone number. Audited.
+    """
+    target_phone = phone or (payload.get("phone") if payload else None)
+    if not target_phone:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Phone number is required to release hold.",
+        )
+    return await call_desk_service.release_hold(phone=target_phone, user_id=current_user.id)
+
+
+@router.post(
+    "/call-desk/outcomes",
+    response_model=CallDeskOutcomeResponse,
+)
+async def call_desk_record_outcome(
+    req: CallDeskOutcomeRequest,
+    current_user: User = Depends(require_receptionist),
+    call_desk_service: CallDeskService = Depends(get_call_desk_service),
+) -> CallDeskOutcomeResponse:
+    """
+    Records call outcome, notes, and optional lead capture if the call dropped.
+    Releases the active hold, and records call_logs and lead_events. Audited.
+    """
+    return await call_desk_service.record_outcome(req=req, user_id=current_user.id)
 

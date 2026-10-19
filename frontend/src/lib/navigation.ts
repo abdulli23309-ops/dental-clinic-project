@@ -61,6 +61,7 @@ const ADMIN_MANAGEMENT: SidebarLink[] = [
   { href: "/admin/users", title: "Staff Accounts", icon: User },
   { href: "/admin/announcements", title: "Announcements", icon: Bell },
   { href: "/admin/website", title: "Website CMS", icon: Globe },
+  { href: "/admin/integrations", title: "API Integrations", icon: Zap },
 ];
 
 const ADMIN_SYSTEM: SidebarLink[] = [
@@ -81,6 +82,7 @@ const RECEPTION_NAV: SidebarLink[] = [
   { href: "/reception/tasks", title: "Tasks", icon: ListTodo },
   { href: "/reception/messages", title: "Messages", icon: Mail },
   { href: "/reception/recalls", title: "Recalls", icon: PhoneCall },
+  { href: "/reception/call-desk", title: "Call Desk", icon: PhoneCall },
   { href: "/reception/waitlist", title: "Waitlist", icon: Zap },
   { href: "/reception/leads", title: "Leads", icon: UserX },
   { href: "/reception/account", title: "Account", icon: ShieldCheck },

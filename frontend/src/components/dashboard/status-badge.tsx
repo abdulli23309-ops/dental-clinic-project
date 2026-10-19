@@ -37,12 +37,13 @@ const STATUS_TONES: Record<string, { label: string; tone: Tone }> = {
   urgent: { label: "Urgent", tone: "danger" },
   medium: { label: "Medium", tone: "warning" },
   low: { label: "Low", tone: "neutral" },
-  // Leads
-  new: { label: "New", tone: "info" },
-  contacted: { label: "Contacted", tone: "warning" },
-  qualified: { label: "Qualified", tone: "accent" },
+  // Leads (Exact 6 lifecycle statuses)
+  unconverted: { label: "Unconverted", tone: "info" },
   converted: { label: "Converted", tone: "positive" },
-  lost: { label: "Lost", tone: "danger" },
+  patient: { label: "Patient", tone: "positive" },
+  cold: { label: "Cold", tone: "neutral" },
+  failed_conversion: { label: "Failed Conversion", tone: "danger" },
+  archived: { label: "Archived", tone: "neutral" },
   // Recalls
   due: { label: "Due", tone: "warning" },
 };

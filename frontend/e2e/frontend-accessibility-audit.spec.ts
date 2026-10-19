@@ -208,12 +208,35 @@ test.describe("Frontend role accessibility audit", () => {
     for (const route of publicRoutes) findings.push(await auditRoute(page, route, info));
     await page.goto("/book");
     await page.waitForLoadState("domcontentloaded");
-    const continueBtn = page.locator("button:has-text('Continue')");
-    if (await continueBtn.isVisible().catch(() => false)) {
-      await continueBtn.click();
+    if (await page.locator("#contact-name").isVisible().catch(() => false)) {
+      await page.fill("#contact-name", "Audit User");
+      await page.fill("#contact-phone", "+92 300 1234567");
+      await page.click("[data-testid='wizard-continue-btn']");
+      await page.waitForTimeout(500);
+
+      // Step 1: Service
+      const svcOpt = page.locator("[data-testid^='service-option-']").first();
+      if (await svcOpt.isVisible({ timeout: 5000 }).catch(() => false)) {
+        await svcOpt.click();
+        await page.click("[data-testid='wizard-continue-btn']");
+        await page.waitForTimeout(500);
+
+        // Step 2: Clinic
+        const clnOpt = page.locator("[data-testid^='clinic-option-']").first();
+        if (await clnOpt.isVisible({ timeout: 5000 }).catch(() => false)) {
+          await clnOpt.click();
+          await page.click("[data-testid='wizard-continue-btn']");
+          await page.waitForTimeout(500);
+        }
+      }
+    } else {
+      const continueBtn = page.locator("button:has-text('Continue')");
+      if (await continueBtn.isVisible().catch(() => false)) {
+        await continueBtn.click();
+      }
     }
     await page.waitForTimeout(1000);
-    const slots = page.locator("button:has-text('AM'), button:has-text('PM')");
+    const slots = page.locator("button:has-text('AM'), button:has-text('PM'), [data-testid^='slot-chip-']");
     const hasSlots = await slots.first().isVisible({ timeout: 5000 }).catch(() => false);
     const body = await page.locator("body").innerText();
     const pausedOrClosed = /paused|closed|booking (?:is )?(?:unavailable|not available)/i.test(body);

@@ -13,27 +13,53 @@ test.describe("Full End-to-End Clinical Visit Script", () => {
     // -------------------------------------------------------------
     await page.goto("/book");
     await page.waitForLoadState("domcontentloaded");
-    await expect(page.locator("h1")).toContainText(/What can we help you with|Book Your Visit|Schedule/i);
+    await expect(page.locator("h1")).toContainText(/What can we help you with|Book Your Visit|Schedule|Let's start/i);
 
     // Save Screenshot 1: Public Booking Wizard
     await page.screenshot({ path: path.join(screenshotsDir, "01_book_request.png"), fullPage: false });
 
-    // Step 0: Service is preselected (Cleanings & Exams), click Continue
-    const continueBtn = page.locator("button:has-text('Continue')");
-    if (await continueBtn.isVisible()) {
-      await continueBtn.click();
+    // Step 0: Fill contact details if on step 0
+    if (await page.locator("#contact-name").isVisible()) {
+      await page.fill("#contact-name", "Automated Test Patient");
+      await page.fill("#contact-phone", "(312) 555-0199");
+      const continueBtn0 = page.locator("[data-testid='wizard-continue-btn']");
+      if (await continueBtn0.isVisible()) await continueBtn0.click();
+      await page.waitForTimeout(500);
     }
 
-    // Step 1: Select slot if present
-    await page.waitForTimeout(1000);
+    // Step 1: Select service
+    const serviceCard = page.locator("[data-testid^='service-option-']").first();
+    if (await serviceCard.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await serviceCard.click();
+      await page.waitForTimeout(300);
+      const continueToClinic = page.locator("[data-testid='wizard-continue-btn']");
+      if (await continueToClinic.isEnabled({ timeout: 3000 }).catch(() => false)) {
+        await continueToClinic.click();
+        await page.waitForTimeout(500);
+      }
+    }
+
+    // Step 2: Select clinic
+    const clinicCard = page.locator("[data-testid^='clinic-option-']").first();
+    if (await clinicCard.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await clinicCard.click();
+      await page.waitForTimeout(300);
+      const continueToDoctor = page.locator("[data-testid='wizard-continue-btn']");
+      if (await continueToDoctor.isEnabled({ timeout: 3000 }).catch(() => false)) {
+        await continueToDoctor.click();
+        await page.waitForTimeout(500);
+      }
+    }
+
+    // Step 3: Select slot if present
     const slotBtn = page.locator("button:has-text('AM'), button:has-text('PM')").first();
-    if (await slotBtn.isVisible({ timeout: 10000 }).catch(() => false)) {
+    if (await slotBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
       await slotBtn.click({ force: true }).catch(async () => {
         await page.waitForTimeout(500);
         await slotBtn.click();
       });
-      const continueStep2 = page.locator("button:has-text('Continue to Details')");
-      if (await continueStep2.isVisible()) {
+      const continueStep2 = page.locator("[data-testid='wizard-continue-btn']");
+      if (await continueStep2.isEnabled({ timeout: 3000 }).catch(() => false)) {
         await continueStep2.click();
       }
     }

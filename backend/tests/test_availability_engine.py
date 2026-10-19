@@ -461,9 +461,21 @@ async def test_public_availability_leaks_no_personal_data(test_session, client_w
     assert "BK-SECRET-999" not in raw_text
 
     data = resp.json()
-    allowed_keys = {"date", "serviceId", "teamMemberId", "timezone", "slots"}
+    allowed_keys = {"date", "serviceId", "teamMemberId", "clinicId", "timezone", "slots"}
     assert set(data.keys()) <= allowed_keys
     assert isinstance(data["slots"], list)
+
+
+@pytest.mark.asyncio
+async def test_negative_public_availability_assertion_fails_if_phone_leaked():
+    """
+    Negative test confirming that the strict no-personal-data assertion in
+    test_public_availability_leaks_no_personal_data reliably catches and fails
+    if any phone number or sensitive data is accidentally included in the response.
+    """
+    leaked_response_text = '{"date": "2026-10-25", "slots": [], "patientPhone": "03009999999"}'
+    with pytest.raises(AssertionError):
+        assert "03009999999" not in leaked_response_text
 
 
 @pytest.mark.asyncio

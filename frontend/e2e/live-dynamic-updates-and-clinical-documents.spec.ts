@@ -29,8 +29,9 @@ test.describe("Real (No Interception) Dynamic Content & Clinical Workflows (Part
     // Submit creation
     await userModal.locator("button[type='submit']:has-text('Create Account')").click();
 
-    // Verify creation success
-    await expect(page.locator("body")).toContainText(/created successfully|Staff Accounts/i);
+    // Verify creation success and modal closure
+    await expect(userModal).not.toBeVisible({ timeout: 15000 });
+    await expect(page.locator("body")).toContainText(/created successfully/i);
 
     // 2. Clear session and log in as the newly created user
     await page.context().clearCookies();
@@ -55,6 +56,7 @@ test.describe("Real (No Interception) Dynamic Content & Clinical Workflows (Part
 
     // 5. Modal should dismiss and user enters workspace
     await expect(forceModal).not.toBeVisible({ timeout: 15000 });
+    await page.waitForURL(/\/(doctor|reception)/, { timeout: 15000 });
     expect(page.url()).toMatch(/\/(doctor|reception)/);
   });
 
@@ -87,7 +89,13 @@ test.describe("Real (No Interception) Dynamic Content & Clinical Workflows (Part
 
     // Visit /book - verify procedure list has dynamic services
     await page.goto("/book");
-    await page.waitForLoadState("domcontentloaded");
+    const contactInput = page.locator("#contact-name");
+    await contactInput.waitFor({ state: "visible", timeout: 10000 }).catch(() => {});
+    if (await contactInput.isVisible()) {
+      await contactInput.fill("Test User");
+      await page.fill("#contact-phone", "+92 300 1234567");
+      await page.click("[data-testid='wizard-continue-btn']");
+    }
     await expect(page.locator("body")).toContainText(firstServiceName);
   });
 

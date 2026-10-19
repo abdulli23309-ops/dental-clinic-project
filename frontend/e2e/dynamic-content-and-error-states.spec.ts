@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test.describe("Dynamic Content and Error States (Part G Proof)", () => {
   test("1. Dynamic services: custom service name and fee from API render on public site and /book", async ({ page }) => {
     // Intercept services API with dynamic procedure
-    await page.route("**/api/v1/public/services*", async (route) => {
+    await page.route(/.*\/api\/v1\/public\/(?:booking\/)?services.*/, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -31,8 +31,8 @@ test.describe("Dynamic Content and Error States (Part G Proof)", () => {
     await expect(page.locator("body")).toContainText("Dynamic Laser Whitening Procedure");
     await expect(page.locator("body")).toContainText("Rs 18,500");
 
-    // Visit /book page and verify dynamic service is present in procedure selector
-    await page.goto("/book");
+    // Visit /book page with step=1 and verify dynamic service is present in procedure selector
+    await page.goto("/book?step=1");
     await expect(page.locator("body")).toContainText("Dynamic Laser Whitening Procedure");
   });
 

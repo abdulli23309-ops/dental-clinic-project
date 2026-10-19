@@ -7,6 +7,7 @@ from app.domain.models.booking_crm import Booking, Patient, Task
 from app.domain.models.team_member import TeamMember
 from app.domain.models.user import User, UserRole
 from app.infrastructure.repositories.postgres_booking_repo import PostgresBookingRepository
+from app.infrastructure.repositories.postgres_booking_settings_repo import PostgresBookingSettingsRepository
 from app.infrastructure.repositories.postgres_patient_repo import PostgresPatientRepository
 from app.infrastructure.repositories.postgres_task_repo import PostgresTaskRepository
 from app.infrastructure.repositories.postgres_team_repo import PostgresTeamMemberRepository
@@ -84,6 +85,18 @@ async def test_full_receptionist_to_doctor_lifecycle(client_with_db, test_sessio
         team_member_id=dr_vance_member.id,
     )
     await user_repo.save(dr_vance_user)
+
+    # Ensure clinic working hours for today are marked open so test can run on any day of the week
+    booking_settings_repo = PostgresBookingSettingsRepository(test_session)
+    working_hours = await booking_settings_repo.list_working_hours()
+    today_dow = date.today().weekday()
+    today_wh = next((h for h in working_hours if h.day_of_week == today_dow), None)
+    if today_wh and today_wh.is_closed:
+        today_wh.is_closed = False
+        today_wh.open_time = "08:00"
+        today_wh.close_time = "18:00"
+        await booking_settings_repo.update_working_hours([today_wh])
+
     await test_session.commit()
 
     # Log in Receptionist

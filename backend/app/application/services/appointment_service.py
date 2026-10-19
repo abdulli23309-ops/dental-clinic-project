@@ -13,9 +13,13 @@ from app.application.dtos.appointment_dto import (
 from app.core.logging import logger
 from app.domain.models.appointment import Appointment
 from app.domain.models.booking_crm import Booking, Patient
+from app.domain.models.booking_flow import LeadStatus
 from app.domain.repositories.appointment_repo import AppointmentRepository
+from app.domain.repositories.booking_flow_settings_repo import BookingFlowSettingsRepository
 from app.domain.repositories.booking_repo import BookingRepository
 from app.domain.repositories.booking_settings_repo import BookingSettingsRepository
+from app.domain.repositories.lead_event_repo import LeadEventRepository
+from app.domain.repositories.lead_repo import LeadRepository
 from app.domain.repositories.patient_repo import PatientRepository
 from app.application.services.reception_service import _acquire_schedule_lock
 from app.application.services.availability_service import AvailabilityService
@@ -38,6 +42,10 @@ class AppointmentService:
         booking_settings_repo: Optional[BookingSettingsRepository] = None,
         availability_service: Optional[AvailabilityService] = None,
         session: Optional[AsyncSession] = None,
+        lead_repo: Optional[LeadRepository] = None,
+        lead_event_repo: Optional[LeadEventRepository] = None,
+        booking_flow_settings_repo: Optional[BookingFlowSettingsRepository] = None,
+        eligibility_service: Optional[object] = None,
     ) -> None:
         """Stores repositories for appointments, canonical bookings, patient charts, and clinic availability rules."""
         self._repository = repository
@@ -46,6 +54,10 @@ class AppointmentService:
         self._booking_settings_repo = booking_settings_repo
         self._availability_service = availability_service
         self._session = session
+        self._lead_repo = lead_repo
+        self._lead_event_repo = lead_event_repo
+        self._booking_flow_settings_repo = booking_flow_settings_repo
+        self._eligibility_service = eligibility_service
 
     @staticmethod
     def generate_confirmation_id() -> str:
@@ -67,7 +79,7 @@ class AppointmentService:
 
         # Enforce clinic booking settings, emergency pause, weekly closed days, and closures
         if self._booking_settings_repo is not None:
-            settings = await self._booking_settings_repo.get_settings()
+            settings = await self._booking_settings_repo.get_settings(clinic_id=request.clinicId)
             if settings.booking_mode != "open":
                 msg = settings.pause_message or "Online booking is temporarily unavailable. Please call our clinic to schedule."
                 raise HTTPException(
@@ -83,7 +95,7 @@ class AppointmentService:
                 )
 
             # Weekly closed days validation
-            working_hours = await self._booking_settings_repo.list_working_hours()
+            working_hours = await self._booking_settings_repo.list_working_hours(clinic_id=request.clinicId)
             dow = parsed_date.weekday()  # 0=Mon .. 6=Sun
             wh = next((h for h in working_hours if h.day_of_week == dow), None)
             if wh and wh.is_closed:
@@ -93,7 +105,7 @@ class AppointmentService:
                 )
 
             # Planned calendar closures validation
-            closures = await self._booking_settings_repo.list_closures()
+            closures = await self._booking_settings_repo.list_closures(clinic_id=request.clinicId)
             for c in closures:
                 if c.start_date <= parsed_date <= c.end_date:
                     closure_reason = f": {c.reason}" if c.reason else ""
@@ -109,7 +121,8 @@ class AppointmentService:
                     target_date=parsed_date,
                     time_str=request.preferredTime,
                     service_id=request.serviceId,
-                    team_member_id=None,
+                    team_member_id=request.teamMemberId,
+                    clinic_id=request.clinicId,
                 )
                 if not is_available:
                     raise HTTPException(
@@ -153,6 +166,51 @@ class AppointmentService:
                             saved_pat = await self._patient_repo.save(new_pat)
                             patient_id = saved_pat.id
 
+                    # Determine team_member_id (explicitly chosen or auto-selected if single eligible doctor)
+                    team_member_id = request.teamMemberId
+                    if team_member_id is None and request.clinicId and self._eligibility_service is not None:
+                        try:
+                            eligible_docs = await self._eligibility_service.get_bookable_doctors_for_service_and_clinic(
+                                service_id=request.serviceId,
+                                clinic_id=request.clinicId,
+                            )
+                            if len(eligible_docs) == 1:
+                                team_member_id = eligible_docs[0].id
+                        except Exception:
+                            pass
+
+                    # Determine online booking status (confirmed vs requested)
+                    # When a doctor is selected (or auto-selected), auto_confirm_online confirms it immediately.
+                    # Unassigned requests without a doctor require reception triage and remain 'requested'.
+                    booking_status = "requested"
+                    if team_member_id and self._booking_flow_settings_repo is not None:
+                        flow_settings = await self._booking_flow_settings_repo.get_settings()
+                        if flow_settings.auto_confirm_online:
+                            booking_status = "confirmed"
+
+                    # Convert open lead if a leadToken was provided
+                    lead_id = None
+                    if request.leadToken and self._lead_repo is not None:
+                        lead = await self._lead_repo.get_by_capture_token(request.leadToken)
+                        if lead is not None:
+                            lead_id = lead.id
+                            lead.status = LeadStatus.CONVERTED.value
+                            lead.last_activity_at = datetime.now(timezone.utc)
+                            if patient_id is not None:
+                                lead.patient_id = patient_id
+                            await self._lead_repo.save(lead)
+
+                            if self._lead_event_repo is not None:
+                                await self._lead_event_repo.record_event(
+                                    lead_id=lead.id,
+                                    event_type="converted",
+                                    actor_type="system",
+                                    payload={
+                                        "confirmation_id": confirmation_id,
+                                        "booking_for": request.bookingFor or "myself",
+                                    },
+                                )
+
                     # Create canonical booking record for reception intake triage queue
                     if self._booking_repo is not None:
                         booking = Booking(
@@ -161,10 +219,14 @@ class AppointmentService:
                             preferred_time=request.preferredTime,
                             patient_full_name=request.fullName.strip(),
                             patient_phone=request.phone.strip(),
-                            patient_email=request.email.strip().lower() if request.email else "",
-                            service_id=request.serviceId,
+                            patient_email=request.email.strip().lower() if request.email else None,
+                            clinic_id=request.clinicId,
                             patient_id=patient_id,
-                            status="requested",
+                            service_id=request.serviceId,
+                            team_member_id=team_member_id,
+                            lead_id=lead_id,
+                            source="website",
+                            status=booking_status,
                             notes=request.notes,
                             utm_source=request.utmSource,
                             utm_campaign=request.utmCampaign,
@@ -178,7 +240,7 @@ class AppointmentService:
                         preferred_time=request.preferredTime,
                         patient_full_name=request.fullName,
                         patient_phone=request.phone,
-                        patient_email=request.email,
+                        patient_email=request.email or "",
                         notes=request.notes,
                         utm_source=request.utmSource,
                         utm_campaign=request.utmCampaign,
@@ -197,10 +259,11 @@ class AppointmentService:
                         saved.preferred_date.isoformat(),
                     )
 
+                    status_msg = "confirmed" if booking_status == "confirmed" else "received"
                     return AppointmentCreateResponse(
                         success=True,
                         confirmationId=saved.confirmation_id,
-                        message=f"Appointment request received for {saved.preferred_date.isoformat()} at {saved.preferred_time}.",
+                        message=f"Appointment {status_msg} for {saved.preferred_date.isoformat()} at {saved.preferred_time}.",
                         estimatedCallbackWindow="Within 1 business hour (Monday to Thursday 8:00 AM to 6:00 PM Central)",
                     )
                 except IntegrityError:

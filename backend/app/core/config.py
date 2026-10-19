@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
     DATABASE_URL: str = "postgresql+asyncpg://user:password@localhost:5432/dentai_dev"
     APPOINTMENTS_RATE_LIMIT: str = "5/minute"
+    PUBLIC_LEADS_RATE_LIMIT: str = "30/minute"
+    PUBLIC_BOOKING_RATE_LIMIT: str = "60/minute"
 
     # Authentication & Security
     JWT_SECRET_KEY: str = "dev-marlow-dental-insecure-secret-key-change-in-production-2026"

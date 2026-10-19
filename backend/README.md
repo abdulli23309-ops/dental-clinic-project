@@ -145,7 +145,7 @@ cp .env.example .env
 | `APP_NAME` | `Marlow Dental API` | Service name |
 | `API_V1_PREFIX` | `/api/v1` | URL prefix for V1 endpoints |
 | `ALLOWED_ORIGINS` | `http://localhost:3000,http://127.0.0.1:3000` | Whitelisted CORS origins |
-| `DATABASE_URL` | `postgresql+asyncpg://postgres:YOUR_PASSWORD@localhost:5432/dentai_dev` | PostgreSQL async connection string |
+| `DATABASE_URL` | `postgresql+asyncpg://<username>:<password>@localhost:5432/dental_dev` | PostgreSQL async connection string |
 | `APPOINTMENTS_RATE_LIMIT` | `5/minute` | Rate limit threshold per IP |
 | `JWT_SECRET_KEY` | `dev-jwt-secret-key-32-chars-minimum` | Secret key for signing JWT access tokens |
 | `REFRESH_SECRET_KEY` | `dev-refresh-secret-key-32-chars-minimum` | Secret key for refresh token operations |

@@ -613,15 +613,17 @@ async def seed_dev_users_internal(session):
             await session.flush()
             source_id = ls.id
 
+        from app.domain.models.phone_utils import normalize_pakistan_phone
         sample_leads = [
-            ("Jameson Vance", "(312) 555-0181", "jameson.v@example.com", "new", "Interested in adult Invisalign treatment."),
-            ("Natalie Wood", "(312) 555-0182", "natalie.w@example.com", "contacted", "Looking for new family dentist in Lincoln Park."),
+            ("Jameson Vance", "(312) 555-0181", "jameson.v@example.com", "unconverted", "Interested in adult Invisalign treatment."),
+            ("Natalie Wood", "(312) 555-0182", "natalie.w@example.com", "unconverted", "Looking for new family dentist in Lincoln Park."),
         ]
         for fn, ph, em, st, notes in sample_leads:
             session.add(
                 LeadORM(
                     full_name=fn,
                     phone=ph,
+                    phone_normalized=normalize_pakistan_phone(ph),
                     email=em,
                     status=st,
                     notes=notes,
@@ -667,6 +669,17 @@ async def send_reminders_cmd():
     await close_db()
 
 
+async def mark_cold_leads_cmd():
+    session_factory = get_session_factory()
+    async with session_factory() as session:
+        from app.application.services.lead_status_service import LeadStatusService
+        service = LeadStatusService(session)
+        res = await service.mark_cold_leads()
+        await session.commit()
+        print(f"Cold leads processing completed: marked {res.get('marked_cold_count', 0)} leads cold (IDs: {res.get('lead_ids', [])}).")
+    await close_db()
+
+
 async def seed_demo_cmd():
     from app.core.config import settings
     if str(settings.ENVIRONMENT).lower() != "development":
@@ -682,7 +695,8 @@ async def seed_demo_cmd():
         BookingORM, TaskORM, MessageORM, ClinicalEncounterORM,
         ClinicalNoteORM, VisitPaymentORM, PrescriptionORM,
         ClinicWorkingHoursORM, ClinicBookingSettingsORM, ClinicClosureORM,
-        ProviderAvailabilityORM
+        ProviderAvailabilityORM, ClinicServiceORM, ServiceProviderORM,
+        ContactHoldORM, CallLogORM, LeadORM, BookingFlowSettingsORM
     )
 
     def get_or_gen_pwd(
@@ -723,8 +737,9 @@ async def seed_demo_cmd():
             session.add(org)
             await session.flush()
 
-        clinic_res = await session.execute(select(ClinicORM))
-        clinic = clinic_res.scalars().first()
+        clinic_res = await session.execute(select(ClinicORM).order_by(ClinicORM.display_order.asc()))
+        all_clinics = clinic_res.scalars().all()
+        clinic = all_clinics[0] if all_clinics else None
         if not clinic:
             clinic = ClinicORM(
                 organization_id=org.id,
@@ -743,6 +758,27 @@ async def seed_demo_cmd():
             session.add(clinic)
             await session.flush()
         clinic_id = clinic.id
+
+        # Second clinic: Downtown Studio
+        clinic2 = next((c for c in all_clinics if c.name == "Marlow Dental Downtown Studio"), None)
+        if not clinic2:
+            clinic2 = ClinicORM(
+                organization_id=org.id,
+                name="Marlow Dental Downtown Studio",
+                address_line1="456 City Center Way, 2nd Floor",
+                city="Downtown District",
+                state="Federal Capital",
+                postal_code="44010",
+                country="PK",
+                phone="+92 300 7654321",
+                email="downtown@marlowdental.com",
+                is_primary=False,
+                display_order=1,
+                is_active=True,
+            )
+            session.add(clinic2)
+            await session.flush()
+        clinic2_id = clinic2.id
 
         loc_res = await session.execute(select(LocationORM))
         location = loc_res.scalars().first()
@@ -764,33 +800,35 @@ async def seed_demo_cmd():
             session.add(location)
             await session.flush()
 
-        # Booking Settings
+        # Booking Settings for Clinic 1 & Clinic 2
         from app.application.services.reception_service import (
             DEFAULT_REMINDER_TEMPLATE_EN,
             DEFAULT_REMINDER_TEMPLATE_UR,
         )
-        bset_res = await session.execute(select(ClinicBookingSettingsORM).where(ClinicBookingSettingsORM.clinic_id == clinic_id))
-        bset = bset_res.scalars().first()
-        if not bset:
-            bset = ClinicBookingSettingsORM(
-                clinic_id=clinic_id,
-                booking_mode="open",
-                advance_booking_days=60,
-                slot_interval_minutes=15,
-                reminder_template=DEFAULT_REMINDER_TEMPLATE_EN,
-                reminder_template_urdu=DEFAULT_REMINDER_TEMPLATE_UR,
-                reminder_24h_enabled=True,
-                reminder_2h_enabled=True,
-                payments_enabled=True,
-                quiet_hours_enabled=True,
-                quiet_hours_start="21:00",
-                quiet_hours_end="08:00",
-                messaging_provider_mode="simulated",
-            )
-            session.add(bset)
-            await session.flush()
+        for cid in [clinic_id, clinic2_id]:
+            bset_res = await session.execute(select(ClinicBookingSettingsORM).where(ClinicBookingSettingsORM.clinic_id == cid))
+            bset = bset_res.scalars().first()
+            if not bset:
+                bset = ClinicBookingSettingsORM(
+                    clinic_id=cid,
+                    booking_mode="open",
+                    advance_booking_days=60,
+                    slot_interval_minutes=15,
+                    reminder_template=DEFAULT_REMINDER_TEMPLATE_EN,
+                    reminder_template_urdu=DEFAULT_REMINDER_TEMPLATE_UR,
+                    reminder_24h_enabled=True,
+                    reminder_2h_enabled=True,
+                    payments_enabled=True,
+                    quiet_hours_enabled=True,
+                    quiet_hours_start="21:00",
+                    quiet_hours_end="08:00",
+                    messaging_provider_mode="simulated",
+                )
+                session.add(bset)
+                await session.flush()
 
-        # 2. Clinic Hours: Sunday closed, Monday-Saturday open 08:00-17:00
+        # 2. Clinic Hours:
+        # Clinic 1: Sunday closed, Monday-Saturday open 08:00-17:00
         wh_res = await session.execute(select(ClinicWorkingHoursORM).where(ClinicWorkingHoursORM.clinic_id == clinic_id))
         existing_wh = {wh.day_of_week: wh for wh in wh_res.scalars().all()}
         for day in range(7):
@@ -808,6 +846,28 @@ async def seed_demo_cmd():
                 existing_wh[day].is_closed = is_sunday
                 existing_wh[day].open_time = None if is_sunday else "08:00"
                 existing_wh[day].close_time = None if is_sunday else "17:00"
+
+        # Clinic 2 (Different Hours): Sunday closed, Monday-Friday open 10:00-19:00, Saturday open 10:00-15:00
+        wh2_res = await session.execute(select(ClinicWorkingHoursORM).where(ClinicWorkingHoursORM.clinic_id == clinic2_id))
+        existing_wh2 = {wh.day_of_week: wh for wh in wh2_res.scalars().all()}
+        for day in range(7):
+            is_sunday = (day == 6)
+            is_saturday = (day == 5)
+            open_t = None if is_sunday else "10:00"
+            close_t = None if is_sunday else ("15:00" if is_saturday else "19:00")
+            if day not in existing_wh2:
+                wh2 = ClinicWorkingHoursORM(
+                    clinic_id=clinic2_id,
+                    day_of_week=day,
+                    open_time=open_t,
+                    close_time=close_t,
+                    is_closed=is_sunday,
+                )
+                session.add(wh2)
+            else:
+                existing_wh2[day].is_closed = is_sunday
+                existing_wh2[day].open_time = open_t
+                existing_wh2[day].close_time = close_t
 
         # 3. Planned Closure
         today = datetime.now(timezone.utc).date()
@@ -847,25 +907,53 @@ async def seed_demo_cmd():
                 await session.flush()
                 existing_svcs[item["slug"]] = s
 
+        # 4b. Link Services to Clinics
+        # cleanings-exams at both clinics
+        # fillings-crowns at both clinics
+        # root-canals at Clinic 1 only
+        # invisalign at Clinic 2 only
+        clinic_svc_links = [
+            (clinic_id, "cleanings-exams"),
+            (clinic2_id, "cleanings-exams"),
+            (clinic_id, "fillings-crowns"),
+            (clinic2_id, "fillings-crowns"),
+            (clinic_id, "root-canals"),
+            (clinic2_id, "invisalign"),
+        ]
+        for cid, s_slug in clinic_svc_links:
+            s_obj = existing_svcs.get(s_slug)
+            if s_obj:
+                cs_res = await session.execute(
+                    select(ClinicServiceORM).where(
+                        ClinicServiceORM.clinic_id == cid,
+                        ClinicServiceORM.service_id == s_obj.id,
+                    )
+                )
+                if not cs_res.scalar_one_or_none():
+                    session.add(ClinicServiceORM(clinic_id=cid, service_id=s_obj.id, is_active=True))
+
         # 5. Clinicians (Three Clinicians)
         tm_res = await session.execute(select(TeamMemberORM))
         existing_tms = {f"{tm.first_name} {tm.last_name}": tm for tm in tm_res.scalars().all()}
 
         clinicians_data = [
-            ("Sarah", "Marlow", "Dr. Sarah Marlow", "Lead Dentist & Practice Founder", "dentist"),
-            ("Marcus", "Vance", "Dr. Marcus Vance", "Associate Restorative Dentist", "dentist"),
-            ("Elena", "Rostova", "Dr. Elena Rostova", "Pediatric & Preventive Specialist", "hygienist"),
+            ("Sarah", "Marlow", "Dr. Sarah Marlow", "Lead Dentist & Practice Founder", "dentist", clinic_id),
+            ("Marcus", "Vance", "Dr. Marcus Vance", "Associate Restorative Dentist", "dentist", clinic_id),
+            ("Elena", "Rostova", "Dr. Elena Rostova", "Pediatric & Preventive Specialist", "hygienist", clinic2_id),
         ]
         created_tms = {}
-        for fn, ln, dname, ptitle, trole in clinicians_data:
+        for fn, ln, dname, ptitle, trole, def_cid in clinicians_data:
             full_n = f"{fn} {ln}"
             if full_n in existing_tms:
                 tm = existing_tms[full_n]
+                tm.show_patients_treated = True
+                if not tm.clinic_id:
+                    tm.clinic_id = def_cid
             else:
                 tm = TeamMemberORM(
                     organization_id=org.id,
                     location_id=location.id,
-                    clinic_id=clinic.id,
+                    clinic_id=def_cid,
                     first_name=fn,
                     last_name=ln,
                     display_name=dname,
@@ -873,25 +961,95 @@ async def seed_demo_cmd():
                     role=trole,
                     is_active=True,
                     display_order=len(created_tms),
+                    show_patients_treated=True,
                 )
                 session.add(tm)
                 await session.flush()
             created_tms[full_n] = tm
 
-            # Seed provider availability for Mon-Fri
-            pa_res = await session.execute(select(ProviderAvailabilityORM).where(ProviderAvailabilityORM.team_member_id == tm.id))
-            if not pa_res.scalars().all():
-                for dow in range(5):  # Mon-Fri
-                    pa = ProviderAvailabilityORM(
-                        team_member_id=tm.id,
-                        day_of_week=dow,
-                        start_time="08:30",
-                        end_time="16:30",
-                        break_start_time="12:30",
-                        break_end_time="13:30",
-                        is_active=True,
+        # Doctor schedules per clinic:
+        # Sarah Marlow works at both clinics:
+        # - Clinic 1: Mon-Wed (0, 1, 2) 08:30-16:30
+        # - Clinic 2: Thu-Fri (3, 4) 10:00-18:00
+        # Marcus Vance: Clinic 1 Mon-Fri (0-4) 08:30-16:30
+        # Elena Rostova: Clinic 2 Mon-Fri (0-4) 10:00-17:00
+        sarah_tm = created_tms.get("Sarah Marlow")
+        marcus_tm = created_tms.get("Marcus Vance")
+        elena_tm = created_tms.get("Elena Rostova")
+
+        schedule_specs = [
+            (sarah_tm.id, clinic_id, [0, 1, 2], "08:30", "16:30", "12:30", "13:30"),
+            (sarah_tm.id, clinic2_id, [3, 4], "10:00", "18:00", "13:00", "14:00"),
+            (marcus_tm.id, clinic_id, [0, 1, 2, 3, 4], "08:30", "16:30", "12:30", "13:30"),
+            (elena_tm.id, clinic2_id, [0, 1, 2, 3, 4], "10:00", "17:00", "13:00", "14:00"),
+        ]
+        for tm_id_val, c_id_val, dows, st, et, bst, bet in schedule_specs:
+            for dow in dows:
+                pa_res = await session.execute(
+                    select(ProviderAvailabilityORM).where(
+                        ProviderAvailabilityORM.team_member_id == tm_id_val,
+                        ProviderAvailabilityORM.day_of_week == dow,
+                        ProviderAvailabilityORM.clinic_id == c_id_val,
                     )
-                    session.add(pa)
+                )
+                pa = pa_res.scalar_one_or_none()
+                if not pa:
+                    # Also check if there's a legacy row with null clinic_id for this day
+                    pa_legacy_res = await session.execute(
+                        select(ProviderAvailabilityORM).where(
+                            ProviderAvailabilityORM.team_member_id == tm_id_val,
+                            ProviderAvailabilityORM.day_of_week == dow,
+                            ProviderAvailabilityORM.clinic_id.is_(None),
+                        )
+                    )
+                    pa_legacy = pa_legacy_res.scalar_one_or_none()
+                    if pa_legacy:
+                        pa_legacy.clinic_id = c_id_val
+                        pa_legacy.start_time = st
+                        pa_legacy.end_time = et
+                        pa_legacy.break_start_time = bst
+                        pa_legacy.break_end_time = bet
+                        pa_legacy.is_active = True
+                    else:
+                        pa = ProviderAvailabilityORM(
+                            team_member_id=tm_id_val,
+                            clinic_id=c_id_val,
+                            day_of_week=dow,
+                            start_time=st,
+                            end_time=et,
+                            break_start_time=bst,
+                            break_end_time=bet,
+                            is_active=True,
+                        )
+                        session.add(pa)
+                else:
+                    pa.start_time = st
+                    pa.end_time = et
+                    pa.break_start_time = bst
+                    pa.break_end_time = bet
+                    pa.is_active = True
+
+        # Link Doctors to Services (ServiceProviderORM)
+        doc_service_specs = [
+            (sarah_tm.id, ["cleanings-exams", "fillings-crowns", "root-canals", "invisalign"]),
+            (marcus_tm.id, ["cleanings-exams", "fillings-crowns", "root-canals"]),
+            (elena_tm.id, ["cleanings-exams", "invisalign"]),
+        ]
+        for tmid, svc_slugs in doc_service_specs:
+            for s_slug in svc_slugs:
+                s_obj = existing_svcs.get(s_slug)
+                if s_obj:
+                    sp_res = await session.execute(
+                        select(ServiceProviderORM).where(
+                            ServiceProviderORM.team_member_id == tmid,
+                            ServiceProviderORM.service_id == s_obj.id,
+                        )
+                    )
+                    if not sp_res.scalar_one_or_none():
+                        session.add(ServiceProviderORM(
+                            team_member_id=tmid,
+                            service_id=s_obj.id,
+                        ))
 
         # 6. Users: 1 Admin, 1 Receptionist, 2 Doctors (linked to TeamMembers)
         demo_user_emails = (
@@ -1191,6 +1349,152 @@ async def seed_demo_cmd():
                 sent_at=datetime.now(timezone.utc),
             ))
 
+        # 14. Booking Flow Settings
+        bfs_res = await session.execute(
+            select(BookingFlowSettingsORM).where(BookingFlowSettingsORM.organization_id == org.id)
+        )
+        bfs = bfs_res.scalar_one_or_none()
+        rec_user = created_users.get("receptionist@marlowdental.com")
+        rec_user_id = rec_user.id if rec_user else None
+        if not bfs:
+            bfs = BookingFlowSettingsORM(
+                organization_id=org.id,
+                followup_gaps_minutes=[10, 1440, 2880],
+                max_attempts=3,
+                cold_wait_hours=24,
+                hold_minutes=30,
+                fallback_owner_user_id=rec_user_id,
+                auto_confirm_online=True,
+                days_shown=7,
+                show_patients_treated=True,
+                lead_capture_notice="We save your details so we can help you finish booking.",
+            )
+            session.add(bfs)
+            await session.flush()
+        else:
+            if rec_user_id and not bfs.fallback_owner_user_id:
+                bfs.fallback_owner_user_id = rec_user_id
+
+        # 15. Leads in EVERY Status
+        # statuses: unconverted, converted, cold, failed_conversion, patient, archived
+        leads_spec = [
+            ("Amina Khan", "+92 300 5550201", "+923005550201", "amina.k@example.com", "unconverted", 0, clinic_id, "cleanings-exams", "Interested in preventive cleaning for next week.", None, datetime.now(timezone.utc) + timedelta(minutes=10)),
+            ("Bilal Tariq", "+92 300 5550202", "+923005550202", "bilal.t@example.com", "converted", 1, clinic_id, "fillings-crowns", "Booked initial consultation chairside.", None, None),
+            ("Zainab Abbas", "+92 300 5550203", "+923005550203", "zainab.a@example.com", "patient", 1, clinic2_id, "invisalign", "Converted to registered patient.", created_pats[0].id if created_pats else None, None),
+            ("Farhan Ali", "+92 300 5550204", "+923005550204", "farhan.a@example.com", "cold", 3, clinic_id, "root-canals", "Reached max attempts with no response.", None, None),
+            ("Sana Sheikh", "+92 300 5550205", "+923005550205", "sana.s@example.com", "failed_conversion", 2, clinic2_id, "cleanings-exams", "Moved out of city, declined booking.", None, None),
+            ("Hamza Malik", "+92 300 5550206", "+923005550206", "hamza.m@example.com", "archived", 1, clinic_id, "cleanings-exams", "Duplicate inquiry archived by receptionist.", None, None),
+        ]
+        created_leads = {}
+        for fname, ph, norm_ph, em, st, atts, cid, sslug, nts, pat_id, next_att in leads_spec:
+            l_res = await session.execute(select(LeadORM).where(LeadORM.phone_normalized == norm_ph))
+            lead_obj = l_res.scalar_one_or_none()
+            if not lead_obj:
+                lead_obj = LeadORM(
+                    organization_id=org.id,
+                    clinic_id=cid,
+                    patient_id=pat_id,
+                    full_name=fname,
+                    phone=ph,
+                    phone_normalized=norm_ph,
+                    email=em,
+                    service_id=sslug,
+                    status=st,
+                    attempts=atts,
+                    notes=nts,
+                    next_attempt_at=next_att,
+                    cold_at=(datetime.now(timezone.utc) - timedelta(days=2)) if st == "cold" else None,
+                    consent_notice_version="v1.0",
+                )
+                session.add(lead_obj)
+                await session.flush()
+            created_leads[norm_ph] = lead_obj
+
+        # 16. Call Logs
+        call_logs_spec = [
+            ("+923005550201", created_leads.get("+923005550201"), None, "connected_booked", "Patient called back and scheduled cleaning for Tuesday.", datetime.now(timezone.utc) - timedelta(hours=2), datetime.now(timezone.utc) - timedelta(hours=2) + timedelta(minutes=4)),
+            ("+923005550204", created_leads.get("+923005550204"), None, "no_answer", "Rang 5 times, voicemail reached. Left automated follow-up notification.", datetime.now(timezone.utc) - timedelta(days=1), datetime.now(timezone.utc) - timedelta(days=1) + timedelta(minutes=1)),
+            ("+923005550102", None, created_pats[1].id if len(created_pats) > 1 else None, "callback_requested", "Eleanor requested callback after 4 PM regarding appointment confirmation.", datetime.now(timezone.utc) - timedelta(hours=5), datetime.now(timezone.utc) - timedelta(hours=5) + timedelta(minutes=3)),
+        ]
+        for norm_ph, lead_item, pat_id, outcome, notes, s_at, e_at in call_logs_spec:
+            cl_res = await session.execute(
+                select(CallLogORM).where(
+                    CallLogORM.phone_normalized == norm_ph,
+                    CallLogORM.outcome == outcome,
+                )
+            )
+            if not cl_res.scalar_one_or_none():
+                session.add(CallLogORM(
+                    phone_normalized=norm_ph,
+                    lead_id=lead_item.id if lead_item else None,
+                    patient_id=pat_id,
+                    outcome=outcome,
+                    notes=notes,
+                    started_at=s_at,
+                    ended_at=e_at,
+                    recorded_by_user_id=rec_user_id,
+                ))
+
+        # 17. Contact Holds
+        holds_spec = [
+            ("+923005550201", datetime.now(timezone.utc) + timedelta(minutes=30), "Active phone triage by front desk", None),
+            ("+923005550202", datetime.now(timezone.utc) - timedelta(hours=1), "Call handled and completed", datetime.now(timezone.utc) - timedelta(hours=1)),
+        ]
+        for norm_ph, h_until, rsn, rel_at in holds_spec:
+            h_res = await session.execute(
+                select(ContactHoldORM).where(
+                    ContactHoldORM.phone_normalized == norm_ph,
+                    ContactHoldORM.reason == rsn,
+                )
+            )
+            if not h_res.scalar_one_or_none():
+                session.add(ContactHoldORM(
+                    phone_normalized=norm_ph,
+                    held_until=h_until,
+                    reason=rsn,
+                    created_by_user_id=rec_user_id,
+                    released_at=rel_at,
+                ))
+
+        # 18. Integration Client for Automated Testing & Demo Bots
+        from app.infrastructure.database.orm_models import IntegrationClientORM
+        from app.domain.models.integration import generate_integration_key
+        import hashlib
+        env_demo_key = os.environ.get("MARLOW_DEMO_INTEGRATION_KEY")
+        if env_demo_key:
+            demo_raw_key = env_demo_key.strip()
+            demo_prefix = demo_raw_key[:11]
+            demo_hash = hashlib.sha256(demo_raw_key.encode("utf-8")).hexdigest()
+        else:
+            demo_raw_key, demo_prefix, demo_hash = generate_integration_key()
+
+        ic_res = await session.execute(
+            select(IntegrationClientORM).where(IntegrationClientORM.name == "Demo Integration Bot")
+        )
+        ic_obj = ic_res.scalar_one_or_none()
+        if not ic_obj:
+            session.add(IntegrationClientORM(
+                name="Demo Integration Bot",
+                key_prefix=demo_prefix,
+                key_hash=demo_hash,
+                scopes=[
+                    "bookings:read",
+                    "bookings:write",
+                    "leads:read",
+                    "leads:write",
+                    "messages:write",
+                    "lookup:read",
+                ],
+                is_active=True,
+                created_by_user_id=rec_user_id,
+            ))
+        else:
+            ic_obj.key_prefix = demo_prefix
+            ic_obj.key_hash = demo_hash
+            ic_obj.is_active = True
+
+        print(f"[DEMO INTEGRATION KEY] Demo bot key (shown once): {demo_raw_key}")
+
         await session.commit()
         print("Successfully seeded demo environment with fake operational records.")
     await close_db()
@@ -1260,7 +1564,7 @@ async def doctor_cmd():
                 "users", "clinics", "patients", "bookings", "tasks", "messages",
                 "clinical_notes", "patient_medical_alerts", "clinic_working_hours",
                 "clinic_closures", "visit_payments", "prescriptions", "team_members",
-                "services", "clinical_encounters"
+                "services", "clinical_encounters", "integration_clients"
             }
             missing = required - tables
             if not missing:
@@ -1290,7 +1594,13 @@ async def doctor_cmd():
 
         # 5. Doctors Linked to Team Members
         try:
-            docs = (await session.execute(select(UserORM).where(UserORM.role == "doctor"))).scalars().all()
+            docs = (await session.execute(
+                select(UserORM).where(
+                    UserORM.role == "doctor",
+                    UserORM.is_active == True,
+                    ~UserORM.email.like("forcepwd_%"),
+                )
+            )).scalars().all()
             unlinked = [d.email for d in docs if not d.team_member_id]
             if docs and not unlinked:
                 print(f"[PASS] Doctor Clinician Linkage: All {len(docs)} doctor accounts mapped to active clinical team members.")
@@ -1389,6 +1699,9 @@ def main():
     # send-reminders
     subparsers.add_parser("send-reminders", help="Run reminder dispatch cycle once")
 
+    # mark-cold-leads
+    subparsers.add_parser("mark-cold-leads", help="Mark unconverted leads cold if attempts >= max_attempts and cold_wait_hours passed with no response")
+
     args = parser.parse_args()
 
     if args.command == "create-admin":
@@ -1418,6 +1731,9 @@ def main():
 
     elif args.command == "send-reminders":
         asyncio.run(send_reminders_cmd())
+
+    elif args.command == "mark-cold-leads":
+        asyncio.run(mark_cold_leads_cmd())
 
 
 if __name__ == "__main__":

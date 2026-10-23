@@ -103,6 +103,21 @@
 
 ## Deferred Capabilities (Explicitly Not Built)
 
+- [ ] **Phase 13 Addendum: Public Progressive Booking Flow (October 2026)**
+  - Replaced the public `/book` 6-step wizard with `ProgressiveBookingFlow`
+    (`src/components/booking/progressive-booking-flow.tsx`): 3 pages (Contact &rarr; Waterfall &rarr; Summary)
+    with progressive disclosure, shared UI primitives (`Button`, `Card`, `TextField`),
+    `useReducedMotion` fallbacks, and strict `data-testid` hooks for Playwright.
+  - Wired exclusively to the live public API: `getPublicBookingServices`,
+    `getPublicBookingClinics`, `getPublicBookingDoctors` (real `slotsByDate`), `publicLeadCapture`,
+    `publicLeadUpdate`, `fetchPublicBookingStatus`, `fetchPublicBookingSettings`, and
+    `submitBookingRequest`. All mock datasets and simulated submissions removed.
+  - The legacy `booking-wizard.tsx` is retained and powers the internal
+    `/reception/call-desk` staff workflow only. E2E suites updated to the new journey;
+    call desk tests unchanged.
+  - Known follow-up: public flow conversational copy is inline in the component
+    (BF17 marked PARTIAL until it is extracted into a content module).
+
 - [ ] **Phase 14: Clinical Operations & Integrations (Deferred)**
   - Patient portal, patient-facing login, medical intake forms, and electronic health records (EHR).
   - Appointment calendar scheduling and triage management dashboard.

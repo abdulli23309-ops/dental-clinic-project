@@ -25,6 +25,14 @@
 }
 
 :root {
+  --background: #FFFFFF;
+  --foreground: #111827;
+  --card: #FFFFFF;
+  --card-foreground: #111827;
+  --border: #E5E7EB;
+  --muted: #F3F4F6;
+  --muted-foreground: #4B5563;
+
   --color-primary: #1F3D34;
   --color-secondary: #B8935A;
   --color-bg-base: #FFFFFF;
@@ -51,22 +59,30 @@
 
 [data-theme="dark"],
 .dark {
-  --color-bone: #030712;
-  --color-cream: #111827;
-  --color-sand: #1F2937;
-  --color-line: #1F2937;
+  --background: #0a0a0c;
+  --foreground: #F9FAFB;
+  --card: #121316;
+  --card-foreground: #FFFFFF;
+  --border: rgba(255, 255, 255, 0.1);
+  --muted: #1A1C20;
+  --muted-foreground: rgba(255, 255, 255, 0.6);
+
+  --color-bone: #0a0a0c;
+  --color-cream: #121316;
+  --color-sand: #1A1C20;
+  --color-line: rgba(255, 255, 255, 0.1);
   --color-ink: #F9FAFB;
-  --color-ink-soft: #9CA3AF;
+  --color-ink-soft: rgba(255, 255, 255, 0.6);
   --color-forest: #2B5749;
   --color-forest-deep: #070B09;
   --color-clay: #D87D59;
   --color-gold: #C9A266;
 
   --shadow-flat: none;
-  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.35);
-  --shadow-card: 0 10px 25px -5px rgba(0, 0, 0, 0.45);
-  --shadow-elevated: 0 20px 40px -15px rgba(0, 0, 0, 0.65);
-  --shadow-modal: 0 25px 60px -15px rgba(0, 0, 0, 0.85);
+  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --shadow-card: 0 10px 25px -5px rgba(0, 0, 0, 0.6);
+  --shadow-elevated: 0 20px 40px -15px rgba(0, 0, 0, 0.75);
+  --shadow-modal: 0 25px 60px -15px rgba(0, 0, 0, 0.9);
 
   --grain-opacity: 0.02;
 }
@@ -76,7 +92,9 @@
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     scroll-behavior: smooth;
-    transition: background-color 0.25s ease, color 0.25s ease;
+    transition: background-color 350ms cubic-bezier(0.4, 0, 0.2, 1),
+                color 350ms cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 350ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   body {
@@ -85,6 +103,8 @@
     font-family: var(--font-sans);
     font-feature-settings: "ss01", "cv11";
     min-height: 100vh;
+    transition: background-color 350ms cubic-bezier(0.4, 0, 0.2, 1),
+                color 350ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   ::selection {
@@ -177,6 +197,13 @@
     animation: marquee 35s linear infinite;
   }
 
+  /* Shimmer skeleton sweep animation */
+  @keyframes shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
   /* Hide scrollbar for clean horizontal scroll containers */
   .hide-scrollbar,
   .scrollbar-none {
@@ -203,6 +230,35 @@
     background-color: var(--color-line);
     border-radius: 9999px;
   }
+
+  /* Glassmorphic card styling matching video 00:04-00:05 */
+  .glass-card {
+    background-color: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(229, 231, 235, 0.8);
+  }
+
+  .dark .glass-card,
+  [data-theme="dark"] .glass-card {
+    background-color: rgba(18, 19, 22, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Synchronized surface, background, and border transitions for smooth theme toggle */
+header,
+aside,
+nav,
+div[class*="bg-"],
+section[class*="bg-"],
+article[class*="bg-"],
+main[class*="bg-"] {
+  transition-property: background-color, border-color, color, box-shadow;
+  transition-duration: 350ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Film grain: subtle tactile texture */

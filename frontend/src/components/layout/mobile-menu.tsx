@@ -3,9 +3,11 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { X, Phone, Calendar, MapPin, Clock, Search } from "lucide-react";
+import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { usePublicContent } from "@/components/providers/public-content-provider";
+import { modalOverlay, modalContent } from "@/animations/variants";
 
 interface MobileMenuProps {
   isOpen: boolean;
@@ -67,15 +69,23 @@ export function MobileMenu({ isOpen, onClose, onOpenSearch }: MobileMenuProps) {
       aria-label="Mobile Navigation Menu"
     >
       {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+      <motion.div
+        variants={modalOverlay}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden="true"
       />
 
       {/* Slide-over panel */}
-      <div
+      <motion.div
         ref={containerRef}
+        variants={modalContent}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
         className="fixed inset-y-0 right-0 flex w-full max-w-sm flex-col justify-between border-l border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-6 shadow-2xl"
       >
         <div>
@@ -161,7 +171,7 @@ export function MobileMenu({ isOpen, onClose, onOpenSearch }: MobileMenuProps) {
             <span>Book an Appointment</span>
           </Button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

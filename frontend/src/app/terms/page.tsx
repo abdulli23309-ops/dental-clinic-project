@@ -9,6 +9,7 @@ import { ArrowLeft, Clock } from "lucide-react";
 import SiteHeader from "@/components/layout/site-header";
 import Footer from "@/components/layout/footer";
 import { LegalContactBox } from "@/components/layout/legal-contact-box";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export const metadata = {
   title: "Terms of Service & Office Policies | Marlow Dental",
@@ -22,6 +23,7 @@ export const metadata = {
  */
 export default function TermsPage() {
   return (
+  <AnimatedPage>
     <>
       <SiteHeader variant="minimal" />
       <main id="main-content" className="py-12 md:py-20">
@@ -111,5 +113,6 @@ export default function TermsPage() {
       </main>
       <Footer />
     </>
+  </AnimatedPage>
   );
 }

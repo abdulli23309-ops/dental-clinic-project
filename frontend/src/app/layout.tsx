@@ -3,6 +3,7 @@ import { Fraunces, Manrope } from "next/font/google";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { PublicContentProvider } from "@/components/providers/public-content-provider";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const fraunces = Fraunces({
@@ -109,7 +110,10 @@ export default function RootLayout({
       <body className="grain bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 antialiased">
         <ThemeProvider>
           <AuthProvider>
-            <PublicContentProvider>{children}</PublicContentProvider>
+            <PublicContentProvider>
+              {children}
+              <Toaster />
+            </PublicContentProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { TextField } from "@/components/ui/text-field";
 import { useAuth } from "@/components/providers/auth-provider";
 import { homePathForRole } from "@/lib/workspace";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -66,6 +67,7 @@ export default function LoginPage() {
   };
 
   return (
+  <AnimatedPage>
     <div className="min-h-screen bg-white dark:bg-gray-950 flex flex-col justify-between p-4 sm:p-6 md:p-10">
       {/* Top Header Bar */}
       <header className="flex items-center justify-between w-full max-w-5xl mx-auto py-2">
@@ -84,7 +86,7 @@ export default function LoginPage() {
       {/* Main Login Card */}
       <main className="flex-1 flex items-center justify-center my-8">
         <div className="w-full max-w-md">
-          <Card surface="cream" shadow="card" className="p-8 sm:p-10">
+          <Card surface="cream" shadow="card" className="p-8 sm:p-10" hoverLift={true} index={0}>
             {/* Header / Brand Icon */}
             <div className="flex flex-col items-center text-center">
               <div className="grid h-12 w-12 place-items-center rounded-full bg-primary text-white mb-4 shadow-subtle">
@@ -191,5 +193,6 @@ export default function LoginPage() {
         Marlow Dental Administrative Management System · Authorized Staff Only
       </footer>
     </div>
+  </AnimatedPage>
   );
 }

@@ -121,6 +121,8 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
                 </Link>
               ))}
             </nav>
+
+
           )}
 
           {/* Header Actions */}

@@ -9,6 +9,7 @@ import { ArrowLeft, ShieldCheck } from "lucide-react";
 import SiteHeader from "@/components/layout/site-header";
 import Footer from "@/components/layout/footer";
 import { LegalContactBox } from "@/components/layout/legal-contact-box";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export const metadata = {
   title: "Privacy Policy | Marlow Dental",
@@ -22,6 +23,7 @@ export const metadata = {
  */
 export default function PrivacyPage() {
   return (
+  <AnimatedPage>
     <>
       <SiteHeader variant="minimal" />
       <main id="main-content" className="py-14 sm:py-20">
@@ -118,5 +120,6 @@ export default function PrivacyPage() {
       </main>
       <Footer />
     </>
+  </AnimatedPage>
   );
 }

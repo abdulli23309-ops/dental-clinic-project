@@ -10,6 +10,7 @@ import { ScrollProgress } from "@/components/layout/scroll-progress";
 import { BackToTop } from "@/components/layout/back-to-top";
 import { FloatingAction } from "@/components/layout/floating-action";
 import { CookieBanner } from "@/components/ui/cookie-banner";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 /**
  * Renders the main home page of the Marlow Dental practice.
@@ -17,6 +18,7 @@ import { CookieBanner } from "@/components/ui/cookie-banner";
  */
 export default function Home() {
   return (
+  <AnimatedPage>
     <>
       <ScrollProgress />
       <SiteHeader />
@@ -33,5 +35,6 @@ export default function Home() {
       <FloatingAction />
       <CookieBanner />
     </>
+  </AnimatedPage>
   );
 }

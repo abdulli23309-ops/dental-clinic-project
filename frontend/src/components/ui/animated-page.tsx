@@ -9,12 +9,8 @@ import { cn } from "@/lib/utils";
  * AnimatedPage wraps the contents of a route so that switching pages
  * fades/slides smoothly instead of swapping instantly.
  *
- * It is intended to be rendered inside the root layout's
- * `AnimatePresence mode="wait"` (keyed on the pathname). Each route change
- * exits the old page (`pageTransition.exit`) then enters the new one
- * (`pageTransition.initial` → `animate`).
- *
  * Respects prefers-reduced-motion by rendering a plain div.
+ * Uses initial={false} to ensure SSR and initial hydration never freeze at opacity: 0.
  */
 export interface AnimatedPageProps
   extends Omit<HTMLMotionProps<"div">, "children"> {
@@ -35,7 +31,7 @@ export function AnimatedPage({
 
   return (
     <motion.div
-      initial="initial"
+      initial={false}
       animate="animate"
       exit="exit"
       variants={pageTransition}

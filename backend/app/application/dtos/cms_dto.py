@@ -41,73 +41,70 @@ class FaqResponse(BaseModel):
 
 
 class GeneralSectionDTO(BaseModel):
-    """CMS General section configuration."""
-    practiceName: str = "Marlow Dental"
-    tagline: str = "Comprehensive, unhurried dental care."
+    """CMS General section configuration. Empty until the admin configures the organization."""
+    practiceName: Optional[str] = None
+    tagline: Optional[str] = None
     logoUrl: Optional[str] = None
     faviconUrl: Optional[str] = None
-    phone: str = "+92 300 1234567"
-    email: str = "care@marlowdental.com"
-    address: str = "123 Healthcare Boulevard, Medical District"
-    emergencyPhone: Optional[str] = "+92 300 7654321"
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    emergencyPhone: Optional[str] = None
 
     model_config = ConfigDict(extra="ignore")
 
 
 class HomepageSectionDTO(BaseModel):
-    """CMS Homepage section configuration."""
-    heroEyebrow: str = "Independent Dental Practice · Modern Clinical Care"
-    heroHeading: str = "Modern, unhurried dental care."
-    heroDescription: str = "Comprehensive exams, gentle restorations, and transparent fee schedules from a dedicated clinical team."
-    heroCtaText: str = "Request an appointment"
-    heroCtaLink: str = "/book"
-    heroSecondaryCtaText: str = "View treatment fees"
-    heroSecondaryCtaLink: str = "#services"
+    """CMS Homepage section configuration. Empty until the admin configures the organization."""
+    heroEyebrow: Optional[str] = None
+    heroHeading: Optional[str] = None
+    heroDescription: Optional[str] = None
+    heroCtaText: Optional[str] = None
+    heroCtaLink: Optional[str] = None
+    heroSecondaryCtaText: Optional[str] = None
+    heroSecondaryCtaLink: Optional[str] = None
     heroImageUrl: Optional[str] = None
 
     model_config = ConfigDict(extra="ignore")
 
 
 class AboutSectionDTO(BaseModel):
-    """CMS About section configuration."""
-    eyebrow: str = "Meet Your Dental Team"
-    title: str = "We opened this practice to offer unhurried, conservative care."
-    storyParagraphs: List[str] = Field(default_factory=lambda: [
-        "After graduating from top dental programs, our clinicians established Marlow Dental with a single standard: patient-first continuity from start to finish.",
-        "When you sit in our chair, we will never recommend aggressive treatments or unneeded cosmetic procedures. If a tooth can be maintained conservatively with diligent care, that is exactly what we advise.",
-    ])
+    """CMS About section configuration. Empty until the admin configures the organization."""
+    eyebrow: Optional[str] = None
+    title: Optional[str] = None
+    storyParagraphs: List[str] = []
     imageUrl: Optional[str] = None
-    licensureText: str = "Registered & Verified Clinical Licensure. BLS/CPR Certified."
+    licensureText: Optional[str] = None
 
     model_config = ConfigDict(extra="ignore")
 
 
 class ContactSectionDTO(BaseModel):
-    """CMS Contact section configuration."""
-    phone: str = "+92 300 1234567"
-    email: str = "care@marlowdental.com"
-    addressLine1: str = "123 Healthcare Boulevard"
-    addressLine2: str = "Suite 300, Medical District"
-    transitNote: str = "Convenient transit access and dedicated patient parking available on site."
-    hoursSummary: str = "Monday – Thursday: 8:00 AM – 6:00 PM\nFriday: 8:00 AM – 2:00 PM (Emergency triage only)\nSaturday – Sunday: Closed"
-    emergencyNote: str = "Reserved triage blocks available daily. Call before 11:00 AM for same-day evaluation."
+    """CMS Contact section configuration. Empty until the admin configures the organization."""
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    addressLine1: Optional[str] = None
+    addressLine2: Optional[str] = None
+    transitNote: Optional[str] = None
+    hoursSummary: Optional[str] = None
+    emergencyNote: Optional[str] = None
 
     model_config = ConfigDict(extra="ignore")
 
 
 class FooterSectionDTO(BaseModel):
-    """CMS Footer section configuration."""
-    tagline: str = "Independent, ethical dental care."
-    copyrightNotice: str = "Marlow Dental Practice. All rights reserved."
-    cancellationPolicy: str = "We request 48 hours notice for appointment rescheduling."
+    """CMS Footer section configuration. Empty until the admin configures the organization."""
+    tagline: Optional[str] = None
+    copyrightNotice: Optional[str] = None
+    cancellationPolicy: Optional[str] = None
 
     model_config = ConfigDict(extra="ignore")
 
 
 class SeoSectionDTO(BaseModel):
-    """CMS SEO configuration."""
-    siteTitle: str = "Marlow Dental — Unhurried Dentistry"
-    metaDescription: str = "Independent dental practice offering gentle exams, ceramic restorations, and transparent pricing."
+    """CMS SEO configuration. Empty until the admin configures the organization."""
+    siteTitle: Optional[str] = None
+    metaDescription: Optional[str] = None
     ogImageUrl: Optional[str] = None
 
     model_config = ConfigDict(extra="ignore")

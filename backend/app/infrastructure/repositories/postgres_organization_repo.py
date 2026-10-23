@@ -100,6 +100,12 @@ class PostgresOrganizationRepository(OrganizationRepository):
             await self._session.flush()
             return self._to_domain(orm)
 
+    async def delete(self, org_id: UUID) -> None:
+        orm = await self._session.get(OrganizationORM, org_id)
+        if orm is not None:
+            await self._session.delete(orm)
+            await self._session.flush()
+
 
 class PostgresLocationRepository(LocationRepository):
     """PostgreSQL implementation of the LocationRepository abstraction."""
@@ -184,3 +190,8 @@ class PostgresLocationRepository(LocationRepository):
             self._session.add(orm)
             await self._session.flush()
             return self._to_domain(orm)
+    async def delete(self, location_id: UUID) -> None:
+        orm = await self._session.get(LocationORM, location_id)
+        if orm is not None:
+            await self._session.delete(orm)
+            await self._session.flush()

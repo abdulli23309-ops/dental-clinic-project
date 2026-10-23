@@ -20,6 +20,10 @@ class OrganizationRepository(ABC):
     async def save(self, org: Organization) -> Organization:
         pass
 
+    @abstractmethod
+    async def delete(self, org_id: UUID) -> None:
+        pass
+
 
 class LocationRepository(ABC):
     """Abstract interface defining persistence operations for Location entities."""
@@ -34,4 +38,8 @@ class LocationRepository(ABC):
 
     @abstractmethod
     async def save(self, location: Location) -> Location:
+        pass
+
+    @abstractmethod
+    async def delete(self, location_id: UUID) -> None:
         pass

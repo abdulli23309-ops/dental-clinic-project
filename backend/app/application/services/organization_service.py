@@ -24,21 +24,13 @@ class OrganizationService:
         self.org_repo = org_repo
         self.location_repo = location_repo
 
-    async def get_organization(self) -> Organization:
-        org = await self.org_repo.get_current()
-        if not org:
-            # Create default Marlow Dental organization if not exists
-            org = Organization(
-                name="Marlow Dental",
-                display_name="Marlow Dental Practice",
-                tagline="Comprehensive, unhurried dental care.",
-                description="Independent dental practice focused on direct doctor continuity and upfront fee transparency.",
-                contact_email="care@marlowdental.com",
-                contact_phone="+92 300 1234567",
-                website_url="https://marlowdental.com",
-            )
-            org = await self.org_repo.save(org)
-        return org
+    async def get_organization(self) -> Optional[Organization]:
+        """Return the current organization, or None if none has been configured.
+
+        Never auto-creates a default organization: a fresh database starts empty
+        and the admin must configure the practice via the admin portal.
+        """
+        return await self.org_repo.get_current()
 
     async def update_organization(self, req: OrganizationUpdateRequest) -> Organization:
         org = await self.get_organization()
@@ -93,6 +85,11 @@ class OrganizationService:
 
     async def create_location(self, req: LocationCreateRequest) -> Location:
         org = await self.get_organization()
+        if org is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No organization configured. Create the organization profile before adding locations.",
+            )
         loc = Location(
             organization_id=org.id,
             name=req.name.strip(),
@@ -149,3 +146,22 @@ class OrganizationService:
         loc.is_active = is_active
         loc.updated_at = datetime.now(timezone.utc)
         return await self.location_repo.save(loc)
+
+
+    async def delete_organization(self, organization_id: UUID) -> None:
+        org = await self.org_repo.get_by_id(organization_id)
+        if org is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Organization not found.",
+            )
+        await self.org_repo.delete(org.id)
+
+    async def delete_location(self, location_id: UUID) -> None:
+        loc = await self.location_repo.get_by_id(location_id)
+        if loc is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Location not found.",
+            )
+        await self.location_repo.delete(loc.id)

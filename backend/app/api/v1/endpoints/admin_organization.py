@@ -1,7 +1,7 @@
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.api.deps import get_organization_service, require_admin
 from app.application.dtos.organization_dto import (
@@ -21,8 +21,13 @@ router = APIRouter(prefix="/admin", tags=["Admin Organization"], dependencies=[D
 async def get_organization(
     org_service: OrganizationService = Depends(get_organization_service),
 ) -> OrganizationResponse:
-    """Retrieves top-level practice details."""
+    """Retrieves top-level practice details. 404 if no organization configured."""
     org = await org_service.get_organization()
+    if org is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No organization configured. Create the organization profile first.",
+        )
     return OrganizationResponse(
         id=org.id,
         name=org.name,
@@ -186,3 +191,38 @@ async def toggle_location_status(
         createdAt=loc.created_at,
         updatedAt=loc.updated_at,
     )
+
+
+@router.delete("/organization", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_organization(
+    org_service: OrganizationService = Depends(get_organization_service),
+) -> None:
+    """Deletes the configured organization (admin-only)."""
+    org = await org_service.get_organization()
+    if org is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No organization configured.",
+        )
+    await org_service.delete_organization(org.id)
+    return None
+
+
+@router.delete("/locations/{location_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_location(
+    location_id: UUID,
+    org_service: OrganizationService = Depends(get_organization_service),
+) -> None:
+    """Deletes a clinic location (admin-only)."""
+    await org_service.get_location(location_id)  # raises 404 if missing
+    await org_service.delete_location(location_id)
+    return None
+
+
+@router.get("/organization/setup-status")
+async def organization_setup_status(
+    org_service: OrganizationService = Depends(get_organization_service),
+) -> dict:
+    """Reports whether the organization has been configured."""
+    org = await org_service.get_organization()
+    return {"isConfigured": org is not None, "organization": org}

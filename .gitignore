@@ -9,6 +9,8 @@ desktop.ini
 .env
 .env.*
 !.env.example
+.local-credentials.json
+backend/.local-credentials.json
 
 # Editor and IDE directories
 .idea/

@@ -73,7 +73,7 @@ test.describe("Role Scenarios & Screen Intercept Tests", () => {
   // --------------------------------------------------------------------------
   // Scenario 1: Public Booking with Lead Capture
   // --------------------------------------------------------------------------
-  test("1. Public Booking: Lead capture on Step 0 and complete wizard journey", async ({ page }) => {
+  test("1. Public Booking: Lead capture on Page 1 and complete progressive journey", async ({ page }) => {
     test.setTimeout(90000);
     const rand = Math.floor(100000 + Math.random() * 900000);
     const patientName = `Public Lead ${rand}`;
@@ -89,45 +89,63 @@ test.describe("Role Scenarios & Screen Intercept Tests", () => {
     await page.fill("#contact-name", patientName);
     await page.fill("#contact-phone", patientPhone);
     await page.fill("#contact-email", `lead_${rand}@example.com`);
+    await page.fill("#visit-notes", "Looking forward to initial consultation.");
 
     // Click Continue -> triggers POST /api/v1/public/leads (201 Created)
     const leadResponsePromise = page.waitForResponse(
       (resp) => resp.url().includes("/leads") && resp.request().method() === "POST" && resp.ok()
     );
-    await page.click("[data-testid='wizard-continue-btn']");
+    await page.click("[data-testid='contact-continue-btn']");
     const leadResp = await leadResponsePromise;
     const leadJson = await leadResp.json();
     expect(leadJson.captureToken).toBeTruthy();
 
-    // Step 1: Select Service
-    await page.waitForSelector("[data-testid^='service-option-']", { timeout: 10000 });
+    // Page 2: Treatment waterfall
+    await page.waitForSelector("[data-testid^='service-option-']", { timeout: 15000 });
     const serviceOption = page.locator("[data-testid^='service-option-']").first();
     await serviceOption.click();
-    await page.click("[data-testid='wizard-continue-btn']");
 
-    // Step 2: Clinic Selection
-    await page.waitForSelector("[data-testid^='clinic-option-']", { timeout: 10000 });
+    // Wait for the waterfall to reveal either the city step or the clinic list
+    await page.waitForSelector("[data-testid^='city-option-'], [data-testid^='clinic-option-']", { timeout: 15000 });
+    const cityOption = page.locator("[data-testid^='city-option-']").first();
+    if (await cityOption.isVisible()) {
+      await cityOption.click();
+    }
+
+    // Clinic
+    await page.waitForSelector("[data-testid^='clinic-option-']", { timeout: 15000 });
     const clinicOptions = page.locator("[data-testid^='clinic-option-']");
     await clinicOptions.first().click();
-    await page.click("[data-testid='wizard-continue-btn']");
 
-    // Step 3: Doctor & Slot Selection - Click first available slot chip
+    // Doctor (auto-selected when the clinic has a single clinician)
+    await page.waitForSelector("[data-testid^='doctor-card-'], [data-testid='single-doctor-intro']", { timeout: 15000 });
+    const doctorCards = page.locator("[data-testid^='doctor-card-']");
+    if ((await doctorCards.count()) > 0) {
+      await doctorCards.first().click();
+    }
+
+    // Day & first available slot
+    await page.waitForSelector("[data-testid^='day-chip-']", { timeout: 15000 });
+    await page.locator("[data-testid^='day-chip-']").first().click();
     await page.waitForSelector("[data-testid^='slot-chip-']", { timeout: 15000 });
-    const slotChip = page.locator("[data-testid^='slot-chip-']").first();
-    await slotChip.click();
-    await page.click("[data-testid='wizard-continue-btn']");
+    await page.locator("[data-testid^='slot-chip-']").first().click();
 
-    // Step 4: Notes
-    await page.waitForSelector("#visit-notes", { timeout: 10000 });
-    await page.fill("#visit-notes", "Looking forward to initial consultation.");
-    await page.click("[data-testid='wizard-continue-btn']");
+    // Continue to summary
+    await page.click("[data-testid='continue-to-summary-btn']");
 
-    // Step 5: Review & Confirm
-    await page.waitForSelector("[data-testid='wizard-confirm-btn']", { timeout: 10000 });
-    await page.click("[data-testid='wizard-confirm-btn']");
+    // Page 3: Review & confirm the appointment request
+    await page.waitForSelector("[data-testid='booking-confirm-btn']", { timeout: 10000 });
+    await expect(page.locator("body")).toContainText(patientName);
+    await expect(page.locator("body")).toContainText("Looking forward to initial consultation.");
+    const appointmentPromise = page.waitForResponse(
+      (resp) => resp.url().includes("/appointments") && resp.request().method() === "POST" && resp.ok()
+    );
+    await page.click("[data-testid='booking-confirm-btn']");
+    await appointmentPromise;
 
-    // Confirmation screen
-    await expect(page.locator("text=Reservation Confirmed")).toBeVisible({ timeout: 15000 });
+    // Confirmation screen with real backend reference code
+    await expect(page.locator("text=Booking Confirmed")).toBeVisible({ timeout: 15000 });
+    await expect(page.locator("[data-testid='booking-confirmation-code']")).toBeVisible();
   });
 
   // --------------------------------------------------------------------------
@@ -436,5 +454,90 @@ test.describe("Role Scenarios & Screen Intercept Tests", () => {
 
     // Field error text visible
     await expect(page.locator("text=Telephony gateway timeout.")).toBeVisible({ timeout: 10000 });
+  });
+
+  test("reduced motion (emulated) gives no movement", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/book");
+    await page.waitForLoadState("domcontentloaded");
+
+    const matchesReducedMotion = await page.evaluate(() => {
+      return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    });
+    expect(matchesReducedMotion).toBe(true);
+
+    await page.fill("#contact-name", "Reduced Motion Test");
+    await page.fill("#contact-phone", "+92 300 8888888");
+    const continueBtn = page.locator("[data-testid='contact-continue-btn']");
+    await expect(continueBtn).toBeVisible();
+    await continueBtn.click();
+
+    await page.waitForSelector("[data-testid^='service-option-']", { timeout: 15000 });
+    await expect(page.locator("[data-testid^='service-option-']").first()).toBeVisible();
+  });
+
+  test("completing the booking with the keyboard only", async ({ page }) => {
+    await page.goto("/book");
+    await page.waitForLoadState("domcontentloaded");
+
+    // 1. Page 1: type contact details and submit the form with Enter
+    await page.focus("#contact-name");
+    await page.keyboard.type("Keyboard Only User");
+    await page.keyboard.press("Tab");
+    await page.keyboard.type("+92 300 9991234");
+    await page.keyboard.press("Tab");
+    await page.keyboard.type("keyboard@example.com");
+    await page.keyboard.press("Enter");
+
+    // 2. Treatment waterfall
+    await page.waitForSelector("[data-testid^='service-option-']", { timeout: 15000 });
+    const firstService = page.locator("[data-testid^='service-option-']").first();
+    await firstService.focus();
+    await page.keyboard.press("Enter");
+
+    // 3. City (only rendered when the treatment spans multiple cities)
+    await page.waitForSelector("[data-testid^='city-option-'], [data-testid^='clinic-option-']", { timeout: 15000 });
+    const cityOption = page.locator("[data-testid^='city-option-']").first();
+    if (await cityOption.isVisible()) {
+      await cityOption.focus();
+      await page.keyboard.press("Enter");
+    }
+
+    // 4. Clinic
+    await page.waitForSelector("[data-testid^='clinic-option-']", { timeout: 15000 });
+    const firstClinic = page.locator("[data-testid^='clinic-option-']").first();
+    await firstClinic.focus();
+    await page.keyboard.press("Enter");
+
+    // 5. Doctor (auto-selected when the clinic has a single clinician)
+    await page.waitForSelector("[data-testid^='doctor-card-'], [data-testid='single-doctor-intro']", { timeout: 15000 });
+    const docOption = page.locator("[data-testid^='doctor-card-']").first();
+    if (await docOption.isVisible().catch(() => false)) {
+      await docOption.focus();
+      await page.keyboard.press("Enter");
+    }
+
+    // 6. Day & slot chips
+    await page.waitForSelector("[data-testid^='day-chip-']", { timeout: 15000 });
+    const firstDay = page.locator("[data-testid^='day-chip-']").first();
+    await firstDay.focus();
+    await page.keyboard.press("Enter");
+    await page.waitForSelector("[data-testid^='slot-chip-']", { timeout: 15000 });
+    const firstSlot = page.locator("[data-testid^='slot-chip-']").first();
+    await firstSlot.focus();
+    await page.keyboard.press("Enter");
+
+    // 7. Continue to summary with the keyboard
+    const summaryBtn = page.locator("[data-testid='continue-to-summary-btn']");
+    await summaryBtn.focus();
+    await page.keyboard.press("Enter");
+
+    // 8. Confirm the appointment request
+    await page.waitForSelector("[data-testid='booking-confirm-btn']", { timeout: 10000 });
+    const confirmBtn = page.locator("[data-testid='booking-confirm-btn']");
+    await confirmBtn.focus();
+    await page.keyboard.press("Enter");
+
+    await expect(page.locator("[data-testid='booking-confirmation-code']")).toBeVisible({ timeout: 20000 });
   });
 });

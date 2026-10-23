@@ -221,18 +221,17 @@ async def test_doctors_endpoint_keys_and_privacy_guard(setup_test_org, client_wi
     cs = ClinicServiceORM(clinic_id=clinic_id, service_id=svc.id, is_active=True)
     test_session.add(cs)
 
-    # Doctor working hours at clinic
-    target_date = date.today() + timedelta(days=2)
-    dow = target_date.weekday()
-    pa = ProviderAvailabilityORM(
-        id=uuid4(),
-        team_member_id=doc.id,
-        day_of_week=dow,
-        start_time="09:00",
-        end_time="17:00",
-        is_active=True,
-    )
-    test_session.add(pa)
+    # Doctor working hours at clinic (all weekdays to avoid weekend clinic closure flakes)
+    for dow in range(0, 5):
+        pa = ProviderAvailabilityORM(
+            id=uuid4(),
+            team_member_id=doc.id,
+            day_of_week=dow,
+            start_time="09:00",
+            end_time="17:00",
+            is_active=True,
+        )
+        test_session.add(pa)
     await test_session.commit()
 
     resp = await client_with_db.get(

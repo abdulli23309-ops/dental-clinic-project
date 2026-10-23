@@ -36,6 +36,12 @@ if not TEST_DB_URL:
 @pytest_asyncio.fixture
 async def pg_test_engine():
     engine = create_async_engine(TEST_DB_URL, echo=False, pool_size=10, max_overflow=10)
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+    except Exception as exc:
+        await engine.dispose()
+        pytest.skip(f"PostgreSQL test database not available: {exc}")
     yield engine
     await engine.dispose()
 

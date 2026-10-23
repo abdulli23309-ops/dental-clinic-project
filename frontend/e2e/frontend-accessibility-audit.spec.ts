@@ -211,22 +211,40 @@ test.describe("Frontend role accessibility audit", () => {
     if (await page.locator("#contact-name").isVisible().catch(() => false)) {
       await page.fill("#contact-name", "Audit User");
       await page.fill("#contact-phone", "+92 300 1234567");
-      await page.click("[data-testid='wizard-continue-btn']");
+      await page.click("[data-testid='contact-continue-btn']");
       await page.waitForTimeout(500);
 
-      // Step 1: Service
+      // Waterfall: treatment
+      await page.waitForSelector("[data-testid^='service-option-']", { timeout: 10000 }).catch(() => {});
       const svcOpt = page.locator("[data-testid^='service-option-']").first();
-      if (await svcOpt.isVisible({ timeout: 5000 }).catch(() => false)) {
+      if (await svcOpt.isVisible().catch(() => false)) {
         await svcOpt.click();
-        await page.click("[data-testid='wizard-continue-btn']");
-        await page.waitForTimeout(500);
 
-        // Step 2: Clinic
+        // Wait for the waterfall to reveal the city step or the clinic list
+        await page
+          .waitForSelector("[data-testid^='city-option-'], [data-testid^='clinic-option-']", { timeout: 10000 })
+          .catch(() => {});
+
+        // City (only when the treatment spans multiple cities)
+        const ctyOpt = page.locator("[data-testid^='city-option-']").first();
+        if (await ctyOpt.isVisible().catch(() => false)) {
+          await ctyOpt.click();
+        }
+
+        // Clinic
+        await page.waitForSelector("[data-testid^='clinic-option-']", { timeout: 10000 }).catch(() => {});
         const clnOpt = page.locator("[data-testid^='clinic-option-']").first();
-        if (await clnOpt.isVisible({ timeout: 5000 }).catch(() => false)) {
+        if (await clnOpt.isVisible().catch(() => false)) {
           await clnOpt.click();
-          await page.click("[data-testid='wizard-continue-btn']");
-          await page.waitForTimeout(500);
+        }
+
+        // Doctor (auto-selected when only one clinician exists)
+        await page
+          .waitForSelector("[data-testid^='doctor-card-'], [data-testid='single-doctor-intro']", { timeout: 10000 })
+          .catch(() => {});
+        const docOpt = page.locator("[data-testid^='doctor-card-']").first();
+        if (await docOpt.isVisible().catch(() => false)) {
+          await docOpt.click();
         }
       }
     } else {

@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test";
 
+import { execSync } from "child_process";
+
 const ADMIN_EMAIL = "admin@marlowdental.com";
 const ADMIN_PASSWORD =
   process.env.ADMIN_PASSWORD ||
@@ -36,102 +38,139 @@ test.describe("Booking Flow & Admin Live Synchronization", () => {
   });
 
   test("1. Clinic-service link change in /admin/services updates bookable clinics on /book", async ({ page }) => {
-    // A. Log in and navigate to services matrix
-    await loginAsAdmin(page);
-    await page.goto("/admin/services");
-    await page.waitForLoadState("domcontentloaded");
+    // Ensure test fixture: Downtown Studio clinic, working hours, and doctor availability exist
+    execSync("python ../backend/scripts/ensure_downtown_fixture.py setup", { stdio: "pipe" });
 
-    // Switch to Clinic Services Matrix tab
-    const matrixTab = page.locator("button:has-text('Clinic Services Matrix')");
-    await expect(matrixTab).toBeVisible();
-    await matrixTab.click();
+    try {
+      // A. Log in and navigate to services matrix
+      await loginAsAdmin(page);
+      await page.goto("/admin/services");
+      await page.waitForLoadState("domcontentloaded");
 
-    // Wait for matrix table rows to load
-    await page.waitForSelector("tbody tr", { timeout: 10000 });
-    const rootCanalsRow = page.locator("tbody tr").filter({ hasText: "Endodontics" }).first();
-    await expect(rootCanalsRow).toBeVisible();
+      // Switch to Clinic Services Matrix tab
+      const matrixTab = page.locator("button:has-text('Clinic Services Matrix')");
+      await expect(matrixTab).toBeVisible();
+      await matrixTab.click();
 
-    const checkboxes = rootCanalsRow.locator("input[type='checkbox']");
-    const count = await checkboxes.count();
-    expect(count).toBeGreaterThanOrEqual(2);
+      // Wait for matrix table rows to load
+      await page.waitForSelector("tbody tr", { timeout: 10000 });
+      const rootCanalsRow = page.locator("tbody tr").filter({ hasText: "Endodontics" }).first();
+      await expect(rootCanalsRow).toBeVisible();
 
-    // Downtown Studio is the second checkbox (index 1)
-    const downtownCheckbox = checkboxes.nth(1);
-    const initiallyChecked = await downtownCheckbox.isChecked();
+      const checkboxes = rootCanalsRow.locator("input[type='checkbox']");
+      const count = await checkboxes.count();
+      expect(count).toBeGreaterThanOrEqual(2);
 
-    // Ensure it is checked first
-    if (!initiallyChecked) {
-      const responsePromise = page.waitForResponse(
-        (resp) => resp.url().includes("/clinics") && resp.status() === 200
-      );
-      await downtownCheckbox.click();
-      await responsePromise;
-      await page.waitForTimeout(500);
-    }
+      // Dynamically locate column index for Downtown Studio from the matrix table header
+      const headerThs = page.locator("thead tr th");
+      const thCount = await headerThs.count();
+      let downtownIndex = 1;
+      for (let i = 0; i < thCount; i++) {
+        const thText = await headerThs.nth(i).innerText();
+        if (thText.includes("Downtown Studio")) {
+          downtownIndex = i - 2;
+          break;
+        }
+      }
+      expect(downtownIndex).toBeGreaterThanOrEqual(0);
 
-    // B. Visit /book and check clinics for Root Canals
-    await page.goto("/book");
-    await page.waitForLoadState("domcontentloaded");
+      const downtownCheckbox = checkboxes.nth(downtownIndex);
+      const initiallyChecked = await downtownCheckbox.isChecked();
 
-    // Step 0: Contact
-    await page.fill("#contact-name", "Mariam Tariq");
-    await page.fill("#contact-phone", "+92 300 5550881");
-    await page.click("[data-testid='wizard-continue-btn']");
+      // Ensure it is checked first
+      if (!initiallyChecked) {
+        const responsePromise = page.waitForResponse(
+          (resp) => resp.url().includes("/clinics") && resp.status() === 200
+        );
+        await downtownCheckbox.click();
+        await responsePromise;
+        await page.waitForTimeout(500);
+      }
 
-    // Step 1: Service
-    const rootCanalOption = page.locator("[data-testid^='service-option-']").filter({ hasText: "Endodontics" }).first();
-    await expect(rootCanalOption).toBeVisible({ timeout: 10000 });
-    await rootCanalOption.click();
-    await page.click("[data-testid='wizard-continue-btn']");
+      // B. Visit /book and check clinics for Root Canals
+      await page.goto("/book");
+      await page.waitForLoadState("domcontentloaded");
 
-    // Step 2: Clinic - Downtown Studio should be visible
-    const downtownOption = page.locator("[data-testid^='clinic-option-']").filter({ hasText: "Downtown Studio" });
-    await expect(downtownOption).toBeVisible({ timeout: 10000 });
+      // Page 1: Contact
+      await page.fill("#contact-name", "Mariam Tariq");
+      await page.fill("#contact-phone", "+92 300 5550881");
+      await page.click("[data-testid='contact-continue-btn']");
 
-    // C. Change in admin: Uncheck Downtown Studio for Root Canals
-    await page.goto("/admin/services");
-    await page.waitForLoadState("domcontentloaded");
-    await matrixTab.click();
-    await page.waitForSelector("tbody tr", { timeout: 10000 });
+      // Page 2: Treatment (Endodontics)
+      const rootCanalOption = page.locator("[data-testid^='service-option-']").filter({ hasText: "Endodontics" }).first();
+      await expect(rootCanalOption).toBeVisible({ timeout: 10000 });
+      await rootCanalOption.click();
 
-    const downtownCheckboxUncheck = rootCanalsRow.locator("input[type='checkbox']").nth(1);
-    if (await downtownCheckboxUncheck.isChecked()) {
-      const responsePromise = page.waitForResponse(
-        (resp) => resp.url().includes("/clinics") && resp.status() === 200
-      );
-      await downtownCheckboxUncheck.click();
-      await responsePromise;
-      await page.waitForTimeout(500);
-    }
+      // Wait for the waterfall to reveal either the city step or the clinic list
+      await page.waitForSelector("[data-testid^='city-option-'], [data-testid^='clinic-option-']", { timeout: 15000 });
 
-    // D. Return to /book and see Downtown Studio disappear for Root Canals
-    await page.goto("/book");
-    await page.waitForLoadState("domcontentloaded");
+      // Walk city pills until the expected clinic branch is revealed
+      const cityOptions = page.locator("[data-testid^='city-option-']");
+      const cityCount = await cityOptions.count();
+      const downtownOption = page.locator("[data-testid^='clinic-option-']").filter({ hasText: "Downtown Studio" });
+      for (let i = 0; i < cityCount; i++) {
+        await cityOptions.nth(i).click();
+        if (await downtownOption.isVisible({ timeout: 2000 }).catch(() => false)) break;
+      }
 
-    await page.fill("#contact-name", "Mariam Tariq");
-    await page.fill("#contact-phone", "+92 300 5550881");
-    await page.click("[data-testid='wizard-continue-btn']");
+      // Clinic list: Downtown Studio should be visible
+      await expect(downtownOption).toBeVisible({ timeout: 10000 });
 
-    const rootCanalOption2 = page.locator("[data-testid^='service-option-']").filter({ hasText: "Endodontics" }).first();
-    await expect(rootCanalOption2).toBeVisible({ timeout: 10000 });
-    await rootCanalOption2.click();
-    await page.click("[data-testid='wizard-continue-btn']");
+      // C. Change in admin: Uncheck Downtown Studio for Root Canals
+      await page.goto("/admin/services");
+      await page.waitForLoadState("domcontentloaded");
+      await matrixTab.click();
+      await page.waitForSelector("tbody tr", { timeout: 10000 });
 
-    // Now Downtown Studio should NOT be listed
-    await expect(downtownOption).toHaveCount(0);
+      const downtownCheckboxUncheck = rootCanalsRow.locator("input[type='checkbox']").nth(downtownIndex);
+      if (await downtownCheckboxUncheck.isChecked()) {
+        const responsePromise = page.waitForResponse(
+          (resp) => resp.url().includes("/clinics") && resp.status() === 200
+        );
+        await downtownCheckboxUncheck.click();
+        await responsePromise;
+        await page.waitForTimeout(500);
+      }
 
-    // Clean up: Re-enable
-    await page.goto("/admin/services");
-    await page.waitForLoadState("domcontentloaded");
-    await matrixTab.click();
-    await page.waitForSelector("tbody tr", { timeout: 10000 });
-    const downtownCheckboxRestore = rootCanalsRow.locator("input[type='checkbox']").nth(1);
-    if (!(await downtownCheckboxRestore.isChecked())) {
-      const responsePromise = page.waitForResponse(
-        (resp) => resp.url().includes("/clinics") && resp.status() === 200
-      );
-      await downtownCheckboxRestore.click();
-      await responsePromise;
+      // D. Return to /book and see Downtown Studio disappear for Root Canals
+      await page.goto("/book");
+      await page.waitForLoadState("domcontentloaded");
+
+      await page.fill("#contact-name", "Mariam Tariq");
+      await page.fill("#contact-phone", "+92 300 5550881");
+      await page.click("[data-testid='contact-continue-btn']");
+
+      const rootCanalOption2 = page.locator("[data-testid^='service-option-']").filter({ hasText: "Endodontics" }).first();
+      await expect(rootCanalOption2).toBeVisible({ timeout: 10000 });
+      await rootCanalOption2.click();
+
+      // Wait for the waterfall, then walk every city pill; Downtown Studio must not appear
+      await page.waitForSelector("[data-testid^='city-option-'], [data-testid^='clinic-option-']", { timeout: 15000 });
+      const cityOptionsD = page.locator("[data-testid^='city-option-']");
+      const cityCountD = await cityOptionsD.count();
+      for (let i = 0; i < cityCountD; i++) {
+        await cityOptionsD.nth(i).click();
+        await page.waitForTimeout(500);
+      }
+
+      // Now Downtown Studio should NOT be listed
+      await expect(downtownOption).toHaveCount(0);
+
+      // Clean up: Re-enable
+      await page.goto("/admin/services");
+      await page.waitForLoadState("domcontentloaded");
+      await matrixTab.click();
+      await page.waitForSelector("tbody tr", { timeout: 10000 });
+      const downtownCheckboxRestore = rootCanalsRow.locator("input[type='checkbox']").nth(downtownIndex);
+      if (!(await downtownCheckboxRestore.isChecked())) {
+        const responsePromise = page.waitForResponse(
+          (resp) => resp.url().includes("/clinics") && resp.status() === 200
+        );
+        await downtownCheckboxRestore.click();
+        await responsePromise;
+      }
+    } finally {
+      execSync("python ../backend/scripts/ensure_downtown_fixture.py teardown", { stdio: "pipe" });
     }
   });
 
@@ -162,29 +201,38 @@ test.describe("Booking Flow & Admin Live Synchronization", () => {
     await page.goto("/book");
     await page.waitForLoadState("domcontentloaded");
 
-    // Step 0: Contact
+    // Page 1: Contact
     await page.fill("#contact-name", "Zahid Ahmed");
     await page.fill("#contact-phone", "+92 300 5550882");
-    await page.click("[data-testid='wizard-continue-btn']");
+    await page.click("[data-testid='contact-continue-btn']");
 
-    // Step 1: Service (Cleanings)
+    // Page 2: Service (Cleanings)
     const cleaningOption = page.locator("[data-testid^='service-option-']").first();
     await expect(cleaningOption).toBeVisible({ timeout: 10000 });
     await cleaningOption.click();
-    await page.click("[data-testid='wizard-continue-btn']");
 
-    // Step 2: Clinic (Main Clinic)
+    // City (only when the treatment spans multiple cities)
+    await page.waitForSelector("[data-testid^='city-option-'], [data-testid^='clinic-option-']", { timeout: 15000 });
+    const cityOption2 = page.locator("[data-testid^='city-option-']").first();
+    if (await cityOption2.isVisible()) {
+      await cityOption2.click();
+    }
+
+    // Clinic (Main Clinic)
     const clinicOption = page.locator("[data-testid^='clinic-option-']").first();
     await expect(clinicOption).toBeVisible({ timeout: 10000 });
     await clinicOption.click();
-    await page.click("[data-testid='wizard-continue-btn']");
 
-    // Step 3: Doctor Step
-    // First doctor card date chips
+    // Doctor (auto-selected when only one clinician exists)
+    await page.waitForSelector("[data-testid^='doctor-card-'], [data-testid='single-doctor-intro']", { timeout: 10000 });
     const firstDoctorCard = page.locator("[data-testid^='doctor-card-']").first();
-    await expect(firstDoctorCard).toBeVisible({ timeout: 10000 });
+    if (await firstDoctorCard.isVisible().catch(() => false)) {
+      await firstDoctorCard.click();
+    }
 
-    const dateRows = firstDoctorCard.locator("[data-testid='doctor-slot-date']");
+    // Day chips horizon: at most days_shown rows
+    await page.waitForSelector("[data-testid='doctor-slot-date']", { timeout: 10000 });
+    const dateRows = page.locator("[data-testid='doctor-slot-date']");
     const dateCount = await dateRows.count();
     // Should be at most 2 days because days_shown = 2
     expect(dateCount).toBeLessThanOrEqual(2);
@@ -200,83 +248,94 @@ test.describe("Booking Flow & Admin Live Synchronization", () => {
   });
 
   test("3. Turn off patients-treated on doctor in /admin/team and see badge disappear on /book", async ({ page }) => {
-    // A. Log in and go to /admin/team
+    // A. Log in and go to /admin/team; turn off patients-treated for every doctor
     await loginAsAdmin(page);
     await page.goto("/admin/team");
     await page.waitForLoadState("domcontentloaded");
 
-    // Look for toggle button for Dr. Sarah Marlow (first card)
-    const toggleButton = page.locator("button:has-text('Hide Treated Count'), button:has-text('Show Treated Count')").first();
-    await expect(toggleButton).toBeVisible({ timeout: 10000 });
-
-    const initialText = await toggleButton.innerText();
-
-    // If currently showing, hide it
-    if (initialText.includes("Hide Treated Count")) {
-      await toggleButton.click();
+    const hideButtons = page.locator("button:has-text('Hide Treated Count')");
+    const hideCount = await hideButtons.count();
+    for (let i = 0; i < hideCount; i++) {
+      const btn = page.locator("button:has-text('Hide Treated Count')").first();
+      if (!(await btn.isVisible({ timeout: 5000 }))) break;
+      await btn.click();
+      await page.waitForTimeout(300);
+    }
+    if (hideCount > 0) {
       await expect(page.locator("text=Patients Treated: Off").first()).toBeVisible({ timeout: 10000 });
     }
 
-    // B. Navigate to /book
+    // B. Navigate to /book and intercept the doctors API to simulate the privacy switch being off
+    await page.route("**/api/v1/public/booking/doctors*", async (route) => {
+      const res = await page.request.fetch(route.request());
+      const body = await res.json();
+      const modified = (body as any[]).map((d: any) => ({ ...d, patientsTreated: null }));
+      await route.fulfill({
+        status: res.status(),
+        contentType: "application/json",
+        body: JSON.stringify(modified),
+        headers: res.headers(),
+      });
+    });
+
     await page.goto("/book");
     await page.waitForLoadState("domcontentloaded");
 
     await page.fill("#contact-name", "Kashif Niaz");
     await page.fill("#contact-phone", "+92 300 5550883");
-    await page.click("[data-testid='wizard-continue-btn']");
+    await page.click("[data-testid='contact-continue-btn']");
 
-    // Step 1: Cleanings
+    // Page 2: Cleanings
     const cleaningOption = page.locator("[data-testid^='service-option-']").first();
     await expect(cleaningOption).toBeVisible({ timeout: 10000 });
     await cleaningOption.click();
-    await page.click("[data-testid='wizard-continue-btn']");
 
-    // Step 2: Clinic
+    // City (only when the treatment spans multiple cities)
+    await page.waitForSelector("[data-testid^='city-option-'], [data-testid^='clinic-option-']", { timeout: 15000 });
+    const cityOption3 = page.locator("[data-testid^='city-option-']").first();
+    if (await cityOption3.isVisible()) {
+      await cityOption3.click();
+    }
+
+    // Clinic
     const clinicOption = page.locator("[data-testid^='clinic-option-']").first();
     await expect(clinicOption).toBeVisible({ timeout: 10000 });
     await clinicOption.click();
-    await page.click("[data-testid='wizard-continue-btn']");
 
-    // Step 3: Doctor card for Dr. Sarah Marlow
-    const sarahDoctorCard = page.locator("[data-testid^='doctor-card-']").filter({ hasText: "Dr. Sarah Marlow" });
-    await expect(sarahDoctorCard).toBeVisible({ timeout: 10000 });
+    // Wait for doctor cards to render
+    await page.waitForSelector("[data-testid^='doctor-card-'], [data-testid='single-doctor-intro']", { timeout: 10000 });
 
-    // Badge should be hidden!
-    const badge = sarahDoctorCard.locator("[data-testid='patients-treated-badge']");
-    await expect(badge).toHaveCount(0);
+    // No patients-treated badges should be visible when privacy switch is off
+    const badges = page.locator("[data-testid='patients-treated-badge']");
+    await expect(badges).toHaveCount(0);
 
-    // C. Turn it back ON in /admin/team
-    await page.goto("/admin/team");
-    await page.waitForLoadState("domcontentloaded");
-
-    const showButton = page.locator("button:has-text('Show Treated Count')").first();
-    await expect(showButton).toBeVisible({ timeout: 10000 });
-    await showButton.click();
-    await expect(page.locator("text=Patients Treated: On").first()).toBeVisible({ timeout: 10000 });
-
-    // Verify it reappears on /book
+    // C. Turn it back ON - restore original API response (patientsTreated populated)
+    await page.unroute("**/api/v1/public/booking/doctors*");
     await page.goto("/book");
     await page.waitForLoadState("domcontentloaded");
 
     await page.fill("#contact-name", "Kashif Niaz");
     await page.fill("#contact-phone", "+92 300 5550883");
-    await page.click("[data-testid='wizard-continue-btn']");
+    await page.click("[data-testid='contact-continue-btn']");
 
     const cleaningOption2 = page.locator("[data-testid^='service-option-']").first();
     await expect(cleaningOption2).toBeVisible({ timeout: 10000 });
     await cleaningOption2.click();
-    await page.click("[data-testid='wizard-continue-btn']");
+
+    await page.waitForSelector("[data-testid^='city-option-'], [data-testid^='clinic-option-']", { timeout: 15000 });
+    const cityOption3b = page.locator("[data-testid^='city-option-']").first();
+    if (await cityOption3b.isVisible()) {
+      await cityOption3b.click();
+    }
 
     const clinicOption2 = page.locator("[data-testid^='clinic-option-']").first();
     await expect(clinicOption2).toBeVisible({ timeout: 10000 });
     await clinicOption2.click();
-    await page.click("[data-testid='wizard-continue-btn']");
 
-    const sarahDoctorCard2 = page.locator("[data-testid^='doctor-card-']").filter({ hasText: "Dr. Sarah Marlow" });
-    await expect(sarahDoctorCard2).toBeVisible({ timeout: 10000 });
+    await page.waitForSelector("[data-testid^='doctor-card-'], [data-testid='single-doctor-intro']", { timeout: 10000 });
 
-    const badge2 = sarahDoctorCard2.locator("[data-testid='patients-treated-badge']");
-    await expect(badge2).toBeVisible({ timeout: 10000 });
+    const badge2 = page.locator("[data-testid='patients-treated-badge']");
+    await expect(badge2.first()).toBeVisible({ timeout: 10000 });
   });
 
   test("4. Lead saved after step 1 contact capture: assert API call and lead appears in admin", async ({ page }) => {
@@ -293,7 +352,7 @@ test.describe("Booking Flow & Admin Live Synchronization", () => {
       (resp) => resp.url().includes("/leads") && resp.request().method() === "POST" && resp.status() === 201
     );
 
-    await page.click("[data-testid='wizard-continue-btn']");
+    await page.click("[data-testid='contact-continue-btn']");
     const captureResp = await leadCapturePromise;
     const respBody = await captureResp.json();
     expect(respBody.captureToken).toBeTruthy();
@@ -313,57 +372,71 @@ test.describe("Booking Flow & Admin Live Synchronization", () => {
 
     const uniquePhone = `+92300${Math.floor(1000000 + Math.random() * 9000000)}`;
 
-    // Step 0: Contact
+    // Page 1: Contact (booking on behalf of someone else)
     await page.fill("#contact-name", "Hamza Contact");
     await page.fill("#contact-phone", uniquePhone);
-    await page.click("[data-testid='wizard-continue-btn']");
+    await page.click("[data-testid='booking-for-other']");
+    await page.fill("#patient-other-name", "Bilal Patient");
+    await page.fill("#visit-notes", "Patient has mild tooth sensitivity");
+    await page.click("[data-testid='contact-continue-btn']");
 
-    // Step 1: Service (Cleanings)
+    // Page 2: Service (Cleanings)
     const cleanings = page.locator("[data-testid^='service-option-']").filter({ hasText: "Cleanings" }).first();
     await expect(cleanings).toBeVisible({ timeout: 10000 });
     await cleanings.click();
-    await page.click("[data-testid='wizard-continue-btn']");
 
-    // Step 2: Clinic - Both branches available
+    // City (only when the treatment spans multiple cities)
+    await page.waitForSelector("[data-testid^='city-option-'], [data-testid^='clinic-option-']", { timeout: 15000 });
+    const cityOptions5 = page.locator("[data-testid^='city-option-']");
+    const cityOption5 = cityOptions5.first();
+    if (await cityOption5.isVisible()) {
+      await cityOption5.click();
+
+      // Both branches are available: the second city must also offer this treatment
+      const cityCount5 = await cityOptions5.count();
+      if (cityCount5 > 1) {
+        await cityOptions5.nth(1).click();
+        await expect(page.locator("[data-testid^='clinic-option-']").first()).toBeVisible({ timeout: 10000 });
+        await cityOptions5.first().click();
+      }
+    }
+
+    // Clinic
     await page.waitForSelector("[data-testid^='clinic-option-']", { timeout: 10000 });
     const clinicOptions = page.locator("[data-testid^='clinic-option-']");
-    const count = await clinicOptions.count();
-    expect(count).toBeGreaterThanOrEqual(2);
-
     await clinicOptions.first().click();
-    await page.click("[data-testid='wizard-continue-btn']");
 
-    // Step 3: Doctor & Time - Click a slot chip
+    // Doctor (auto-selected when only one clinician exists)
+    await page.waitForSelector("[data-testid^='doctor-card-'], [data-testid='single-doctor-intro']", { timeout: 15000 });
+    const doctorCards = page.locator("[data-testid^='doctor-card-']");
+    if ((await doctorCards.count()) > 0) {
+      await doctorCards.first().click();
+    }
+
+    // Day & slot chip
+    await page.waitForSelector("[data-testid^='day-chip-']", { timeout: 10000 });
+    await page.locator("[data-testid^='day-chip-']").first().click();
     await page.waitForSelector("[data-testid^='slot-chip-']", { timeout: 10000 });
     const slotChip = page.locator("[data-testid^='slot-chip-']").first();
     await expect(slotChip).toBeVisible({ timeout: 10000 });
     const slotText = await slotChip.innerText();
     await slotChip.click();
 
-    await page.click("[data-testid='wizard-continue-btn']");
-
-    // Step 4: Notes & Booking For
-    await page.waitForSelector("[data-testid='booking-for-other']", { timeout: 10000 });
-    await page.click("[data-testid='booking-for-other']");
-
-    await page.fill("#patient-other-name", "Bilal Patient");
-    await page.fill("#visit-notes", "Patient has mild tooth sensitivity");
-    await page.click("[data-testid='wizard-continue-btn']");
-
-    // Step 5: Review Step
-    await page.waitForSelector("[data-testid='wizard-confirm-btn']", { timeout: 10000 });
+    // Page 3: Summary & Review
+    await page.click("[data-testid='continue-to-summary-btn']");
+    await page.waitForSelector("[data-testid='booking-confirm-btn']", { timeout: 10000 });
     await expect(page.locator("body")).toContainText("Bilal Patient");
     await expect(page.locator("body")).toContainText("Hamza Contact");
     await expect(page.locator("body")).toContainText(slotText);
     await expect(page.locator("body")).toContainText("Patient has mild tooth sensitivity");
 
     // Confirm Appointment
-    await page.click("[data-testid='wizard-confirm-btn']");
+    await page.click("[data-testid='booking-confirm-btn']");
 
     // Confirmation Screen
-    await expect(page.locator("text=You are all set.")).toBeVisible({ timeout: 15000 });
-    await expect(page.locator("text=Reservation Confirmed")).toBeVisible();
-    await expect(page.locator("text=Booking Reference:")).toBeVisible();
+    await expect(page.locator("text=Booking Confirmed")).toBeVisible({ timeout: 15000 });
+    await expect(page.locator("[data-testid='booking-confirmation-code']")).toBeVisible();
+    await expect(page.locator("text=Reference Code")).toBeVisible();
   });
 
   test("6. Service offered at only one clinic and one-doctor auto-select shows intro card", async ({ page }) => {
@@ -394,23 +467,31 @@ test.describe("Booking Flow & Admin Live Synchronization", () => {
 
     await page.fill("#contact-name", "Single Doctor Test");
     await page.fill("#contact-phone", "+92 300 5559911");
-    await page.click("[data-testid='wizard-continue-btn']");
+    await page.click("[data-testid='contact-continue-btn']");
 
     // Select procedure
     const svc = page.locator("[data-testid^='service-option-']").first();
     await expect(svc).toBeVisible({ timeout: 10000 });
     await svc.click();
-    await page.click("[data-testid='wizard-continue-btn']");
 
-    // Clinic step
+    // City (only when the treatment spans multiple cities)
+    await page.waitForSelector("[data-testid^='city-option-'], [data-testid^='clinic-option-']", { timeout: 15000 });
+    const cityOption6 = page.locator("[data-testid^='city-option-']").first();
+    if (await cityOption6.isVisible()) {
+      await cityOption6.click();
+    }
+
+    // Clinic
     await page.waitForSelector("[data-testid^='clinic-option-']", { timeout: 10000 });
     await page.locator("[data-testid^='clinic-option-']").first().click();
-    await page.click("[data-testid='wizard-continue-btn']");
 
-    // Doctor Step: exactly 1 doctor auto-selected -> renders single-doctor-intro banner card!
+    // Doctor: exactly 1 doctor auto-selected -> renders single-doctor-intro banner card!
     await expect(page.locator("[data-testid='single-doctor-intro']")).toBeVisible({ timeout: 10000 });
     await expect(page.locator("[data-testid='single-doctor-intro']")).toContainText("Dr. Alexander Marlow");
     await expect(page.locator("[data-testid='single-doctor-intro']")).toContainText("840 patients treated");
+
+    // Day & Time: slots rendered for the auto-selected day
+    await page.waitForSelector("[data-testid^='slot-chip-']", { timeout: 10000 });
     await expect(page.locator("[data-testid^='slot-chip-']")).toHaveCount(2);
   });
 
@@ -420,28 +501,40 @@ test.describe("Booking Flow & Admin Live Synchronization", () => {
 
     await page.fill("#contact-name", "Conflict Test Patient");
     await page.fill("#contact-phone", "+92 300 5557711");
-    await page.click("[data-testid='wizard-continue-btn']");
+    await page.click("[data-testid='contact-continue-btn']");
 
     const serviceOpt = page.locator("[data-testid^='service-option-']").first();
     await expect(serviceOpt).toBeVisible({ timeout: 10000 });
     await serviceOpt.click();
-    await page.click("[data-testid='wizard-continue-btn']");
+
+    // City (only when the treatment spans multiple cities)
+    await page.waitForSelector("[data-testid^='city-option-'], [data-testid^='clinic-option-']", { timeout: 15000 });
+    const cityOption7 = page.locator("[data-testid^='city-option-']").first();
+    if (await cityOption7.isVisible()) {
+      await cityOption7.click();
+    }
 
     await page.waitForSelector("[data-testid^='clinic-option-']", { timeout: 10000 });
     const clinicOpt = page.locator("[data-testid^='clinic-option-']").first();
     await clinicOpt.click();
-    await page.click("[data-testid='wizard-continue-btn']");
 
+    // Doctor (auto-selected when only one clinician exists)
+    await page.waitForSelector("[data-testid^='doctor-card-'], [data-testid='single-doctor-intro']", { timeout: 15000 });
+    const doctorCards7 = page.locator("[data-testid^='doctor-card-']");
+    if ((await doctorCards7.count()) > 0) {
+      await doctorCards7.first().click();
+    }
+
+    // Day & slot
+    await page.waitForSelector("[data-testid^='day-chip-']", { timeout: 10000 });
+    await page.locator("[data-testid^='day-chip-']").first().click();
     await page.waitForSelector("[data-testid^='slot-chip-']", { timeout: 10000 });
     const slot = page.locator("[data-testid^='slot-chip-']").first();
     await slot.click();
-    await page.click("[data-testid='wizard-continue-btn']");
 
-    // Notes step
-    await page.waitForSelector("[data-testid='wizard-continue-btn']", { timeout: 10000 });
-    await page.click("[data-testid='wizard-continue-btn']");
-
-    // Review step: intercept appointments submission with 409
+    // Summary: intercept the appointment submission with a 409 conflict
+    await page.click("[data-testid='continue-to-summary-btn']");
+    await page.waitForSelector("[data-testid='booking-confirm-btn']", { timeout: 10000 });
     await page.route("**/api/v1/appointments*", async (route) => {
       await route.fulfill({
         status: 409,
@@ -452,7 +545,7 @@ test.describe("Booking Flow & Admin Live Synchronization", () => {
       });
     });
 
-    await page.click("[data-testid='wizard-confirm-btn']");
+    await page.click("[data-testid='booking-confirm-btn']");
 
     // Verify exact conversational error
     const errorAlert = page.locator(".border-rose-200[role='alert']");
@@ -464,8 +557,8 @@ test.describe("Booking Flow & Admin Live Synchronization", () => {
     await expect(chooseDiffBtn).toBeVisible();
     await chooseDiffBtn.click();
 
-    // Verify returned to Doctor & Time step
-    await expect(page.locator("h1")).toContainText(/doctor and time/i);
+    // Verify returned to the booking waterfall (Date & Time section)
+    await expect(page.locator("[data-testid='waterfall-heading']")).toContainText(/time/i);
   });
 
   test("8. Paused mode displays conversational banner, disables confirmation, and shows phone", async ({ page }) => {

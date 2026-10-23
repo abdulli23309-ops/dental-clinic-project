@@ -909,16 +909,28 @@ async def test_booking_marks_lead_converted(
     assert r_lead.status_code == 201
     lead_token = r_lead.json()["captureToken"]
 
-    # 2. Choose target date
-    target_dt = date.today() + timedelta(days=1)
-    if target_dt.weekday() >= 5:
-        target_dt = target_dt + timedelta(days=7 - target_dt.weekday())
+    # 2. Choose target date and free slot dynamically from availability
+    r_docs = await client_with_db.get(
+        f"/api/v1/public/booking/doctors?serviceId=cleanings-exams&clinicId={env['clinic_a_id']}&days=7"
+    )
+    assert r_docs.status_code == 200
+    doc_tariq = next(d for d in r_docs.json() if d["id"] == str(env["doc_tariq_id"]))
+
+    chosen_date = None
+    chosen_slot = None
+    for d_str, slots in doc_tariq.get("slotsByDate", {}).items():
+        if slots:
+            chosen_date = d_str
+            chosen_slot = slots[0]
+            break
+
+    assert chosen_date is not None and chosen_slot is not None, "No available slot for doc_tariq"
 
     # 3. Step 6: Submit final booking
     booking_req = {
         "serviceId": "cleanings-exams",
-        "preferredDate": target_dt.isoformat(),
-        "preferredTime": "02:00 PM",
+        "preferredDate": chosen_date,
+        "preferredTime": chosen_slot,
         "fullName": "Fatima Noor",
         "phone": "0322 8889900",
         "email": "fatima@example.com",

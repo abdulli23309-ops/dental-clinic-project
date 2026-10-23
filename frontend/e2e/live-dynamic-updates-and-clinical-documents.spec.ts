@@ -94,7 +94,7 @@ test.describe("Real (No Interception) Dynamic Content & Clinical Workflows (Part
     if (await contactInput.isVisible()) {
       await contactInput.fill("Test User");
       await page.fill("#contact-phone", "+92 300 1234567");
-      await page.click("[data-testid='wizard-continue-btn']");
+      await page.click("[data-testid='contact-continue-btn']");
     }
     await expect(page.locator("body")).toContainText(firstServiceName);
   });

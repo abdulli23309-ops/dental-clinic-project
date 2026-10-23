@@ -31,9 +31,13 @@ test.describe("Dynamic Content and Error States (Part G Proof)", () => {
     await expect(page.locator("body")).toContainText("Dynamic Laser Whitening Procedure");
     await expect(page.locator("body")).toContainText("Rs 18,500");
 
-    // Visit /book page with step=1 and verify dynamic service is present in procedure selector
-    await page.goto("/book?step=1");
-    await expect(page.locator("body")).toContainText("Dynamic Laser Whitening Procedure");
+    // Visit /book and reveal the treatment waterfall to verify the dynamic service is present
+    await page.goto("/book");
+    await page.waitForSelector("#contact-name", { timeout: 15000 });
+    await page.fill("#contact-name", "Dynamic Content Visitor");
+    await page.fill("#contact-phone", "+92 300 1234500");
+    await page.click("[data-testid='contact-continue-btn']");
+    await expect(page.locator("body")).toContainText("Dynamic Laser Whitening Procedure", { timeout: 15000 });
   });
 
   test("2. Dynamic clinic identity: custom name and phone reflect in header and footer", async ({ page }) => {

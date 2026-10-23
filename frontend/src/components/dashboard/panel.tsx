@@ -13,6 +13,9 @@ interface PanelProps {
   flush?: boolean;
   className?: string;
   bodyClassName?: string;
+  index?: number;
+  hoverLift?: boolean;
+  animate?: boolean;
 }
 
 /**
@@ -27,9 +30,19 @@ export function Panel({
   flush = false,
   className,
   bodyClassName,
+  index = 0,
+  hoverLift = false,
+  animate = true,
 }: PanelProps) {
   return (
-    <Card surface="bone" shadow="subtle" className={cn("overflow-hidden", className)}>
+    <Card
+      surface="bone"
+      shadow="subtle"
+      index={index}
+      hoverLift={hoverLift}
+      animate={animate}
+      className={cn("overflow-hidden", className)}
+    >
       {(title || action) && (
         <div className="flex items-start sm:items-center justify-between gap-3 px-4 py-3 border-b border-line">
           <div className="min-w-0">

@@ -382,14 +382,20 @@ export interface PublicBookingClinicItem {
 
 export interface PublicBookingDoctorItem {
   id: string;
-  firstName: string;
-  lastName: string;
+  firstName?: string;
+  lastName?: string;
   displayName: string;
   professionalTitle: string;
+  role?: string;
+  /** Live field name returned by GET /api/v1/public/booking/doctors. */
+  biography?: string | null;
   bio?: string | null;
   photoUrl?: string | null;
+  specialties?: string[];
   patientsTreated: number | null;
-  workingDaysHours: string;
+  /** Live field name returned by GET /api/v1/public/booking/doctors. */
+  weeklyScheduleSummary?: string | null;
+  workingDaysHours?: string;
   slotsByDate: Record<string, string[]>;
 }
 

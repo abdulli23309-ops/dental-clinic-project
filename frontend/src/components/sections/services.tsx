@@ -13,7 +13,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SectionHeading } from "@/components/ui/section-heading";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getServices, ServiceItem } from "@/lib/api";
+import { motion } from "motion/react";
 
 type CategoryFilter = "all" | "preventive" | "restorative" | "cosmetic" | "emergency";
 
@@ -109,15 +111,22 @@ export function Services() {
                 role="tab"
                 aria-selected={isActive}
                 onClick={() => setActiveTab(tab.id)}
-                className={`rounded-full px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 ${
+                className={`relative rounded-full px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 select-none ${
                   isActive
-                    ? "bg-primary text-white shadow-subtle font-semibold"
+                    ? "text-white shadow-subtle font-semibold"
                     : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700"
                 }`}
               >
-                <span>{tab.label}</span>
+                {isActive && (
+                  <motion.div
+                    layoutId="publicServicesTabIndicator"
+                    className="absolute inset-0 rounded-full bg-primary"
+                    transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                  />
+                )}
+                <span className="relative z-10">{tab.label}</span>
                 <span
-                  className={`text-[11px] rounded-full px-2 py-0.2 ${
+                  className={`relative z-10 text-[11px] rounded-full px-2 py-0.2 ${
                     isActive ? "bg-white/20 text-white" : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
                   }`}
                 >
@@ -132,9 +141,9 @@ export function Services() {
         {isLoading ? (
           <div className="flex flex-row overflow-x-auto snap-x snap-mandatory gap-4 py-4 hide-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             {[1, 2, 3, 4].map((i) => (
-              <div
+              <Skeleton
                 key={i}
-                className="min-w-[280px] max-w-[300px] h-72 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 animate-pulse p-5 shrink-0"
+                className="min-w-[280px] max-w-[300px] h-72 rounded-2xl border border-line shrink-0"
               />
             ))}
           </div>

@@ -45,8 +45,11 @@ import { useDirectory } from "@/lib/directory";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DentalChart } from "@/components/doctor/dental-chart";
+import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
+import { StaggerList } from "@/components/ui/stagger-list";
 import { ClinicalAlertBanner } from "@/components/doctor/clinical-alert-banner";
 import { getWaitingTimeCategory } from "@/lib/statuses";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export default function DoctorDashboardPage() {
   const { accessToken, user } = useAuth();
@@ -443,6 +446,7 @@ export default function DoctorDashboardPage() {
   const arrivedPatients = schedule.filter((b) => b.status === "arrived");
 
   return (
+  <AnimatedPage>
     <div className="space-y-8">
       {/* Unlinked doctor account warning banner */}
       {isUnlinkedDoctor && (
@@ -646,10 +650,17 @@ export default function DoctorDashboardPage() {
       </div>
 
       {/* Schedule Card Table */}
-      <Card surface="bone" shadow="card" className="overflow-hidden p-0">
+      <Card surface="bone" shadow="card" className="overflow-hidden p-0" hoverLift={true} index={0}>
         {isLoading ? (
-          <div className="p-12 text-center text-xs font-mono text-ink-soft">
-            Loading practitioner schedule...
+          <div className="p-6 space-y-4">
+            <StaggerList className="space-y-4" stagger={0.08}>
+              <Skeleton className="h-10 w-1/2" />
+              <Skeleton className="h-10 w-1/3" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-1/2" />
+              <Skeleton className="h-10 w-1/3" />
+              <Skeleton className="h-10 w-full" />
+            </StaggerList>
           </div>
         ) : schedule.length === 0 ? (
           <div className="p-12 text-center space-y-2">
@@ -1263,5 +1274,6 @@ export default function DoctorDashboardPage() {
         </div>
       )}
     </div>
+  </AnimatedPage>
   );
 }

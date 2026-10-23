@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { TextField } from "@/components/ui/text-field";
 import { useAuth } from "@/components/providers/auth-provider";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import {
   adminCreateTeamMember,
   adminGetLocations,
@@ -261,6 +262,7 @@ export default function AdminTeamPage() {
   };
 
   return (
+  <AnimatedPage>
     <div className="space-y-6 max-w-5xl">
       {/* Header Bar */}
       <div className="border-b border-line pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -307,9 +309,11 @@ export default function AdminTeamPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
-          {team.map((member) => (
+          {team.map((member, index) => (
             <Card
               key={member.id}
+              index={index}
+              hoverLift
               surface={member.isActive ? "cream" : "bone"}
               shadow="subtle"
               className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
@@ -641,5 +645,6 @@ export default function AdminTeamPage() {
         </div>
       )}
     </div>
+  </AnimatedPage>
   );
 }

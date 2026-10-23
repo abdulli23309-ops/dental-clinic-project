@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   Check,
   Clock,
@@ -17,6 +18,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { TextField } from "@/components/ui/text-field";
 import { useAuth } from "@/components/providers/auth-provider";
+import { AnimatedPage } from "@/components/ui/animated-page";
+import {
+  modalOverlay,
+  modalContent,
+  reducedVariant,
+} from "@/animations/variants";
 import {
   adminCreateLocation,
   adminGetLocations,
@@ -191,6 +198,7 @@ export default function AdminLocationsPage() {
   };
 
   return (
+  <AnimatedPage>
     <div className="space-y-6 max-w-5xl">
       <div className="border-b border-line pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -241,7 +249,7 @@ export default function AdminLocationsPage() {
           <span className="text-xs text-ink-soft">Loading practice facilities...</span>
         </div>
       ) : locations.length === 0 ? (
-        <Card surface="cream" shadow="card" className="p-12 text-center space-y-4">
+        <Card surface="cream" shadow="card" className="p-12 text-center space-y-4" hoverLift={true} index={0}>
           <MapPin className="h-10 w-10 text-ink-soft/40 mx-auto" />
           <div>
             <h3 className="font-display text-lg text-ink">No facilities configured</h3>
@@ -256,9 +264,11 @@ export default function AdminLocationsPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-6">
-          {locations.map((loc) => (
+          {locations.map((loc, index) => (
             <Card
               key={loc.id}
+              index={index}
+              hoverLift
               surface={loc.isActive ? "cream" : "bone"}
               shadow="card"
               className={`p-6 sm:p-8 space-y-4 transition-opacity ${
@@ -349,7 +359,7 @@ export default function AdminLocationsPage() {
             </Card>
           ))}
 
-          <Card surface="bone" shadow="subtle" className="p-6">
+          <Card surface="bone" shadow="subtle" className="p-6" hoverLift={true} index={1}>
             <div className="flex items-center gap-2 text-ink text-sm font-medium mb-1">
               <ShieldCheck className="h-4 w-4 text-forest" />
               <span>Database-Backed Relational Persistence</span>
@@ -362,9 +372,22 @@ export default function AdminLocationsPage() {
       )}
 
       {/* Modal Dialog for Add/Edit Facility */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-6 sm:p-8 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+      <AnimatePresence>
+        {modalOpen && (
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            variants={reducedVariant(modalOverlay)}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+          >
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              variants={modalContent}
+              className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-6 sm:p-8 shadow-2xl"
+            >
             <div className="flex items-center justify-between border-b border-line dark:border-gray-800 pb-4 mb-6">
               <div>
                 <h3 className="font-display text-xl text-ink dark:text-white font-semibold">
@@ -474,12 +497,14 @@ export default function AdminLocationsPage() {
                       Edit single-source hours in Booking Settings →
                     </a>
                   </div>
-                  <textarea
+                  <TextField
+                    id="hours-info"
+                    label="Operating Hours Summary (Legacy Fallback)"
+                    multiline
                     rows={3}
                     value={form.hoursInfo}
                     onChange={(e) => setForm({ ...form, hoursInfo: e.target.value })}
-                    placeholder="Mon – Thu: 8:00 AM – 6:00 PM&#10;Fri: 8:00 AM – 2:00 PM&#10;Sat–Sun: Closed"
-                    className="w-full rounded-2xl border border-line dark:border-gray-700 bg-cream/70 dark:bg-gray-800/80 px-4 py-3 text-xs text-ink dark:text-white placeholder:text-ink-soft/40 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none"
+                    placeholder="Mon – Thu: 8:00 AM – 6:00 PM\nFri: 8:00 AM – 2:00 PM\nSat–Sun: Closed"
                   />
                   <p className="text-[11px] text-ink-soft/60 dark:text-gray-400 mt-1">
                     Standard clinic hours and closures are managed in <a href="/admin/booking" className="underline text-primary">Booking Settings</a> as the single source of truth. This field is preserved only as a fallback.
@@ -526,9 +551,11 @@ export default function AdminLocationsPage() {
                 </Button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        </motion.div>
+        )}
+      </AnimatePresence>
     </div>
+  </AnimatedPage>
   );
 }

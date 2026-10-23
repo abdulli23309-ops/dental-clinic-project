@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { TextField } from "@/components/ui/text-field";
 import { useAuth } from "@/components/providers/auth-provider";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import {
   adminCreateClosure,
   adminCreateRescheduleTasks,
@@ -649,6 +650,7 @@ export default function AdminBookingPage() {
   const currentMode = settings?.bookingMode || "open";
 
   return (
+  <AnimatedPage>
     <div className="space-y-8 pb-16">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -794,7 +796,7 @@ export default function AdminBookingPage() {
                 ? "border-amber-400 dark:border-amber-700 bg-amber-50/60 dark:bg-amber-950/30"
                 : "border-rose-400 dark:border-rose-800 bg-rose-50/60 dark:bg-rose-950/30"
             }`}
-          >
+           index={0}>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="space-y-1.5 flex-1">
                 <div className="flex items-center gap-2.5">
@@ -871,7 +873,7 @@ export default function AdminBookingPage() {
           </Card>
 
           {/* Clinic Operating Hours */}
-          <Card surface="cream" shadow="subtle" className="p-6">
+          <Card surface="cream" shadow="subtle" className="p-6" hoverLift={true} index={1}>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-line gap-2">
               <div>
                 <h3 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -943,7 +945,7 @@ export default function AdminBookingPage() {
           </Card>
 
           {/* Planned Clinic Closures */}
-          <Card surface="cream" shadow="subtle" className="p-6">
+          <Card surface="cream" shadow="subtle" className="p-6" hoverLift={true} index={2}>
             <div className="flex items-center justify-between pb-4 border-b border-line">
               <div>
                 <h3 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -1015,7 +1017,7 @@ export default function AdminBookingPage() {
       {/* TAB 2: CLINICIAN SCHEDULES & TIME OFF */}
       {activeTab === "clinicians" && (
         <div className="space-y-6">
-          <Card surface="cream" shadow="subtle" className="p-6 space-y-6">
+          <Card surface="cream" shadow="subtle" className="p-6 space-y-6" hoverLift={true} index={3}>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-line">
               <div>
                 <h3 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -1175,7 +1177,7 @@ export default function AdminBookingPage() {
 
       {/* TAB 3: ONLINE BOOKING RULES */}
       {activeTab === "rules" && (
-        <Card surface="cream" shadow="subtle" className="p-6 max-w-2xl">
+        <Card surface="cream" shadow="subtle" className="p-6 max-w-2xl" hoverLift={true} index={4}>
           <form onSubmit={handleSaveOnlineRules} className="space-y-6">
             <div className="pb-4 border-b border-line">
               <h3 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -1324,7 +1326,7 @@ export default function AdminBookingPage() {
       {/* TAB 4: BOOKABILITY CHECK */}
       {activeTab === "bookability" && (
         <div className="space-y-6">
-          <Card surface="cream" shadow="subtle" className="p-6 space-y-6">
+          <Card surface="cream" shadow="subtle" className="p-6 space-y-6" hoverLift={true} index={5}>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-line">
               <div>
                 <h3 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -1462,7 +1464,7 @@ export default function AdminBookingPage() {
       {/* TAB 5: LEAD FOLLOW-UP & CALL DESK */}
       {activeTab === "leads" && (
         <div className="space-y-6">
-          <Card surface="cream" shadow="subtle" className="p-6 space-y-6">
+          <Card surface="cream" shadow="subtle" className="p-6 space-y-6" hoverLift={true} index={6}>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-line">
               <div>
                 <h3 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -1743,7 +1745,7 @@ export default function AdminBookingPage() {
       {/* MODAL: Shift / Recurring Availability */}
       {shiftModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <Card surface="cream" shadow="elevated" className="w-full max-w-md p-6 space-y-5">
+          <Card surface="cream" shadow="elevated" className="w-full max-w-md p-6 space-y-5" hoverLift={true} index={7}>
             <div className="flex items-center justify-between pb-3 border-b border-line">
               <h3 className="text-base font-semibold text-ink">Add Weekly Shift</h3>
               <button onClick={() => setShiftModalOpen(false)} className="text-ink-soft hover:text-ink">
@@ -1849,7 +1851,7 @@ export default function AdminBookingPage() {
       {/* MODAL: Time Off / Vacation */}
       {timeOffModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <Card surface="cream" shadow="elevated" className="w-full max-w-md p-6 space-y-5">
+          <Card surface="cream" shadow="elevated" className="w-full max-w-md p-6 space-y-5" hoverLift={true} index={8}>
             <div className="flex items-center justify-between pb-3 border-b border-line">
               <h3 className="text-base font-semibold text-ink">Add Clinician Vacation / Leave</h3>
               <button onClick={() => setTimeOffModalOpen(false)} className="text-ink-soft hover:text-ink">
@@ -2103,5 +2105,6 @@ export default function AdminBookingPage() {
         </div>
       )}
     </div>
+  </AnimatedPage>
   );
 }

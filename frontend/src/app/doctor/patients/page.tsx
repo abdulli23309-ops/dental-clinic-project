@@ -8,6 +8,7 @@ import { DoctorPatientSummary, searchDoctorPatients } from "@/lib/api";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export default function DoctorPatientsPage() {
   const { accessToken } = useAuth();
@@ -40,6 +41,7 @@ export default function DoctorPatientsPage() {
   };
 
   return (
+  <AnimatedPage>
     <div className="space-y-6">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-line pb-5">
@@ -55,7 +57,7 @@ export default function DoctorPatientsPage() {
       </div>
 
       {/* Search Bar */}
-      <Card className="p-4">
+      <Card className="p-4" hoverLift={true} index={0}>
         <form onSubmit={handleSearchSubmit} className="flex gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-soft" />
@@ -87,7 +89,7 @@ export default function DoctorPatientsPage() {
       </Card>
 
       {/* Patients Table */}
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden" hoverLift={true} index={1}>
         {isLoading ? (
           <div className="p-12 text-center text-sm text-ink-soft font-mono">
             Loading patient records...
@@ -152,5 +154,6 @@ export default function DoctorPatientsPage() {
         )}
       </Card>
     </div>
+  </AnimatedPage>
   );
 }

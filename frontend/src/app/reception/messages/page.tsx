@@ -26,6 +26,7 @@ import {
   sendReceptionMessage,
 } from "@/lib/api";
 import { useAuth } from "@/components/providers/auth-provider";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export default function ReceptionMessagesPage() {
   const { accessToken } = useAuth();
@@ -193,6 +194,7 @@ export default function ReceptionMessagesPage() {
   };
 
   return (
+  <AnimatedPage>
     <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -593,5 +595,6 @@ export default function ReceptionMessagesPage() {
         </div>
       )}
     </div>
+  </AnimatedPage>
   );
 }

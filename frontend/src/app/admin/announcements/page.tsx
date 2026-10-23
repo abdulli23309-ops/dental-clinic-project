@@ -13,6 +13,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { TextField } from "@/components/ui/text-field";
 import { useAuth } from "@/components/providers/auth-provider";
+import { AnimatedPage } from "@/components/ui/animated-page";
+import { AnimatePresence, motion } from "motion/react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { StaggerList, StaggerItem } from "@/components/ui/stagger-list";
 import {
   adminCreateAnnouncement,
   adminDeleteAnnouncement,
@@ -20,6 +24,8 @@ import {
   adminUpdateAnnouncement,
   Announcement,
 } from "@/lib/api";
+import { modalOverlay, modalContent, staggerRow, reducedVariant } from "@/animations/variants";
+import { useReducedMotion } from "motion/react";
 
 export default function AdminAnnouncementsPage() {
   const { accessToken } = useAuth();
@@ -140,6 +146,7 @@ export default function AdminAnnouncementsPage() {
   };
 
   return (
+  <AnimatedPage>
     <div className="space-y-6 max-w-5xl">
       <div className="border-b border-line pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -165,11 +172,13 @@ export default function AdminAnnouncementsPage() {
       )}
 
       {/* Announcements List */}
-      <Card surface="cream" shadow="card" className="p-0 overflow-hidden border border-line">
+      <Card surface="cream" shadow="card" className="p-0 overflow-hidden border border-line" hoverLift={true} index={0}>
         {loading ? (
-          <div className="p-8 text-center text-xs text-ink-soft font-mono">
-            Loading announcements...
-          </div>
+          <StaggerList className="h-64 flex flex-col items-center justify-center">
+            <StaggerItem index={0}><Skeleton className="h-8 w-32" /></StaggerItem>
+            <StaggerItem index={1}><Skeleton className="h-4 w-48" /></StaggerItem>
+            <StaggerItem index={2}><Skeleton className="h-4 w-32" /></StaggerItem>
+          </StaggerList>
         ) : items.length === 0 ? (
           <div className="p-12 text-center space-y-3">
             <div className="mx-auto h-12 w-12 rounded-full bg-forest/10 grid place-items-center text-forest">
@@ -184,12 +193,12 @@ export default function AdminAnnouncementsPage() {
             </Button>
           </div>
         ) : (
-          <div className="divide-y divide-line/60">
-            {items.map((item) => (
-              <div
-                key={item.id}
-                className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-sand/30 transition-colors"
-              >
+          <StaggerList className="divide-y divide-line/60">
+            {items.map((item, idx) => (
+              <StaggerItem key={item.id} index={idx}>
+                <div
+                  className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-sand/30 transition-colors"
+                >
                 <div className="space-y-1.5 flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span
@@ -238,15 +247,29 @@ export default function AdminAnnouncementsPage() {
                   </button>
                 </div>
               </div>
+                </StaggerItem>
             ))}
-          </div>
+          </StaggerList>
         )}
       </Card>
 
       {/* Add / Edit Modal */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="relative w-full max-w-lg rounded-2xl bg-cream border border-line p-6 sm:p-8 shadow-card space-y-5">
+      <AnimatePresence>
+        {modalOpen && (
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            variants={modalOverlay}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          >
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              variants={modalContent}
+              className="relative w-full max-w-lg rounded-2xl bg-cream border border-line p-6 sm:p-8 shadow-card space-y-5"
+            >
             <div className="flex items-center justify-between border-b border-line/60 pb-3">
               <h3 className="text-lg font-display font-bold text-ink">
                 {editingItem ? "Edit Announcement" : "Create New Announcement"}
@@ -264,12 +287,14 @@ export default function AdminAnnouncementsPage() {
                 <label className="text-xs font-semibold text-ink block mb-1">
                   Ticker Message Content
                 </label>
-                <textarea
+                <TextField
+                  id="announcement-content"
+                  label="Ticker Message Content"
+                  multiline
                   rows={3}
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   placeholder="e.g. Grand Opening: West Loop clinic is now taking appointments! Emergency walk-ins welcome."
-                  className="w-full rounded-xl border border-line bg-white/80 dark:bg-black/20 p-3 text-xs text-ink placeholder:text-ink-soft/50"
                   required
                 />
               </div>
@@ -323,9 +348,11 @@ export default function AdminAnnouncementsPage() {
                 </Button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        </motion.div>
+        )}
+      </AnimatePresence>
     </div>
+  </AnimatedPage>
   );
 }

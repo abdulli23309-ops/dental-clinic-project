@@ -25,6 +25,9 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/components/providers/auth-provider";
 import { TASK_STATUS, isTaskActive, isTaskDone } from "@/lib/statuses";
+import { TabNav } from "@/components/ui/tab-nav";
+import { Card } from "@/components/ui/card";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export default function ReceptionTasksPage() {
   const { accessToken, user } = useAuth();
@@ -102,6 +105,7 @@ export default function ReceptionTasksPage() {
   };
 
   return (
+  <AnimatedPage>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -125,27 +129,18 @@ export default function ReceptionTasksPage() {
 
       {/* Filter Tabs */}
       <div className="p-3 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-xs flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1">
-          {[
+        <TabNav
+          tabs={[
             { id: "active", label: "Active" },
             { id: TASK_STATUS.PENDING, label: "Pending" },
             { id: TASK_STATUS.IN_PROGRESS, label: "In Progress" },
             { id: TASK_STATUS.DONE, label: "Done" },
             { id: "", label: "All Tasks" },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setStatusFilter(tab.id)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
-                statusFilter === tab.id
-                  ? "bg-primary text-white font-semibold shadow-xs"
-                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+          ]}
+          activeTab={statusFilter}
+          onSelect={(id) => setStatusFilter(id)}
+          layoutId="reception-tasks-tab-pill"
+        />
 
         <div className="flex items-center gap-2">
           <Filter className="h-3.5 w-3.5 text-gray-400" />
@@ -164,7 +159,7 @@ export default function ReceptionTasksPage() {
       </div>
 
       {/* Task List */}
-      <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden shadow-xs">
+      <Card surface="bone" shadow="subtle" className="overflow-hidden" hoverLift={true} index={0}>
         {isLoading ? (
           <div className="p-12 text-center text-xs font-mono text-gray-500">
             Loading tasks...
@@ -260,7 +255,7 @@ export default function ReceptionTasksPage() {
             ))}
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Create Task Modal */}
       {isModalOpen && (
@@ -349,5 +344,6 @@ export default function ReceptionTasksPage() {
         </div>
       )}
     </div>
+  </AnimatedPage>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   AlertTriangle,
   Check,
@@ -18,6 +19,16 @@ import {
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { AnimatedPage } from "@/components/ui/animated-page";
+import { Skeleton } from "@/components/ui/skeleton";
+import { StaggerList, StaggerItem } from "@/components/ui/stagger-list";
+import {
+  staggerContainer,
+  listItem,
+  modalOverlay,
+  modalContent,
+  reducedVariant,
+} from "@/animations/variants";
 import {
   AdminIntegrationClient,
   createAdminIntegrationClient,
@@ -187,6 +198,7 @@ export default function AdminIntegrationsPage() {
   }
 
   return (
+  <AnimatedPage>
     <div className="space-y-6 max-w-6xl">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-line pb-6">
@@ -223,7 +235,7 @@ export default function AdminIntegrationsPage() {
       )}
 
       {/* Clients Table Card */}
-      <Card surface="bone" shadow="subtle" className="overflow-hidden border border-line">
+      <Card surface="bone" shadow="subtle" className="overflow-hidden border border-line" hoverLift={true} index={0}>
         <div className="p-4 sm:p-5 border-b border-line/60 bg-cream/40 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Key className="h-4 w-4 text-forest" />
@@ -236,8 +248,12 @@ export default function AdminIntegrationsPage() {
 
         {isLoading ? (
           <div className="p-12 text-center text-sm text-ink-soft">
-            <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2 text-forest/70" />
-            Loading integration clients...
+            <StaggerList className="flex flex-col items-center justify-center gap-2">
+              <StaggerItem index={0}><Skeleton className="h-4 w-1/3" /></StaggerItem>
+              <StaggerItem index={1}><Skeleton className="h-4 w-1/2" /></StaggerItem>
+              <StaggerItem index={2}><Skeleton className="h-4 w-2/3" /></StaggerItem>
+            </StaggerList>
+            <p className="mt-2 text-xs text-ink-soft">Loading integration clients...</p>
           </div>
         ) : clients.length === 0 ? (
           <div className="p-12 text-center space-y-3">
@@ -270,13 +286,21 @@ export default function AdminIntegrationsPage() {
                   <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-line/60">
+              <motion.tbody
+                variants={staggerContainer}
+                initial="hidden"
+                animate="visible"
+                className="divide-y divide-line/60"
+              >
                 {clients.map((c) => {
                   const isBusy = actionClientId === c.id;
                   return (
-                    <tr
+                    <motion.tr
                       key={c.id}
                       data-testid={`integration-client-row-${c.id}`}
+                      variants={listItem}
+                      initial="hidden"
+                      animate="visible"
                       className="hover:bg-sand/30 transition-colors"
                     >
                       <td className="py-3.5 px-4 font-semibold text-ink">
@@ -364,22 +388,33 @@ export default function AdminIntegrationsPage() {
                           )}
                         </div>
                       </td>
-                    </tr>
+                    </motion.tr>
                   );
                 })}
-              </tbody>
+              </motion.tbody>
             </table>
           </div>
         )}
       </Card>
 
       {/* REVEALED KEY MODAL (SHOWN EXACTLY ONCE) */}
-      {revealedKey && (
-        <div
-          data-testid="key-revealed-modal"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-        >
-          <div className="w-full max-w-lg rounded-2xl bg-cream border border-forest/30 shadow-2xl p-6 space-y-5 animate-in fade-in zoom-in-95">
+      <AnimatePresence>
+        {revealedKey && (
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            variants={reducedVariant(modalOverlay)}
+            data-testid="key-revealed-modal"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          >
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              variants={modalContent}
+              className="w-full max-w-lg rounded-2xl bg-cream border border-forest/30 shadow-2xl p-6 space-y-5"
+            >
             <div className="flex items-center gap-3 text-amber-800 dark:text-amber-300">
               <div className="p-2.5 rounded-full bg-amber-100 dark:bg-amber-950/60 border border-amber-300">
                 <Key className="h-6 w-6 text-amber-700 dark:text-amber-400" />
@@ -445,17 +480,29 @@ export default function AdminIntegrationsPage() {
                 I Have Saved This Key Securely
               </Button>
             </div>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* CREATE CLIENT MODAL */}
-      {isCreateModalOpen && (
-        <div
-          data-testid="create-client-modal"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-        >
-          <div className="w-full max-w-md rounded-2xl bg-cream border border-line shadow-2xl p-6 space-y-5">
+      <AnimatePresence>
+        {isCreateModalOpen && (
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            variants={reducedVariant(modalOverlay)}
+            data-testid="create-client-modal"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          >
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              variants={modalContent}
+              className="w-full max-w-md rounded-2xl bg-cream border border-line shadow-2xl p-6 space-y-5"
+            >
             <div className="flex items-center justify-between border-b border-line pb-4">
               <div className="flex items-center gap-2">
                 <Key className="h-5 w-5 text-forest" />
@@ -554,9 +601,11 @@ export default function AdminIntegrationsPage() {
                 </Button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        </motion.div>
+        )}
+      </AnimatePresence>
     </div>
+  </AnimatedPage>
   );
 }

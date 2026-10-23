@@ -21,7 +21,10 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { AnimatedNumber } from "@/components/ui/animated-number";
 import { useAuth } from "@/components/providers/auth-provider";
+import { AnimatedPage } from "@/components/ui/animated-page";
+import { AnimatedView } from "@/components/ui/animated-view";
 import {
   AppointmentsReportData,
   CancellationsReportData,
@@ -187,6 +190,7 @@ export default function AdminReportsPage() {
   };
 
   return (
+  <AnimatedPage>
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
       {/* Header */}
       <div className="border-b border-line pb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -294,7 +298,7 @@ export default function AdminReportsPage() {
       </div>
 
       {/* Filter Bar */}
-      <Card className="p-4 bg-card border-line shadow-sm">
+      <Card className="p-4 bg-card border-line shadow-sm" hoverLift={true} index={0}>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
           <div>
             <label className="block font-medium text-ink-soft mb-1">Start Date</label>
@@ -377,53 +381,67 @@ export default function AdminReportsPage() {
         </div>
       )}
 
-      {loading && (
-        <Card role="status" aria-live="polite" className="p-8 text-center text-sm text-ink-soft">
-          Loading report...
-        </Card>
-      )}
+      {/* Report body animates in/out as the active tab changes. */}
+      <AnimatedView viewKey={activeTab}>
+        {loading && (
+          <Card role="status" aria-live="polite" className="p-8 text-center text-sm text-ink-soft" hoverLift={true} index={1}>
+            Loading report...
+          </Card>
+        )}
 
-      {!loading && !error && activeTab === "appointments" && !apptData && (
-        <Card className="p-8 text-center text-sm text-ink-soft">
-          No appointment report data is available for this selection.
-        </Card>
-      )}
+        {!loading && !error && activeTab === "appointments" && !apptData && (
+          <Card className="p-8 text-center text-sm text-ink-soft" hoverLift={true} index={2}>
+            No appointment report data is available for this selection.
+          </Card>
+        )}
 
       {/* TAB 1: APPOINTMENTS BREAKDOWN */}
       {!loading && !error && activeTab === "appointments" && apptData && (
         <div className="space-y-6">
           {/* KPI Summary Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            <Card className="p-4 bg-card border-line shadow-sm">
+            <Card index={0} hoverLift className="p-4 bg-card border-line shadow-sm">
               <span className="text-[11px] font-medium text-ink-soft uppercase tracking-wider">Total Booked</span>
-              <div className="text-2xl font-bold font-display text-ink mt-1">{apptData.summary.total}</div>
+              <div className="text-2xl font-bold font-display text-ink mt-1">
+                <AnimatedNumber value={apptData.summary.total} />
+              </div>
             </Card>
-            <Card className="p-4 bg-emerald-50/50 border-emerald-200 shadow-sm">
-              <span className="text-[11px] font-medium text-emerald-800 uppercase tracking-wider">Completed</span>
-              <div className="text-2xl font-bold font-display text-emerald-700 mt-1">{apptData.summary.completed}</div>
+            <Card index={1} hoverLift className="p-4 bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 shadow-sm">
+              <span className="text-[11px] font-medium text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">Completed</span>
+              <div className="text-2xl font-bold font-display text-emerald-700 dark:text-emerald-400 mt-1">
+                <AnimatedNumber value={apptData.summary.completed} />
+              </div>
             </Card>
-            <Card className="p-4 bg-rose-50/50 border-rose-200 shadow-sm">
-              <span className="text-[11px] font-medium text-rose-800 uppercase tracking-wider">Cancelled</span>
-              <div className="text-2xl font-bold font-display text-rose-700 mt-1">{apptData.summary.cancelled}</div>
+            <Card index={2} hoverLift className="p-4 bg-rose-50/50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800 shadow-sm">
+              <span className="text-[11px] font-medium text-rose-800 dark:text-rose-300 uppercase tracking-wider">Cancelled</span>
+              <div className="text-2xl font-bold font-display text-rose-700 dark:text-rose-400 mt-1">
+                <AnimatedNumber value={apptData.summary.cancelled} />
+              </div>
             </Card>
-            <Card className="p-4 bg-amber-50/50 border-amber-200 shadow-sm">
-              <span className="text-[11px] font-medium text-amber-800 uppercase tracking-wider">No-Shows</span>
-              <div className="text-2xl font-bold font-display text-amber-700 mt-1">{apptData.summary.noShow}</div>
+            <Card index={3} hoverLift className="p-4 bg-amber-50/50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 shadow-sm">
+              <span className="text-[11px] font-medium text-amber-800 dark:text-amber-300 uppercase tracking-wider">No-Shows</span>
+              <div className="text-2xl font-bold font-display text-amber-700 dark:text-amber-400 mt-1">
+                <AnimatedNumber value={apptData.summary.noShow} />
+              </div>
             </Card>
-            <Card className="p-4 bg-blue-50/50 border-blue-200 shadow-sm">
-              <span className="text-[11px] font-medium text-blue-800 uppercase tracking-wider">Confirmed</span>
-              <div className="text-2xl font-bold font-display text-blue-700 mt-1">{apptData.summary.confirmed}</div>
+            <Card index={4} hoverLift className="p-4 bg-blue-50/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800 shadow-sm">
+              <span className="text-[11px] font-medium text-blue-800 dark:text-blue-300 uppercase tracking-wider">Confirmed</span>
+              <div className="text-2xl font-bold font-display text-blue-700 dark:text-blue-400 mt-1">
+                <AnimatedNumber value={apptData.summary.confirmed} />
+              </div>
             </Card>
-            <Card className="p-4 bg-slate-50 border-slate-200 shadow-sm">
-              <span className="text-[11px] font-medium text-slate-700 uppercase tracking-wider">Pending</span>
-              <div className="text-2xl font-bold font-display text-slate-800 mt-1">{apptData.summary.pending}</div>
+            <Card index={5} hoverLift className="p-4 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
+              <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300 uppercase tracking-wider">Pending</span>
+              <div className="text-2xl font-bold font-display text-slate-800 dark:text-slate-200 mt-1">
+                <AnimatedNumber value={apptData.summary.pending} />
+              </div>
             </Card>
           </div>
 
           {/* Status Breakdown & Clinician Distribution */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Status Breakdown */}
-            <Card className="p-5 bg-card border-line shadow-sm">
+            <Card className="p-5 bg-card border-line shadow-sm" hoverLift={true} index={3}>
               <h3 className="font-display font-semibold text-ink text-sm mb-4">Volume by Appointment Status</h3>
               <div className="space-y-3">
                 {apptData.byStatus.map((s) => (
@@ -446,7 +464,7 @@ export default function AdminReportsPage() {
             </Card>
 
             {/* Clinician Volume */}
-            <Card className="p-5 bg-card border-line shadow-sm">
+            <Card className="p-5 bg-card border-line shadow-sm" hoverLift={true} index={4}>
               <h3 className="font-display font-semibold text-ink text-sm mb-4">Volume by Clinician</h3>
               <div className="overflow-y-auto max-h-64 divide-y divide-line/60 text-xs">
                 {apptData.byClinician.length === 0 ? (
@@ -478,19 +496,19 @@ export default function AdminReportsPage() {
         <div className="space-y-6">
           {/* Summary KPIs */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-            <Card className="p-4 bg-rose-50/60 border-rose-200 shadow-sm">
+            <Card className="p-4 bg-rose-50/60 border-rose-200 shadow-sm" index={5}>
               <span className="text-xs font-semibold text-rose-800 uppercase tracking-wider">Cancellations</span>
               <div className="text-3xl font-bold font-display text-rose-700 mt-1">{cancData.summary.totalCancellations}</div>
             </Card>
-            <Card className="p-4 bg-amber-50/60 border-amber-200 shadow-sm">
+            <Card className="p-4 bg-amber-50/60 border-amber-200 shadow-sm" index={6}>
               <span className="text-xs font-semibold text-amber-800 uppercase tracking-wider">No-Shows</span>
               <div className="text-3xl font-bold font-display text-amber-700 mt-1">{cancData.summary.totalNoShows}</div>
             </Card>
-            <Card className="p-4 bg-purple-50/60 border-purple-200 shadow-sm">
+            <Card className="p-4 bg-purple-50/60 border-purple-200 shadow-sm" index={7}>
               <span className="text-xs font-semibold text-purple-800 uppercase tracking-wider">Combined Lost Bookings</span>
               <div className="text-3xl font-bold font-display text-purple-700 mt-1">{cancData.summary.combinedLoss}</div>
             </Card>
-            <Card className="p-4 bg-card border-line shadow-sm">
+            <Card className="p-4 bg-card border-line shadow-sm" hoverLift={true} index={8}>
               <span className="text-xs font-semibold text-ink-soft uppercase tracking-wider">Cancellation Rate</span>
               <div className="text-3xl font-bold font-display text-ink mt-1">
                 {cancData.summary.cancellationRatePercent}%
@@ -499,7 +517,7 @@ export default function AdminReportsPage() {
           </div>
 
           {/* Cancellation Reasons Breakdown */}
-          <Card className="p-5 bg-card border-line shadow-sm">
+          <Card className="p-5 bg-card border-line shadow-sm" hoverLift={true} index={9}>
             <h3 className="font-display font-semibold text-ink text-sm mb-4">Documented Reasons for Cancellation</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {cancData.cancellationReasons.map((r) => (
@@ -520,7 +538,7 @@ export default function AdminReportsPage() {
           </Card>
 
           {/* Incident Records Table */}
-          <Card className="overflow-hidden border-line shadow-sm bg-card">
+          <Card className="overflow-hidden border-line shadow-sm bg-card" hoverLift={true} index={10}>
             <div className="p-4 border-b border-line bg-surface flex items-center justify-between">
               <h3 className="font-display font-semibold text-ink text-sm">
                 Cancellation &amp; No-Show Incident Log ({cancData.items.length})
@@ -586,19 +604,19 @@ export default function AdminReportsPage() {
         <div className="space-y-6">
           {/* Summary KPIs */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-            <Card className="p-4 bg-card border-line shadow-sm">
+            <Card className="p-4 bg-card border-line shadow-sm" hoverLift={true} index={11}>
               <span className="text-xs font-semibold text-ink-soft uppercase tracking-wider">Total Recalls Scheduled</span>
               <div className="text-3xl font-bold font-display text-ink mt-1">{recallData.summary.totalRecalls}</div>
             </Card>
-            <Card className="p-4 bg-emerald-50/60 border-emerald-200 shadow-sm">
+            <Card className="p-4 bg-emerald-50/60 border-emerald-200 shadow-sm" index={12}>
               <span className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">Completed / Attended</span>
               <div className="text-3xl font-bold font-display text-emerald-700 mt-1">{recallData.summary.completedRecalls}</div>
             </Card>
-            <Card className="p-4 bg-rose-50/60 border-rose-200 shadow-sm">
+            <Card className="p-4 bg-rose-50/60 border-rose-200 shadow-sm" index={13}>
               <span className="text-xs font-semibold text-rose-800 uppercase tracking-wider">Overdue Recalls</span>
               <div className="text-3xl font-bold font-display text-rose-700 mt-1">{recallData.summary.overdue}</div>
             </Card>
-            <Card className="p-4 bg-blue-50/60 border-blue-200 shadow-sm">
+            <Card className="p-4 bg-blue-50/60 border-blue-200 shadow-sm" index={14}>
               <span className="text-xs font-semibold text-blue-800 uppercase tracking-wider">Adherence Compliance Rate</span>
               <div className="text-3xl font-bold font-display text-blue-700 mt-1">
                 {recallData.summary.complianceRatePercent}%
@@ -607,7 +625,7 @@ export default function AdminReportsPage() {
           </div>
 
           {/* Compliance By Recall Reason */}
-          <Card className="p-5 bg-card border-line shadow-sm">
+          <Card className="p-5 bg-card border-line shadow-sm" hoverLift={true} index={15}>
             <h3 className="font-display font-semibold text-ink text-sm mb-4">Adherence by Clinical Recall Reason</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               {recallData.byReason.map((r) => (
@@ -629,7 +647,7 @@ export default function AdminReportsPage() {
           </Card>
 
           {/* Recall Records List */}
-          <Card className="overflow-hidden border-line shadow-sm bg-card">
+          <Card className="overflow-hidden border-line shadow-sm bg-card" hoverLift={true} index={16}>
             <div className="p-4 border-b border-line bg-surface">
               <h3 className="font-display font-semibold text-ink text-sm">
                 Recall Patients Register ({recallData.records.length})
@@ -707,7 +725,7 @@ export default function AdminReportsPage() {
 
           {/* Median Timing KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Card className="p-5 bg-card border-line shadow-sm">
+            <Card className="p-5 bg-card border-line shadow-sm" hoverLift={true} index={17}>
               <span className="text-xs font-semibold text-ink-soft uppercase tracking-wider">Median Reception Wait Time</span>
               <div className="text-3xl font-bold font-display text-primary mt-2">
                 {opsData.aggregate.medianWaitMinutes !== null ? `${opsData.aggregate.medianWaitMinutes} min` : "—"}
@@ -718,7 +736,7 @@ export default function AdminReportsPage() {
               </p>
             </Card>
 
-            <Card className="p-5 bg-card border-line shadow-sm">
+            <Card className="p-5 bg-card border-line shadow-sm" hoverLift={true} index={18}>
               <span className="text-xs font-semibold text-ink-soft uppercase tracking-wider">Median Chair Procedural Time</span>
               <div className="text-3xl font-bold font-display text-emerald-600 mt-2">
                 {opsData.aggregate.medianChairMinutes !== null ? `${opsData.aggregate.medianChairMinutes} min` : "—"}
@@ -729,7 +747,7 @@ export default function AdminReportsPage() {
               </p>
             </Card>
 
-            <Card className="p-5 bg-card border-line shadow-sm">
+            <Card className="p-5 bg-card border-line shadow-sm" hoverLift={true} index={19}>
               <span className="text-xs font-semibold text-ink-soft uppercase tracking-wider">Median Total Cycle Time</span>
               <div className="text-3xl font-bold font-display text-indigo-600 mt-2">
                 {opsData.aggregate.medianTotalCycleMinutes !== null ? `${opsData.aggregate.medianTotalCycleMinutes} min` : "—"}
@@ -743,7 +761,7 @@ export default function AdminReportsPage() {
           {/* Distribution Curves */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Wait Time Distribution */}
-            <Card className="p-5 bg-card border-line shadow-sm">
+            <Card className="p-5 bg-card border-line shadow-sm" hoverLift={true} index={20}>
               <h3 className="font-display font-semibold text-ink text-sm mb-4">Patient Waiting Time Distribution</h3>
               <div className="space-y-3">
                 {opsData.waitingTimeDistribution.map((w) => (
@@ -764,7 +782,7 @@ export default function AdminReportsPage() {
             </Card>
 
             {/* Chair Time Distribution */}
-            <Card className="p-5 bg-card border-line shadow-sm">
+            <Card className="p-5 bg-card border-line shadow-sm" hoverLift={true} index={21}>
               <h3 className="font-display font-semibold text-ink text-sm mb-4">Operatory Chair Time Distribution</h3>
               <div className="space-y-3">
                 {opsData.chairTimeDistribution.map((c) => (
@@ -786,7 +804,7 @@ export default function AdminReportsPage() {
           </div>
 
           {/* Daily Operational Trends Table */}
-          <Card className="overflow-hidden border-line shadow-sm bg-card">
+          <Card className="overflow-hidden border-line shadow-sm bg-card" hoverLift={true} index={22}>
             <div className="p-4 border-b border-line bg-surface">
               <h3 className="font-display font-semibold text-ink text-sm">
                 Daily Operational Flow History
@@ -835,7 +853,7 @@ export default function AdminReportsPage() {
         <div className="space-y-6">
           {/* Funnel KPI Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            <Card className="p-4 bg-card border-line shadow-xs">
+            <Card className="p-4 bg-card border-line shadow-xs" hoverLift={true} index={23}>
               <p className="text-[10px] font-mono uppercase text-ink-soft font-semibold">Captured</p>
               <p className="text-2xl font-bold font-display text-ink mt-1">
                 {funnelData.funnel.captured}
@@ -843,7 +861,7 @@ export default function AdminReportsPage() {
               <p className="text-[10px] text-ink-soft mt-0.5">Total Inquiries</p>
             </Card>
 
-            <Card className="p-4 bg-card border-line shadow-xs">
+            <Card className="p-4 bg-card border-line shadow-xs" hoverLift={true} index={24}>
               <p className="text-[10px] font-mono uppercase text-amber-600 font-semibold">Unconverted</p>
               <p className="text-2xl font-bold font-display text-amber-700 dark:text-amber-400 mt-1">
                 {funnelData.funnel.unconverted}
@@ -851,7 +869,7 @@ export default function AdminReportsPage() {
               <p className="text-[10px] text-ink-soft mt-0.5">In follow-up</p>
             </Card>
 
-            <Card className="p-4 bg-card border-line shadow-xs">
+            <Card className="p-4 bg-card border-line shadow-xs" hoverLift={true} index={25}>
               <p className="text-[10px] font-mono uppercase text-primary font-semibold">Converted</p>
               <p className="text-2xl font-bold font-display text-primary mt-1">
                 {funnelData.funnel.converted}
@@ -859,7 +877,7 @@ export default function AdminReportsPage() {
               <p className="text-[10px] text-ink-soft mt-0.5">Booking created</p>
             </Card>
 
-            <Card className="p-4 bg-card border-line shadow-xs">
+            <Card className="p-4 bg-card border-line shadow-xs" hoverLift={true} index={26}>
               <p className="text-[10px] font-mono uppercase text-emerald-600 font-semibold">Patient</p>
               <p className="text-2xl font-bold font-display text-emerald-600 mt-1">
                 {funnelData.funnel.patient}
@@ -867,7 +885,7 @@ export default function AdminReportsPage() {
               <p className="text-[10px] text-ink-soft mt-0.5">First visit complete</p>
             </Card>
 
-            <Card className="p-4 bg-card border-line shadow-xs">
+            <Card className="p-4 bg-card border-line shadow-xs" hoverLift={true} index={27}>
               <p className="text-[10px] font-mono uppercase text-blue-600 font-semibold">Cold</p>
               <p className="text-2xl font-bold font-display text-blue-600 mt-1">
                 {funnelData.funnel.cold}
@@ -875,7 +893,7 @@ export default function AdminReportsPage() {
               <p className="text-[10px] text-ink-soft mt-0.5">Max attempts reached</p>
             </Card>
 
-            <Card className="p-4 bg-card border-line shadow-xs">
+            <Card className="p-4 bg-card border-line shadow-xs" hoverLift={true} index={28}>
               <p className="text-[10px] font-mono uppercase text-rose-600 font-semibold">Failed</p>
               <p className="text-2xl font-bold font-display text-rose-600 mt-1">
                 {funnelData.funnel.failed}
@@ -885,7 +903,7 @@ export default function AdminReportsPage() {
           </div>
 
           {/* Source Breakdown Table */}
-          <Card className="overflow-hidden border-line shadow-sm bg-card">
+          <Card className="overflow-hidden border-line shadow-sm bg-card" hoverLift={true} index={29}>
             <div className="p-4 border-b border-line bg-surface flex items-center justify-between">
               <div>
                 <h3 className="font-display font-semibold text-ink text-sm">
@@ -941,6 +959,8 @@ export default function AdminReportsPage() {
           </Card>
         </div>
       )}
+      </AnimatedView>
     </div>
+  </AnimatedPage>
   );
 }

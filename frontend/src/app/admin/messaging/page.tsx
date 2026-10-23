@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   AlertCircle,
   Bell,
@@ -19,6 +20,14 @@ import {
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { TextField } from "@/components/ui/text-field";
+import { AnimatedPage } from "@/components/ui/animated-page";
+import { Skeleton } from "@/components/ui/skeleton";
+import { StaggerList, StaggerItem } from "@/components/ui/stagger-list";
+import {
+  staggerContainer,
+  listItem,
+} from "@/animations/variants";
 import {
   getMessageLogs,
   getMessagingSettings,
@@ -211,6 +220,7 @@ export default function AdminMessagingPage() {
     .replace(/{confirmation_id}/g, "MD-CONFIRMATION");
 
   return (
+  <AnimatedPage>
     <div className="space-y-6 max-w-6xl mx-auto pb-12">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -257,7 +267,7 @@ export default function AdminMessagingPage() {
       <form onSubmit={handleSaveSettings} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Provider Layer Configuration */}
-          <Card surface="bone" shadow="card" className="p-5 space-y-4">
+          <Card surface="bone" shadow="card" className="p-5 space-y-4" hoverLift={true} index={0}>
             <div className="flex items-center justify-between border-b border-line pb-3">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-5 w-5 text-primary" />
@@ -315,7 +325,7 @@ export default function AdminMessagingPage() {
           </Card>
 
           {/* Quiet Hours Window */}
-          <Card surface="bone" shadow="card" className="p-5 space-y-4">
+          <Card surface="bone" shadow="card" className="p-5 space-y-4" hoverLift={true} index={1}>
             <div className="flex items-center justify-between border-b border-line pb-3">
               <div className="flex items-center gap-2">
                 <Moon className="h-5 w-5 text-indigo-600" />
@@ -376,7 +386,7 @@ export default function AdminMessagingPage() {
         </div>
 
         {/* Template Configuration & Live Preview */}
-        <Card surface="bone" shadow="card" className="p-5 space-y-4">
+        <Card surface="bone" shadow="card" className="p-5 space-y-4" hoverLift={true} index={2}>
           <div className="flex items-center justify-between border-b border-line pb-3">
             <div className="flex items-center gap-2">
               <Zap className="h-5 w-5 text-amber-500" />
@@ -412,12 +422,14 @@ export default function AdminMessagingPage() {
               <label className="text-xs font-semibold text-ink block">
                 English Message Template Body
               </label>
-              <textarea
+              <TextField
+                id="template-english"
+                label="English Message Template Body"
+                multiline
                 rows={3}
                 value={template}
                 onChange={(e) => setTemplate(e.target.value)}
                 required
-                className="w-full text-xs rounded-xl border border-line bg-bone p-3 text-ink focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
 
@@ -425,7 +437,10 @@ export default function AdminMessagingPage() {
               <label className="text-xs font-semibold text-ink block">
                 Urdu Message Template Body (اردو)
               </label>
-              <textarea
+              <TextField
+                id="template-urdu"
+                label="Urdu Message Template Body"
+                multiline
                 rows={3}
                 dir="rtl"
                 value={templateUrdu}
@@ -485,7 +500,7 @@ export default function AdminMessagingPage() {
       </form>
 
       {/* Send Test Message Section */}
-      <Card surface="bone" shadow="card" className="p-5 space-y-4">
+      <Card surface="bone" shadow="card" className="p-5 space-y-4" hoverLift={true} index={3}>
         <div className="flex items-center justify-between border-b border-line pb-3">
           <div className="flex items-center gap-2">
             <Send className="h-5 w-5 text-primary" />
@@ -533,13 +548,15 @@ export default function AdminMessagingPage() {
             <label className="block text-xs font-semibold text-ink mb-1">
               Test Message Body *
             </label>
-            <textarea
+            <TextField
+              id="test-message-body"
+              label="Test Message Body"
+              multiline
               rows={2}
               placeholder="Test message from Marlow Dental Clinic..."
               value={testMessageBody}
               onChange={(e) => setTestMessageBody(e.target.value)}
               required
-              className="w-full text-xs rounded-xl border border-line bg-bone p-3 text-ink focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
 
@@ -592,7 +609,7 @@ export default function AdminMessagingPage() {
       </Card>
 
       {/* Manual Scheduler Runner */}
-      <Card surface="bone" shadow="card" className="p-5 space-y-4">
+      <Card surface="bone" shadow="card" className="p-5 space-y-4" hoverLift={true} index={4}>
         <div className="flex items-center justify-between border-b border-line pb-3">
           <div className="flex items-center gap-2">
             <Clock className="h-5 w-5 text-emerald-600" />
@@ -658,7 +675,7 @@ export default function AdminMessagingPage() {
       </Card>
 
       {/* Message Activity Logs Table */}
-      <Card surface="bone" shadow="card" className="p-5 space-y-4">
+      <Card surface="bone" shadow="card" className="p-5 space-y-4" hoverLift={true} index={5}>
         <div className="flex items-center justify-between border-b border-line pb-3">
           <div className="flex items-center gap-2">
             <Bell className="h-5 w-5 text-primary" />
@@ -670,9 +687,12 @@ export default function AdminMessagingPage() {
         </div>
 
         {isLoadingLogs ? (
-          <div className="p-8 text-center text-xs text-ink-soft flex items-center justify-center gap-2">
-            <RefreshCw className="h-4 w-4 animate-spin text-primary" />
-            <span>Loading message activity...</span>
+          <div className="p-8 text-center text-xs text-ink-soft flex flex-col items-center justify-center gap-2">
+            <StaggerList className="flex flex-col items-center justify-center gap-2">
+              <StaggerItem index={0}><Skeleton className="h-4 w-1/3" /></StaggerItem>
+              <StaggerItem index={1}><Skeleton className="h-4 w-1/2" /></StaggerItem>
+            </StaggerList>
+            <p className="mt-2 text-xs text-ink-soft">Loading message activity...</p>
           </div>
         ) : logs.length === 0 ? (
           <div className="p-8 text-center text-xs text-ink-soft">
@@ -690,9 +710,20 @@ export default function AdminMessagingPage() {
                   <th className="py-2.5 px-3">Delivery Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-line">
+              <motion.tbody
+                variants={staggerContainer}
+                initial="hidden"
+                animate="visible"
+                className="divide-y divide-line"
+              >
                 {logs.map((log) => (
-                  <tr key={log.id} className="hover:bg-cream/40 transition-colors">
+                  <motion.tr
+                    key={log.id}
+                    variants={listItem}
+                    initial="hidden"
+                    animate="visible"
+                    className="hover:bg-cream/40 transition-colors"
+                  >
                     <td className="py-2.5 px-3 whitespace-nowrap text-ink-soft font-mono text-[11px]">
                       {new Date(log.createdAt).toLocaleString([], {
                         month: "short",
@@ -729,13 +760,14 @@ export default function AdminMessagingPage() {
                           : log.deliveryStatus}
                       </span>
                     </td>
-                  </tr>
+                  </motion.tr>
                 ))}
-              </tbody>
+              </motion.tbody>
             </table>
           </div>
         )}
       </Card>
     </div>
+  </AnimatedPage>
   );
 }

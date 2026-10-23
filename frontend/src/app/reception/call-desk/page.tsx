@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { TextField } from "@/components/ui/text-field";
 import { BookingWizard } from "@/components/booking/booking-wizard";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import {
   lookupCallDesk,
   startCallDeskHold,
@@ -198,6 +199,7 @@ export default function ReceptionCallDeskPage() {
   };
 
   return (
+  <AnimatedPage>
     <div className="space-y-6 max-w-6xl mx-auto pb-12">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-line pb-5">
@@ -289,7 +291,7 @@ export default function ReceptionCallDeskPage() {
       )}
 
       {/* Number Box / Search Panel */}
-      <Card surface="cream" shadow="subtle" className="p-6">
+      <Card surface="cream" shadow="subtle" className="p-6" hoverLift={true} index={0}>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -375,7 +377,7 @@ export default function ReceptionCallDeskPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
               {/* Patient / Family Selection Card */}
-              <Card surface="cream" shadow="subtle" className="p-6 space-y-4">
+              <Card surface="cream" shadow="subtle" className="p-6 space-y-4" hoverLift={true} index={1}>
                 <div className="flex items-center justify-between border-b border-line/60 pb-3">
                   <div className="flex items-center gap-2">
                     <Users className="h-5 w-5 text-forest" />
@@ -445,7 +447,7 @@ export default function ReceptionCallDeskPage() {
               </Card>
 
               {/* Lead / Acquisition History Card */}
-              <Card surface="cream" shadow="subtle" className="p-6 space-y-4">
+              <Card surface="cream" shadow="subtle" className="p-6 space-y-4" hoverLift={true} index={2}>
                 <div className="flex items-center justify-between border-b border-line/60 pb-3">
                   <div className="flex items-center gap-2">
                     <UserPlus className="h-5 w-5 text-amber-600" />
@@ -521,7 +523,7 @@ export default function ReceptionCallDeskPage() {
               </Card>
 
               {/* History Timeline */}
-              <Card surface="cream" shadow="subtle" className="p-6 space-y-4">
+              <Card surface="cream" shadow="subtle" className="p-6 space-y-4" hoverLift={true} index={3}>
                 <div className="flex items-center gap-2 border-b border-line/60 pb-3">
                   <History className="h-5 w-5 text-forest" />
                   <h2 className="text-base font-semibold text-ink">Recent Communications Timeline</h2>
@@ -554,7 +556,7 @@ export default function ReceptionCallDeskPage() {
 
             {/* Right Column: Upcoming Bookings & Fast Action */}
             <div className="space-y-6">
-              <Card surface="cream" shadow="subtle" className="p-6 space-y-4">
+              <Card surface="cream" shadow="subtle" className="p-6 space-y-4" hoverLift={true} index={4}>
                 <div className="flex items-center justify-between border-b border-line/60 pb-3">
                   <div className="flex items-center gap-2">
                     <Calendar className="h-5 w-5 text-forest" />
@@ -773,5 +775,6 @@ export default function ReceptionCallDeskPage() {
         </div>
       )}
     </div>
+  </AnimatedPage>
   );
 }

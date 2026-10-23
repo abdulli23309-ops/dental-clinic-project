@@ -23,6 +23,8 @@ import {
 
 import { useAuth } from "@/components/providers/auth-provider";
 import { useDirectory } from "@/lib/directory";
+import { Card } from "@/components/ui/card";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import {
   isWaiting,
   isInProgress,
@@ -80,6 +82,7 @@ export default function ReceptionCheckInPage() {
   const completedPatients = bookings.filter((b) => isCompleted(b.status));
 
   return (
+  <AnimatedPage>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -118,10 +121,14 @@ export default function ReceptionCheckInPage() {
                 No more pending arrivals expected today.
               </div>
             ) : (
-              scheduledUpcoming.map((b) => (
-                <div
+              scheduledUpcoming.map((b, index) => (
+                <Card
                   key={b.id}
-                  className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-xs space-y-3 hover:border-primary/50 transition-colors"
+                  index={index}
+                  hoverLift
+                  surface="bone"
+                  shadow="subtle"
+                  className="p-4 space-y-3"
                 >
                   <div className="flex items-start justify-between">
                     <div>
@@ -158,7 +165,7 @@ export default function ReceptionCheckInPage() {
                       <span>Check In Patient</span>
                     </button>
                   </div>
-                </div>
+                </Card>
               ))
             )}
           </div>
@@ -179,10 +186,14 @@ export default function ReceptionCheckInPage() {
                 Waiting room is currently clear.
               </div>
             ) : (
-              waitingPatients.map((b) => (
-                <div
+              waitingPatients.map((b, index) => (
+                <Card
                   key={b.id}
-                  className="p-4 rounded-2xl bg-amber-50/40 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/60 shadow-xs space-y-3"
+                  index={index}
+                  hoverLift
+                  surface="sand"
+                  shadow="subtle"
+                  className="p-4 bg-amber-50/40 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/60 shadow-xs space-y-3"
                 >
                   <div className="flex items-start justify-between">
                     <div>
@@ -240,7 +251,7 @@ export default function ReceptionCheckInPage() {
                       <span>Send to Chair / Doctor</span>
                     </button>
                   </div>
-                </div>
+                </Card>
               ))
             )}
           </div>
@@ -261,10 +272,14 @@ export default function ReceptionCheckInPage() {
                 No active visits in treatment rooms right now.
               </div>
             ) : (
-              inProgressPatients.map((b) => (
-                <div
+              inProgressPatients.map((b, index) => (
+                <Card
                   key={b.id}
-                  className="p-4 rounded-2xl bg-primary/5 dark:bg-primary/10 border border-primary/20 shadow-xs space-y-3"
+                  index={index}
+                  hoverLift
+                  surface="sand"
+                  shadow="subtle"
+                  className="p-4 bg-primary/5 dark:bg-primary/10 border-primary/20 space-y-3"
                 >
                   <div className="flex items-start justify-between">
                     <div>
@@ -293,12 +308,13 @@ export default function ReceptionCheckInPage() {
                       <span>Complete Checkout</span>
                     </button>
                   </div>
-                </div>
+                </Card>
               ))
             )}
           </div>
         </div>
       </div>
     </div>
+  </AnimatedPage>
   );
 }

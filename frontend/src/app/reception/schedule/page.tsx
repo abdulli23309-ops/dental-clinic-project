@@ -29,6 +29,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useDirectory } from "@/lib/directory";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import {
   isExpected,
   isWaiting,
@@ -196,6 +197,7 @@ export default function ReceptionSchedulePage() {
   };
 
   return (
+  <AnimatedPage>
     <div className="space-y-6 max-w-6xl">
       {/* Top Header Controls */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-line pb-6">
@@ -223,7 +225,7 @@ export default function ReceptionSchedulePage() {
       </div>
 
       {/* Date Navigation Bar & Filter Controls */}
-      <Card surface="bone" shadow="subtle" className="p-4 flex flex-wrap items-center justify-between gap-4">
+      <Card surface="bone" shadow="subtle" className="p-4 flex flex-wrap items-center justify-between gap-4" hoverLift={true} index={0}>
         {/* Date Selector */}
         <div className="flex items-center gap-2">
           <button
@@ -290,7 +292,7 @@ export default function ReceptionSchedulePage() {
       </Card>
 
       {/* Schedule Table */}
-      <Card surface="bone" shadow="card" className="overflow-hidden p-0">
+      <Card surface="bone" shadow="card" className="overflow-hidden p-0" hoverLift={true} index={1}>
         {isLoading ? (
           <div className="p-12 text-center text-xs text-ink-soft font-mono">
             Loading appointments for {selectedDate}...
@@ -665,5 +667,6 @@ export default function ReceptionSchedulePage() {
         onClose={() => setWaitlistModalBookingId(null)}
       />
     </div>
+  </AnimatedPage>
   );
 }

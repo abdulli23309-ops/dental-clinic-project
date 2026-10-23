@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "motion/react";
 import {
   ArrowRight,
   Calendar,
@@ -32,6 +33,11 @@ import {
   updateReceptionLeadStatus,
 } from "@/lib/api";
 import { useAuth } from "@/components/providers/auth-provider";
+import { TabNav } from "@/components/ui/tab-nav";
+import { Card } from "@/components/ui/card";
+import { AnimatedPage } from "@/components/ui/animated-page";
+import { drawerSlide } from "@/animations/variants";
+import { fadeIn } from "@/animations/variants";
 
 export default function ReceptionLeadsPage() {
   const router = useRouter();
@@ -208,6 +214,7 @@ export default function ReceptionLeadsPage() {
   };
 
   return (
+  <AnimatedPage>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -231,8 +238,8 @@ export default function ReceptionLeadsPage() {
 
       {/* Filter Tabs */}
       <div className="p-3 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-xs flex items-center justify-between overflow-x-auto">
-        <div className="flex items-center gap-1 min-w-max">
-          {[
+        <TabNav
+          tabs={[
             { id: "", label: "All Leads" },
             { id: "unconverted", label: "Unconverted" },
             { id: "converted", label: "Converted" },
@@ -240,25 +247,16 @@ export default function ReceptionLeadsPage() {
             { id: "cold", label: "Cold" },
             { id: "failed_conversion", label: "Failed Conversion" },
             { id: "archived", label: "Archived" },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              data-testid={`tab-${tab.id || "all"}`}
-              onClick={() => setStatusFilter(tab.id)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
-                statusFilter === tab.id
-                  ? "bg-primary text-white font-semibold shadow-xs"
-                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+          ]}
+          activeTab={statusFilter}
+          onSelect={(id) => setStatusFilter(id)}
+          layoutId="reception-leads-tab-pill"
+          getTestId={(id) => `tab-${id || "all"}`}
+        />
       </div>
 
       {/* Leads List */}
-      <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden shadow-xs">
+      <Card surface="bone" shadow="subtle" className="overflow-hidden" hoverLift={true} index={0}>
         {isLoading ? (
           <div className="p-12 text-center text-xs font-mono text-gray-500">
             Loading leads...
@@ -429,12 +427,25 @@ export default function ReceptionLeadsPage() {
             ))}
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Manual Status Change Modal */}
       {statusModalLead && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-2xl space-y-4">
+        <AnimatePresence>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
+          >
+            <motion.div
+              variants={fadeIn}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="w-full max-w-md rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-2xl space-y-4"
+            >
             <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-800">
               <div>
                 <h2 className="text-base font-display font-semibold text-gray-900 dark:text-white">
@@ -501,14 +512,28 @@ export default function ReceptionLeadsPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+            </motion.div>
+          </motion.div>
+        </AnimatePresence>
       )}
 
       {/* Timeline Drawer / Modal */}
       {timelineLead && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-2xl overflow-hidden">
+        <AnimatePresence>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
+          >
+            <motion.div
+              variants={drawerSlide}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-2xl overflow-hidden"
+            >
             <div className="p-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
               <div>
                 <h2 className="text-base font-display font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -600,14 +625,28 @@ export default function ReceptionLeadsPage() {
                 Close
               </button>
             </div>
-          </div>
-        </div>
+            </motion.div>
+          </motion.div>
+        </AnimatePresence>
       )}
 
       {/* Log Contact Attempt Modal */}
       {attemptModalLead && (
-        <div data-testid="log-attempt-modal" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-2xl space-y-4">
+        <AnimatePresence>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
+          >
+            <motion.div
+              variants={fadeIn}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="w-full max-w-md rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-2xl space-y-4"
+            >
             <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-800">
               <h2 className="text-base font-display font-semibold text-gray-900 dark:text-white">
                 Log Contact Attempt: {attemptModalLead.fullName}
@@ -680,14 +719,28 @@ export default function ReceptionLeadsPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+            </motion.div>
+          </motion.div>
+        </AnimatePresence>
       )}
 
       {/* New Lead Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-2xl space-y-4">
+        <AnimatePresence>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
+          >
+            <motion.div
+              variants={fadeIn}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="w-full max-w-md rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-2xl space-y-4"
+            >
             <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-800">
               <h2 className="text-base font-display font-semibold text-gray-900 dark:text-white">
                 Register Inbound Lead
@@ -793,9 +846,11 @@ export default function ReceptionLeadsPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+            </motion.div>
+          </motion.div>
+        </AnimatePresence>
       )}
     </div>
+  </AnimatedPage>
   );
 }

@@ -34,6 +34,8 @@ import { StatusBadge } from "@/components/dashboard/status-badge";
 import { EmptyState, ErrorState, LoadingState } from "@/components/dashboard/states";
 import { Button } from "@/components/ui/button";
 
+import { listItem } from "@/animations/variants";
+
 interface AdminOverview {
   operations: ReceptionDashboardStats | null;
   activeServices: number;
@@ -147,7 +149,8 @@ export default function AdminOverviewPage() {
               <Globe className="h-3.5 w-3.5" />
               <span>Website CMS</span>
             </Button>
-          </>
+          
+        </>
         }
       />
 
@@ -163,34 +166,34 @@ export default function AdminOverviewPage() {
         <>
           {/* Clinic operations */}
           <section className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-2.5">
-            <StatCard label="Appointments today" value={ops.todayAppointments} />
-            <StatCard label="Confirmed" value={ops.confirmedCount} tone="positive" />
-            <StatCard label="Unconfirmed" value={ops.unconfirmedCount} tone="warning" />
-            <StatCard label="Checked in" value={ops.checkedInCount} tone="info" />
-            <StatCard label="Waiting" value={ops.waitingCount} tone="warning" />
-            <StatCard label="In treatment" value={ops.inProgressCount} tone="info" />
-            <StatCard label="Completed" value={ops.completedCount} tone="positive" />
-            <StatCard label="No shows" value={ops.noShowCount} tone="danger" />
+            <StatCard label="Appointments today" value={ops.todayAppointments} index={0} />
+            <StatCard label="Confirmed" value={ops.confirmedCount} tone="positive" index={1} />
+            <StatCard label="Unconfirmed" value={ops.unconfirmedCount} tone="warning" index={2} />
+            <StatCard label="Checked in" value={ops.checkedInCount} tone="info" index={3} />
+            <StatCard label="Waiting" value={ops.waitingCount} tone="warning" index={4} />
+            <StatCard label="In treatment" value={ops.inProgressCount} tone="info" index={5} />
+            <StatCard label="Completed" value={ops.completedCount} tone="positive" index={6} />
+            <StatCard label="No shows" value={ops.noShowCount} tone="danger" index={7} />
           </section>
 
           {/* Follow-ups + practice configuration */}
           <section className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2.5">
-            <StatCard
+            <StatCard index={12}
               label="Pending requests"
               value={ops.pendingRequestsCount}
               tone="warning"
               href="/reception/appointments/requests"
             />
-            <StatCard
+            <StatCard index={13}
               label="Urgent tasks"
               value={ops.urgentTasksCount}
               tone="danger"
               href="/reception/tasks"
             />
-            <StatCard label="New leads" value={ops.newLeadsCount} tone="info" href="/reception/leads" />
-            <StatCard label="Active services" value={data.activeServices} href="/admin/services" />
-            <StatCard label="Active team" value={data.activeTeam} href="/admin/team" />
-            <StatCard label="Clinics" value={data.locationCount} href="/admin/locations" />
+            <StatCard label="New leads" value={ops.newLeadsCount} tone="info" href="/reception/leads" index={8} />
+            <StatCard label="Active services" value={data.activeServices} href="/admin/services" index={9} />
+            <StatCard label="Active team" value={data.activeTeam} href="/admin/team" index={10} />
+            <StatCard label="Clinics" value={data.locationCount} href="/admin/locations" index={11} />
           </section>
 
 
@@ -372,8 +375,10 @@ export default function AdminOverviewPage() {
               </div>
             </Panel>
           </section>
+
         </>
-      )}
+    
+  )}
     </div>
   );
 }

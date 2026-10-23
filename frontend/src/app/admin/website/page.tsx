@@ -17,7 +17,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { TextField } from "@/components/ui/text-field";
+import { AnimatedView } from "@/components/ui/animated-view";
+import { motion } from "motion/react";
 import { useAuth } from "@/components/providers/auth-provider";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import {
   adminCreateFaq,
   adminGetCmsSection,
@@ -185,6 +188,7 @@ export default function AdminWebsitePage() {
   };
 
   return (
+  <AnimatedPage>
     <div className="space-y-6 max-w-5xl">
       {/* Page Title */}
       <div className="border-b border-line pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -237,14 +241,21 @@ export default function AdminWebsitePage() {
               role="tab"
               aria-selected={isActive}
               onClick={() => setActiveTab(tab.id as SectionTab)}
-              className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-medium transition-all cursor-pointer ${
+              className={`relative inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-medium transition-all cursor-pointer select-none ${
                 isActive
-                  ? "bg-forest text-[#FAF7F2] shadow-subtle"
+                  ? "text-[#FAF7F2] shadow-subtle"
                   : "bg-cream text-ink-soft hover:text-ink hover:bg-sand/60 border border-line/60"
               }`}
             >
-              <Icon className="h-3.5 w-3.5" />
-              <span>{tab.label}</span>
+              {isActive && (
+                <motion.div
+                  layoutId="adminWebsiteTabIndicator"
+                  className="absolute inset-0 rounded-full bg-forest"
+                  transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                />
+              )}
+              <Icon className="relative z-10 h-3.5 w-3.5" />
+              <span className="relative z-10">{tab.label}</span>
             </button>
           );
         })}
@@ -255,10 +266,10 @@ export default function AdminWebsitePage() {
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-forest border-t-transparent" />
         </div>
       ) : (
-        <>
+        <AnimatedView viewKey={activeTab}>
           {/* 1. GENERAL SECTION */}
           {activeTab === "general" && (
-            <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6">
+            <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={0}>
               <h2 className="text-lg font-display text-ink">General Clinic Branding</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <TextField
@@ -321,7 +332,7 @@ export default function AdminWebsitePage() {
 
           {/* 2. HOMEPAGE SECTION */}
           {activeTab === "homepage" && (
-            <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6">
+            <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={1}>
               <h2 className="text-lg font-display text-ink">Homepage Hero &amp; Messaging</h2>
               <div className="space-y-4">
                 <TextField
@@ -392,7 +403,7 @@ export default function AdminWebsitePage() {
 
           {/* 3. ABOUT SECTION */}
           {activeTab === "about" && (
-            <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6">
+            <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={2}>
               <h2 className="text-lg font-display text-ink">About Practice &amp; Story</h2>
               <div className="space-y-4">
                 <TextField
@@ -448,7 +459,7 @@ export default function AdminWebsitePage() {
 
           {/* 4. CONTACT SECTION */}
           {activeTab === "contact" && (
-            <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6">
+            <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={3}>
               <h2 className="text-lg font-display text-ink">Contact Details &amp; Operating Hours</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <TextField
@@ -546,7 +557,7 @@ export default function AdminWebsitePage() {
 
               {/* Add FAQ Form */}
               {showAddFaq && (
-                <Card surface="cream" shadow="card" className="p-6 space-y-4">
+                <Card surface="cream" shadow="card" className="p-6 space-y-4" hoverLift={true} index={4}>
                   <h3 className="text-sm font-semibold text-ink">Add New FAQ Question</h3>
                   <form onSubmit={handleAddFaq} className="space-y-4">
                     <div>
@@ -608,7 +619,7 @@ export default function AdminWebsitePage() {
                     surface={faq.isActive === false ? "sand" : "cream"}
                     shadow="subtle"
                     className="p-5 flex flex-col sm:flex-row sm:items-start justify-between gap-4"
-                  >
+                   hoverLift={true} index={5}>
                     <div className="space-y-1.5 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="rounded-full bg-forest/10 px-2 py-0.5 text-[10px] font-semibold text-forest uppercase">
@@ -666,7 +677,7 @@ export default function AdminWebsitePage() {
 
           {/* 6. SEO SECTION */}
           {activeTab === "seo" && (
-            <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6">
+            <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={6}>
               <h2 className="text-lg font-display text-ink">Metadata &amp; Search Engine Optimization</h2>
               <div className="space-y-4">
                 <TextField
@@ -702,8 +713,9 @@ export default function AdminWebsitePage() {
               </div>
             </Card>
           )}
-        </>
+        </AnimatedView>
       )}
     </div>
+  </AnimatedPage>
   );
 }

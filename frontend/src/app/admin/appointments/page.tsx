@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -35,6 +36,16 @@ import {
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { AnimatedPage } from "@/components/ui/animated-page";
+import { Skeleton } from "@/components/ui/skeleton";
+import { StaggerList, StaggerItem } from "@/components/ui/stagger-list";
+import {
+  staggerContainer,
+  listItem,
+  modalOverlay,
+  modalContent,
+  reducedVariant,
+} from "@/animations/variants";
 
 export default function AdminAppointmentsPage() {
   const { accessToken } = useAuth();
@@ -282,6 +293,7 @@ export default function AdminAppointmentsPage() {
   };
 
   return (
+  <AnimatedPage>
     <div className="space-y-6 pb-12">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -343,7 +355,7 @@ export default function AdminAppointmentsPage() {
       )}
 
       {/* Filter Bar */}
-      <Card className="p-4 bg-white dark:bg-forest-soft border-line space-y-4">
+      <Card className="p-4 bg-white dark:bg-forest-soft border-line space-y-4" hoverLift={true} index={0}>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 items-end">
           {/* Date Picker Filter */}
           <div>
@@ -429,7 +441,7 @@ export default function AdminAppointmentsPage() {
       </Card>
 
       {/* Appointments Table / Cards */}
-      <Card className="border-line overflow-hidden bg-white dark:bg-forest-soft">
+      <Card className="border-line overflow-hidden bg-white dark:bg-forest-soft" hoverLift={true} index={1}>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-cream/50 dark:bg-forest/50 border-b border-line text-ink-soft uppercase tracking-wider text-[11px] font-semibold">
@@ -443,12 +455,21 @@ export default function AdminAppointmentsPage() {
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-line">
+            <motion.tbody
+              variants={staggerContainer}
+              initial="hidden"
+              animate="visible"
+              className="divide-y divide-line"
+            >
               {isLoading ? (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-ink-soft">
-                    <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-forest" />
-                    <span>Loading appointments...</span>
+                    <StaggerList className="flex flex-col items-center justify-center gap-2">
+                      <StaggerItem index={0}><Skeleton className="h-4 w-1/3" /></StaggerItem>
+                      <StaggerItem index={1}><Skeleton className="h-4 w-1/2" /></StaggerItem>
+                      <StaggerItem index={2}><Skeleton className="h-4 w-2/3" /></StaggerItem>
+                    </StaggerList>
+                    <p className="mt-2 text-xs text-ink-soft">Loading appointments...</p>
                   </td>
                 </tr>
               ) : bookings.length === 0 ? (
@@ -461,7 +482,13 @@ export default function AdminAppointmentsPage() {
                 </tr>
               ) : (
                 bookings.map((booking) => (
-                  <tr key={booking.id} className="hover:bg-cream/20 dark:hover:bg-forest/20 transition-colors">
+                  <motion.tr
+                    key={booking.id}
+                    variants={listItem}
+                    initial="hidden"
+                    animate="visible"
+                    className="hover:bg-cream/20 dark:hover:bg-forest/20 transition-colors"
+                  >
                     {/* Patient & Ref */}
                     <td className="py-3 px-4">
                       <div className="font-semibold text-ink dark:text-cream text-sm">
@@ -572,18 +599,32 @@ export default function AdminAppointmentsPage() {
                         )}
                       </div>
                     </td>
-                  </tr>
+                  </motion.tr>
                 ))
               )}
-            </tbody>
+            </motion.tbody>
           </table>
         </div>
       </Card>
 
       {/* --- Action Modals --- */}
-      {modalType && actionBooking && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <Card className="w-full max-w-lg bg-white dark:bg-forest-soft border-line p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <AnimatePresence>
+        {modalType && actionBooking && (
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            variants={reducedVariant(modalOverlay)}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          >
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              variants={modalContent}
+              className="w-full max-w-lg bg-white dark:bg-forest-soft border-line p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto"
+            >
+              <Card hoverLift={true} index={2}>
             {/* Modal Title */}
             <div className="flex items-center justify-between border-b border-line pb-3">
               <div>
@@ -820,9 +861,12 @@ export default function AdminAppointmentsPage() {
                 {isSubmittingAction ? "Processing..." : "Confirm Action"}
               </Button>
             </div>
-          </Card>
-        </div>
-      )}
+              </Card>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
+  </AnimatedPage>
   );
 }

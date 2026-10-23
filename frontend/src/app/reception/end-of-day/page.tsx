@@ -27,6 +27,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { TextField } from "@/components/ui/text-field";
+import { AnimatedNumber } from "@/components/ui/animated-number";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import {
   getReceptionEndOfDayUnresolved,
   getEndOfDayPaymentsSummary,
@@ -208,6 +210,7 @@ export default function ReceptionEndOfDayPage() {
   });
 
   return (
+  <AnimatedPage>
     <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -279,24 +282,28 @@ export default function ReceptionEndOfDayPage() {
       {/* Metrics Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
+          index={0}
           label="Total Unresolved"
           value={data?.totalUnresolved ?? 0}
           tone={(data?.totalUnresolved ?? 0) > 0 ? "warning" : "positive"}
           hint="Today and earlier"
         />
         <StatCard
+          index={1}
           label="Today's Pending"
           value={data?.todayCount ?? 0}
           tone="neutral"
           hint={formatDateDisplay(selectedDate)}
         />
         <StatCard
+          index={2}
           label="Past Days Overdue"
           value={data?.pastCount ?? 0}
           tone={(data?.pastCount ?? 0) > 0 ? "danger" : "neutral"}
           hint="From prior clinic days"
         />
         <StatCard
+          index={3}
           label="Resolved This Session"
           value={sessionResolvedCount}
           tone="positive"
@@ -305,7 +312,7 @@ export default function ReceptionEndOfDayPage() {
       </div>
 
       {/* End-of-Day Financial Reconciliation Card */}
-      <Card surface="bone" shadow="subtle" className="p-4 sm:p-5 space-y-3">
+      <Card surface="bone" shadow="subtle" className="p-4 sm:p-5 space-y-3" hoverLift={true} index={0}>
         <div className="flex items-center justify-between border-b border-line pb-3">
           <div className="flex items-center gap-2">
             <span className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
@@ -323,7 +330,7 @@ export default function ReceptionEndOfDayPage() {
           <div className="text-right">
             <span className="text-[11px] text-ink-soft block">Total Collected</span>
             <span className="text-base sm:text-lg font-bold text-emerald-700 dark:text-emerald-400">
-              Rs {((paymentsSummary?.totalCents ?? 0) / 100).toLocaleString()}
+              <AnimatedNumber value={(paymentsSummary?.totalCents ?? 0) / 100} prefix="Rs " />
             </span>
           </div>
         </div>
@@ -332,19 +339,19 @@ export default function ReceptionEndOfDayPage() {
           <div className="p-3 rounded-xl bg-paper border border-line">
             <span className="text-ink-soft text-[11px] block">Cash Collections</span>
             <span className="text-sm font-semibold text-ink">
-              Rs {((paymentsSummary?.cashCents ?? 0) / 100).toLocaleString()}
+              <AnimatedNumber value={(paymentsSummary?.cashCents ?? 0) / 100} prefix="Rs " />
             </span>
           </div>
           <div className="p-3 rounded-xl bg-paper border border-line">
             <span className="text-ink-soft text-[11px] block">Card Payments</span>
             <span className="text-sm font-semibold text-ink">
-              Rs {((paymentsSummary?.cardCents ?? 0) / 100).toLocaleString()}
+              <AnimatedNumber value={(paymentsSummary?.cardCents ?? 0) / 100} prefix="Rs " />
             </span>
           </div>
           <div className="p-3 rounded-xl bg-paper border border-line">
             <span className="text-ink-soft text-[11px] block">Bank Transfers</span>
             <span className="text-sm font-semibold text-ink">
-              Rs {((paymentsSummary?.transferCents ?? 0) / 100).toLocaleString()}
+              <AnimatedNumber value={(paymentsSummary?.transferCents ?? 0) / 100} prefix="Rs " />
             </span>
           </div>
         </div>
@@ -425,7 +432,7 @@ export default function ReceptionEndOfDayPage() {
           <span>{error}</span>
         </div>
       ) : items.length === 0 ? (
-        <Card className="p-12 text-center flex flex-col items-center justify-center gap-3 rounded-2xl">
+        <Card className="p-12 text-center flex flex-col items-center justify-center gap-3 rounded-2xl" hoverLift={true} index={1}>
           <div className="h-16 w-16 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-600">
             <CheckCircle2 className="h-8 w-8" />
           </div>
@@ -744,5 +751,6 @@ export default function ReceptionEndOfDayPage() {
         </div>
       )}
     </div>
+  </AnimatedPage>
   );
 }

@@ -17,7 +17,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { TextField } from "@/components/ui/text-field";
+import { AnimatedView } from "@/components/ui/animated-view";
+import { motion } from "motion/react";
 import { useAuth } from "@/components/providers/auth-provider";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import {
   adminCreateService,
   adminGetClinicMatrix,
@@ -286,6 +289,7 @@ export default function AdminServicesPage() {
   };
 
   return (
+  <AnimatedPage>
     <div className="space-y-6 max-w-6xl">
       {/* Header Bar */}
       <div className="border-b border-line pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -308,31 +312,45 @@ export default function AdminServicesPage() {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex border-b border-line gap-4 text-xs font-medium">
+      <div className="flex border-b border-line gap-4 text-xs font-medium relative">
         <button
           type="button"
           onClick={() => setActiveTab("catalog")}
-          className={`pb-2.5 px-1 border-b-2 transition-colors flex items-center gap-1.5 ${
+          className={`relative pb-2.5 px-1 transition-colors flex items-center gap-1.5 ${
             activeTab === "catalog"
-              ? "border-forest text-forest font-semibold"
-              : "border-transparent text-ink-soft hover:text-ink"
+              ? "text-forest font-semibold"
+              : "text-ink-soft hover:text-ink"
           }`}
         >
           <Layers className="h-3.5 w-3.5" />
           <span>Catalog &amp; Procedures</span>
+          {activeTab === "catalog" && (
+            <motion.div
+              layoutId="adminServicesTabIndicator"
+              className="absolute bottom-0 left-0 right-0 h-0.5 bg-forest"
+              transition={{ type: "spring", stiffness: 350, damping: 30 }}
+            />
+          )}
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab("matrix")}
-          className={`pb-2.5 px-1 border-b-2 transition-colors flex items-center gap-1.5 ${
+          className={`relative pb-2.5 px-1 transition-colors flex items-center gap-1.5 ${
             activeTab === "matrix"
-              ? "border-forest text-forest font-semibold"
-              : "border-transparent text-ink-soft hover:text-ink"
+              ? "text-forest font-semibold"
+              : "text-ink-soft hover:text-ink"
           }`}
         >
           <Building2 className="h-3.5 w-3.5" />
           <span>Clinic Services Matrix</span>
+          {activeTab === "matrix" && (
+            <motion.div
+              layoutId="adminServicesTabIndicator"
+              className="absolute bottom-0 left-0 right-0 h-0.5 bg-forest"
+              transition={{ type: "spring", stiffness: 350, damping: 30 }}
+            />
+          )}
         </button>
       </div>
 
@@ -360,10 +378,12 @@ export default function AdminServicesPage() {
         <div className="py-12 flex justify-center items-center">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-forest border-t-transparent" />
         </div>
-      ) : activeTab === "matrix" ? (
-        /* TAB 2: CLINIC SERVICES MATRIX */
+      ) : (
+        <AnimatedView viewKey={activeTab}>
+          {activeTab === "matrix" ? (
+            /* TAB 2: CLINIC SERVICES MATRIX */
         <div className="space-y-4">
-          <Card surface="cream" shadow="subtle" className="p-4 sm:p-5">
+          <Card surface="cream" shadow="subtle" className="p-4 sm:p-5" hoverLift={true} index={0}>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-line mb-4">
               <div>
                 <h3 className="font-display text-base text-ink font-semibold flex items-center gap-2">
@@ -495,7 +515,7 @@ export default function AdminServicesPage() {
               surface={svc.isActive ? "cream" : "bone"}
               shadow="subtle"
               className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-            >
+             hoverLift={true} index={1}>
               <div className="space-y-1.5 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   {svc.code && (
@@ -609,12 +629,14 @@ export default function AdminServicesPage() {
           ))}
         </div>
       )}
+    </AnimatedView>
+  )}
 
       {/* Modal Dialog for Add / Edit */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
           <div className="w-full max-w-xl my-8">
-            <Card surface="cream" shadow="elevated" className="p-6 sm:p-8 space-y-5">
+            <Card surface="cream" shadow="elevated" className="p-6 sm:p-8 space-y-5" hoverLift={true} index={2}>
               <div className="flex items-center justify-between border-b border-line pb-3">
                 <h3 className="font-display text-lg text-ink">
                   {editingId ? "Edit Service" : "Add Service"}
@@ -925,7 +947,7 @@ export default function AdminServicesPage() {
       {assignDoctorModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
           <div className="w-full max-w-md my-8">
-            <Card surface="cream" shadow="elevated" className="p-6 space-y-4">
+            <Card surface="cream" shadow="elevated" className="p-6 space-y-4" hoverLift={true} index={3}>
               <div className="flex items-center justify-between border-b border-line pb-3">
                 <h3 className="font-display text-base text-ink font-semibold">
                   Doctor Assignment: {assignDoctorModal.serviceTitle}
@@ -1020,5 +1042,6 @@ export default function AdminServicesPage() {
         </div>
       )}
     </div>
+  </AnimatedPage>
   );
 }

@@ -6,7 +6,6 @@ import {
   ArrowLeft,
   Calendar,
   Check,
-  CheckCircle2,
   Clock,
   Inbox,
   Mail,
@@ -14,33 +13,43 @@ import {
   RefreshCw,
   User,
   X,
-  XCircle,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import {
   getReceptionRequests,
   ReceptionRequestItem,
+  rescheduleReceptionBooking,
   triageReceptionRequest,
 } from "@/lib/api";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Card } from "@/components/ui/card";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { Button } from "@/components/ui/button";
+import { EmptyState, ErrorState } from "@/components/dashboard/states";
 
 export default function ReceptionRequestsPage() {
   const { accessToken } = useAuth();
 
   const [requests, setRequests] = useState<ReceptionRequestItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("pending");
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [rescheduleId, setRescheduleId] = useState<string | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleTime, setRescheduleTime] = useState("");
 
   const loadRequests = async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const data = await getReceptionRequests(statusFilter || undefined, accessToken);
       setRequests(data);
     } catch (err) {
-      console.error(err);
+      const message = err instanceof Error ? err.message : "Failed to load requests.";
+      setError(message);
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -52,13 +61,41 @@ export default function ReceptionRequestsPage() {
     });
   }, [statusFilter, accessToken]);
 
-  const handleTriage = async (id: string, action: "confirm" | "schedule" | "decline") => {
+  const handleTriage = async (id: string, action: "confirm" | "decline") => {
     setActionLoadingId(id);
     try {
-      await triageReceptionRequest(id, action === "decline" ? "decline" : "confirm", undefined, accessToken);
+      await triageReceptionRequest(id, action, undefined, accessToken);
       await loadRequests();
+      toast.success(action === "confirm" ? "Request confirmed." : "Request declined.");
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to triage request.");
+      const message = err instanceof Error ? err.message : "Failed to triage request.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleReschedule = async (id: string) => {
+    if (!rescheduleDate || !rescheduleTime) {
+      toast.error("Please select both a date and time.");
+      return;
+    }
+    setActionLoadingId(id);
+    try {
+      await rescheduleReceptionBooking(id, {
+        bookingDate: rescheduleDate,
+        bookingTime: rescheduleTime,
+      }, accessToken);
+      await loadRequests();
+      setRescheduleId(null);
+      setRescheduleDate("");
+      setRescheduleTime("");
+      toast.success("Request rescheduled.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to reschedule request.";
+      setError(message);
+      toast.error(message);
     } finally {
       setActionLoadingId(null);
     }

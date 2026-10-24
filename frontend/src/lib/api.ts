@@ -109,6 +109,7 @@ export interface User {
 }
 
 export interface SiteContent {
+  status: "loading" | "ready" | "unavailable";
   general: {
     practiceName: string;
     tagline: string;
@@ -128,6 +129,9 @@ export interface SiteContent {
     heroSecondaryCtaText: string;
     heroSecondaryCtaLink: string;
     heroImageUrl?: string | null;
+    heroTicks?: Array<{ label: string }>;
+    heroBadges?: string[];
+    promises?: Array<{ num?: string; title: string; subtitle?: string; description: string }>;
   };
   about: {
     eyebrow: string;
@@ -149,6 +153,11 @@ export interface SiteContent {
     tagline: string;
     copyrightNotice: string;
     cancellationPolicy: string;
+  };
+  legalPages: {
+    privacy: string;
+    terms: string;
+    accessibility: string;
   };
   seo: {
     siteTitle: string;
@@ -224,6 +233,9 @@ export interface WorkingHoursItem {
   openTime?: string | null;
   closeTime?: string | null;
   isClosed: boolean;
+  isOpen?: boolean | null;
+  breakStartTime?: string | null;
+  breakEndTime?: string | null;
 }
 
 export interface ClinicClosureItem {

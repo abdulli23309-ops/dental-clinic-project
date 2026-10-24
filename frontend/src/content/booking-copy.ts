@@ -268,7 +268,7 @@ export const bookingCopy: Record<string, BookingCopy> = {
     confirmationStep: {
       eyebrow: "Reservation Confirmed",
       title: "You are all set.",
-      subtitle: "Thank you for choosing Marlow Dental. We look forward to welcoming you for your consultation.",
+      subtitle: "Thank you for choosing our practice. We look forward to welcoming you for your consultation.",
       referenceLabel: "Booking Reference:",
       branchLabel: "Clinic Branch:",
       clinicianLabel: "Clinician:",

@@ -11,7 +11,7 @@ export interface BookingPausedBannerProps {
 
 export function BookingPausedBanner({
   status,
-  fallbackPhone = "(312) 555-0147",
+  fallbackPhone = "",
 }: BookingPausedBannerProps) {
   if (status.mode === "open") {
     return null;

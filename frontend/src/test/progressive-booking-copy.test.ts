@@ -11,7 +11,7 @@ describe("Progressive Booking Copy", () => {
   it("exposes header, contact, waterfall, review and confirmation sections", () => {
     const copy = progressiveBookingCopy;
 
-    expect(copy.header.badge).toBe("Marlow Dental · Private Appointments");
+    expect(copy.header.badge).toBe("Private Appointments");
     expect(copy.header.heading).toBe("Reserve Your Dental Consultation");
     expect(copy.header.stepsNavLabel).toBe("Booking Steps");
     expect(copy.header.stepLabels).toEqual({

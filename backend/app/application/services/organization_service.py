@@ -34,6 +34,10 @@ class OrganizationService:
 
     async def update_organization(self, req: OrganizationUpdateRequest) -> Organization:
         org = await self.get_organization()
+        if org is None:
+            name = req.name.strip() if req.name else "Dental Practice"
+            display_name = req.displayName.strip() if req.displayName else name
+            org = Organization(name=name, display_name=display_name)
 
         if req.name is not None:
             org.name = req.name.strip()

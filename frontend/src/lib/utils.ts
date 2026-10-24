@@ -1,8 +1,10 @@
+import { WorkingHoursItem } from '@/lib/api';
+
 /**
  * Combines multiple CSS class names into a single clean string, filtering out empty or false values.
  */
 export function cn(...classes: (string | undefined | null | false)[]) {
-  return classes.filter(Boolean).join(" ");
+  return classes.filter(Boolean).join(' ');
 }
 
 export interface OfficeStatus {
@@ -11,107 +13,106 @@ export interface OfficeStatus {
   nextEventText: string;
 }
 
+function parseTimeToMinutes(timeStr: string): number {
+  const [h, m] = timeStr.split(':').map((v) => parseInt(v, 10));
+  return (h || 0) * 60 + (m || 0);
+}
+
+function formatMinutesTo12h(minutes: number): string {
+  const h24 = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  const ampm = h24 >= 12 ? 'PM' : 'AM';
+  const h12 = h24 % 12 || 12;
+  const padM = m > 0 ? `:${String(m).padStart(2, '0')}` : ':00';
+  return `${h12}${padM} ${ampm}`;
+}
+
 /**
- * Calculates current office status in clinic timezone.
- * Schedule:
- * Mon-Thu: 8:00 AM - 6:00 PM
- * Fri: 8:00 AM - 2:00 PM
- * Sat: 9:00 AM - 1:00 PM
- * Sun: Closed
+ * Calculates whether the dental clinic is currently open strictly based on
+ * working hours data provided from the database API in the clinic timezone.
+ * Returns null if no working hours data is available. No hardcoded schedules.
  */
-/**
- * Calculates whether the dental clinic is currently open based on clinic operating hours.
- * It checks the current day of the week and clock time against the office's weekly schedule.
- */
-export function getOfficeStatus(): OfficeStatus {
+export function getOfficeStatus(
+  workingHours?: WorkingHoursItem[] | null,
+  timeZone: string = 'Asia/Karachi'
+): OfficeStatus | null {
+  if (!workingHours || !Array.isArray(workingHours) || workingHours.length === 0) {
+    return null;
+  }
+
   try {
     const now = new Date();
-    const clinicTimeZone = process.env.NEXT_PUBLIC_CLINIC_TIMEZONE || "Asia/Karachi";
-    const formatter = new Intl.DateTimeFormat("en-US", {
-      timeZone: clinicTimeZone,
-      weekday: "short",
-      hour: "numeric",
-      minute: "numeric",
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      weekday: 'short',
+      hour: 'numeric',
+      minute: 'numeric',
       hour12: false,
     });
 
     const parts = formatter.formatToParts(now);
-    const day = parts.find((p) => p.type === "weekday")?.value || "Mon";
-    const hour = parseInt(parts.find((p) => p.type === "hour")?.value || "12", 10);
-    const minute = parseInt(parts.find((p) => p.type === "minute")?.value || "0", 10);
-    const timeVal = hour + minute / 60;
+    const dayStr = parts.find((p) => p.type === 'weekday')?.value || '';
+    const hour = parseInt(parts.find((p) => p.type === 'hour')?.value || '0', 10);
+    const minute = parseInt(parts.find((p) => p.type === 'minute')?.value || '0', 10);
+    const currentMinutes = hour * 60 + minute;
 
-    if (["Mon", "Tue", "Wed", "Thu"].includes(day)) {
-      if (timeVal >= 8 && timeVal < 18) {
-        return {
-          isOpen: true,
-          statusText: "Open Now",
-          nextEventText: "Until 6:00 PM today",
-        };
-      }
-      if (timeVal < 8) {
-        return {
-          isOpen: false,
-          statusText: "Closed Now",
-          nextEventText: "Opens today at 8:00 AM",
-        };
-      }
+    const weekdayMap: Record<string, number> = {
+      Sun: 0,
+      Mon: 1,
+      Tue: 2,
+      Wed: 3,
+      Thu: 4,
+      Fri: 5,
+      Sat: 6,
+    };
+    const currentDayIndex = weekdayMap[dayStr] ?? now.getDay();
+
+    const todaySchedule = workingHours.find((h) => h.dayOfWeek === currentDayIndex);
+
+    if (!todaySchedule || !todaySchedule.isOpen || !todaySchedule.openTime || !todaySchedule.closeTime) {
       return {
         isOpen: false,
-        statusText: "Closed Now",
-        nextEventText: "Opens tomorrow at 8:00 AM",
+        statusText: 'Closed Today',
+        nextEventText: '',
       };
     }
 
-    if (day === "Fri") {
-      if (timeVal >= 8 && timeVal < 14) {
-        return {
-          isOpen: true,
-          statusText: "Open Now",
-          nextEventText: "Until 2:00 PM today",
-        };
+    const openMinutes = parseTimeToMinutes(todaySchedule.openTime);
+    const closeMinutes = parseTimeToMinutes(todaySchedule.closeTime);
+
+    // Check lunch/break if defined
+    let isInBreak = false;
+    if (todaySchedule.breakStartTime && todaySchedule.breakEndTime) {
+      const breakStart = parseTimeToMinutes(todaySchedule.breakStartTime);
+      const breakEnd = parseTimeToMinutes(todaySchedule.breakEndTime);
+      if (currentMinutes >= breakStart && currentMinutes < breakEnd) {
+        isInBreak = true;
       }
-      if (timeVal < 8) {
-        return {
-          isOpen: false,
-          statusText: "Closed Now",
-          nextEventText: "Opens today at 8:00 AM",
-        };
-      }
+    }
+
+    if (currentMinutes >= openMinutes && currentMinutes < closeMinutes && !isInBreak) {
       return {
-        isOpen: false,
-        statusText: "Closed Now",
-        nextEventText: "Opens Saturday at 9:00 AM",
+        isOpen: true,
+        statusText: 'Open Now',
+        nextEventText: `Until ${formatMinutesTo12h(closeMinutes)} today`,
       };
     }
 
-    if (day === "Sat") {
-      if (timeVal >= 9 && timeVal < 13) {
-        return {
-          isOpen: true,
-          statusText: "Open Now",
-          nextEventText: "Until 1:00 PM today",
-        };
-      }
+    if (currentMinutes < openMinutes) {
       return {
         isOpen: false,
-        statusText: "Closed Now",
-        nextEventText: "Opens Monday at 8:00 AM",
+        statusText: 'Closed Now',
+        nextEventText: `Opens today at ${formatMinutesTo12h(openMinutes)}`,
       };
     }
 
-    // Sunday
+    // Closed for today
     return {
       isOpen: false,
-      statusText: "Closed Today",
-      nextEventText: "Opens Monday at 8:00 AM",
+      statusText: 'Closed Now',
+      nextEventText: '',
     };
   } catch {
-    // Fallback if timezone conversion fails
-    return {
-      isOpen: true,
-      statusText: "Open Mon–Sat",
-      nextEventText: "Call for immediate triage",
-    };
+    return null;
   }
 }

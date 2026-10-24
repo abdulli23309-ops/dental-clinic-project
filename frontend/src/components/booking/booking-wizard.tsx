@@ -527,7 +527,7 @@ export function BookingWizard({
               </p>
               <p>
                 <span className="text-ink-soft">{copy.confirmationStep.branchLabel}</span>{" "}
-                <strong className="text-ink">{selectedClinicObj?.name || "Marlow Dental Practice"}</strong>
+                <strong className="text-ink">{selectedClinicObj?.name || ""}</strong>
               </p>
               <p>
                 <span className="text-ink-soft">{copy.confirmationStep.clinicianLabel}</span>{" "}

@@ -126,7 +126,7 @@ export interface ProgressiveBookingCopy {
  */
 export const progressiveBookingCopy: ProgressiveBookingCopy = {
   header: {
-    badge: "Marlow Dental · Private Appointments",
+    badge: "Private Appointments",
     heading: "Reserve Your Dental Consultation",
     subheading:
       "Unhurried clinical assessment with direct doctor continuity across all modern facilities.",

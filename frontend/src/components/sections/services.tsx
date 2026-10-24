@@ -5,9 +5,7 @@ import {
   ArrowRight,
   Clock,
   Tag,
-  ShieldCheck,
   Calendar,
-  Sparkles,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -16,22 +14,16 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getServices, ServiceItem } from "@/lib/api";
 import { motion } from "motion/react";
+import { getUiCopy } from "@/content/ui-copy";
 
-type CategoryFilter = "all" | "preventive" | "restorative" | "cosmetic" | "emergency";
-
-const TABS: { id: CategoryFilter; label: string }[] = [
-  { id: "all", label: "All Treatments" },
-  { id: "preventive", label: "Preventive Care" },
-  { id: "restorative", label: "Restorative" },
-  { id: "cosmetic", label: "Cosmetic" },
-  { id: "emergency", label: "Emergency Triage" },
-];
+type CategoryFilter = "all" | string;
 
 export function Services() {
   const [activeTab, setActiveTab] = useState<CategoryFilter>("all");
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const copy = getUiCopy("en");
 
   const scroll = (offset: number) => {
     scrollRef.current?.scrollBy({ left: offset, behavior: "smooth" });
@@ -62,84 +54,114 @@ export function Services() {
     };
   }, []);
 
+  // Sections with no data render nothing
+  if (!isLoading && services.length === 0) {
+    return null;
+  }
+
+  const categories = Array.from(
+    new Set(services.map((s) => s.category).filter(Boolean))
+  );
+
   const filtered =
     activeTab === "all"
       ? services
       : services.filter((s) => s.category === activeTab);
 
   return (
-    <section id="services" className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 py-20 md:py-28 overflow-hidden">
+    <section
+      id="services"
+      className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 py-20 md:py-28 overflow-hidden"
+    >
       <div className="container-x space-y-12">
         {/* Section Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <SectionHeading
-            eyebrow="Treatments &amp; Fee Transparency"
-            title={
-              <>
-                A Clear Lineup of Care,
-                <br />
-                Priced with Honest Clarity.
-              </>
-            }
+            eyebrow="Clinical Care"
+            title={copy.treatments}
           />
-          <div className="max-w-md space-y-2">
-            <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-400">
-              Every procedure is itemized before we begin. No unexpected billing surprises, no pressure for unnecessary cosmetic upselling, and clear fee schedule transparency.
-            </p>
-            <div className="flex items-center gap-2 text-xs text-primary dark:text-emerald-400 font-medium">
-              <ShieldCheck className="h-4 w-4 shrink-0" />
-              <span>Written pre-treatment cost estimate provided chairside</span>
-            </div>
-          </div>
         </div>
 
         {/* Category Pill Tabs */}
-        <div
-          className="border-b border-gray-200 dark:border-gray-800 pb-4 flex items-center gap-2 overflow-x-auto scrollbar-none"
-          role="tablist"
-        >
-          {TABS.map((tab) => {
-            const count =
-              tab.id === "all"
-                ? services.length
-                : services.filter((s) => s.category === tab.id).length;
-            const isActive = activeTab === tab.id;
-
-            return (
-              <button
-                key={tab.id}
-                role="tab"
-                aria-selected={isActive}
-                onClick={() => setActiveTab(tab.id)}
-                className={`relative rounded-full px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 select-none ${
-                  isActive
-                    ? "text-white shadow-subtle font-semibold"
-                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700"
+        {categories.length > 1 && (
+          <div
+            className="border-b border-gray-200 dark:border-gray-800 pb-4 flex items-center gap-2 overflow-x-auto scrollbar-none"
+            role="tablist"
+          >
+            <button
+              role="tab"
+              aria-selected={activeTab === "all"}
+              onClick={() => setActiveTab("all")}
+              className={`relative rounded-full px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 select-none ${
+                activeTab === "all"
+                  ? "text-white shadow-subtle font-semibold"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700"
+              }`}
+            >
+              {activeTab === "all" && (
+                <motion.div
+                  layoutId="publicServicesTabIndicator"
+                  className="absolute inset-0 rounded-full bg-primary"
+                  transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                />
+              )}
+              <span className="relative z-10">All</span>
+              <span
+                className={`relative z-10 text-[11px] rounded-full px-2 py-0.2 ${
+                  activeTab === "all"
+                    ? "bg-white/20 text-white"
+                    : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
                 }`}
               >
-                {isActive && (
-                  <motion.div
-                    layoutId="publicServicesTabIndicator"
-                    className="absolute inset-0 rounded-full bg-primary"
-                    transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                  />
-                )}
-                <span className="relative z-10">{tab.label}</span>
-                <span
-                  className={`relative z-10 text-[11px] rounded-full px-2 py-0.2 ${
-                    isActive ? "bg-white/20 text-white" : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                {services.length}
+              </span>
+            </button>
+
+            {categories.map((cat) => {
+              const count = services.filter((s) => s.category === cat).length;
+              const isActive = activeTab === cat;
+
+              return (
+                <button
+                  key={cat}
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => setActiveTab(cat)}
+                  className={`relative rounded-full px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 select-none capitalize ${
+                    isActive
+                      ? "text-white shadow-subtle font-semibold"
+                      : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700"
                   }`}
                 >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+                  {isActive && (
+                    <motion.div
+                      layoutId="publicServicesTabIndicator"
+                      className="absolute inset-0 rounded-full bg-primary"
+                      transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                    />
+                  )}
+                  <span className="relative z-10">{cat}</span>
+                  <span
+                    className={`relative z-10 text-[11px] rounded-full px-2 py-0.2 ${
+                      isActive
+                        ? "bg-white/20 text-white"
+                        : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Loading State Skeleton */}
         {isLoading ? (
-          <div className="flex flex-row overflow-x-auto snap-x snap-mandatory gap-4 py-4 hide-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          <div
+            className="flex flex-row overflow-x-auto snap-x snap-mandatory gap-4 py-4 hide-scrollbar"
+            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+          >
             {[1, 2, 3, 4].map((i) => (
               <Skeleton
                 key={i}
@@ -147,26 +169,9 @@ export function Services() {
               />
             ))}
           </div>
-        ) : filtered.length === 0 ? (
-          /* Empty State */
-          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-12 text-center space-y-3">
-            <Sparkles className="h-10 w-10 text-gray-400 dark:text-gray-500 mx-auto" />
-            <h3 className="font-display text-lg text-gray-900 dark:text-white font-semibold">
-              No dental treatments found in this category
-            </h3>
-            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-              Our clinical service catalogue updates in real time from the database. Please select another treatment category or contact our desk.
-            </p>
-            {activeTab !== "all" && (
-              <Button onClick={() => setActiveTab("all")} variant="outline" size="sm">
-                View All Treatments
-              </Button>
-            )}
-          </div>
-        ) : (
+        ) : filtered.length === 0 ? null : (
           /* Slim & Horizontal Scrollable Row with Navigation Controls */
           <div className="relative w-full group">
-            {/* Left Navigation Arrow */}
             <button
               onClick={() => scroll(-300)}
               aria-label="Previous treatments"
@@ -175,7 +180,6 @@ export function Services() {
               <ChevronLeft className="h-5 w-5" />
             </button>
 
-            {/* Right Navigation Arrow */}
             <button
               onClick={() => scroll(300)}
               aria-label="Next treatments"
@@ -187,7 +191,7 @@ export function Services() {
             <div
               ref={scrollRef}
               className="flex flex-row overflow-x-auto snap-x snap-mandatory gap-4 py-4 hide-scrollbar"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
             >
               {filtered.map((service) => {
                 return (
@@ -196,37 +200,41 @@ export function Services() {
                     className="min-w-[280px] max-w-[300px] snap-center shrink-0 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm p-5 flex flex-col justify-between space-y-4 hover:border-primary/40 transition-all"
                   >
                     <div className="space-y-3">
-                      {/* Category Pill & Highlight Indicator */}
-                      <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-2.5 text-xs">
-                        <span className="rounded-full bg-gray-100 dark:bg-gray-800 px-2.5 py-0.5 text-[10.5px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-                          {service.category}
-                        </span>
-                        {service.highlight && (
-                          <span className="text-[10.5px] font-semibold text-primary uppercase tracking-wide">
-                            Popular
+                      {service.category && (
+                        <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-2.5 text-xs">
+                          <span className="rounded-full bg-gray-100 dark:bg-gray-800 px-2.5 py-0.5 text-[10.5px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                            {service.category}
                           </span>
-                        )}
-                      </div>
+                        </div>
+                      )}
 
                       <h4 className="font-display text-lg text-gray-900 dark:text-white font-normal leading-snug">
                         {service.title}
                       </h4>
 
-                      <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400 line-clamp-3">
-                        {service.shortDesc}
-                      </p>
+                      {service.shortDesc && (
+                        <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400 line-clamp-3">
+                          {service.shortDesc}
+                        </p>
+                      )}
 
-                      {/* Duration & Cash Price */}
-                      <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
-                        <div className="flex items-center gap-1.5 font-medium">
-                          <Clock className="h-3.5 w-3.5 text-primary" />
-                          <span>{service.duration}</span>
+                      {/* Duration & Cash Price only if set by admin */}
+                      {(service.duration || service.cashPrice) && (
+                        <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
+                          {service.duration ? (
+                            <div className="flex items-center gap-1.5 font-medium">
+                              <Clock className="h-3.5 w-3.5 text-primary" />
+                              <span>{service.duration}</span>
+                            </div>
+                          ) : <div />}
+                          {service.cashPrice ? (
+                            <div className="flex items-center gap-1.5 font-bold text-gray-900 dark:text-white">
+                              <Tag className="h-3.5 w-3.5 text-primary dark:text-emerald-400" />
+                              <span>{service.cashPrice}</span>
+                            </div>
+                          ) : null}
                         </div>
-                        <div className="flex items-center gap-1.5 font-bold text-gray-900 dark:text-white">
-                          <Tag className="h-3.5 w-3.5 text-primary dark:text-emerald-400" />
-                          <span>{service.cashPrice}</span>
-                        </div>
-                      </div>
+                      )}
                     </div>
 
                     {/* Booking Action */}
@@ -239,7 +247,7 @@ export function Services() {
                       >
                         <span className="flex items-center gap-1.5 text-xs">
                           <Calendar className="h-3.5 w-3.5 text-primary" />
-                          <span>Schedule</span>
+                          <span>{copy.book}</span>
                         </span>
                         <ArrowRight className="h-3.5 w-3.5" />
                       </Button>

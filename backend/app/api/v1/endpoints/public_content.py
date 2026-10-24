@@ -183,12 +183,14 @@ async def get_public_faqs(
     ]
 
 
-@router.get("/organization", response_model=OrganizationResponse)
+@router.get("/organization", response_model=Optional[OrganizationResponse])
 async def get_public_organization(
     org_service: OrganizationService = Depends(get_organization_service),
-) -> OrganizationResponse:
+) -> Optional[OrganizationResponse]:
     """Returns top-level practice organization details including branding, currency, and dynamic theming."""
     org = await org_service.get_organization()
+    if org is None:
+        return None
     return OrganizationResponse(
         id=org.id,
         name=org.name,

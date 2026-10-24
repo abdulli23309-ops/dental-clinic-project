@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
   Announcement,
   fetchPublicAnnouncements,
@@ -14,59 +14,70 @@ import {
   SiteContent,
   TeamMember,
   WorkingHoursItem,
-} from "@/lib/api";
-import { DEFAULT_CURRENCY } from "@/lib/currency";
+} from '@/lib/api';
+import { DEFAULT_CURRENCY } from '@/lib/currency';
+
+export type PublicContentStatus = 'loading' | 'ready' | 'unavailable';
 
 const EMPTY_SITE_CONTENT: SiteContent = {
+  status: 'loading',
   general: {
-    practiceName: "Marlow Dental",
-    tagline: "",
+    practiceName: '',
+    tagline: '',
     logoUrl: null,
     faviconUrl: null,
-    phone: "",
-    email: "",
-    address: "",
+    phone: '',
+    email: '',
+    address: '',
     emergencyPhone: null,
   },
   homepage: {
-    heroEyebrow: "Private Dental Practice",
-    heroHeading: "Modern, unhurried dental care.",
-    heroDescription: "Comprehensive exams, gentle restorations, and transparent fee schedules from a dedicated clinical team.",
-    heroCtaText: "Request an appointment",
-    heroCtaLink: "/book",
-    heroSecondaryCtaText: "View treatment fees",
-    heroSecondaryCtaLink: "#services",
+    heroEyebrow: '',
+    heroHeading: '',
+    heroDescription: '',
+    heroCtaText: '',
+    heroCtaLink: '',
+    heroSecondaryCtaText: '',
+    heroSecondaryCtaLink: '',
     heroImageUrl: null,
+    heroBadges: [],
+    promises: [],
   },
   about: {
-    eyebrow: "Clinical Care",
-    title: "Dedicated, unhurried conservative care.",
+    eyebrow: '',
+    title: '',
     storyParagraphs: [],
     imageUrl: null,
-    licensureText: "",
+    licensureText: '',
   },
   contact: {
-    phone: "",
-    email: "",
-    addressLine1: "",
-    addressLine2: "",
-    transitNote: "",
-    hoursSummary: "",
-    emergencyNote: "",
+    phone: '',
+    email: '',
+    addressLine1: '',
+    addressLine2: '',
+    transitNote: '',
+    hoursSummary: '',
+    emergencyNote: '',
   },
   footer: {
-    tagline: "",
-    copyrightNotice: "",
-    cancellationPolicy: "",
+    tagline: '',
+    copyrightNotice: '',
+    cancellationPolicy: '',
+  },
+  legalPages: {
+    privacy: '',
+    terms: '',
+    accessibility: '',
   },
   seo: {
-    siteTitle: "Marlow Dental",
-    metaDescription: "",
+    siteTitle: '',
+    metaDescription: '',
     ogImageUrl: null,
   },
 };
 
 interface PublicContentContextType {
+  status: PublicContentStatus;
   content: SiteContent;
   organization: Organization | null;
   announcements: Announcement[];
@@ -78,49 +89,79 @@ interface PublicContentContextType {
   director: TeamMember | null;
   currency: { code: string; symbol: string; timezone: string };
   isLoading: boolean;
+  isUnavailable: boolean;
+  retry: () => Promise<void>;
   refreshPublicContent: () => Promise<void>;
 }
 
 const PublicContentContext = createContext<PublicContentContextType | undefined>(undefined);
 
 export function PublicContentProvider({ children }: { children: React.ReactNode }) {
+  const [status, setStatus] = useState<PublicContentStatus>('loading');
   const [content, setContent] = useState<SiteContent>(EMPTY_SITE_CONTENT);
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [locations, setLocations] = useState<LocationItem[]>([]);
   const [workingHours, setWorkingHours] = useState<WorkingHoursItem[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
 
   const loadData = async () => {
+    setStatus('loading');
     try {
-      const [contentData, orgData, announcementsData, locationsData, teamData, hoursData] = await Promise.all([
-        getSiteContent().catch(() => null),
-        fetchPublicOrganization().catch(() => null),
-        fetchPublicAnnouncements().catch(() => []),
-        getLocations().catch(() => []),
-        getTeamMembers().catch(() => []),
-        fetchPublicWorkingHours().catch(() => []),
+      const results = await Promise.allSettled([
+        getSiteContent(),
+        fetchPublicOrganization(),
+        fetchPublicAnnouncements(),
+        getLocations(),
+        getTeamMembers(),
+        fetchPublicWorkingHours(),
       ]);
 
-      if (contentData) setContent(contentData);
+      const [contentRes, orgRes, annRes, locRes, teamRes, hoursRes] = results;
+
+      const contentData = contentRes.status === 'fulfilled' ? contentRes.value : null;
+      const orgData = orgRes.status === 'fulfilled' ? orgRes.value : null;
+      const announcementsData = annRes.status === 'fulfilled' ? annRes.value : [];
+      const locationsData = locRes.status === 'fulfilled' ? locRes.value : [];
+      const teamData = teamRes.status === 'fulfilled' ? teamRes.value : [];
+      const hoursData = hoursRes.status === 'fulfilled' ? hoursRes.value : [];
+
+      // If backend is unreachable or core endpoints failed
+      if (!contentData && !orgData && locationsData.length === 0 && teamData.length === 0) {
+        setStatus('unavailable');
+        setContent({ ...EMPTY_SITE_CONTENT, status: 'unavailable' });
+        return;
+      }
+
+      if (contentData) {
+        setContent({ ...contentData, status: contentData.status || 'ready' });
+      } else {
+        setContent({ ...EMPTY_SITE_CONTENT, status: 'ready' });
+      }
+
       if (orgData) setOrganization(orgData);
       if (announcementsData) setAnnouncements(announcementsData);
       if (locationsData) setLocations(locationsData);
       if (teamData) setTeam(teamData);
       if (hoursData) setWorkingHours(hoursData);
-    } finally {
-      setIsLoading(false);
+
+      setStatus(contentData?.status || 'ready');
+    } catch {
+      setStatus('unavailable');
+      setContent({ ...EMPTY_SITE_CONTENT, status: 'unavailable' });
     }
   };
 
   useEffect(() => {
-    loadData();
+    const init = async () => {
+      await loadData();
+    };
+    init();
   }, []);
 
   // Dynamically inject CSS variables from database Organization theming settings safely
   useEffect(() => {
-    if (typeof document !== "undefined") {
+    if (typeof document !== 'undefined') {
       const org = organization;
       const primary = org?.primaryColor;
       const secondary = org?.secondaryColor;
@@ -128,31 +169,29 @@ export function PublicContentProvider({ children }: { children: React.ReactNode 
       const pFont = org?.primaryFont;
       const sFont = org?.secondaryFont;
 
-      let styleTag = document.getElementById("org-brand-theme") as HTMLStyleElement | null;
+      let styleTag = document.getElementById('org-brand-theme') as HTMLStyleElement | null;
       if (!styleTag) {
-        styleTag = document.createElement("style");
-        styleTag.id = "org-brand-theme";
+        styleTag = document.createElement('style');
+        styleTag.id = 'org-brand-theme';
         document.head.appendChild(styleTag);
       }
 
-      let css = "";
+      let css = '';
       if (primary || secondary || bg || pFont || sFont) {
-        // In Light Mode: apply custom brand palette
-        css += `:root:not(.dark) {`;
-        if (primary) css += `--color-primary: ${primary}; --color-forest: ${primary};`;
-        if (secondary) css += `--color-secondary: ${secondary}; --color-gold: ${secondary};`;
-        if (bg) css += `--color-bg-base: ${bg};`;
-        if (pFont) css += `--font-primary: '${pFont}', Georgia, serif;`;
-        if (sFont) css += `--font-secondary: '${sFont}', system-ui, sans-serif;`;
-        css += `}\n`;
+        css += ':root:not(.dark) {\n';
+        if (primary) css += `--color-primary: ${primary}; --color-forest: ${primary};\n`;
+        if (secondary) css += `--color-secondary: ${secondary}; --color-gold: ${secondary};\n`;
+        if (bg) css += `--color-bg-base: ${bg};\n`;
+        if (pFont) css += `--font-primary: '${pFont}', Georgia, serif;\n`;
+        if (sFont) css += `--font-secondary: '${sFont}', system-ui, sans-serif;\n`;
+        css += '}\n';
 
-        // In Dark Mode: keep brand accents, but preserve dark mode background & surface tokens
-        css += `.dark {`;
-        if (primary) css += `--color-primary: ${primary};`;
-        if (secondary) css += `--color-secondary: ${secondary};`;
-        if (pFont) css += `--font-primary: '${pFont}', Georgia, serif;`;
-        if (sFont) css += `--font-secondary: '${sFont}', system-ui, sans-serif;`;
-        css += `}\n`;
+        css += '.dark {\n';
+        if (primary) css += `--color-primary: ${primary};\n`;
+        if (secondary) css += `--color-secondary: ${secondary};\n`;
+        if (pFont) css += `--font-primary: '${pFont}', Georgia, serif;\n`;
+        if (sFont) css += `--font-secondary: '${sFont}', system-ui, sans-serif;\n`;
+        css += '}\n';
       }
       styleTag.textContent = css;
     }
@@ -164,7 +203,7 @@ export function PublicContentProvider({ children }: { children: React.ReactNode 
     null;
 
   const director =
-    team.find((m) => m.role === "Director" && m.isActive) ||
+    team.find((m) => m.role === 'Director' && m.isActive) ||
     team.find((m) => m.isActive) ||
     null;
 
@@ -177,6 +216,7 @@ export function PublicContentProvider({ children }: { children: React.ReactNode 
   return (
     <PublicContentContext.Provider
       value={{
+        status,
         content,
         organization,
         announcements,
@@ -187,7 +227,9 @@ export function PublicContentProvider({ children }: { children: React.ReactNode 
         team,
         director,
         currency,
-        isLoading,
+        isLoading: status === 'loading',
+        isUnavailable: status === 'unavailable',
+        retry: loadData,
         refreshPublicContent: loadData,
       }}
     >
@@ -199,7 +241,7 @@ export function PublicContentProvider({ children }: { children: React.ReactNode 
 export function usePublicContent() {
   const context = useContext(PublicContentContext);
   if (!context) {
-    throw new Error("usePublicContent must be used within a PublicContentProvider");
+    throw new Error('usePublicContent must be used within a PublicContentProvider');
   }
   return context;
 }

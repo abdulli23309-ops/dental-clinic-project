@@ -238,7 +238,7 @@ export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
               <CornerDownLeft className="h-3 w-3" /> Select
             </span>
           </div>
-          <span>Marlow Dental · Patient Search</span>
+          <span>Patient Search</span>
         </div>
       </motion.div>
     </div>

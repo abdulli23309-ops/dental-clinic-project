@@ -190,7 +190,7 @@ export default function LoginPage() {
 
       {/* Footer Notice */}
       <footer className="w-full max-w-5xl mx-auto text-center py-4 text-xs text-gray-500 dark:text-gray-400">
-        Marlow Dental Administrative Management System · Authorized Staff Only
+        Administrative Management System · Authorized Staff Only
       </footer>
     </div>
   </AnimatedPage>

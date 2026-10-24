@@ -7,16 +7,17 @@ import { Button } from "@/components/ui/button";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { getPublicFaqs } from "@/lib/api";
 import { usePublicContent } from "@/components/providers/public-content-provider";
+import { getUiCopy } from "@/content/ui-copy";
 
 export function FAQ() {
   const { content, primaryLocation } = usePublicContent();
   const [faqList, setFaqList] = useState<{ q: string; a: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [openIndex, setOpenIndex] = useState<number | null>(0);
+  const copy = getUiCopy("en");
 
-  const phone = content.general?.phone || primaryLocation?.phone || "(312) 555-0147";
+  const phone = content.general?.phone || primaryLocation?.phone || "";
   const cleanPhone = phone.replace(/[^0-9+]/g, "");
-  const locationName = primaryLocation?.name || "reception desk";
 
   useEffect(() => {
     let isMounted = true;
@@ -42,15 +43,22 @@ export function FAQ() {
     };
   }, []);
 
+  // Sections with no data render nothing
+  if (!isLoading && faqList.length === 0) {
+    return null;
+  }
+
   const toggle = (index: number) => {
     setOpenIndex((prev) => (prev === index ? null : index));
   };
 
   return (
-    <section id="faq" className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 py-20 md:py-28">
+    <section
+      id="faq"
+      className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 py-20 md:py-28"
+    >
       <div className="container-x">
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-16">
-          {/* Section Introduction - 4 cols */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -58,40 +66,29 @@ export function FAQ() {
             transition={{ duration: 0.4 }}
             className="lg:col-span-4 space-y-4"
           >
-            <SectionHeading
-              eyebrow="Common Inquiries"
-              title={
-                <>
-                  Clear answers
-                  <br />
-                  before you schedule.
-                </>
-              }
-              description={`Have a specific clinical or appointment question not answered here? Call our ${locationName} directly to speak with our front office coordinator.`}
-            />
+            <SectionHeading eyebrow="Inquiries" title={copy.faqs} />
 
-            <div className="pt-2">
-              <Button href={`tel:${cleanPhone}`} variant="secondary" size="sm">
-                <Phone className="h-3.5 w-3.5 text-primary" />
-                <span>Call {phone}</span>
-              </Button>
-            </div>
+            {phone ? (
+              <div className="pt-2">
+                <Button href={`tel:${cleanPhone}`} variant="secondary" size="sm">
+                  <Phone className="h-3.5 w-3.5 text-primary" />
+                  <span>
+                    {copy.call} {phone}
+                  </span>
+                </Button>
+              </div>
+            ) : null}
           </motion.div>
 
-          {/* FAQ Accordion List - 8 cols */}
           <div className="lg:col-span-8">
             {isLoading ? (
               <div className="space-y-4">
-                {[1, 2, 3, 4].map((i) => (
+                {[1, 2, 3].map((i) => (
                   <div
                     key={i}
                     className="h-16 rounded-xl bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 animate-pulse"
                   />
                 ))}
-              </div>
-            ) : faqList.length === 0 ? (
-              <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 p-8 text-center text-xs text-gray-500 dark:text-gray-400">
-                No FAQ items currently available. Please check back shortly or call our desk directly.
               </div>
             ) : (
               <div className="divide-y divide-gray-200 dark:divide-gray-800 border-y border-gray-200 dark:border-gray-800">
@@ -108,7 +105,11 @@ export function FAQ() {
                           {faq.q}
                         </span>
                         <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
-                          {isOpen ? <Minus className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                          {isOpen ? (
+                            <Minus className="h-3.5 w-3.5" />
+                          ) : (
+                            <Plus className="h-3.5 w-3.5" />
+                          )}
                         </span>
                       </button>
 

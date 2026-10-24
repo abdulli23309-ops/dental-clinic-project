@@ -5,16 +5,23 @@ import { ChevronLeft, ChevronRight, User, MapPin, Calendar, Award } from "lucide
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Button } from "@/components/ui/button";
 import { usePublicContent } from "@/components/providers/public-content-provider";
+import { getUiCopy } from "@/content/ui-copy";
 
 export function Doctor() {
   const { team, locations, isLoading } = usePublicContent();
   const [selectedCity, setSelectedCity] = useState<string>("all");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const copy = getUiCopy("en");
 
   // Filter only active team members
   const activeTeam = team.filter((m) => m.isActive !== false);
 
-  // Dynamically derive unique cities from active locations in the database
+  // A section with no data is not rendered at all
+  if (!isLoading && activeTeam.length === 0) {
+    return null;
+  }
+
+  // Dynamically derive unique cities from active locations
   const availableCities = Array.from(
     new Set(
       locations
@@ -31,12 +38,11 @@ export function Doctor() {
       : null;
     return {
       ...member,
-      locationName: loc?.name || "Practice-wide Facility",
-      city: loc?.city || (availableCities[0] ?? "Main Office"),
+      locationName: loc?.name || "",
+      city: loc?.city || "",
     };
   });
 
-  // Filter doctors based on selected city tab
   const filteredDoctors =
     selectedCity === "all"
       ? doctorsWithLocations
@@ -57,30 +63,24 @@ export function Doctor() {
   };
 
   return (
-    <section id="team" className="border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 py-20 md:py-28 overflow-hidden">
+    <section
+      id="team"
+      className="border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 py-20 md:py-28 overflow-hidden"
+    >
       <div className="container-x space-y-10">
-        {/* Section Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div>
-            <SectionHeading
-              eyebrow="Clinical Specialists & Practitioners"
-              title={
-                <>
-                  Meet Our Clinical Team
-                  <br />
-                  &amp; Dental Experts
-                </>
-              }
-            />
-          </div>
-          <p className="max-w-md text-sm leading-relaxed text-gray-600 dark:text-gray-400">
-            Licensed practitioners dedicated to unhurried, conservative care with direct doctor continuity from examination to restorative completion.
-          </p>
+          <SectionHeading
+            eyebrow="Clinical Team"
+            title={copy.team}
+          />
         </div>
 
         {/* Dynamic City Filter Tabs */}
-        {availableCities.length > 0 && (
-          <div className="border-b border-gray-200 dark:border-gray-800 pb-4 flex items-center gap-2 overflow-x-auto scrollbar-none" role="tablist">
+        {availableCities.length > 1 && (
+          <div
+            className="border-b border-gray-200 dark:border-gray-800 pb-4 flex items-center gap-2 overflow-x-auto scrollbar-none"
+            role="tablist"
+          >
             <button
               role="tab"
               aria-selected={selectedCity === "all"}
@@ -91,7 +91,7 @@ export function Doctor() {
                   : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700"
               }`}
             >
-              All Doctors ({activeTeam.length})
+              All ({activeTeam.length})
             </button>
             {availableCities.map((city) => {
               const isSelected = selectedCity.toLowerCase() === city.toLowerCase();
@@ -121,7 +121,10 @@ export function Doctor() {
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="bg-white dark:bg-gray-900 rounded-2xl p-4 h-96 animate-pulse flex flex-col justify-between border border-gray-200 dark:border-gray-800">
+              <div
+                key={i}
+                className="bg-white dark:bg-gray-900 rounded-2xl p-4 h-96 animate-pulse flex flex-col justify-between border border-gray-200 dark:border-gray-800"
+              >
                 <div className="w-full aspect-[4/5] rounded-xl bg-gray-200 dark:bg-gray-800 mb-4" />
                 <div className="space-y-2">
                   <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mx-auto" />
@@ -130,26 +133,8 @@ export function Doctor() {
               </div>
             ))}
           </div>
-        ) : filteredDoctors.length === 0 ? (
-          /* Empty State */
-          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-12 text-center space-y-3">
-            <User className="h-10 w-10 text-gray-400 dark:text-gray-500 mx-auto" />
-            <h3 className="font-display text-lg text-gray-900 dark:text-white font-semibold">
-              No specialists currently listed in this category
-            </h3>
-            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-              Our clinical directory is managed in real-time. Please check another location or contact our practice desk directly.
-            </p>
-            {selectedCity !== "all" && (
-              <Button onClick={() => setSelectedCity("all")} variant="outline" size="sm">
-                View All Specialists
-              </Button>
-            )}
-          </div>
-        ) : (
-          /* Cards Row with Carousel Arrows */
+        ) : filteredDoctors.length === 0 ? null : (
           <div className="relative">
-            {/* Scroll Navigation Arrows */}
             {filteredDoctors.length > 2 && (
               <>
                 <button
@@ -214,21 +199,25 @@ export function Doctor() {
                               {doc.credentials}
                             </span>
                           )}
-                          {doc.credentials && <span className="text-gray-400">·</span>}
-                          <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">
-                            {doc.professionalTitle || doc.role}
-                          </span>
+                          {doc.credentials && doc.professionalTitle && (
+                            <span className="text-gray-400">·</span>
+                          )}
+                          {doc.professionalTitle && (
+                            <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">
+                              {doc.professionalTitle}
+                            </span>
+                          )}
                         </div>
 
-                        {/* Location */}
-                        <div className="flex items-center gap-1 text-[11.5px] text-gray-600 dark:text-gray-400 pt-1">
-                          <MapPin className="h-3 w-3 text-primary shrink-0" />
-                          <span className="truncate">{doc.locationName}</span>
-                        </div>
+                        {doc.locationName ? (
+                          <div className="flex items-center gap-1 text-[11.5px] text-gray-600 dark:text-gray-400 pt-1">
+                            <MapPin className="h-3 w-3 text-primary shrink-0" />
+                            <span className="truncate">{doc.locationName}</span>
+                          </div>
+                        ) : null}
                       </div>
                     </div>
 
-                    {/* Book Appointment CTA Button */}
                     <div className="pt-3 mt-3 border-t border-gray-100 dark:border-gray-800">
                       <Button
                         href="/book"
@@ -237,7 +226,7 @@ export function Doctor() {
                         className="w-full justify-center text-xs"
                       >
                         <Calendar className="h-3.5 w-3.5 mr-1 text-primary" />
-                        <span>Book Appointment</span>
+                        <span>{copy.book}</span>
                       </Button>
                     </div>
                   </div>

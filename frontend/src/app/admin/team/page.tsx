@@ -27,6 +27,7 @@ import {
   adminUploadMedia,
   LocationItem,
   TeamMember,
+  resolveMediaUrl,
 } from "@/lib/api";
 
 const ROLES = [
@@ -323,7 +324,7 @@ export default function AdminTeamPage() {
                 <div className="h-16 w-16 rounded-full overflow-hidden border border-line bg-sand/40 shrink-0">
                   {member.photoUrl ? (
                     <img
-                      src={member.photoUrl}
+                      src={resolveMediaUrl(member.photoUrl) || member.photoUrl}
                       alt={member.displayName}
                       className="h-full w-full object-cover"
                     />
@@ -608,9 +609,16 @@ export default function AdminTeamPage() {
                       />
                     </label>
                     {form.photoUrl && (
-                      <span className="text-[11px] text-forest font-mono truncate max-w-[200px]">
-                        Attached: {form.photoUrl}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <img
+                          src={resolveMediaUrl(form.photoUrl) || form.photoUrl}
+                          alt="Preview"
+                          className="h-8 w-8 rounded-full object-cover border border-line"
+                        />
+                        <span className="text-[11px] text-forest font-mono truncate max-w-[200px]">
+                          Attached: {form.photoUrl}
+                        </span>
+                      </div>
                     )}
                   </div>
                 </div>

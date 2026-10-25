@@ -15,6 +15,7 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePublicContent } from "@/components/providers/public-content-provider";
+import { resolveMediaUrl } from "@/lib/api";
 
 export function OurTeam() {
   const { team, locations, isLoading, copy } = usePublicContent();
@@ -155,7 +156,7 @@ export function OurTeam() {
 
             <div
               ref={scrollRef}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+              className="flex overflow-x-auto snap-x snap-mandatory gap-6 pb-6 hide-scrollbar scrollbar-none scroll-smooth"
             >
               {filteredDoctors.map((doc, idx) => (
                 <motion.div
@@ -164,21 +165,21 @@ export function OurTeam() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, amount: 0.15 }}
                   transition={{ duration: 0.45, delay: idx * 0.08 }}
-                  className="rounded-3xl border border-gray-200/90 dark:border-gray-800/90 bg-white dark:bg-gray-900 shadow-xs hover:border-primary/40 hover:shadow-md transition-all p-5 flex flex-col justify-between space-y-5"
+                  className="w-[82%] sm:w-[calc((100%-1.5rem)/2)] lg:w-[calc((100%-3rem)/3)] min-w-[280px] md:min-w-[320px] shrink-0 snap-start bg-white dark:bg-gray-900 rounded-xl border border-gray-200/90 dark:border-gray-800/90 p-4 shadow-xs hover:border-primary/40 hover:shadow-md transition-all flex flex-col justify-between space-y-4"
                 >
                   <div>
                     {/* Portrait Photo Container */}
-                    <div className="w-full aspect-[4/5] rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 mb-4 relative shadow-inner">
+                    <div className="w-full aspect-[4/5] rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 mb-3.5 relative shadow-inner">
                       {doc.photoUrl ? (
                         <img
-                          src={doc.photoUrl}
+                          src={resolveMediaUrl(doc.photoUrl) || doc.photoUrl}
                           alt={doc.displayName}
                           className="w-full h-full object-cover object-top"
                           loading="lazy"
                         />
                       ) : (
                         <div className="w-full h-full grid place-items-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 text-gray-400">
-                          <User className="h-20 w-20 stroke-[1.2]" />
+                          <User className="h-16 w-16 stroke-[1.2]" />
                         </div>
                       )}
 

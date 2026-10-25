@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getServices, ServiceItem } from "@/lib/api";
+import { getServices, resolveMediaUrl, ServiceItem } from "@/lib/api";
 import { motion } from "motion/react";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 
@@ -83,35 +83,15 @@ export function Treatments() {
       <span id="services" className="sr-only" />
 
       <div className="container-x space-y-12">
-        {/* Section Heading & Carousel Controls */}
+        {/* Section Heading */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <SectionHeading
             eyebrow={copy.clinicalExcellence}
             title={copy.treatments}
           />
-          <div className="flex items-center gap-4">
-            <p className="max-w-md text-xs sm:text-sm text-gray-600 dark:text-gray-400 hidden sm:block">
-              {copy.clinicalExcellenceDesc}
-            </p>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => scrollByCard("left")}
-                aria-label="Previous treatments"
-                className="grid h-10 w-10 place-items-center rounded-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 shadow-xs hover:border-primary/40 hover:text-primary transition-colors cursor-pointer"
-              >
-                <ChevronLeft className="h-5 w-5 rtl:rotate-180" />
-              </button>
-              <button
-                type="button"
-                onClick={() => scrollByCard("right")}
-                aria-label="Next treatments"
-                className="grid h-10 w-10 place-items-center rounded-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 shadow-xs hover:border-primary/40 hover:text-primary transition-colors cursor-pointer"
-              >
-                <ChevronRight className="h-5 w-5 rtl:rotate-180" />
-              </button>
-            </div>
-          </div>
+          <p className="max-w-md text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+            {copy.clinicalExcellenceDesc}
+          </p>
         </div>
 
         {/* Full Category Filter Pills */}
@@ -194,68 +174,109 @@ export function Treatments() {
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <Skeleton
                 key={i}
-                className="min-w-[85%] md:min-w-[45%] lg:min-w-[30%] shrink-0 snap-start h-64 rounded-2xl border border-gray-200 dark:border-gray-800"
+                className="min-w-[280px] md:min-w-[320px] lg:min-w-[350px] shrink-0 snap-start h-64 rounded-2xl border border-gray-200 dark:border-gray-800"
               />
             ))}
           </div>
         ) : filtered.length === 0 ? null : (
-          <div
-            ref={scrollContainerRef}
-            className="flex overflow-x-auto snap-x snap-mandatory gap-6 pb-6 scrollbar-hide items-stretch"
-            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-          >
-            {filtered.map((service) => (
-              <div
-                key={service.id}
-                className="min-w-[85%] md:min-w-[45%] lg:min-w-[30%] shrink-0 snap-start rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-xs p-5 flex flex-col justify-between space-y-4 hover:border-primary/40 transition-all self-stretch"
-              >
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-semibold text-primary uppercase tracking-wider">
-                      {service.category}
-                    </span>
-                    {service.duration && (
-                      <span className="inline-flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400">
-                        <Clock className="h-3 w-3" />
-                        <span>{service.duration}</span>
+          <div className="relative group/carousel">
+            {/* Absolute Left Arrow */}
+            <button
+              type="button"
+              onClick={() => scrollByCard("left")}
+              aria-label="Previous treatments"
+              className="absolute left-0 sm:-left-3 top-1/2 -translate-y-1/2 z-20 grid h-10 w-10 sm:h-12 sm:w-12 place-items-center rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 shadow-xl hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-primary transition-all cursor-pointer"
+            >
+              <ChevronLeft className="h-5 w-5 rtl:rotate-180" />
+            </button>
+
+            {/* Absolute Right Arrow */}
+            <button
+              type="button"
+              onClick={() => scrollByCard("right")}
+              aria-label="Next treatments"
+              className="absolute right-0 sm:-right-3 top-1/2 -translate-y-1/2 z-20 grid h-10 w-10 sm:h-12 sm:w-12 place-items-center rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 shadow-xl hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-primary transition-all cursor-pointer"
+            >
+              <ChevronRight className="h-5 w-5 rtl:rotate-180" />
+            </button>
+
+            <div
+              ref={scrollContainerRef}
+              className="flex overflow-x-auto snap-x snap-mandatory gap-6 pb-6 px-1 scrollbar-hide items-stretch"
+              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+            >
+              {filtered.map((service) => (
+                <div
+                  key={service.id}
+                  className="min-w-[280px] md:min-w-[320px] lg:min-w-[350px] shrink-0 snap-start rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-xs p-4 sm:p-5 flex flex-col justify-between space-y-4 hover:border-primary/40 transition-all self-stretch group"
+                >
+                  <div className="space-y-3">
+                    {/* Treatment Card Photo or Soft Gradient Fallback */}
+                    <div className="w-full aspect-[16/10] rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 relative">
+                      {service.imageUrl ? (
+                        <img
+                          src={resolveMediaUrl(service.imageUrl) || service.imageUrl}
+                          alt={service.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-primary/10 via-emerald-500/10 to-teal-500/10 dark:from-primary/20 dark:via-emerald-950/40 dark:to-teal-950/40 flex flex-col items-center justify-center p-4 text-center">
+                          <ShieldCheck className="h-8 w-8 text-primary/70 mb-1" />
+                          <span className="text-[11px] font-semibold text-gray-600 dark:text-gray-300 capitalize">
+                            {service.category} Care
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs pt-1">
+                      <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-semibold text-primary uppercase tracking-wider">
+                        {service.category}
                       </span>
+                      {service.duration && (
+                        <span className="inline-flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400">
+                          <Clock className="h-3 w-3" />
+                          <span>{service.duration}</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <h4 className="font-display text-base font-semibold text-gray-900 dark:text-white leading-snug">
+                      {service.title}
+                    </h4>
+
+                    {service.shortDesc && (
+                      <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400 line-clamp-3">
+                        {service.shortDesc}
+                      </p>
                     )}
                   </div>
 
-                  <h4 className="font-display text-base font-semibold text-gray-900 dark:text-white leading-snug">
-                    {service.title}
-                  </h4>
+                  <div className="pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-2 mt-auto">
+                    {service.cashPrice ? (
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-gray-500 uppercase tracking-wider">{copy.feeFrom}</span>
+                        <span className="font-mono text-xs font-bold text-gray-900 dark:text-white">
+                          {service.cashPrice}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-[11px] text-gray-400">{copy.consultationRequired}</span>
+                    )}
 
-                  {service.shortDesc && (
-                    <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400 line-clamp-3">
-                      {service.shortDesc}
-                    </p>
-                  )}
+                    <Button
+                      href={`/book?service=${encodeURIComponent(service.id)}`}
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full px-3 text-xs"
+                    >
+                      <span>{copy.book}</span>
+                    </Button>
+                  </div>
                 </div>
-
-                <div className="pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-2 mt-auto">
-                  {service.cashPrice ? (
-                    <div className="flex flex-col">
-                      <span className="text-[10px] text-gray-500 uppercase tracking-wider">{copy.feeFrom}</span>
-                      <span className="font-mono text-xs font-bold text-gray-900 dark:text-white">
-                        {service.cashPrice}
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-[11px] text-gray-400">{copy.consultationRequired}</span>
-                  )}
-
-                  <Button
-                    href={`/book?service=${encodeURIComponent(service.id)}`}
-                    variant="outline"
-                    size="sm"
-                    className="rounded-full px-3 text-xs"
-                  >
-                    <span>{copy.book}</span>
-                  </Button>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
 

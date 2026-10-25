@@ -21,6 +21,8 @@ export interface ServiceItem {
   displayOrder?: number;
   bookableOnline?: boolean;
   bufferMinutes?: number;
+  imageUrl?: string | null;
+  slug?: string;
   providerIds?: string[];
   clinicIds?: string[];
 }
@@ -436,6 +438,9 @@ export function resolveMediaUrl(url?: string | null): string | null {
   if (/^(https?:|\/\/|data:)/i.test(trimmed)) {
     return trimmed;
   }
+  if (trimmed.startsWith("/images/")) {
+    return trimmed;
+  }
   const cleanPath = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
   const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
   return `${base.replace(/\/+$/, "")}${cleanPath}`;
@@ -492,6 +497,8 @@ export async function getServices(): Promise<ServiceItem[]> {
         highlight: s.isHighlighted,
         isActive: s.isActive,
         displayOrder: s.displayOrder,
+        imageUrl: (s as any).imageUrl || null,
+        slug: s.slug,
       };
     });
   } catch {
@@ -5863,4 +5870,60 @@ export async function adminDeleteSocialLink(id: string, token?: string | null): 
     token
   );
   if (!res.ok) await apiError(res, "Failed to delete social link.");
+}
+
+// --- Gallery endpoints ---
+
+export interface GalleryImageItem {
+  id: string;
+  imageUrl: string;
+  caption?: string | null;
+  displayOrder: number;
+  isActive: boolean;
+  createdAt?: string;
+}
+
+export async function publicGetGallery(): Promise<GalleryImageItem[]> {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/public/gallery`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
+
+export async function adminGetGallery(token?: string | null): Promise<GalleryImageItem[]> {
+  const res = await authorizedFetch("/api/v1/admin/cms/gallery", {}, token);
+  if (!res.ok) await apiError(res, "Failed to fetch gallery images.");
+  return res.json();
+}
+
+export async function adminCreateGalleryImage(
+  data: {
+    imageUrl: string;
+    caption?: string | null;
+    displayOrder?: number;
+    isActive?: boolean;
+  },
+  token?: string | null
+): Promise<GalleryImageItem> {
+  const res = await authorizedFetch(
+    "/api/v1/admin/cms/gallery",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to create gallery image.");
+  return res.json();
+}
+
+export async function adminDeleteGalleryImage(id: string, token?: string | null): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/cms/gallery/${id}`,
+    { method: "DELETE" },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to delete gallery image.");
 }

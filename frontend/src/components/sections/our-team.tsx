@@ -174,8 +174,11 @@ export function OurTeam() {
                         <img
                           src={resolveMediaUrl(doc.photoUrl) || doc.photoUrl}
                           alt={doc.displayName}
-                          className="w-full h-full object-cover object-top"
+                          width={320}
+                          height={400}
                           loading="lazy"
+                          decoding="async"
+                          className="w-full h-full object-cover object-top"
                         />
                       ) : (
                         <div className="w-full h-full grid place-items-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 text-gray-400">

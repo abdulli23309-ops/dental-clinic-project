@@ -196,7 +196,7 @@ export function Footer() {
                     src={logoUrl}
                     alt={practiceName || "Clinic Logo"}
                     onError={() => setLogoError(true)}
-                    className="h-10 w-10 object-contain shrink-0 mix-blend-multiply dark:mix-blend-screen"
+                    className="h-10 w-auto object-contain dark:brightness-0 dark:invert"
                   />
                 ) : (
                   <span className="grid h-10 w-10 place-items-center rounded-full bg-primary text-white shadow-xs shrink-0">

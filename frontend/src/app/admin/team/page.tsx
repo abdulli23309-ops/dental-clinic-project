@@ -162,6 +162,11 @@ export default function AdminTeamPage() {
     const file = e.target.files?.[0];
     if (!file || !accessToken) return;
 
+    if (file.size > 15 * 1024 * 1024) {
+      setErrorMessage("File exceeds maximum allowed size of 15MB.");
+      return;
+    }
+
     setIsUploading(true);
     setErrorMessage(null);
     try {

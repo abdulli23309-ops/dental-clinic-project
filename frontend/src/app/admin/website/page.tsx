@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import {
+  Camera,
   Check,
   Globe,
   HelpCircle,
+  Image as ImageIcon,
   Info,
   Layers,
   MessageSquare,
@@ -13,6 +15,7 @@ import {
   Save,
   Star,
   Trash2,
+  Upload,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -50,6 +53,11 @@ import {
   SocialLink,
   getSiteContent,
   resolveMediaUrl,
+  // Gallery
+  adminCreateGalleryImage,
+  adminDeleteGalleryImage,
+  adminGetGallery,
+  GalleryImageItem,
 } from "@/lib/api";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 
@@ -62,7 +70,8 @@ type SectionTab =
   | "seo"
   | "success-stories"
   | "blogs"
-  | "social-links";
+  | "social-links"
+  | "gallery";
 
 export default function AdminWebsitePage() {
   const { accessToken } = useAuth();
@@ -167,6 +176,19 @@ export default function AdminWebsitePage() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
+  // Gallery state
+  const [galleryImages, setGalleryImages] = useState<GalleryImageItem[]>([]);
+  const [galleryForm, setGalleryForm] = useState<{
+    imageUrl: string;
+    caption: string;
+    displayOrder: number;
+  }>({
+    imageUrl: "",
+    caption: "",
+    displayOrder: 0,
+  });
+  const [isUploadingGallery, setIsUploadingGallery] = useState(false);
+
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -191,6 +213,9 @@ export default function AdminWebsitePage() {
         } else if (activeTab === "social-links") {
           const socialList = await adminListSocialLinks(accessToken);
           setSocialLinks(socialList);
+        } else if (activeTab === "gallery") {
+          const galleryList = await adminGetGallery(accessToken);
+          setGalleryImages(galleryList);
         } else {
           const data = await adminGetCmsSection(activeTab, accessToken);
           if (activeTab === "general") setGeneralData(data);
@@ -250,6 +275,10 @@ export default function AdminWebsitePage() {
     section: "general" | "homepage"
   ) => {
     if (!accessToken) return;
+    if (file.size > 15 * 1024 * 1024) {
+      setSaveError("File exceeds maximum allowed size of 15MB.");
+      return;
+    }
     setIsUploading(true);
     setSaveError(null);
     try {
@@ -473,6 +502,72 @@ export default function AdminWebsitePage() {
     }
   };
 
+  // Gallery Handlers
+  const handleUploadGalleryImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !accessToken) return;
+    if (file.size > 15 * 1024 * 1024) {
+      setSaveError("File exceeds maximum allowed size of 15MB.");
+      return;
+    }
+    setIsUploadingGallery(true);
+    setSaveError(null);
+    try {
+      const res = await adminUploadMedia(file, accessToken);
+      setGalleryForm((prev) => ({ ...prev, imageUrl: res.url }));
+      setSaveSuccess("Image uploaded successfully.");
+      setTimeout(() => setSaveSuccess(null), 3000);
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to upload image.");
+    } finally {
+      setIsUploadingGallery(false);
+    }
+  };
+
+  const handleAddGalleryImage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!accessToken || !galleryForm.imageUrl.trim()) return;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      await adminCreateGalleryImage(
+        {
+          imageUrl: galleryForm.imageUrl.trim(),
+          caption: galleryForm.caption.trim() || undefined,
+          displayOrder: galleryImages.length,
+          isActive: true,
+        },
+        accessToken
+      );
+      setGalleryForm({
+        imageUrl: "",
+        caption: "",
+        displayOrder: 0,
+      });
+      const updated = await adminGetGallery(accessToken);
+      setGalleryImages(updated);
+      setSaveSuccess("Gallery image added successfully.");
+      setTimeout(() => setSaveSuccess(null), 4000);
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to add gallery image.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteGalleryImage = async (id: string) => {
+    if (!accessToken) return;
+    try {
+      await adminDeleteGalleryImage(id, accessToken);
+      const updated = await adminGetGallery(accessToken);
+      setGalleryImages(updated);
+      setSaveSuccess("Gallery image deleted successfully.");
+      setTimeout(() => setSaveSuccess(null), 4000);
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to delete gallery image.");
+    }
+  };
+
   return (
   <AnimatedPage>
     <div className="space-y-6 max-w-5xl">
@@ -521,156 +616,11 @@ export default function AdminWebsitePage() {
           { id: "success-stories", label: "Success Stories", icon: Check },
           { id: "blogs", label: "Blogs", icon: Layers },
           { id: "social-links", label: "Social Links", icon: Globe },
+          { id: "gallery", label: "Gallery", icon: ImageIcon },
         ].map((tab) => {
           const isActive = activeTab === tab.id;
           const Icon = tab.icon;
-          // Review Handlers
-  const handleAddReview = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!accessToken || !reviewForm.authorName.trim() || !reviewForm.text.trim()) return;
-    setIsSaving(true);
-    setSaveError(null);
-    try {
-      await adminCreateReview(
-        {
-          authorName: reviewForm.authorName.trim(),
-          rating: Number(reviewForm.rating),
-          text: reviewForm.text.trim(),
-          sourceLabel: reviewForm.sourceLabel.trim() || "Google",
-          isPublished: reviewForm.isPublished,
-          displayOrder: reviews.length,
-        },
-        accessToken
-      );
-      setReviewForm({
-        authorName: "",
-        rating: 5,
-        text: "",
-        sourceLabel: "",
-        displayOrder: 0,
-        isPublished: true,
-      });
-      const updated = await adminListReviews(accessToken);
-      setReviews(updated);
-      setSaveSuccess("Review created successfully.");
-      setTimeout(() => setSaveSuccess(null), 4000);
-    } catch (err: any) {
-      setSaveError(err.message || "Failed to create review.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDeleteReview = async (id: string) => {
-    if (!accessToken) return;
-    try {
-      await adminDeleteReview(id, accessToken);
-      const updated = await adminListReviews(accessToken);
-      setReviews(updated);
-      setSaveSuccess("Review deleted successfully.");
-      setTimeout(() => setSaveSuccess(null), 4000);
-    } catch (err: any) {
-      setSaveError(err.message || "Failed to delete review.");
-    }
-  };
-
-  // Blog Handlers
-  const handleAddBlog = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!accessToken || !blogForm.title.trim() || !blogForm.slug.trim()) return;
-    setIsSaving(true);
-    setSaveError(null);
-    try {
-      await adminCreateBlogPost(
-        {
-          title: blogForm.title.trim(),
-          slug: blogForm.slug.trim(),
-          excerpt: blogForm.excerpt.trim() || undefined,
-          body: blogForm.body.trim() || undefined,
-          isPublished: blogForm.isPublished,
-          displayOrder: blogPosts.length,
-        },
-        accessToken
-      );
-      setBlogForm({
-        title: "",
-        slug: "",
-        excerpt: "",
-        body: "",
-        displayOrder: 0,
-        isPublished: false,
-      });
-      const updated = await adminListBlogPosts(accessToken);
-      setBlogPosts(updated);
-      setSaveSuccess("Blog post created successfully.");
-      setTimeout(() => setSaveSuccess(null), 4000);
-    } catch (err: any) {
-      setSaveError(err.message || "Failed to create blog post.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDeleteBlog = async (id: string) => {
-    if (!accessToken) return;
-    try {
-      await adminDeleteBlogPost(id, accessToken);
-      const updated = await adminListBlogPosts(accessToken);
-      setBlogPosts(updated);
-      setSaveSuccess("Blog post deleted successfully.");
-      setTimeout(() => setSaveSuccess(null), 4000);
-    } catch (err: any) {
-      setSaveError(err.message || "Failed to delete blog post.");
-    }
-  };
-
-  // Social Link Handlers
-  const handleAddSocial = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!accessToken || !socialForm.platform.trim() || !socialForm.url.trim()) return;
-    setIsSaving(true);
-    setSaveError(null);
-    try {
-      await adminCreateSocialLink(
-        {
-          platform: socialForm.platform.trim().toLowerCase(),
-          url: socialForm.url.trim(),
-          displayOrder: socialLinks.length,
-          isActive: socialForm.isActive,
-        },
-        accessToken
-      );
-      setSocialForm({
-        platform: "",
-        url: "",
-        displayOrder: 0,
-        isActive: true,
-      });
-      const updated = await adminListSocialLinks(accessToken);
-      setSocialLinks(updated);
-      setSaveSuccess("Social link added successfully.");
-      setTimeout(() => setSaveSuccess(null), 4000);
-    } catch (err: any) {
-      setSaveError(err.message || "Failed to add social link.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDeleteSocial = async (id: string) => {
-    if (!accessToken) return;
-    try {
-      await adminDeleteSocialLink(id, accessToken);
-      const updated = await adminListSocialLinks(accessToken);
-      setSocialLinks(updated);
-      setSaveSuccess("Social link deleted successfully.");
-      setTimeout(() => setSaveSuccess(null), 4000);
-    } catch (err: any) {
-      setSaveError(err.message || "Failed to delete social link.");
-    }
-  };
-
-  return (
+          return (
             <button
               key={tab.id}
               role="tab"
@@ -1614,6 +1564,134 @@ export default function AdminWebsitePage() {
                       </Button>
                     </Card>
                   ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 10. GALLERY SECTION */}
+          {activeTab === "gallery" && (
+            <div className="space-y-8">
+              {/* Add New Gallery Image Card */}
+              <Card surface="cream" shadow="subtle" className="p-6">
+                <div className="border-b border-line pb-4 mb-6">
+                  <h2 className="text-base font-semibold text-ink">Upload Clinic Gallery Photo</h2>
+                  <p className="text-xs text-ink-soft mt-1">
+                    Add modern photos of the clinic, equipment, operatory rooms, or smile suites to the public gallery.
+                  </p>
+                </div>
+
+                <form onSubmit={handleAddGalleryImage} className="space-y-6">
+                  {/* File Upload Field */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-ink">
+                      Clinic Photo <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                      <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-line bg-sand/40 hover:bg-sand/70 text-xs font-medium text-ink transition-colors">
+                        <Upload className="h-4 w-4" />
+                        <span>{isUploadingGallery ? "Uploading..." : "Choose Photo File"}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleUploadGalleryImage}
+                          disabled={isUploadingGallery || isSaving}
+                        />
+                      </label>
+                      {galleryForm.imageUrl && (
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={resolveMediaUrl(galleryForm.imageUrl) || galleryForm.imageUrl}
+                            alt="Preview"
+                            className="h-12 w-16 object-cover rounded-md border border-line shadow-sm"
+                          />
+                          <span className="text-[11px] text-ink-soft truncate max-w-[200px]">
+                            {galleryForm.imageUrl}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Caption Input */}
+                  <TextField
+                    id="gallery-caption"
+                    label="Optional Caption / Title"
+                    value={galleryForm.caption}
+                    onChange={(e) => setGalleryForm({ ...galleryForm, caption: e.target.value })}
+                    placeholder="e.g. Sterile Surgical Suite or Consultation Lounge"
+                  />
+
+                  {/* Submit Button */}
+                  <div className="flex justify-end pt-2">
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      size="sm"
+                      disabled={isSaving || isUploadingGallery || !galleryForm.imageUrl}
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      <span>{isSaving ? "Saving..." : "Add to Gallery"}</span>
+                    </Button>
+                  </div>
+                </form>
+              </Card>
+
+              {/* Gallery Images List */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-ink">
+                    Active Gallery Photos ({galleryImages.length})
+                  </h3>
+                </div>
+
+                {galleryImages.length === 0 ? (
+                  <Card surface="cream" shadow="subtle" className="p-8 text-center">
+                    <p className="text-xs text-ink-soft">
+                      No gallery images uploaded yet. Upload your first clinic photo above.
+                    </p>
+                  </Card>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    {galleryImages.map((image) => (
+                      <Card
+                        key={image.id}
+                        surface="cream"
+                        shadow="subtle"
+                        className="overflow-hidden flex flex-col justify-between"
+                      >
+                        <div className="relative aspect-video w-full bg-sand/30 overflow-hidden">
+                          <img
+                            src={resolveMediaUrl(image.imageUrl) || image.imageUrl}
+                            alt={image.caption || "Clinic photo"}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
+                          <div>
+                            <p className="text-xs font-semibold text-ink">
+                              {image.caption || <span className="text-ink-soft italic font-normal">No caption</span>}
+                            </p>
+                          </div>
+                          <div className="pt-2 border-t border-line/60 flex items-center justify-between">
+                            <span className="text-[10px] text-ink-soft">
+                              Order: {image.displayOrder}
+                            </span>
+                            <Button
+                              onClick={() => handleDeleteGalleryImage(image.id)}
+                              variant="secondary"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 text-xs py-1 px-2.5 h-auto"
+                            >
+                              <Trash2 className="h-3.5 w-3.5 mr-1" />
+                              <span>Delete</span>
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>

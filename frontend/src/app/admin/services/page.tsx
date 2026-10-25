@@ -10,6 +10,7 @@ import {
   Plus,
   Stethoscope,
   Tag,
+  Upload,
   Users,
   X,
 } from "lucide-react";
@@ -30,9 +31,11 @@ import {
   adminUpdateService,
   adminUpdateServiceClinics,
   adminUpdateServiceProviders,
+  adminUploadMedia,
   ClinicMatrixClinic,
   ClinicMatrixService,
   getTeamMembers,
+  resolveMediaUrl,
   TeamMember,
 } from "@/lib/api";
 
@@ -65,6 +68,8 @@ export default function AdminServicesPage() {
     providerIds: string[];
   } | null>(null);
 
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
   const [form, setForm] = useState({
     slug: "",
     category: "preventive",
@@ -82,6 +87,7 @@ export default function AdminServicesPage() {
     isPublic: true,
     bookableOnline: true,
     bufferMinutes: 0,
+    imageUrl: "",
     providerIds: [] as string[],
     clinicIds: [] as string[],
   });
@@ -131,6 +137,7 @@ export default function AdminServicesPage() {
       isPublic: true,
       bookableOnline: true,
       bufferMinutes: 0,
+      imageUrl: "",
       providerIds: [],
       clinicIds: matrixClinics.map((c) => c.id),
     });
@@ -159,10 +166,34 @@ export default function AdminServicesPage() {
       isPublic: service.isPublic,
       bookableOnline: service.bookableOnline !== false,
       bufferMinutes: service.bufferMinutes || 0,
+      imageUrl: service.imageUrl || "",
       providerIds: service.providerIds || [],
       clinicIds: service.clinicIds || [],
     });
     setShowModal(true);
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !accessToken) return;
+
+    if (file.size > 15 * 1024 * 1024) {
+      setErrorMessage("File exceeds maximum allowed size of 15MB.");
+      return;
+    }
+
+    setIsUploadingImage(true);
+    setErrorMessage(null);
+    try {
+      const res = await adminUploadMedia(file, accessToken);
+      setForm((prev) => ({ ...prev, imageUrl: res.url }));
+      setSuccessMessage("Service image uploaded successfully.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to upload image.";
+      setErrorMessage(msg);
+    } finally {
+      setIsUploadingImage(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -187,6 +218,7 @@ export default function AdminServicesPage() {
       isPublic: Boolean(form.isPublic),
       bookableOnline: Boolean(form.bookableOnline),
       bufferMinutes: Number(form.bufferMinutes) || 0,
+      imageUrl: form.imageUrl.trim() || null,
       providerIds: form.providerIds,
       isActive: true,
     };
@@ -516,7 +548,17 @@ export default function AdminServicesPage() {
               shadow="subtle"
               className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
              hoverLift={true} index={1}>
-              <div className="space-y-1.5 flex-1">
+              <div className="flex items-start gap-4 flex-1">
+                {svc.imageUrl && (
+                  <div className="h-16 w-20 rounded-xl overflow-hidden border border-line bg-gray-100 shrink-0 hidden sm:block">
+                    <img
+                      src={resolveMediaUrl(svc.imageUrl) || svc.imageUrl}
+                      alt={svc.title}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                )}
+                <div className="space-y-1.5 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   {svc.code && (
                     <span className="font-mono text-[10.5px] uppercase tracking-wider text-forest dark:text-emerald-400 font-semibold">
@@ -588,6 +630,7 @@ export default function AdminServicesPage() {
                   <span>slug: {svc.slug}</span>
                 </div>
               </div>
+            </div>
 
               {/* Actions */}
               <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
@@ -634,16 +677,17 @@ export default function AdminServicesPage() {
 
       {/* Modal Dialog for Add / Edit */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
-          <div className="w-full max-w-xl my-8">
-            <Card surface="cream" shadow="elevated" className="p-6 sm:p-8 space-y-5" hoverLift={true} index={2}>
-              <div className="flex items-center justify-between border-b border-line pb-3">
-                <h3 className="font-display text-lg text-ink">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="w-full max-w-xl max-h-[90vh] flex flex-col my-auto">
+            <Card surface="cream" shadow="elevated" className="max-h-[90vh] overflow-y-auto p-6 sm:p-8 space-y-5 relative" hoverLift={false} index={2}>
+              <div className="sticky top-0 z-20 bg-cream dark:bg-gray-900 -mt-6 sm:-mt-8 -mx-6 sm:-mx-8 px-6 sm:px-8 py-4 border-b border-line flex items-center justify-between shadow-xs">
+                <h3 className="font-display text-lg text-ink font-semibold">
                   {editingId ? "Edit Service" : "Add Service"}
                 </h3>
                 <button
+                  type="button"
                   onClick={() => setShowModal(false)}
-                  className="text-xs text-ink-soft hover:text-ink font-mono cursor-pointer"
+                  className="text-xs text-ink-soft hover:text-ink font-mono cursor-pointer px-2 py-1 rounded hover:bg-sand/40"
                 >
                   ✕ Close
                 </button>
@@ -739,6 +783,62 @@ export default function AdminServicesPage() {
                     onChange={(e) => setForm({ ...form, fullDesc: e.target.value })}
                     className="w-full rounded-[var(--radius-card)] border border-line bg-bone px-3.5 py-2 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-forest"
                   />
+                </div>
+
+                {/* Service Image Section */}
+                <div className="space-y-3 rounded-xl border border-line bg-cream/40 p-4">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-ink">
+                      Service Image
+                    </label>
+                    {form.imageUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, imageUrl: "" })}
+                        className="text-[10px] text-red-600 hover:underline cursor-pointer"
+                      >
+                        Remove Image
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                    <label className="inline-flex items-center gap-2 rounded-lg border border-line bg-bone px-3 py-2 text-xs font-medium text-ink cursor-pointer hover:bg-cream transition-colors">
+                      <Upload className="h-3.5 w-3.5 text-forest" />
+                      <span>{isUploadingImage ? "Uploading..." : "Choose File"}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                        disabled={isUploadingImage}
+                      />
+                    </label>
+                    {isUploadingImage && (
+                      <span className="text-xs text-forest animate-pulse font-medium">Uploading image to server...</span>
+                    )}
+                  </div>
+
+                  <TextField
+                    id="service-image-url"
+                    label="Image URL (auto-filled on file upload or enter /images/...)"
+                    value={form.imageUrl}
+                    onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
+                    placeholder="/images/treatment-cleanings.jpg or /uploads/..."
+                  />
+
+                  {form.imageUrl && (
+                    <div className="mt-2 flex items-center gap-3">
+                      <div className="relative h-16 w-24 rounded-lg overflow-hidden border border-line bg-gray-100 dark:bg-gray-800 shadow-xs">
+                        <img
+                          src={resolveMediaUrl(form.imageUrl) || form.imageUrl}
+                          alt="Service preview"
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                      <span className="text-[11px] font-mono text-ink-soft truncate max-w-xs">{form.imageUrl}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -929,7 +1029,7 @@ export default function AdminServicesPage() {
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-line/60 flex justify-end gap-2">
+                <div className="sticky bottom-0 z-20 bg-cream dark:bg-gray-900 -mb-6 sm:-mb-8 -mx-6 sm:-mx-8 px-6 sm:px-8 py-4 border-t border-line/60 flex justify-end gap-2 shadow-xs">
                   <Button type="button" variant="secondary" size="sm" onClick={() => setShowModal(false)}>
                     Cancel
                   </Button>

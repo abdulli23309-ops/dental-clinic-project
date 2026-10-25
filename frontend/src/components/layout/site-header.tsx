@@ -45,7 +45,6 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
     organization?.displayName ||
     organization?.name ||
     "";
-  const tagline = content.general?.tagline || organization?.tagline || "";
   const rawLogoUrl = content.general?.logoUrl || organization?.logoUrl || null;
   const logoUrl = resolveMediaUrl(rawLogoUrl);
   const phone =
@@ -141,18 +140,11 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
                 </svg>
               </span>
             )}
-            <div className="flex flex-col shrink-0">
-              {brandName ? (
-                <span className="font-display text-[17px] sm:text-[18px] tracking-tight text-gray-900 dark:text-white leading-none whitespace-nowrap">
-                  {brandName}
-                </span>
-              ) : null}
-              {tagline ? (
-                <span className="hidden xl:inline-block text-[11px] text-gray-500 dark:text-gray-400 font-sans tracking-normal mt-0.5 truncate max-w-[170px] whitespace-nowrap">
-                  {tagline}
-                </span>
-              ) : null}
-            </div>
+            {brandName ? (
+              <span className="font-display text-[17px] sm:text-[18px] tracking-tight text-gray-900 dark:text-white leading-none whitespace-nowrap">
+                {brandName}
+              </span>
+            ) : null}
           </Link>
 
           {isUnavailable ? (

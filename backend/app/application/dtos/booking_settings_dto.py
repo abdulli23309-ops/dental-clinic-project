@@ -13,6 +13,7 @@ class PublicBookingStatusResponse(BaseModel):
 
 class WorkingHoursDto(BaseModel):
     id: UUID
+    clinicId: Optional[UUID] = None
     dayOfWeek: int
     dayName: str
     openTime: Optional[str] = None

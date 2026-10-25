@@ -123,12 +123,14 @@ export interface SiteContent {
   homepage: {
     heroEyebrow: string;
     heroHeading: string;
+    heroHighlightWord?: string;
     heroDescription: string;
     heroCtaText: string;
     heroCtaLink: string;
     heroSecondaryCtaText: string;
     heroSecondaryCtaLink: string;
     heroImageUrl?: string | null;
+    startingFee?: string | null;
     heroTicks?: Array<{ label: string }>;
     heroBadges?: string[];
     promises?: Array<{ num?: string; title: string; subtitle?: string; description: string }>;
@@ -228,6 +230,7 @@ export interface PublicBookingStatus {
 
 export interface WorkingHoursItem {
   id: string;
+  clinicId?: string | null;
   dayOfWeek: number;
   dayName: string;
   openTime?: string | null;
@@ -5589,4 +5592,258 @@ export async function toggleAdminIntegrationClientActive(
   );
   if (!res.ok) await apiError(res, "Failed to update integration client status.");
   return res.json();
+}
+
+
+// ---------------------------------------------------------------------------
+// Stage-2: Reviews, Blog Posts, Social Links
+// ---------------------------------------------------------------------------
+
+// --- Types ---
+
+export interface Review {
+  id: string;
+  authorName: string;
+  rating: number;
+  text: string;
+  reviewDate: string | null;
+  sourceLabel: string | null;
+  displayOrder: number;
+  isPublished: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BlogPost {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  body: string | null;
+  coverImageUrl: string | null;
+  publishedDate: string | null;
+  displayOrder: number;
+  isPublished: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SocialLink {
+  id: string;
+  platform: string;
+  url: string;
+  displayOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// --- Public endpoints ---
+
+export async function getPublicReviews(): Promise<Review[]> {
+  const res = await fetch(`${API_BASE}/api/v1/public/reviews`, {
+    cache: "no-store",
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function getPublicBlogs(): Promise<BlogPost[]> {
+  const res = await fetch(`${API_BASE}/api/v1/public/blogs`, {
+    cache: "no-store",
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function getPublicBlogPostBySlug(slug: string): Promise<BlogPost | null> {
+  const res = await fetch(`${API_BASE}/api/v1/public/blogs/${encodeURIComponent(slug)}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function getPublicSocialLinks(): Promise<SocialLink[]> {
+  const res = await fetch(`${API_BASE}/api/v1/public/social-links`, {
+    cache: "no-store",
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+// --- Admin endpoints: Reviews ---
+
+export async function adminListReviews(token?: string | null): Promise<Review[]> {
+  const res = await authorizedFetch("/api/v1/admin/reviews", {}, token);
+  if (!res.ok) await apiError(res, "Failed to fetch reviews.");
+  return res.json();
+}
+
+export async function adminCreateReview(
+  data: {
+    authorName: string;
+    rating: number;
+    text: string;
+    reviewDate?: string;
+    sourceLabel?: string;
+    displayOrder?: number;
+    isPublished?: boolean;
+  },
+  token?: string | null
+): Promise<Review> {
+  const res = await authorizedFetch(
+    "/api/v1/admin/reviews",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to create review.");
+  return res.json();
+}
+
+export async function adminUpdateReview(
+  id: string,
+  data: Partial<{
+    authorName: string;
+    rating: number;
+    text: string;
+    reviewDate: string;
+    sourceLabel: string;
+    displayOrder: number;
+    isPublished: boolean;
+  }>,
+  token?: string | null
+): Promise<Review> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/reviews/${id}`,
+    { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to update review.");
+  return res.json();
+}
+
+export async function adminDeleteReview(id: string, token?: string | null): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/reviews/${id}`,
+    { method: "DELETE" },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to delete review.");
+}
+
+// --- Admin endpoints: Blog Posts ---
+
+export async function adminListBlogPosts(token?: string | null): Promise<BlogPost[]> {
+  const res = await authorizedFetch("/api/v1/admin/blogs", {}, token);
+  if (!res.ok) await apiError(res, "Failed to fetch blog posts.");
+  return res.json();
+}
+
+export async function adminCreateBlogPost(
+  data: {
+    title: string;
+    slug: string;
+    excerpt?: string;
+    body?: string;
+    coverImageUrl?: string;
+    publishedDate?: string;
+    displayOrder?: number;
+    isPublished?: boolean;
+  },
+  token?: string | null
+): Promise<BlogPost> {
+  const res = await authorizedFetch(
+    "/api/v1/admin/blogs",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to create blog post.");
+  return res.json();
+}
+
+export async function adminUpdateBlogPost(
+  id: string,
+  data: Partial<{
+    title: string;
+    slug: string;
+    excerpt: string;
+    body: string;
+    coverImageUrl: string;
+    publishedDate: string;
+    displayOrder: number;
+    isPublished: boolean;
+  }>,
+  token?: string | null
+): Promise<BlogPost> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/blogs/${id}`,
+    { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to update blog post.");
+  return res.json();
+}
+
+export async function adminDeleteBlogPost(id: string, token?: string | null): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/blogs/${id}`,
+    { method: "DELETE" },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to delete blog post.");
+}
+
+// --- Admin endpoints: Social Links ---
+
+export async function adminListSocialLinks(token?: string | null): Promise<SocialLink[]> {
+  const res = await authorizedFetch("/api/v1/admin/social-links", {}, token);
+  if (!res.ok) await apiError(res, "Failed to fetch social links.");
+  return res.json();
+}
+
+export async function adminCreateSocialLink(
+  data: {
+    platform: string;
+    url: string;
+    displayOrder?: number;
+    isActive?: boolean;
+  },
+  token?: string | null
+): Promise<SocialLink> {
+  const res = await authorizedFetch(
+    "/api/v1/admin/social-links",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to create social link.");
+  return res.json();
+}
+
+export async function adminUpdateSocialLink(
+  id: string,
+  data: Partial<{
+    platform: string;
+    url: string;
+    displayOrder: number;
+    isActive: boolean;
+  }>,
+  token?: string | null
+): Promise<SocialLink> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/social-links/${id}`,
+    { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to update social link.");
+  return res.json();
+}
+
+export async function adminDeleteSocialLink(id: string, token?: string | null): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/social-links/${id}`,
+    { method: "DELETE" },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to delete social link.");
 }

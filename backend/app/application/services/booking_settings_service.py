@@ -27,8 +27,7 @@ from app.domain.models.booking_settings import (
 from app.domain.repositories.booking_repo import BookingRepository
 from app.domain.repositories.booking_settings_repo import BookingSettingsRepository
 from app.domain.repositories.organization_repo import OrganizationRepository
-from app.domain.repositories.task_repo import TaskRepository
-from app.infrastructure.database.orm_models import AnnouncementORM, BookingORM, TaskORM
+from app.infrastructure.database.orm_models import AnnouncementORM, BookingORM, ClinicORM, TaskORM
 from app.infrastructure.repositories.postgres_activity_repo import (
     PostgresActivityLogRepository,
     record_activity,
@@ -79,22 +78,105 @@ class BookingSettingsService:
             resumeOn=settings.resume_on,
         )
 
-    async def get_public_working_hours(self) -> List[WorkingHoursDto]:
+    async def get_public_working_hours(
+        self, clinic_id: Optional[UUID] = None
+    ) -> List[WorkingHoursDto]:
         """
         Returns structured operating hours across all 7 days of the week.
+        Filters by clinic_id if supplied, or falls back to the primary active clinic.
+        Guarantees 7 daily rows (Mon-Sun), consolidating multiple blocks per day if present,
+        and excludes any unassigned (clinic_id IS NULL) records.
         """
-        hours = await self.repository.list_working_hours()
-        return [
-            WorkingHoursDto(
-                id=h.id,
-                dayOfWeek=h.day_of_week,
-                dayName=h.day_name,
-                openTime=h.open_time,
-                closeTime=h.close_time,
-                isClosed=h.is_closed,
+        target_clinic_id = clinic_id
+        if not target_clinic_id:
+            stmt = (
+                select(ClinicORM.id)
+                .where(ClinicORM.is_active.is_(True))
+                .order_by(ClinicORM.is_primary.desc(), ClinicORM.display_order.asc(), ClinicORM.created_at.asc())
             )
-            for h in hours
-        ]
+            res = await self.session.execute(stmt)
+            target_clinic_id = res.scalars().first()
+
+        if target_clinic_id:
+            hours = await self.repository.list_working_hours(clinic_id=target_clinic_id)
+            valid_hours = [h for h in hours if h.clinic_id == target_clinic_id or h.clinic_id is None]
+        else:
+            hours = await self.repository.list_working_hours()
+            # If there are rows assigned to clinics, exclude unassigned rows
+            has_clinic_rows = any(h.clinic_id is not None for h in hours)
+            if has_clinic_rows:
+                valid_hours = [h for h in hours if h.clinic_id is not None]
+            else:
+                valid_hours = hours
+
+        # Consolidate by day_of_week (0 through 6) so each clinic always returns 7 daily rows
+        day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        by_day: Dict[int, List[WorkingHours]] = {dow: [] for dow in range(7)}
+        for h in valid_hours:
+            if h.day_of_week in by_day:
+                by_day[h.day_of_week].append(h)
+
+        result: List[WorkingHoursDto] = []
+        for dow in range(7):
+            blocks = by_day[dow]
+            if not blocks:
+                result.append(
+                    WorkingHoursDto(
+                        id=uuid4(),
+                        clinicId=target_clinic_id,
+                        dayOfWeek=dow,
+                        dayName=day_names[dow],
+                        openTime=None,
+                        closeTime=None,
+                        isClosed=True,
+                    )
+                )
+                continue
+
+            open_blocks = [b for b in blocks if not b.is_closed and b.open_time and b.close_time]
+            if not open_blocks:
+                first = blocks[0]
+                result.append(
+                    WorkingHoursDto(
+                        id=first.id,
+                        clinicId=first.clinic_id,
+                        dayOfWeek=dow,
+                        dayName=day_names[dow],
+                        openTime=None,
+                        closeTime=None,
+                        isClosed=True,
+                    )
+                )
+            elif len(open_blocks) == 1:
+                b = open_blocks[0]
+                result.append(
+                    WorkingHoursDto(
+                        id=b.id,
+                        clinicId=b.clinic_id,
+                        dayOfWeek=dow,
+                        dayName=day_names[dow],
+                        openTime=b.open_time,
+                        closeTime=b.close_time,
+                        isClosed=False,
+                    )
+                )
+            else:
+                sorted_blocks = sorted(open_blocks, key=lambda x: x.open_time or "")
+                first = sorted_blocks[0]
+                merged_time_str = ", ".join(f"{b.open_time} - {b.close_time}" for b in sorted_blocks)
+                result.append(
+                    WorkingHoursDto(
+                        id=first.id,
+                        clinicId=first.clinic_id,
+                        dayOfWeek=dow,
+                        dayName=day_names[dow],
+                        openTime=merged_time_str,
+                        closeTime=None,
+                        isClosed=False,
+                    )
+                )
+
+        return result
 
     async def get_public_schedule(self) -> Dict[str, Any]:
         """

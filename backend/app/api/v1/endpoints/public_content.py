@@ -1,10 +1,12 @@
 import asyncio
+import hashlib
+import json
 import secrets
 from datetime import date, datetime, timezone
-from typing import List, Optional
+from typing import Any, List, Optional
 from uuid import UUID
 from zoneinfo import ZoneInfo
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import (
@@ -59,12 +61,29 @@ from app.domain.repositories.lead_repo import LeadRepository
 router = APIRouter(prefix="/public", tags=["Public Content"])
 
 
+def _compute_etag(data: Any) -> str:
+    """Computes a deterministic hex ETag from serialized data."""
+    serialized = json.dumps(data, sort_keys=True, default=str)
+    return f'"{hashlib.sha256(serialized.encode("utf-8")).hexdigest()[:16]}"'
+
+
 @router.get("/content", response_model=PublicCmsResponse)
 async def get_site_content(
+    request: Request,
+    response: Response,
     cms_service: CmsService = Depends(get_cms_service),
-) -> PublicCmsResponse:
+) -> Any:
     """Returns database-backed CMS copy for public frontend rendering."""
-    return await cms_service.get_public_cms()
+    data = await cms_service.get_public_cms()
+    etag = _compute_etag(data.model_dump())
+    response.headers["Cache-Control"] = "public, max-age=0, must-revalidate"
+    response.headers["ETag"] = etag
+    if request.headers.get("if-none-match") == etag:
+        return Response(
+            status_code=status.HTTP_304_NOT_MODIFIED,
+            headers={"ETag": etag, "Cache-Control": "public, max-age=0, must-revalidate"},
+        )
+    return data
 
 
 @router.get("/services", response_model=List[ServiceResponse])
@@ -185,13 +204,16 @@ async def get_public_faqs(
 
 @router.get("/organization", response_model=Optional[OrganizationResponse])
 async def get_public_organization(
+    request: Request,
+    response: Response,
     org_service: OrganizationService = Depends(get_organization_service),
-) -> Optional[OrganizationResponse]:
+) -> Any:
     """Returns top-level practice organization details including branding, currency, and dynamic theming."""
     org = await org_service.get_organization()
     if org is None:
+        response.headers["Cache-Control"] = "public, max-age=0, must-revalidate"
         return None
-    return OrganizationResponse(
+    res = OrganizationResponse(
         id=org.id,
         name=org.name,
         displayName=org.display_name,
@@ -213,6 +235,15 @@ async def get_public_organization(
         createdAt=org.created_at,
         updatedAt=org.updated_at,
     )
+    etag = _compute_etag(res.model_dump())
+    response.headers["Cache-Control"] = "public, max-age=0, must-revalidate"
+    response.headers["ETag"] = etag
+    if request.headers.get("if-none-match") == etag:
+        return Response(
+            status_code=status.HTTP_304_NOT_MODIFIED,
+            headers={"ETag": etag, "Cache-Control": "public, max-age=0, must-revalidate"},
+        )
+    return res
 
 
 @router.get("/booking-status", response_model=PublicBookingStatusResponse)
@@ -225,10 +256,11 @@ async def get_public_booking_status(
 
 @router.get("/working-hours", response_model=List[WorkingHoursDto])
 async def get_public_working_hours(
+    clinic_id: Optional[UUID] = Query(None, description="Optional clinic ID to filter operating hours"),
     booking_settings_service: BookingSettingsService = Depends(get_booking_settings_service),
 ) -> List[WorkingHoursDto]:
     """Returns single source of truth clinic operating hours across all 7 days of the week."""
-    return await booking_settings_service.get_public_working_hours()
+    return await booking_settings_service.get_public_working_hours(clinic_id=clinic_id)
 
 
 @router.get("/booking-schedule")
@@ -583,3 +615,99 @@ async def get_public_booking_flow_settings(
     }
 
 
+# ---------------------------------------------------------------------------
+# Stage-2 public endpoints: Reviews, Blog Posts, Social Links
+# ---------------------------------------------------------------------------
+
+from app.api.deps import get_blog_post_service, get_review_service, get_social_link_service
+from app.application.dtos.cms_dto import BlogPostResponse, ReviewResponse, SocialLinkResponse
+from app.application.services.content_service import BlogPostService, ReviewService, SocialLinkService
+
+
+@router.get("/reviews", response_model=List[ReviewResponse])
+async def get_published_reviews(
+    review_service: ReviewService = Depends(get_review_service),
+) -> List[ReviewResponse]:
+    """Returns all published reviews for the public Success Stories section."""
+    items = await review_service.list_published()
+    return [
+        ReviewResponse(
+            id=r.id,
+            authorName=r.author_name,
+            rating=r.rating,
+            text=r.review_text,
+            reviewDate=r.review_date.isoformat() if r.review_date else None,
+            sourceLabel=r.source_label,
+            displayOrder=r.display_order,
+            isPublished=r.is_published,
+            createdAt=r.created_at,
+            updatedAt=r.updated_at,
+        )
+        for r in items
+    ]
+
+
+@router.get("/blogs", response_model=List[BlogPostResponse])
+async def get_published_blogs(
+    blog_service: BlogPostService = Depends(get_blog_post_service),
+) -> List[BlogPostResponse]:
+    """Returns all published blog posts for the public blog section."""
+    items = await blog_service.list_published()
+    return [
+        BlogPostResponse(
+            id=p.id,
+            title=p.title,
+            slug=p.slug,
+            excerpt=p.excerpt,
+            body=p.body,
+            coverImageUrl=p.cover_image_url,
+            publishedDate=p.published_date.isoformat() if p.published_date else None,
+            displayOrder=p.display_order,
+            isPublished=p.is_published,
+            createdAt=p.created_at,
+            updatedAt=p.updated_at,
+        )
+        for p in items
+    ]
+
+
+@router.get("/blogs/{slug}", response_model=BlogPostResponse)
+async def get_published_blog_by_slug(
+    slug: str,
+    blog_service: BlogPostService = Depends(get_blog_post_service),
+) -> BlogPostResponse:
+    """Returns a published blog post by its unique slug."""
+    p = await blog_service.get_by_slug_or_404(slug)
+    return BlogPostResponse(
+        id=p.id,
+        title=p.title,
+        slug=p.slug,
+        excerpt=p.excerpt,
+        body=p.body,
+        coverImageUrl=p.cover_image_url,
+        publishedDate=p.published_date.isoformat() if p.published_date else None,
+        displayOrder=p.display_order,
+        isPublished=p.is_published,
+        createdAt=p.created_at,
+        updatedAt=p.updated_at,
+    )
+
+
+@router.get("/social-links", response_model=List[SocialLinkResponse])
+async def get_active_social_links(
+    social_service: SocialLinkService = Depends(get_social_link_service),
+) -> List[SocialLinkResponse]:
+    """Returns all active social links for the public footer."""
+    items = await social_service.list_active()
+    return [
+        SocialLinkResponse(
+            id=s.id,
+            platform=s.platform,
+            url=s.url,
+            displayOrder=s.display_order,
+            isActive=s.is_active,
+            createdAt=s.created_at,
+            updatedAt=s.updated_at,
+        )
+        for s in items
+    ]

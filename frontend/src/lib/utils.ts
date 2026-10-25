@@ -57,19 +57,18 @@ export function getOfficeStatus(
     const currentMinutes = hour * 60 + minute;
 
     const weekdayMap: Record<string, number> = {
-      Sun: 0,
-      Mon: 1,
-      Tue: 2,
-      Wed: 3,
-      Thu: 4,
-      Fri: 5,
-      Sat: 6,
+      Mon: 0,
+      Tue: 1,
+      Wed: 2,
+      Thu: 3,
+      Fri: 4,
+      Sat: 5,
+      Sun: 6,
     };
-    const currentDayIndex = weekdayMap[dayStr] ?? now.getDay();
+    const currentDayIndex = weekdayMap[dayStr] ?? (now.getDay() === 0 ? 6 : now.getDay() - 1);
 
-    const todaySchedule = workingHours.find((h) => h.dayOfWeek === currentDayIndex);
-
-    if (!todaySchedule || !todaySchedule.isOpen || !todaySchedule.openTime || !todaySchedule.closeTime) {
+    const todayItems = workingHours.filter((h) => h.dayOfWeek === currentDayIndex);
+    if (todayItems.length === 0) {
       return {
         isOpen: false,
         statusText: 'Closed Today',
@@ -77,39 +76,71 @@ export function getOfficeStatus(
       };
     }
 
-    const openMinutes = parseTimeToMinutes(todaySchedule.openTime);
-    const closeMinutes = parseTimeToMinutes(todaySchedule.closeTime);
+    // Parse all open blocks for today
+    const blocks: Array<{ start: number; end: number }> = [];
+    for (const item of todayItems) {
+      const isClosed = Boolean(item.isClosed ?? !item.isOpen);
+      if (isClosed) continue;
 
-    // Check lunch/break if defined
-    let isInBreak = false;
-    if (todaySchedule.breakStartTime && todaySchedule.breakEndTime) {
-      const breakStart = parseTimeToMinutes(todaySchedule.breakStartTime);
-      const breakEnd = parseTimeToMinutes(todaySchedule.breakEndTime);
-      if (currentMinutes >= breakStart && currentMinutes < breakEnd) {
-        isInBreak = true;
+      const rawOpen = item.openTime;
+      const rawClose = item.closeTime;
+
+      if (rawOpen && rawClose) {
+        blocks.push({
+          start: parseTimeToMinutes(rawOpen),
+          end: parseTimeToMinutes(rawClose),
+        });
+      } else if (rawOpen && !rawClose) {
+        // May contain comma-separated sub-blocks "08:00 - 12:00, 13:00 - 17:00"
+        const parts = rawOpen.split(',');
+        for (const p of parts) {
+          const sub = p.trim().split(/\s*[-–]\s*/);
+          if (sub.length === 2) {
+            blocks.push({
+              start: parseTimeToMinutes(sub[0]),
+              end: parseTimeToMinutes(sub[1]),
+            });
+          }
+        }
       }
     }
 
-    if (currentMinutes >= openMinutes && currentMinutes < closeMinutes && !isInBreak) {
+    if (blocks.length === 0) {
       return {
-        isOpen: true,
-        statusText: 'Open Now',
-        nextEventText: `Until ${formatMinutesTo12h(closeMinutes)} today`,
+        isOpen: false,
+        statusText: 'Closed Today',
+        nextEventText: '',
       };
     }
 
-    if (currentMinutes < openMinutes) {
+    // Sort blocks chronologically
+    blocks.sort((a, b) => a.start - b.start);
+
+    // Check if open right now in any block
+    for (const block of blocks) {
+      if (currentMinutes >= block.start && currentMinutes < block.end) {
+        return {
+          isOpen: true,
+          statusText: 'Open Now',
+          nextEventText: `Until ${formatMinutesTo12h(block.end)} today`,
+        };
+      }
+    }
+
+    // Check if opens later today
+    const nextBlock = blocks.find((b) => currentMinutes < b.start);
+    if (nextBlock) {
       return {
         isOpen: false,
         statusText: 'Closed Now',
-        nextEventText: `Opens today at ${formatMinutesTo12h(openMinutes)}`,
+        nextEventText: `Opens today at ${formatMinutesTo12h(nextBlock.start)}`,
       };
     }
 
     // Closed for today
     return {
       isOpen: false,
-      statusText: 'Closed Now',
+      statusText: 'Closed Today',
       nextEventText: '',
     };
   } catch {

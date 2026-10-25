@@ -112,6 +112,7 @@ export interface SiteContent {
   status: "loading" | "ready" | "unavailable";
   general: {
     practiceName: string;
+    shortBrandName?: string;
     tagline: string;
     logoUrl?: string | null;
     faviconUrl?: string | null;

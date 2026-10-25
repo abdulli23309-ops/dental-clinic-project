@@ -11,6 +11,7 @@ import {
   Phone,
   Plus,
   Save,
+  Star,
   Trash2,
 } from "lucide-react";
 
@@ -29,19 +30,50 @@ import {
   adminToggleFaqStatus,
   adminUpdateCmsSection,
   adminUpdateFaq,
+  adminUploadMedia,
   FaqItem,
+  // Stage-2: Reviews, Blogs, Social Links
+  adminCreateBlogPost,
+  adminCreateReview,
+  adminCreateSocialLink,
+  adminDeleteBlogPost,
+  adminDeleteReview,
+  adminDeleteSocialLink,
+  adminListBlogPosts,
+  adminListReviews,
+  adminListSocialLinks,
+  adminUpdateBlogPost,
+  adminUpdateReview,
+  adminUpdateSocialLink,
+  BlogPost,
+  Review,
+  SocialLink,
+  getSiteContent,
 } from "@/lib/api";
+import { usePublicContent } from "@/components/providers/public-content-provider";
 
-type SectionTab = "general" | "homepage" | "about" | "contact" | "faq" | "seo";
+type SectionTab =
+  | "general"
+  | "homepage"
+  | "about"
+  | "contact"
+  | "faq"
+  | "seo"
+  | "success-stories"
+  | "blogs"
+  | "social-links";
 
 export default function AdminWebsitePage() {
   const { accessToken } = useAuth();
+  const { refreshPublicContent } = usePublicContent();
   const [activeTab, setActiveTab] = useState<SectionTab>("general");
 
   // Form states per section
   const [generalData, setGeneralData] = useState<any>({
     practiceName: "",
+    shortBrandName: "",
     tagline: "",
+    logoUrl: "",
     phone: "",
     email: "",
     address: "",
@@ -56,6 +88,7 @@ export default function AdminWebsitePage() {
     heroCtaLink: "",
     heroSecondaryCtaText: "",
     heroSecondaryCtaLink: "",
+    heroImageUrl: "",
   });
 
   const [aboutData, setAboutData] = useState<any>({
@@ -84,8 +117,58 @@ export default function AdminWebsitePage() {
   const [newFaq, setNewFaq] = useState({ category: "pricing", question: "", answer: "" });
   const [showAddFaq, setShowAddFaq] = useState(false);
 
-  const [isLoading, setIsLoading] = useState(true);
+  // Stage-2: Success Stories form state
+  const [reviewForm, setReviewForm] = useState<{
+    authorName: string;
+    rating: number;
+    text: string;
+    sourceLabel: string;
+    displayOrder: number;
+    isPublished: boolean;
+  }>({
+    authorName: "",
+    rating: 5,
+    text: "",
+    sourceLabel: "",
+    displayOrder: 0,
+    isPublished: true,
+  });
+
+  const [blogForm, setBlogForm] = useState<{
+    title: string;
+    slug: string;
+    excerpt: string;
+    body: string;
+    displayOrder: number;
+    isPublished: boolean;
+  }>({
+    title: "",
+    slug: "",
+    excerpt: "",
+    body: "",
+    displayOrder: 0,
+    isPublished: false,
+  });
+
+  // Stage-2: Social Links form state
+  const [socialForm, setSocialForm] = useState<{
+    platform: string;
+    url: string;
+    displayOrder: number;
+    isActive: boolean;
+  }>({
+    platform: "",
+    url: "",
+    displayOrder: 0,
+    isActive: true,
+  });
+
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
+  const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -98,6 +181,15 @@ export default function AdminWebsitePage() {
         if (activeTab === "faq") {
           const faqList = await adminGetFaqs(accessToken);
           setFaqs(faqList);
+        } else if (activeTab === "success-stories") {
+          const reviewList = await adminListReviews(accessToken);
+          setReviews(reviewList);
+        } else if (activeTab === "blogs") {
+          const blogList = await adminListBlogPosts(accessToken);
+          setBlogPosts(blogList);
+        } else if (activeTab === "social-links") {
+          const socialList = await adminListSocialLinks(accessToken);
+          setSocialLinks(socialList);
         } else {
           const data = await adminGetCmsSection(activeTab, accessToken);
           if (activeTab === "general") setGeneralData(data);
@@ -124,12 +216,54 @@ export default function AdminWebsitePage() {
 
     try {
       await adminUpdateCmsSection(sectionKey, payload, accessToken);
-      setSaveSuccess(`Website ${sectionKey} section updated successfully.`);
+      // Trigger client provider re-fetch and broadcast to other open tabs
+      await refreshPublicContent();
+
+      // Verify that the public endpoint responds with updated content
+      let isLive = false;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        try {
+          const publicData = await getSiteContent();
+          if (publicData) {
+            isLive = true;
+            break;
+          }
+        } catch {
+          // Retry verification
+        }
+        await new Promise((r) => setTimeout(r, 150));
+      }
+
+      setSaveSuccess(isLive ? "Saved. Live on the website now." : `Website ${sectionKey} section updated successfully.`);
       setTimeout(() => setSaveSuccess(null), 4000);
     } catch (err: any) {
       setSaveError(err.message || `Failed to update ${sectionKey} section.`);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleUploadImage = async (
+    file: File,
+    field: "logoUrl" | "heroImageUrl",
+    section: "general" | "homepage"
+  ) => {
+    if (!accessToken) return;
+    setIsUploading(true);
+    setSaveError(null);
+    try {
+      const { url } = await adminUploadMedia(file, accessToken);
+      if (section === "general") {
+        setGeneralData((prev: any) => ({ ...prev, [field]: url }));
+      } else {
+        setHomepageData((prev: any) => ({ ...prev, [field]: url }));
+      }
+      setSaveSuccess("Image uploaded. Click Save to persist the change.");
+      setTimeout(() => setSaveSuccess(null), 4000);
+    } catch (err: any) {
+      setSaveError(err.message || "Image upload failed.");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -187,6 +321,152 @@ export default function AdminWebsitePage() {
     }
   };
 
+  // Review Handlers
+  const handleAddReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!accessToken || !reviewForm.authorName.trim() || !reviewForm.text.trim()) return;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      await adminCreateReview(
+        {
+          authorName: reviewForm.authorName.trim(),
+          rating: Number(reviewForm.rating),
+          text: reviewForm.text.trim(),
+          sourceLabel: reviewForm.sourceLabel.trim() || "Google",
+          isPublished: reviewForm.isPublished,
+          displayOrder: reviews.length,
+        },
+        accessToken
+      );
+      setReviewForm({
+        authorName: "",
+        rating: 5,
+        text: "",
+        sourceLabel: "",
+        displayOrder: 0,
+        isPublished: true,
+      });
+      const updated = await adminListReviews(accessToken);
+      setReviews(updated);
+      setSaveSuccess("Review created successfully.");
+      setTimeout(() => setSaveSuccess(null), 4000);
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to create review.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteReview = async (id: string) => {
+    if (!accessToken) return;
+    try {
+      await adminDeleteReview(id, accessToken);
+      const updated = await adminListReviews(accessToken);
+      setReviews(updated);
+      setSaveSuccess("Review deleted successfully.");
+      setTimeout(() => setSaveSuccess(null), 4000);
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to delete review.");
+    }
+  };
+
+  // Blog Handlers
+  const handleAddBlog = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!accessToken || !blogForm.title.trim() || !blogForm.slug.trim()) return;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      await adminCreateBlogPost(
+        {
+          title: blogForm.title.trim(),
+          slug: blogForm.slug.trim(),
+          excerpt: blogForm.excerpt.trim() || undefined,
+          body: blogForm.body.trim() || undefined,
+          isPublished: blogForm.isPublished,
+          displayOrder: blogPosts.length,
+        },
+        accessToken
+      );
+      setBlogForm({
+        title: "",
+        slug: "",
+        excerpt: "",
+        body: "",
+        displayOrder: 0,
+        isPublished: false,
+      });
+      const updated = await adminListBlogPosts(accessToken);
+      setBlogPosts(updated);
+      setSaveSuccess("Blog post created successfully.");
+      setTimeout(() => setSaveSuccess(null), 4000);
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to create blog post.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteBlog = async (id: string) => {
+    if (!accessToken) return;
+    try {
+      await adminDeleteBlogPost(id, accessToken);
+      const updated = await adminListBlogPosts(accessToken);
+      setBlogPosts(updated);
+      setSaveSuccess("Blog post deleted successfully.");
+      setTimeout(() => setSaveSuccess(null), 4000);
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to delete blog post.");
+    }
+  };
+
+  // Social Link Handlers
+  const handleAddSocial = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!accessToken || !socialForm.platform.trim() || !socialForm.url.trim()) return;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      await adminCreateSocialLink(
+        {
+          platform: socialForm.platform.trim().toLowerCase(),
+          url: socialForm.url.trim(),
+          displayOrder: socialLinks.length,
+          isActive: socialForm.isActive,
+        },
+        accessToken
+      );
+      setSocialForm({
+        platform: "",
+        url: "",
+        displayOrder: 0,
+        isActive: true,
+      });
+      const updated = await adminListSocialLinks(accessToken);
+      setSocialLinks(updated);
+      setSaveSuccess("Social link added successfully.");
+      setTimeout(() => setSaveSuccess(null), 4000);
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to add social link.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteSocial = async (id: string) => {
+    if (!accessToken) return;
+    try {
+      await adminDeleteSocialLink(id, accessToken);
+      const updated = await adminListSocialLinks(accessToken);
+      setSocialLinks(updated);
+      setSaveSuccess("Social link deleted successfully.");
+      setTimeout(() => setSaveSuccess(null), 4000);
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to delete social link.");
+    }
+  };
+
   return (
   <AnimatedPage>
     <div className="space-y-6 max-w-5xl">
@@ -232,10 +512,159 @@ export default function AdminWebsitePage() {
           { id: "contact", label: "Contact & Hours", icon: Phone },
           { id: "faq", label: "FAQ Items", icon: HelpCircle },
           { id: "seo", label: "Search & SEO", icon: MessageSquare },
+          { id: "success-stories", label: "Success Stories", icon: Check },
+          { id: "blogs", label: "Blogs", icon: Layers },
+          { id: "social-links", label: "Social Links", icon: Globe },
         ].map((tab) => {
           const isActive = activeTab === tab.id;
           const Icon = tab.icon;
-          return (
+          // Review Handlers
+  const handleAddReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!accessToken || !reviewForm.authorName.trim() || !reviewForm.text.trim()) return;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      await adminCreateReview(
+        {
+          authorName: reviewForm.authorName.trim(),
+          rating: Number(reviewForm.rating),
+          text: reviewForm.text.trim(),
+          sourceLabel: reviewForm.sourceLabel.trim() || "Google",
+          isPublished: reviewForm.isPublished,
+          displayOrder: reviews.length,
+        },
+        accessToken
+      );
+      setReviewForm({
+        authorName: "",
+        rating: 5,
+        text: "",
+        sourceLabel: "",
+        displayOrder: 0,
+        isPublished: true,
+      });
+      const updated = await adminListReviews(accessToken);
+      setReviews(updated);
+      setSaveSuccess("Review created successfully.");
+      setTimeout(() => setSaveSuccess(null), 4000);
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to create review.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteReview = async (id: string) => {
+    if (!accessToken) return;
+    try {
+      await adminDeleteReview(id, accessToken);
+      const updated = await adminListReviews(accessToken);
+      setReviews(updated);
+      setSaveSuccess("Review deleted successfully.");
+      setTimeout(() => setSaveSuccess(null), 4000);
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to delete review.");
+    }
+  };
+
+  // Blog Handlers
+  const handleAddBlog = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!accessToken || !blogForm.title.trim() || !blogForm.slug.trim()) return;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      await adminCreateBlogPost(
+        {
+          title: blogForm.title.trim(),
+          slug: blogForm.slug.trim(),
+          excerpt: blogForm.excerpt.trim() || undefined,
+          body: blogForm.body.trim() || undefined,
+          isPublished: blogForm.isPublished,
+          displayOrder: blogPosts.length,
+        },
+        accessToken
+      );
+      setBlogForm({
+        title: "",
+        slug: "",
+        excerpt: "",
+        body: "",
+        displayOrder: 0,
+        isPublished: false,
+      });
+      const updated = await adminListBlogPosts(accessToken);
+      setBlogPosts(updated);
+      setSaveSuccess("Blog post created successfully.");
+      setTimeout(() => setSaveSuccess(null), 4000);
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to create blog post.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteBlog = async (id: string) => {
+    if (!accessToken) return;
+    try {
+      await adminDeleteBlogPost(id, accessToken);
+      const updated = await adminListBlogPosts(accessToken);
+      setBlogPosts(updated);
+      setSaveSuccess("Blog post deleted successfully.");
+      setTimeout(() => setSaveSuccess(null), 4000);
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to delete blog post.");
+    }
+  };
+
+  // Social Link Handlers
+  const handleAddSocial = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!accessToken || !socialForm.platform.trim() || !socialForm.url.trim()) return;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      await adminCreateSocialLink(
+        {
+          platform: socialForm.platform.trim().toLowerCase(),
+          url: socialForm.url.trim(),
+          displayOrder: socialLinks.length,
+          isActive: socialForm.isActive,
+        },
+        accessToken
+      );
+      setSocialForm({
+        platform: "",
+        url: "",
+        displayOrder: 0,
+        isActive: true,
+      });
+      const updated = await adminListSocialLinks(accessToken);
+      setSocialLinks(updated);
+      setSaveSuccess("Social link added successfully.");
+      setTimeout(() => setSaveSuccess(null), 4000);
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to add social link.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteSocial = async (id: string) => {
+    if (!accessToken) return;
+    try {
+      await adminDeleteSocialLink(id, accessToken);
+      const updated = await adminListSocialLinks(accessToken);
+      setSocialLinks(updated);
+      setSaveSuccess("Social link deleted successfully.");
+      setTimeout(() => setSaveSuccess(null), 4000);
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to delete social link.");
+    }
+  };
+
+  return (
             <button
               key={tab.id}
               role="tab"
@@ -277,35 +706,43 @@ export default function AdminWebsitePage() {
                   label="Practice Name"
                   value={generalData.practiceName || ""}
                   onChange={(e) => setGeneralData({ ...generalData, practiceName: e.target.value })}
-                  placeholder="Marlow Dental"
+                  placeholder="Your Clinic Name"
+                />
+                <TextField
+                  id="short-brand-name"
+                  label="Short Brand Name (Navbar, max 24 chars)"
+                  value={generalData.shortBrandName || ""}
+                  maxLength={24}
+                  onChange={(e) => setGeneralData({ ...generalData, shortBrandName: e.target.value.slice(0, 24) })}
+                  placeholder="e.g. Marlow Dental"
                 />
                 <TextField
                   id="general-tagline"
                   label="Tagline"
                   value={generalData.tagline || ""}
                   onChange={(e) => setGeneralData({ ...generalData, tagline: e.target.value })}
-                  placeholder="Comprehensive, unhurried dental care..."
+                  placeholder="Your clinic tagline..."
                 />
                 <TextField
                   id="general-phone"
                   label="Clinic Telephone"
                   value={generalData.phone || ""}
                   onChange={(e) => setGeneralData({ ...generalData, phone: e.target.value })}
-                  placeholder="(312) 555-0147"
+                  placeholder="(000) 000-0000"
                 />
                 <TextField
                   id="general-emergency-phone"
                   label="Emergency Telephone"
                   value={generalData.emergencyPhone || ""}
                   onChange={(e) => setGeneralData({ ...generalData, emergencyPhone: e.target.value })}
-                  placeholder="(312) 555-0199"
+                  placeholder="(000) 000-0001"
                 />
                 <TextField
                   id="general-email"
                   label="Contact Email"
                   value={generalData.email || ""}
                   onChange={(e) => setGeneralData({ ...generalData, email: e.target.value })}
-                  placeholder="care@marlowdental.com"
+                  placeholder="clinic@example.com"
                 />
                 <TextField
                   id="general-address"
@@ -314,6 +751,39 @@ export default function AdminWebsitePage() {
                   onChange={(e) => setGeneralData({ ...generalData, address: e.target.value })}
                   placeholder="e.g. Clinic Address"
                 />
+              </div>
+
+              {/* Logo Upload */}
+              <div>
+                <label className="block text-xs font-medium text-ink mb-1.5">
+                  Clinic Logo
+                </label>
+                <div className="flex items-center gap-3">
+                  {generalData.logoUrl && (
+                    <img
+                      src={generalData.logoUrl}
+                      alt="Current logo"
+                      className="h-10 w-10 rounded-lg object-contain border border-line bg-bone"
+                    />
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={isUploading}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleUploadImage(file, "logoUrl", "general");
+                      e.target.value = "";
+                    }}
+                    className="block text-xs text-ink-soft file:mr-3 file:rounded-full file:border file:border-line file:bg-bone file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-ink file:cursor-pointer hover:file:bg-sand/60 disabled:opacity-50"
+                  />
+                  {isUploading && (
+                    <span className="text-xs text-ink-soft">Uploading…</span>
+                  )}
+                </div>
+                {generalData.logoUrl && (
+                  <p className="mt-1 text-[11px] text-ink-soft/70 truncate">{generalData.logoUrl}</p>
+                )}
               </div>
 
               <div className="pt-4 border-t border-line/60 flex justify-end">
@@ -385,6 +855,39 @@ export default function AdminWebsitePage() {
                     onChange={(e) => setHomepageData({ ...homepageData, heroSecondaryCtaLink: e.target.value })}
                   />
                 </div>
+              </div>
+
+              {/* Hero Image Upload */}
+              <div>
+                <label className="block text-xs font-medium text-ink mb-1.5">
+                  Hero Image
+                </label>
+                <div className="flex items-center gap-3">
+                  {homepageData.heroImageUrl && (
+                    <img
+                      src={homepageData.heroImageUrl}
+                      alt="Current hero"
+                      className="h-16 w-24 rounded-lg object-cover border border-line bg-bone"
+                    />
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={isUploading}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleUploadImage(file, "heroImageUrl", "homepage");
+                      e.target.value = "";
+                    }}
+                    className="block text-xs text-ink-soft file:mr-3 file:rounded-full file:border file:border-line file:bg-bone file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-ink file:cursor-pointer hover:file:bg-sand/60 disabled:opacity-50"
+                  />
+                  {isUploading && (
+                    <span className="text-xs text-ink-soft">Uploading…</span>
+                  )}
+                </div>
+                {homepageData.heroImageUrl && (
+                  <p className="mt-1 text-[11px] text-ink-soft/70 truncate">{homepageData.heroImageUrl}</p>
+                )}
               </div>
 
               <div className="pt-4 border-t border-line/60 flex justify-end">
@@ -712,6 +1215,399 @@ export default function AdminWebsitePage() {
                 </Button>
               </div>
             </Card>
+          )}
+
+          {/* 7. SUCCESS STORIES (REVIEWS) SECTION */}
+          {activeTab === "success-stories" && (
+            <div className="space-y-6">
+              <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-5" hoverLift={false} index={7}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-display text-ink">Add New Review (Success Story)</h2>
+                    <p className="text-xs text-ink-soft">Add patient testimonials and external reviews.</p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleAddReview} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <TextField
+                      id="review-author"
+                      label="Author Name"
+                      value={reviewForm.authorName}
+                      onChange={(e) => setReviewForm({ ...reviewForm, authorName: e.target.value })}
+                      placeholder="e.g. Jane D."
+                      required
+                    />
+
+                    <div>
+                      <label htmlFor="review-rating" className="block text-xs font-medium text-ink mb-1.5">
+                        Rating (1-5)
+                      </label>
+                      <select
+                        id="review-rating"
+                        value={reviewForm.rating}
+                        onChange={(e) => setReviewForm({ ...reviewForm, rating: Number(e.target.value) })}
+                        className="w-full rounded-[var(--radius-card)] border border-line bg-bone px-3.5 py-2 text-xs text-ink"
+                      >
+                        <option value={5}>5 Stars - Excellent</option>
+                        <option value={4}>4 Stars - Great</option>
+                        <option value={3}>3 Stars - Good</option>
+                        <option value={2}>2 Stars - Fair</option>
+                        <option value={1}>1 Star - Poor</option>
+                      </select>
+                    </div>
+
+                    <TextField
+                      id="review-source"
+                      label="Source Label"
+                      value={reviewForm.sourceLabel}
+                      onChange={(e) => setReviewForm({ ...reviewForm, sourceLabel: e.target.value })}
+                      placeholder="e.g. Google, Yelp, Direct"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="review-text" className="block text-xs font-medium text-ink mb-1.5">
+                      Review Text
+                    </label>
+                    <textarea
+                      id="review-text"
+                      rows={3}
+                      value={reviewForm.text}
+                      onChange={(e) => setReviewForm({ ...reviewForm, text: e.target.value })}
+                      placeholder="Write patient testimonial or review quote..."
+                      required
+                      className="w-full rounded-[var(--radius-card)] border border-line bg-bone px-3.5 py-2.5 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-forest"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-ink">
+                      <input
+                        type="checkbox"
+                        checked={reviewForm.isPublished}
+                        onChange={(e) => setReviewForm({ ...reviewForm, isPublished: e.target.checked })}
+                        className="rounded border-line text-forest focus:ring-forest"
+                      />
+                      <span>Publish immediately</span>
+                    </label>
+
+                    <Button type="submit" variant="primary" size="sm" disabled={isSaving}>
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      <span>{isSaving ? "Saving..." : "Add Review"}</span>
+                    </Button>
+                  </div>
+                </form>
+              </Card>
+
+              {/* Reviews List */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-ink">Existing Reviews ({reviews.length})</h3>
+                {reviews.length === 0 ? (
+                  <p className="text-xs text-ink-soft py-4 text-center">No reviews added yet.</p>
+                ) : (
+                  reviews.map((rev) => (
+                    <Card
+                      key={rev.id}
+                      surface={rev.isPublished ? "cream" : "sand"}
+                      shadow="subtle"
+                      className="p-5 flex flex-col sm:flex-row sm:items-start justify-between gap-4"
+                      hoverLift={true}
+                    >
+                      <div className="space-y-1.5 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm text-ink">{rev.authorName}</span>
+                          <span className="flex items-center text-amber-500 text-xs font-semibold">
+                            <Star className="h-3 w-3 fill-amber-400 stroke-amber-500 mr-0.5" />
+                            {rev.rating}/5
+                          </span>
+                          {rev.sourceLabel && (
+                            <span className="rounded-full bg-forest/10 px-2 py-0.5 text-[10px] font-semibold text-forest">
+                              {rev.sourceLabel}
+                            </span>
+                          )}
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                              rev.isPublished
+                                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                            }`}
+                          >
+                            {rev.isPublished ? "Published" : "Draft"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-ink-soft leading-relaxed">{rev.text}</p>
+                      </div>
+
+                      <Button
+                        onClick={() => handleDeleteReview(rev.id)}
+                        variant="secondary"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-1" />
+                        <span>Delete</span>
+                      </Button>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 8. BLOGS SECTION */}
+          {activeTab === "blogs" && (
+            <div className="space-y-6">
+              <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-5" hoverLift={false} index={8}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-display text-ink">Add New Blog Post</h2>
+                    <p className="text-xs text-ink-soft">Create educational and clinical blog articles.</p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleAddBlog} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <TextField
+                      id="blog-title"
+                      label="Post Title"
+                      value={blogForm.title}
+                      onChange={(e) => {
+                        const title = e.target.value;
+                        const slug = title
+                          .toLowerCase()
+                          .replace(/[^a-z0-9]+/g, "-")
+                          .replace(/^-|-$/g, "");
+                        setBlogForm({ ...blogForm, title, slug: blogForm.slug ? blogForm.slug : slug });
+                      }}
+                      placeholder="e.g. Modern Preventive Dental Care"
+                      required
+                    />
+
+                    <TextField
+                      id="blog-slug"
+                      label="URL Slug"
+                      value={blogForm.slug}
+                      onChange={(e) => setBlogForm({ ...blogForm, slug: e.target.value })}
+                      placeholder="e.g. modern-preventive-dental-care"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="blog-excerpt" className="block text-xs font-medium text-ink mb-1.5">
+                      Excerpt / Summary
+                    </label>
+                    <textarea
+                      id="blog-excerpt"
+                      rows={2}
+                      value={blogForm.excerpt}
+                      onChange={(e) => setBlogForm({ ...blogForm, excerpt: e.target.value })}
+                      placeholder="Short synopsis shown in blog cards..."
+                      className="w-full rounded-[var(--radius-card)] border border-line bg-bone px-3.5 py-2.5 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-forest"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="blog-body" className="block text-xs font-medium text-ink mb-1.5">
+                      Article Body
+                    </label>
+                    <textarea
+                      id="blog-body"
+                      rows={6}
+                      value={blogForm.body}
+                      onChange={(e) => setBlogForm({ ...blogForm, body: e.target.value })}
+                      placeholder="Full article content..."
+                      className="w-full rounded-[var(--radius-card)] border border-line bg-bone px-3.5 py-2.5 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-forest"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-ink">
+                      <input
+                        type="checkbox"
+                        checked={blogForm.isPublished}
+                        onChange={(e) => setBlogForm({ ...blogForm, isPublished: e.target.checked })}
+                        className="rounded border-line text-forest focus:ring-forest"
+                      />
+                      <span>Publish immediately</span>
+                    </label>
+
+                    <Button type="submit" variant="primary" size="sm" disabled={isSaving}>
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      <span>{isSaving ? "Saving..." : "Add Blog Post"}</span>
+                    </Button>
+                  </div>
+                </form>
+              </Card>
+
+              {/* Blog Posts List */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-ink">Existing Blog Posts ({blogPosts.length})</h3>
+                {blogPosts.length === 0 ? (
+                  <p className="text-xs text-ink-soft py-4 text-center">No blog posts added yet.</p>
+                ) : (
+                  blogPosts.map((post) => (
+                    <Card
+                      key={post.id}
+                      surface={post.isPublished ? "cream" : "sand"}
+                      shadow="subtle"
+                      className="p-5 flex flex-col sm:flex-row sm:items-start justify-between gap-4"
+                      hoverLift={true}
+                    >
+                      <div className="space-y-1.5 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-medium text-sm text-ink">{post.title}</h4>
+                          <span className="font-mono text-[10px] text-ink-soft bg-muted px-2 py-0.5 rounded">
+                            /{post.slug}
+                          </span>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                              post.isPublished
+                                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                            }`}
+                          >
+                            {post.isPublished ? "Published" : "Draft"}
+                          </span>
+                        </div>
+                        {post.excerpt && <p className="text-xs text-ink-soft leading-relaxed">{post.excerpt}</p>}
+                      </div>
+
+                      <Button
+                        onClick={() => handleDeleteBlog(post.id)}
+                        variant="secondary"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-1" />
+                        <span>Delete</span>
+                      </Button>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 9. SOCIAL LINKS SECTION */}
+          {activeTab === "social-links" && (
+            <div className="space-y-6">
+              <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-5" hoverLift={false} index={9}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-display text-ink">Add Social Link</h2>
+                    <p className="text-xs text-ink-soft">Link clinic profiles (Instagram, Facebook, Google, etc.).</p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleAddSocial} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="social-platform" className="block text-xs font-medium text-ink mb-1.5">
+                        Platform Name
+                      </label>
+                      <select
+                        id="social-platform"
+                        value={socialForm.platform}
+                        onChange={(e) => setSocialForm({ ...socialForm, platform: e.target.value })}
+                        required
+                        className="w-full rounded-[var(--radius-card)] border border-line bg-bone px-3.5 py-2 text-xs text-ink"
+                      >
+                        <option value="">Select a platform...</option>
+                        <option value="google">Google</option>
+                        <option value="facebook">Facebook</option>
+                        <option value="instagram">Instagram</option>
+                        <option value="twitter">Twitter / X</option>
+                        <option value="linkedin">LinkedIn</option>
+                        <option value="youtube">YouTube</option>
+                        <option value="yelp">Yelp</option>
+                        <option value="tiktok">TikTok</option>
+                      </select>
+                    </div>
+
+                    <TextField
+                      id="social-url"
+                      label="URL (must start with https://)"
+                      value={socialForm.url}
+                      onChange={(e) => setSocialForm({ ...socialForm, url: e.target.value })}
+                      placeholder="https://instagram.com/yourclinic"
+                      required
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-ink">
+                      <input
+                        type="checkbox"
+                        checked={socialForm.isActive}
+                        onChange={(e) => setSocialForm({ ...socialForm, isActive: e.target.checked })}
+                        className="rounded border-line text-forest focus:ring-forest"
+                      />
+                      <span>Active on public website</span>
+                    </label>
+
+                    <Button type="submit" variant="primary" size="sm" disabled={isSaving}>
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      <span>{isSaving ? "Saving..." : "Add Social Link"}</span>
+                    </Button>
+                  </div>
+                </form>
+              </Card>
+
+              {/* Social Links List */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-ink">Existing Social Links ({socialLinks.length})</h3>
+                {socialLinks.length === 0 ? (
+                  <p className="text-xs text-ink-soft py-4 text-center">No social links configured yet.</p>
+                ) : (
+                  socialLinks.map((link) => (
+                    <Card
+                      key={link.id}
+                      surface={link.isActive ? "cream" : "sand"}
+                      shadow="subtle"
+                      className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                      hoverLift={true}
+                    >
+                      <div className="space-y-1 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-xs text-ink uppercase tracking-wider">
+                            {link.platform}
+                          </span>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                              link.isActive
+                                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                            }`}
+                          >
+                            {link.isActive ? "Active" : "Inactive"}
+                          </span>
+                        </div>
+                        <a
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-forest hover:underline break-all"
+                        >
+                          {link.url}
+                        </a>
+                      </div>
+
+                      <Button
+                        onClick={() => handleDeleteSocial(link.id)}
+                        variant="secondary"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-1" />
+                        <span>Delete</span>
+                      </Button>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </div>
           )}
         </AnimatedView>
       )}

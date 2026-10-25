@@ -16,6 +16,7 @@ import {
   WorkingHoursItem,
 } from '@/lib/api';
 import { DEFAULT_CURRENCY } from '@/lib/currency';
+import { SupportedLocale, getUiCopy, UiCopyDictionary } from '@/content/ui-copy';
 
 export type PublicContentStatus = 'loading' | 'ready' | 'unavailable';
 
@@ -23,6 +24,7 @@ const EMPTY_SITE_CONTENT: SiteContent = {
   status: 'loading',
   general: {
     practiceName: '',
+    shortBrandName: '',
     tagline: '',
     logoUrl: null,
     faviconUrl: null,
@@ -88,6 +90,9 @@ interface PublicContentContextType {
   team: TeamMember[];
   director: TeamMember | null;
   currency: { code: string; symbol: string; timezone: string };
+  locale: SupportedLocale;
+  setLocale: (locale: SupportedLocale) => void;
+  copy: UiCopyDictionary;
   isLoading: boolean;
   isUnavailable: boolean;
   retry: () => Promise<void>;
@@ -104,6 +109,38 @@ export function PublicContentProvider({ children }: { children: React.ReactNode 
   const [locations, setLocations] = useState<LocationItem[]>([]);
   const [workingHours, setWorkingHours] = useState<WorkingHoursItem[]>([]);
   const [team, setTeam] = useState<TeamMember[]>([]);
+  const [locale, setLocaleState] = useState<SupportedLocale>('en');
+
+  const setLocale = (newLocale: SupportedLocale) => {
+    setLocaleState(newLocale);
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = newLocale;
+      document.documentElement.dir = newLocale === 'ur' ? 'rtl' : 'ltr';
+      try {
+        localStorage.setItem('marlow_locale_preference', newLocale);
+      } catch {}
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('marlow_locale_preference') as SupportedLocale;
+        if (saved && (saved === 'en' || saved === 'ur') && saved !== locale) {
+          setLocaleState(saved);
+        }
+      } catch {}
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = locale;
+      document.documentElement.dir = locale === 'ur' ? 'rtl' : 'ltr';
+    }
+  }, [locale]);
+
+  const copy = getUiCopy(locale);
 
   const loadData = async () => {
     setStatus('loading');
@@ -152,11 +189,65 @@ export function PublicContentProvider({ children }: { children: React.ReactNode 
     }
   };
 
+  const refreshPublicContent = async () => {
+    await loadData();
+    if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+      try {
+        const channel = new BroadcastChannel("marlow_content_sync");
+        channel.postMessage({ type: "REFRESH_PUBLIC_CONTENT", timestamp: Date.now() });
+        channel.close();
+      } catch {
+        // BroadcastChannel unavailable
+      }
+    }
+  };
+
   useEffect(() => {
-    const init = async () => {
-      await loadData();
+    let mounted = true;
+
+    const runLoad = async () => {
+      if (mounted) await loadData();
     };
-    init();
+
+    runLoad();
+
+    // 1. Re-fetch on window focus
+    const handleFocus = () => {
+      runLoad();
+    };
+    window.addEventListener("focus", handleFocus);
+
+    // 2. Re-fetch on visibility change (tab switch back)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        runLoad();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // 3. Cross-tab synchronization via BroadcastChannel
+    let channel: BroadcastChannel | null = null;
+    if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+      try {
+        channel = new BroadcastChannel("marlow_content_sync");
+        channel.onmessage = (event) => {
+          if (event.data?.type === "REFRESH_PUBLIC_CONTENT") {
+            runLoad();
+          }
+        };
+      } catch {
+        channel = null;
+      }
+    }
+
+    return () => {
+      mounted = false;
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (channel) {
+        channel.close();
+      }
+    };
   }, []);
 
   // Dynamically inject CSS variables from database Organization theming settings safely
@@ -227,10 +318,13 @@ export function PublicContentProvider({ children }: { children: React.ReactNode 
         team,
         director,
         currency,
+        locale,
+        setLocale,
+        copy,
         isLoading: status === 'loading',
         isUnavailable: status === 'unavailable',
         retry: loadData,
-        refreshPublicContent: loadData,
+        refreshPublicContent,
       }}
     >
       {children}

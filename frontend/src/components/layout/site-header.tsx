@@ -9,7 +9,6 @@ import { SearchDialog } from "@/components/ui/search-dialog";
 import { MobileMenu } from "@/components/layout/mobile-menu";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 import { AnnouncementMarquee } from "@/components/ui/announcement-marquee";
-import { getUiCopy } from "@/content/ui-copy";
 import { getServices, ServiceItem } from "@/lib/api";
 
 export interface SiteHeaderProps {
@@ -17,23 +16,41 @@ export interface SiteHeaderProps {
 }
 
 export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
-  const { content, primaryLocation, organization, isUnavailable, retry, status } =
-    usePublicContent();
+  const {
+    content,
+    primaryLocation,
+    organization,
+    isUnavailable,
+    retry,
+    status,
+    locale,
+    setLocale,
+    copy,
+  } = usePublicContent();
   const [isScrolled, setIsScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [servicesMenuOpen, setServicesMenuOpen] = useState(false);
   const [services, setServices] = useState<ServiceItem[]>([]);
 
-  const copy = getUiCopy("en");
-
-  const practiceName =
+  const brandName =
+    content.general?.shortBrandName?.trim() ||
+    content.general?.practiceName ||
     organization?.displayName ||
     organization?.name ||
-    content.general?.practiceName ||
     "";
-  const phone = content.general?.phone || primaryLocation?.phone || "";
-  const cleanPhone = phone.replace(/[^0-9+]/g, "");
+  const practiceName =
+    content.general?.practiceName ||
+    organization?.displayName ||
+    organization?.name ||
+    "";
+  const tagline = content.general?.tagline || organization?.tagline || "";
+  const logoUrl = content.general?.logoUrl || organization?.logoUrl || null;
+  const phone =
+    content.general?.phone ||
+    primaryLocation?.phone ||
+    organization?.contactPhone ||
+    "";
 
   useEffect(() => {
     let mounted = true;
@@ -88,61 +105,76 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
       <header
         className={`sticky top-0 z-50 border-b transition-all duration-300 ${
           isScrolled
-            ? "border-gray-200 dark:border-gray-800 bg-white/95 dark:bg-gray-950/95 backdrop-blur-md shadow-sm py-2.5"
-            : "border-gray-200/80 dark:border-gray-800/80 bg-white/90 dark:bg-gray-950/90 backdrop-blur-sm py-4"
+            ? "border-gray-200/80 dark:border-gray-800/80 bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl shadow-sm py-2.5"
+            : "border-transparent bg-white/40 dark:bg-gray-950/40 backdrop-blur-sm py-4"
         }`}
       >
-        <div className="container-x flex items-center justify-between">
+        <div className="container-x px-4 sm:px-6 lg:px-6 xl:px-8 flex items-center justify-between gap-3 xl:gap-6 flex-nowrap">
           <Link
             href="/"
-            className="group flex items-center gap-2.5 transition-transform active:scale-[0.98]"
-            aria-label={practiceName ? `${practiceName} Homepage` : "Homepage"}
+            className="group flex items-center gap-2.5 transition-transform active:scale-[0.98] shrink-0 whitespace-nowrap"
+            aria-label={brandName ? `${brandName} Homepage` : "Homepage"}
           >
-            <span className="grid h-8 w-8 place-items-center rounded-full bg-primary text-white shadow-subtle group-hover:brightness-90 transition-all">
-              <svg
-                viewBox="0 0 24 24"
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-              >
-                <path d="M12 4c-2.5 0-3.2 1.2-4.6 1.2C6 5.2 4.5 6.6 4.5 9.2c0 3.4 1.7 6 2.6 8.6.6 1.7 1 3 2.1 3 1.2 0 1.3-1.6 1.5-3.3.15-1.4.5-2.5 1.3-2.5s1.15 1.1 1.3 2.5c.2 1.7.3 3.3 1.5 3.3 1.1 0 1.5-1.3 2.1-3 .9-2.6 2.6-5.2 2.6-8.6 0-2.6-1.5-4-2.9-4C15.2 5.2 14.5 4 12 4Z" />
-              </svg>
-            </span>
-            {practiceName ? (
-              <span className="font-display text-[19px] tracking-tight text-gray-900 dark:text-white leading-none">
-                {practiceName}
+            {logoUrl ? (
+              <img
+                src={logoUrl}
+                alt={brandName || "Clinic Logo"}
+                className="h-8 w-8 rounded-full object-contain border border-line bg-bone shrink-0"
+              />
+            ) : (
+              <span className="grid h-8 w-8 place-items-center rounded-full bg-primary text-white shadow-subtle group-hover:brightness-90 transition-all shrink-0">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                >
+                  <path d="M12 4c-2.5 0-3.2 1.2-4.6 1.2C6 5.2 4.5 6.6 4.5 9.2c0 3.4 1.7 6 2.6 8.6.6 1.7 1 3 2.1 3 1.2 0 1.3-1.6 1.5-3.3.15-1.4.5-2.5 1.3-2.5s1.15 1.1 1.3 2.5c.2 1.7.3 3.3 1.5 3.3 1.1 0 1.5-1.3 2.1-3 .9-2.6 2.6-5.2 2.6-8.6 0-2.6-1.5-4-2.9-4C15.2 5.2 14.5 4 12 4Z" />
+                </svg>
               </span>
-            ) : null}
+            )}
+            <div className="flex flex-col shrink-0">
+              {brandName ? (
+                <span className="font-display text-[17px] sm:text-[18px] tracking-tight text-gray-900 dark:text-white leading-none whitespace-nowrap">
+                  {brandName}
+                </span>
+              ) : null}
+              {tagline ? (
+                <span className="hidden xl:inline-block text-[11px] text-gray-500 dark:text-gray-400 font-sans tracking-normal mt-0.5 truncate max-w-[170px] whitespace-nowrap">
+                  {tagline}
+                </span>
+              ) : null}
+            </div>
           </Link>
 
           {isUnavailable ? (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5 shrink-0 flex-nowrap">
               <button
                 onClick={() => retry()}
                 disabled={status === "loading"}
-                className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer shrink-0 whitespace-nowrap"
               >
                 <RefreshCw
                   className={`h-3.5 w-3.5 ${status === "loading" ? "animate-spin" : ""}`}
                 />
                 <span>{copy.retry}</span>
               </button>
-              <ThemeToggle />
+              <ThemeToggle className="shrink-0" />
             </div>
           ) : (
             <>
               {!isMinimal && (
                 <nav
-                  className="hidden items-center gap-6 lg:flex"
+                  className="hidden items-center gap-2 lg:gap-3 xl:gap-5 lg:flex flex-nowrap shrink-0"
                   aria-label="Main Navigation"
                 >
-                  <div className="relative">
+                  <div className="relative shrink-0">
                     <button
                       onClick={() => setServicesMenuOpen((prev) => !prev)}
                       aria-expanded={servicesMenuOpen}
                       aria-haspopup="true"
-                      className="inline-flex items-center gap-1 text-[13.5px] font-medium text-gray-600 dark:text-gray-300 transition-colors hover:text-primary dark:hover:text-primary py-1 cursor-pointer"
+                      className="inline-flex items-center gap-1 text-[14px] font-medium text-gray-600 dark:text-gray-300 transition-colors hover:text-primary dark:hover:text-primary py-1 whitespace-nowrap shrink-0 cursor-pointer"
                     >
                       <span>{copy.treatments}</span>
                       <ChevronDown
@@ -161,7 +193,7 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
                           {services.map((svc) => (
                             <Link
                               key={svc.id}
-                              href="/#services"
+                              href="/#treatments"
                               onClick={() => setServicesMenuOpen(false)}
                               role="menuitem"
                               className="block rounded-xl px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-primary transition-colors"
@@ -180,75 +212,90 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
                   </div>
 
                   <Link
-                    href="/#commitments"
-                    className="text-[13.5px] font-medium text-gray-600 dark:text-gray-300 transition-colors hover:text-primary dark:hover:text-primary py-1"
+                    href="/#why-us"
+                    className="text-[14px] font-medium text-gray-600 dark:text-gray-300 transition-colors hover:text-primary dark:hover:text-primary py-1 whitespace-nowrap shrink-0"
+                  >
+                    {copy.whyUs || "Why Choose Us"}
+                  </Link>
+
+                  <Link
+                    href="/#reviews"
+                    className="text-[14px] font-medium text-gray-600 dark:text-gray-300 transition-colors hover:text-primary dark:hover:text-primary py-1 whitespace-nowrap shrink-0"
                   >
                     {copy.successStories}
                   </Link>
 
                   <Link
                     href="/#team"
-                    className="text-[13.5px] font-medium text-gray-600 dark:text-gray-300 transition-colors hover:text-primary dark:hover:text-primary py-1"
+                    className="text-[14px] font-medium text-gray-600 dark:text-gray-300 transition-colors hover:text-primary dark:hover:text-primary py-1 whitespace-nowrap shrink-0"
                   >
                     {copy.team}
                   </Link>
 
                   <Link
-                    href="/#visit"
-                    className="text-[13.5px] font-medium text-gray-600 dark:text-gray-300 transition-colors hover:text-primary dark:hover:text-primary py-1"
+                    href="/#locations"
+                    className="text-[14px] font-medium text-gray-600 dark:text-gray-300 transition-colors hover:text-primary dark:hover:text-primary py-1 whitespace-nowrap shrink-0"
                   >
                     {copy.locationsAndTiming}
                   </Link>
 
                   <Link
                     href="/#faq"
-                    className="text-[13.5px] font-medium text-gray-600 dark:text-gray-300 transition-colors hover:text-primary dark:hover:text-primary py-1"
+                    className="text-[14px] font-medium text-gray-600 dark:text-gray-300 transition-colors hover:text-primary dark:hover:text-primary py-1 whitespace-nowrap shrink-0"
                   >
                     {copy.faqs}
+                  </Link>
+
+                  <Link
+                    href="/blog"
+                    className="text-[14px] font-medium text-gray-600 dark:text-gray-300 transition-colors hover:text-primary dark:hover:text-primary py-1 whitespace-nowrap shrink-0"
+                  >
+                    {copy.blogs}
                   </Link>
                 </nav>
               )}
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5 sm:gap-2 xl:gap-2.5 shrink-0 flex-nowrap">
                 {!isMinimal && (
                   <button
                     onClick={() => setSearchOpen(true)}
-                    className="flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-900 px-3 py-1.5 text-xs text-gray-600 dark:text-gray-300 transition-colors hover:border-primary/40 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-800 cursor-pointer"
+                    className="flex items-center justify-center h-9 w-9 xl:w-auto xl:h-auto xl:px-3 xl:py-1.5 rounded-full border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-900 text-xs text-gray-600 dark:text-gray-300 transition-colors hover:border-primary/40 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-800 cursor-pointer shrink-0 whitespace-nowrap"
                     aria-label="Open search dialog"
                   >
-                    <Search className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">{copy.search}</span>
-                    <kbd className="hidden md:inline-block rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-1 text-[10px] text-gray-500 dark:text-gray-400 font-mono">
+                    <Search className="h-3.5 w-3.5 shrink-0" />
+                    <span className="hidden xl:inline ml-2">{copy.search}</span>
+                    <kbd className="hidden xl:inline-block ml-1.5 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-1 text-[10px] text-gray-500 dark:text-gray-400 font-mono">
                       ⌘K
                     </kbd>
                   </button>
                 )}
 
-                <ThemeToggle />
+                {/* Language Switcher */}
+                <button
+                  onClick={() => setLocale(locale === "en" ? "ur" : "en")}
+                  className="rounded-full border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-900 px-2.5 py-1 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:border-primary/40 hover:text-primary transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+                  aria-label="Toggle language"
+                >
+                  {locale === "en" ? "اردو" : "EN"}
+                </button>
 
-                {isMinimal && phone ? (
-                  <a
-                    href={`tel:${cleanPhone}`}
-                    className="text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-primary transition-colors"
-                  >
-                    {copy.call} {phone}
-                  </a>
-                ) : (
-                  <Button
-                    href="/book"
-                    variant="primary"
-                    size="sm"
-                    className="hidden sm:inline-flex"
-                  >
-                    <Calendar className="h-3.5 w-3.5 mr-1" />
-                    <span>{copy.book}</span>
-                  </Button>
-                )}
+                <ThemeToggle className="shrink-0" />
+
+                {/* Sticky Book CTA button */}
+                <Button
+                  href="/book"
+                  variant="primary"
+                  size="sm"
+                  className="rounded-full shadow-subtle px-3.5 py-1.5 text-xs font-semibold shrink-0 whitespace-nowrap"
+                >
+                  <Calendar className="h-3.5 w-3.5 mr-1 shrink-0" />
+                  <span className="whitespace-nowrap">{copy.book}</span>
+                </Button>
 
                 {!isMinimal && (
                   <button
                     onClick={() => setMobileMenuOpen(true)}
-                    className="grid h-9 w-9 place-items-center rounded-full border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white lg:hidden cursor-pointer"
+                    className="grid h-9 w-9 place-items-center rounded-full border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white lg:hidden cursor-pointer shrink-0"
                     aria-label="Open mobile navigation"
                   >
                     <Menu className="h-4.5 w-4.5" />

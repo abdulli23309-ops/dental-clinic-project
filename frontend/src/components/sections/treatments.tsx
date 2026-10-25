@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import {
   ArrowRight,
   Clock,
@@ -174,7 +175,7 @@ export function Treatments() {
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <Skeleton
                 key={i}
-                className="min-w-[280px] md:min-w-[320px] lg:min-w-[350px] shrink-0 snap-start h-64 rounded-2xl border border-gray-200 dark:border-gray-800"
+                className="min-w-[85%] md:min-w-[45%] lg:min-w-[31%] shrink-0 snap-start h-80 rounded-xl border border-gray-200 dark:border-gray-800"
               />
             ))}
           </div>
@@ -202,26 +203,27 @@ export function Treatments() {
 
             <div
               ref={scrollContainerRef}
-              className="flex overflow-x-auto snap-x snap-mandatory gap-6 pb-6 px-1 scrollbar-hide items-stretch"
+              className="flex overflow-x-auto snap-x snap-mandatory gap-6 pb-6 px-1 scrollbar-hide items-stretch scroll-smooth"
               style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
             >
               {filtered.map((service) => (
                 <div
                   key={service.id}
-                  className="min-w-[280px] md:min-w-[320px] lg:min-w-[350px] shrink-0 snap-start rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-xs p-4 sm:p-5 flex flex-col justify-between space-y-4 hover:border-primary/40 transition-all self-stretch group"
+                  className="w-[85%] md:w-[45%] lg:w-[31%] min-w-[85%] md:min-w-[45%] lg:min-w-[31%] shrink-0 snap-start bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden shadow-xs p-4 sm:p-5 flex flex-col justify-between space-y-4 hover:border-primary/40 transition-all self-stretch group"
                 >
                   <div className="space-y-3">
-                    {/* Treatment Card Photo or Soft Gradient Fallback */}
-                    <div className="w-full aspect-[16/10] rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 relative">
+                    {/* Treatment Card Photo or Soft Tinted Fallback */}
+                    <div className="w-full aspect-[4/3] relative overflow-hidden rounded-lg bg-[#FAF9F5] dark:bg-gray-800/60">
                       {service.imageUrl ? (
-                        <img
+                        <Image
                           src={resolveMediaUrl(service.imageUrl) || service.imageUrl}
                           alt={service.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-                          loading="lazy"
+                          fill
+                          unoptimized
+                          className="object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
                         />
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-primary/10 via-emerald-500/10 to-teal-500/10 dark:from-primary/20 dark:via-emerald-950/40 dark:to-teal-950/40 flex flex-col items-center justify-center p-4 text-center">
+                        <div className="w-full h-full bg-[#FAF9F5] dark:bg-gray-800/60 flex flex-col items-center justify-center p-4 text-center">
                           <ShieldCheck className="h-8 w-8 text-primary/70 mb-1" />
                           <span className="text-[11px] font-semibold text-gray-600 dark:text-gray-300 capitalize">
                             {service.category} Care

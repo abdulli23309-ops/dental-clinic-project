@@ -111,6 +111,7 @@ async def get_public_services(
             isPublic=s.is_public,
             bookableOnline=getattr(s, "bookable_online", True),
             bufferMinutes=getattr(s, "buffer_minutes", 0),
+            imageUrl=getattr(s, "image_url", None),
             createdAt=s.created_at,
             updatedAt=s.updated_at,
         )
@@ -619,9 +620,24 @@ async def get_public_booking_flow_settings(
 # Stage-2 public endpoints: Reviews, Blog Posts, Social Links
 # ---------------------------------------------------------------------------
 
-from app.api.deps import get_blog_post_service, get_review_service, get_social_link_service
-from app.application.dtos.cms_dto import BlogPostResponse, ReviewResponse, SocialLinkResponse
-from app.application.services.content_service import BlogPostService, ReviewService, SocialLinkService
+from app.api.deps import (
+    get_blog_post_service,
+    get_gallery_service,
+    get_review_service,
+    get_social_link_service,
+)
+from app.application.dtos.cms_dto import (
+    BlogPostResponse,
+    GalleryImageResponse,
+    ReviewResponse,
+    SocialLinkResponse,
+)
+from app.application.services.content_service import (
+    BlogPostService,
+    GalleryService,
+    ReviewService,
+    SocialLinkService,
+)
 
 
 @router.get("/reviews", response_model=List[ReviewResponse])
@@ -710,4 +726,23 @@ async def get_active_social_links(
             updatedAt=s.updated_at,
         )
         for s in items
+    ]
+
+
+@router.get("/gallery", response_model=List[GalleryImageResponse])
+async def get_public_gallery(
+    gallery_service: GalleryService = Depends(get_gallery_service),
+) -> List[GalleryImageResponse]:
+    """Returns all active gallery images for public clinic display."""
+    items = await gallery_service.list_active()
+    return [
+        GalleryImageResponse(
+            id=g.id,
+            imageUrl=g.image_url,
+            caption=g.caption,
+            displayOrder=g.display_order,
+            isActive=g.is_active,
+            createdAt=g.created_at,
+        )
+        for g in items
     ]

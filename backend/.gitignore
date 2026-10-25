@@ -13,6 +13,7 @@ venv/
 # Environment Variables
 .env
 .env.local
+.local-credentials.json
 !.env.example
 
 # Alembic migrations are code - ensure they are tracked

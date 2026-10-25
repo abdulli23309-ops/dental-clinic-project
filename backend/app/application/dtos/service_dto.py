@@ -23,6 +23,7 @@ class ServiceCreateRequest(BaseModel):
     isActive: bool = True
     bookableOnline: bool = True
     bufferMinutes: int = 0
+    imageUrl: Optional[str] = None
     providerIds: Optional[List[UUID]] = None
     clinicIds: Optional[List[UUID]] = None
 
@@ -48,6 +49,7 @@ class ServiceUpdateRequest(BaseModel):
     isActive: Optional[bool] = None
     bookableOnline: Optional[bool] = None
     bufferMinutes: Optional[int] = None
+    imageUrl: Optional[str] = None
     providerIds: Optional[List[UUID]] = None
     clinicIds: Optional[List[UUID]] = None
 
@@ -79,6 +81,7 @@ class ServiceResponse(BaseModel):
     isPublic: bool
     bookableOnline: bool = True
     bufferMinutes: int = 0
+    imageUrl: Optional[str] = None
     providerIds: List[UUID] = []
     clinicIds: List[UUID] = []
     createdAt: datetime

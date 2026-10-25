@@ -948,6 +948,10 @@ class ServiceORM(Base):
         nullable=False,
         default=0,
     )
+    image_url: Mapped[Optional[str]] = mapped_column(
+        String(500),
+        nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -3178,3 +3182,219 @@ class IntegrationClientORM(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+
+
+# ---------------------------------------------------------------------------
+# Stage-2 models: Reviews, Blog Posts, Social Links
+# ---------------------------------------------------------------------------
+
+class ReviewORM(Base):
+    """
+    Stores customer / patient reviews displayed in the public Success Stories section.
+    All content is admin-managed; no raw user input is stored directly.
+    Note: the column is named review_text (not text) to avoid shadowing sqlalchemy.text.
+    """
+    __tablename__ = "reviews"
+    __table_args__ = (
+        CheckConstraint("rating >= 1 AND rating <= 5", name="ck_reviews_rating"),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    author_name: Mapped[str] = mapped_column(
+        String(120),
+        nullable=False,
+    )
+    rating: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+    )
+    review_text: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+    review_date: Mapped[Optional[date]] = mapped_column(
+        Date,
+        nullable=True,
+    )
+    source_label: Mapped[Optional[str]] = mapped_column(
+        String(60),
+        nullable=True,
+    )
+    display_order: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    is_published: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=false(),
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class BlogPostORM(Base):
+    """
+    Stores blog / article posts displayed on the public website.
+    Body is stored as sanitised markdown; raw HTML is never accepted.
+    """
+    __tablename__ = "blog_posts"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    title: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+    slug: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    excerpt: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    body: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    cover_image_url: Mapped[Optional[str]] = mapped_column(
+        String(500),
+        nullable=True,
+    )
+    published_date: Mapped[Optional[date]] = mapped_column(
+        Date,
+        nullable=True,
+    )
+    display_order: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    is_published: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=false(),
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class SocialLinkORM(Base):
+    """
+    Stores social-media profile links displayed exclusively in the public footer.
+    Platform is restricted to a fixed set of values enforced at the API layer.
+    """
+    __tablename__ = "social_links"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    platform: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+    )
+    url: Mapped[str] = mapped_column(
+        String(500),
+        nullable=False,
+    )
+    display_order: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default=true(),
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class GalleryImageORM(Base):
+    """
+    Stores clinic gallery photos displayed on the public website.
+    """
+    __tablename__ = "gallery_images"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    image_url: Mapped[str] = mapped_column(
+        String(500),
+        nullable=False,
+    )
+    caption: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+    display_order: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default=true(),
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+

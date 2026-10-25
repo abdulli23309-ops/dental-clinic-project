@@ -120,6 +120,7 @@ class ServiceService:
             is_active=req.isActive,
             bookable_online=req.bookableOnline,
             buffer_minutes=req.bufferMinutes,
+            image_url=req.imageUrl.strip() if req.imageUrl else None,
         )
         saved = await self.service_repo.save(svc)
         if req.providerIds is not None and self.booking_settings_repo:
@@ -174,6 +175,8 @@ class ServiceService:
             svc.bookable_online = req.bookableOnline
         if req.bufferMinutes is not None:
             svc.buffer_minutes = req.bufferMinutes
+        if req.imageUrl is not None:
+            svc.image_url = req.imageUrl.strip() or None
 
         svc.updated_at = datetime.now(timezone.utc)
         saved = await self.service_repo.save(svc)

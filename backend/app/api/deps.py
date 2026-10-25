@@ -672,3 +672,41 @@ def require_integration_scope(required_scope: str):
     scope_checker.required_scope = required_scope
     return scope_checker
 
+
+# ---------------------------------------------------------------------------
+# Stage-2 dependency factories: Reviews, Blog Posts, Social Links
+# ---------------------------------------------------------------------------
+
+from app.application.services.content_service import (
+    BlogPostService,
+    GalleryService,
+    ReviewService,
+    SocialLinkService,
+)
+from app.infrastructure.repositories.postgres_content_repo import (
+    PostgresBlogPostRepository,
+    PostgresGalleryRepository,
+    PostgresReviewRepository,
+    PostgresSocialLinkRepository,
+)
+
+
+def get_review_service(session: AsyncSession = Depends(get_db_session)) -> ReviewService:
+    """Provides a ReviewService bound to the current database session."""
+    return ReviewService(PostgresReviewRepository(session))
+
+
+def get_blog_post_service(session: AsyncSession = Depends(get_db_session)) -> BlogPostService:
+    """Provides a BlogPostService bound to the current database session."""
+    return BlogPostService(PostgresBlogPostRepository(session))
+
+
+def get_social_link_service(session: AsyncSession = Depends(get_db_session)) -> SocialLinkService:
+    """Provides a SocialLinkService bound to the current database session."""
+    return SocialLinkService(PostgresSocialLinkRepository(session))
+
+
+def get_gallery_service(session: AsyncSession = Depends(get_db_session)) -> GalleryService:
+    """Provides a GalleryService bound to the current database session."""
+    return GalleryService(PostgresGalleryRepository(session))
+

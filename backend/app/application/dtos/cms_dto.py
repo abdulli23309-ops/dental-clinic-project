@@ -262,3 +262,39 @@ class SocialLinkResponse(BaseModel):
     updatedAt: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class GalleryImageCreateRequest(BaseModel):
+    """Schema for adding an image to the clinic gallery."""
+
+    imageUrl: str = Field(..., min_length=1, max_length=500)
+    caption: Optional[str] = Field(None, max_length=255)
+    displayOrder: int = 0
+    isActive: bool = True
+
+    model_config = ConfigDict(extra="ignore")
+
+
+class GalleryImageUpdateRequest(BaseModel):
+    """Schema for updating an image in the clinic gallery."""
+
+    imageUrl: Optional[str] = Field(None, min_length=1, max_length=500)
+    caption: Optional[str] = Field(None, max_length=255)
+    displayOrder: Optional[int] = None
+    isActive: Optional[bool] = None
+
+    model_config = ConfigDict(extra="ignore")
+
+
+class GalleryImageResponse(BaseModel):
+    """Full representation of a gallery image."""
+
+    id: UUID
+    imageUrl: str
+    caption: Optional[str] = None
+    displayOrder: int
+    isActive: bool
+    createdAt: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+

@@ -48,6 +48,7 @@ async def _to_response(s, service_service: ServiceService) -> ServiceResponse:
         isPublic=s.is_public,
         bookableOnline=getattr(s, "bookable_online", True),
         bufferMinutes=getattr(s, "buffer_minutes", 0),
+        imageUrl=getattr(s, "image_url", None),
         providerIds=provider_ids,
         clinicIds=clinic_ids,
         createdAt=s.created_at,

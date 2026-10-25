@@ -56,7 +56,7 @@ class Settings(BaseSettings):
 
     # Storage & Attachments
     UPLOAD_DIR: str = "uploads"
-    MAX_UPLOAD_SIZE_BYTES: int = 5 * 1024 * 1024  # 5 MB
+    MAX_UPLOAD_SIZE_BYTES: int = 15 * 1024 * 1024  # 15 MB
     ATTACHMENT_DIR: str = os.getenv(
         "ATTACHMENT_DIR",
         os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "storage", "attachments")),

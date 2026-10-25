@@ -56,12 +56,12 @@ class Settings(BaseSettings):
 
     # Storage & Attachments
     UPLOAD_DIR: str = "uploads"
-    MAX_UPLOAD_SIZE_BYTES: int = 15 * 1024 * 1024  # 15 MB
+    MAX_UPLOAD_SIZE_BYTES: int = 20 * 1024 * 1024  # 20 MB
     ATTACHMENT_DIR: str = os.getenv(
         "ATTACHMENT_DIR",
         os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "storage", "attachments")),
     )
-    ATTACHMENT_MAX_SIZE_BYTES: int = 15 * 1024 * 1024  # 15 MB
+    ATTACHMENT_MAX_SIZE_BYTES: int = 20 * 1024 * 1024  # 20 MB
 
     # Messaging & Reminders Scheduler
     SCHEDULER_ENABLED: bool = False

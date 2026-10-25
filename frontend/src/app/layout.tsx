@@ -21,6 +21,8 @@ const manrope = Manrope({
   display: "swap",
 });
 
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata(): Promise<Metadata> {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
 
@@ -82,7 +84,7 @@ export default function RootLayout({
       lang="en"
       suppressHydrationWarning
       data-scroll-behavior="smooth"
-      className={`${fraunces.variable} ${manrope.variable}`}
+      className={`${fraunces.variable} ${manrope.variable} font-sans`}
     >
       <head>
         <script

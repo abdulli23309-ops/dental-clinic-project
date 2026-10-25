@@ -119,6 +119,7 @@ export function Hero() {
     ? "کچھ دستانے پہنتے ہیں"
     : (content.homepage?.heroHighlightWord?.trim() || "Some wear gloves.");
   const startingFee = content.homepage?.startingFee?.trim();
+  const heroSealText = ((content.homepage as any)?.heroSealText || "").trim();
 
   // Load reviews and active services for testimonial card & pills
   useEffect(() => {
@@ -366,34 +367,36 @@ export function Hero() {
                 </motion.div>
               </motion.div>
 
-              {/* Rotating Dental Seal Badge */}
-              <div
-                className="absolute top-4 right-4 z-20 pointer-events-none select-none"
-                aria-hidden="true"
-              >
-                <div className="relative w-24 h-24">
-                  <svg
-                    viewBox="0 0 120 120"
-                    className="w-full h-full animate-[spin_24s_linear_infinite]"
-                  >
-                    <path
-                      id="seal-curve"
-                      d="M 60, 60 m -45, 0 a 45,45 0 1,1 90,0 a 45,45 0 1,1 -90,0"
-                      fill="none"
-                    />
-                    <text className="text-[10.5px] uppercase font-bold tracking-[0.22em] fill-gray-700 dark:fill-gray-300">
-                      <textPath href="#seal-curve" startOffset="0%">
-                        ✦ DENTAL EXCELLENCE ✦ CERTIFIED CARE ✦
-                      </textPath>
-                    </text>
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-10 h-10 rounded-full bg-white dark:bg-gray-900 shadow-md border border-amber-300/60 dark:border-amber-400/30 flex items-center justify-center text-primary">
-                      <ShieldCheck className="h-5 w-5" />
+              {/* Rotating Dental Seal Badge: only shown if heroSealText is configured */}
+              {heroSealText ? (
+                <div
+                  className="absolute top-4 right-4 z-20 pointer-events-none select-none"
+                  aria-hidden="true"
+                >
+                  <div className="relative w-24 h-24">
+                    <svg
+                      viewBox="0 0 120 120"
+                      className="w-full h-full animate-[spin_24s_linear_infinite]"
+                    >
+                      <path
+                        id="seal-curve"
+                        d="M 60, 60 m -45, 0 a 45,45 0 1,1 90,0 a 45,45 0 1,1 -90,0"
+                        fill="none"
+                      />
+                      <text className="text-[10.5px] uppercase font-bold tracking-[0.22em] fill-gray-700 dark:fill-gray-300">
+                        <textPath href="#seal-curve" startOffset="0%">
+                          {heroSealText}
+                        </textPath>
+                      </text>
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-full bg-white dark:bg-gray-900 shadow-md border border-amber-300/60 dark:border-amber-400/30 flex items-center justify-center text-primary">
+                        <ShieldCheck className="h-5 w-5" />
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              ) : null}
 
               {/* Floating Testimonial Mini-Card */}
               {currentReview && (

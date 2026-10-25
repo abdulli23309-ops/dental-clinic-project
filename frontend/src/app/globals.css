@@ -126,6 +126,14 @@
 }
 
 @layer components {
+  .font-display {
+    font-family: var(--font-primary, var(--font-fraunces)), Georgia, serif;
+  }
+  .font-sans,
+  .font-body {
+    font-family: var(--font-secondary, var(--font-manrope)), system-ui, sans-serif;
+  }
+
   .container-x {
     width: 100%;
     margin-inline: auto;

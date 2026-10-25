@@ -49,6 +49,7 @@ import {
   Review,
   SocialLink,
   getSiteContent,
+  resolveMediaUrl,
 } from "@/lib/api";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 
@@ -258,8 +259,13 @@ export default function AdminWebsitePage() {
       } else {
         setHomepageData((prev: any) => ({ ...prev, [field]: url }));
       }
-      setSaveSuccess("Image uploaded. Click Save to persist the change.");
-      setTimeout(() => setSaveSuccess(null), 4000);
+      const isJpeg = file.type === "image/jpeg" || /\.(jpe?g)$/i.test(file.name);
+      if (isJpeg) {
+        setSaveSuccess("Image uploaded. Note: JPEG images do not support transparency and will show a solid white box. For best results across light and dark themes, please upload a transparent PNG or WebP. Click Save to persist.");
+      } else {
+        setSaveSuccess("Image uploaded. Click Save to persist the change.");
+      }
+      setTimeout(() => setSaveSuccess(null), 5000);
     } catch (err: any) {
       setSaveError(err.message || "Image upload failed.");
     } finally {
@@ -761,14 +767,14 @@ export default function AdminWebsitePage() {
                 <div className="flex items-center gap-3">
                   {generalData.logoUrl && (
                     <img
-                      src={generalData.logoUrl}
+                      src={resolveMediaUrl(generalData.logoUrl) || generalData.logoUrl}
                       alt="Current logo"
-                      className="h-10 w-10 rounded-lg object-contain border border-line bg-bone"
+                      className="h-10 w-10 object-contain rounded-lg border border-line bg-transparent p-0.5"
                     />
                   )}
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/png,image/webp,image/svg+xml,image/jpeg,.png,.webp,.svg,.jpg,.jpeg"
                     disabled={isUploading}
                     onChange={(e) => {
                       const file = e.target.files?.[0];
@@ -781,8 +787,11 @@ export default function AdminWebsitePage() {
                     <span className="text-xs text-ink-soft">Uploading…</span>
                   )}
                 </div>
+                <p className="mt-1.5 text-[11px] text-ink-soft">
+                  Accepted formats: PNG, WebP, SVG, JPG. Transparent PNG or WebP recommended to avoid white background boxes in dark/light modes.
+                </p>
                 {generalData.logoUrl && (
-                  <p className="mt-1 text-[11px] text-ink-soft/70 truncate">{generalData.logoUrl}</p>
+                  <p className="mt-0.5 text-[11px] text-ink-soft/70 truncate">{generalData.logoUrl}</p>
                 )}
               </div>
 

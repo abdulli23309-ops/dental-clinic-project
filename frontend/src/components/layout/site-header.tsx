@@ -115,7 +115,7 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
             : "border-transparent bg-white/40 dark:bg-gray-950/40 backdrop-blur-sm py-4"
         }`}
       >
-        <div className="container-x px-4 sm:px-6 lg:px-6 xl:px-8 flex items-center justify-between gap-3 xl:gap-6 flex-nowrap">
+        <div className="container-x max-w-7xl mx-auto px-4 sm:px-6 lg:px-6 xl:px-8 flex items-center justify-between gap-3 xl:gap-6 flex-nowrap">
           <Link
             href="/"
             className="group flex items-center gap-2.5 transition-transform active:scale-[0.98] shrink-0 whitespace-nowrap"
@@ -126,13 +126,13 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
                 src={logoUrl}
                 alt={brandName || "Clinic Logo"}
                 onError={() => setLogoError(true)}
-                className="h-8 w-8 rounded-full object-contain border border-line bg-bone shrink-0"
+                className="h-10 w-10 object-contain shrink-0 mix-blend-multiply dark:mix-blend-screen"
               />
             ) : (
-              <span className="grid h-8 w-8 place-items-center rounded-full bg-primary text-white shadow-subtle group-hover:brightness-90 transition-all shrink-0">
+              <span className="grid h-10 w-10 place-items-center rounded-full bg-primary text-white shadow-subtle group-hover:brightness-90 transition-all shrink-0">
                 <svg
                   viewBox="0 0 24 24"
-                  className="h-4 w-4"
+                  className="h-5 w-5"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="1.8"

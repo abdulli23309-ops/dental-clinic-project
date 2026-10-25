@@ -196,13 +196,13 @@ export function Footer() {
                     src={logoUrl}
                     alt={practiceName || "Clinic Logo"}
                     onError={() => setLogoError(true)}
-                    className="h-8 w-8 rounded-full object-contain border border-gray-200 dark:border-gray-800 bg-bone shrink-0"
+                    className="h-10 w-10 object-contain shrink-0 mix-blend-multiply dark:mix-blend-screen"
                   />
                 ) : (
-                  <span className="grid h-8 w-8 place-items-center rounded-full bg-primary text-white shadow-xs shrink-0">
+                  <span className="grid h-10 w-10 place-items-center rounded-full bg-primary text-white shadow-xs shrink-0">
                     <svg
                       viewBox="0 0 24 24"
-                      className="h-4 w-4"
+                      className="h-5 w-5"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="1.8"

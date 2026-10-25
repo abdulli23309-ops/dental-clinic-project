@@ -41,6 +41,17 @@ const PHONE_PATTERN = /\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/;
 const UNSLASH_PATTERN = /unsplash\.com/;
 const MARLOWDENTAL_COM_PATTERN = /marlowdental\.com/;
 
+// Specific hardcoded clinic claims forbidden in public components
+const FORBIDDEN_CLAIMS = [
+  "Trusted care in your neighborhood",
+  "Clinical Standards",
+  "Our Standards",
+  "unhurried dental care",
+  "unhurried clinical",
+  "Same-week openings",
+  "emergency slots before",
+];
+
 // Hex colour pattern (#RRGGBB or #RGB)
 const HEX_COLOUR_PATTERN = /#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})\b/g;
 
@@ -178,6 +189,15 @@ for (const file of files) {
       console.error(`FAIL: ${relativePath}:${lineNum} - hardcoded marlowdental.com URL`);
       console.error(`  ${line.trim()}`);
       failures++;
+    }
+
+    // Check forbidden clinic claim strings
+    for (const claim of FORBIDDEN_CLAIMS) {
+      if (line.includes(claim)) {
+        console.error(`FAIL: ${relativePath}:${lineNum} - hardcoded clinic claim: "${claim}"`);
+        console.error(`  ${line.trim()}`);
+        failures++;
+      }
     }
 
     // Check hex colours outside theme tokens

@@ -553,7 +553,7 @@ export default function AdminMessagingPage() {
               label="Test Message Body"
               multiline
               rows={2}
-              placeholder="Test message from Marlow Dental Clinic..."
+              placeholder="Test message from your clinic..."
               value={testMessageBody}
               onChange={(e) => setTestMessageBody(e.target.value)}
               required

@@ -12,6 +12,18 @@ test.describe("Hardcoded Content Audit (with backend blocked)", () => {
     await expect(page.locator("body")).not.toContainText("Clinic Address");
   });
 
+  test("1b. No hardcoded clinic claims appear when backend is blocked", async ({ page }) => {
+    await page.route("**/api/v1/public/*", (route) => route.abort());
+    await page.goto("/");
+    await expect(page.locator("body")).not.toContainText("Trusted care in your neighborhood");
+    await expect(page.locator("body")).not.toContainText("Clinical Standards");
+    await expect(page.locator("body")).not.toContainText("Our Standards");
+    await expect(page.locator("body")).not.toContainText("unhurried dental care");
+    await expect(page.locator("body")).not.toContainText("unhurried clinical");
+    await expect(page.locator("body")).not.toContainText("Same-week openings");
+    await expect(page.locator("body")).not.toContainText("emergency slots before");
+  });
+
   test("2. Unavailable panel appears when backend returns no data", async ({ page }) => {
     await page.route("**/api/v1/public/content", (route) =>
       route.fulfill({

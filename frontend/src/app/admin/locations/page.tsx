@@ -109,7 +109,7 @@ export default function AdminLocationsPage() {
       city: loc.city,
       state: loc.state,
       postalCode: loc.postalCode,
-      country: loc.country || "US",
+      country: loc.country || "",
       phone: loc.phone || "",
       email: loc.email || "",
       hoursInfo: loc.hoursInfo || "",
@@ -326,7 +326,7 @@ export default function AdminLocationsPage() {
                     {loc.addressLine2 && <span>, {loc.addressLine2}</span>}
                     <br />
                     <span>
-                      {loc.city}, {loc.state} {loc.postalCode} ({loc.country || "US"})
+                      {loc.city}, {loc.state} {loc.postalCode} ({loc.country || ""})
                     </span>
                   </div>
                 </div>

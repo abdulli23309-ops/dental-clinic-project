@@ -129,7 +129,7 @@ export const progressiveBookingCopy: ProgressiveBookingCopy = {
     badge: "Private Appointments",
     heading: "Reserve Your Dental Consultation",
     subheading:
-      "Unhurried clinical assessment with direct doctor continuity across all modern facilities.",
+      "Book your appointment online in a few steps.",
     stepsNavLabel: "Booking Steps",
     stepLabels: {
       contact: "Contact Details",

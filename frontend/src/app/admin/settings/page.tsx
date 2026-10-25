@@ -513,10 +513,10 @@ export default function AdminSettingsPage() {
                   Live Preview Preview
                 </p>
                 <h4 className="text-xl font-bold" style={{ fontFamily: primaryFont, color: primaryColor }}>
-                  {org?.displayName || "Marlow Dental Complex"}
+                  {org?.displayName || "Your Clinic Name"}
                 </h4>
                 <p className="text-xs" style={{ fontFamily: secondaryFont, color: "#374151" }}>
-                  Comprehensive, unhurried dental care with direct doctor continuity and transparent fees.
+                  Your clinic tagline will appear here.
                 </p>
                 <div className="flex gap-2 pt-1">
                   <button

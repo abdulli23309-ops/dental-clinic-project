@@ -23,7 +23,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
 import { usePublicContent } from "@/components/providers/public-content-provider";
-import { getPublicReviews, getServices, Review, ServiceItem } from "@/lib/api";
+import { getPublicReviews, getServices, Review, ServiceItem, resolveMediaUrl } from "@/lib/api";
 
 function renderTwoToneHeadline(heading: string, highlightWord?: string) {
   if (highlightWord && highlightWord.trim()) {
@@ -321,51 +321,33 @@ export function Hero() {
             )}
           </div>
 
-          {/* Right Column: Tooth Visual with Subtle Float Animation & Rotating Seal & Mini Testimonial */}
-          <div className="lg:col-span-5 relative flex items-center justify-center min-h-[420px] sm:min-h-[480px]">
-            {/* Visual Glass Podium Background Glow */}
+          {/* Right Column: Arch-shaped Clinic Photo Frame with Floating Tooth & Trust Card */}
+          <div className="lg:col-span-5 relative flex items-center justify-center min-h-[460px] sm:min-h-[520px] mt-8 lg:mt-0">
+            {/* Visual Background Glow */}
             <div
-              className="absolute -inset-4 rounded-3xl bg-gradient-to-tr from-primary/10 via-amber-200/10 to-transparent blur-2xl pointer-events-none"
+              className="absolute -inset-4 rounded-full bg-gradient-to-tr from-primary/15 via-amber-200/10 to-transparent blur-3xl pointer-events-none"
               aria-hidden="true"
             />
 
-            {/* Tooth Image with Glass Container */}
+            {/* Arch-shaped Photo Frame */}
             <div
               onPointerMove={handlePointerMove}
               onPointerLeave={handlePointerLeave}
-              className="relative w-full aspect-square max-w-[460px] flex items-center justify-center rounded-3xl overflow-hidden border border-gray-200/60 dark:border-gray-800/60 bg-gradient-to-b from-white/90 via-gray-50/70 to-gray-100/60 dark:from-gray-900/90 dark:via-gray-950/70 dark:to-gray-900/60 shadow-xl backdrop-blur-md"
+              className="relative w-full max-w-[420px] aspect-[4/5] rounded-t-[200px] rounded-b-3xl overflow-hidden shadow-2xl border-4 border-white dark:border-gray-800 bg-gray-100 dark:bg-gray-800 group"
             >
-              <motion.div
-                animate={shouldReduceMotion ? undefined : { y: [0, -8, 0] }}
-                transition={{
-                  duration: 4,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
-                className="w-full h-full flex items-center justify-center p-4"
-              >
-                <motion.div
-                  style={
-                    shouldReduceMotion
-                      ? undefined
-                      : {
-                          x: toothX,
-                          y: toothY,
-                          rotate: toothRotate,
-                        }
-                  }
-                  className="w-full h-full flex items-center justify-center"
-                >
-                  <Image
-                    src="/images/tooth-hero.png"
-                    alt="Professional anatomical tooth model illustrating dental care quality"
-                    priority
-                    width={460}
-                    height={460}
-                    className="w-full h-full object-contain select-none pointer-events-none"
-                  />
-                </motion.div>
-              </motion.div>
+              <Image
+                src={
+                  content.homepage?.heroImageUrl
+                    ? resolveMediaUrl(content.homepage.heroImageUrl) || content.homepage.heroImageUrl
+                    : "/images/benyamin.jpg"
+                }
+                alt="Modern state-of-the-art clinic treatment suite"
+                fill
+                priority
+                sizes="(max-width: 768px) 100vw, 420px"
+                className="object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent pointer-events-none" />
 
               {/* Rotating Dental Seal Badge: only shown if heroSealText is configured */}
               {heroSealText ? (
@@ -383,72 +365,71 @@ export function Hero() {
                         d="M 60, 60 m -45, 0 a 45,45 0 1,1 90,0 a 45,45 0 1,1 -90,0"
                         fill="none"
                       />
-                      <text className="text-[10.5px] uppercase font-bold tracking-[0.22em] fill-gray-700 dark:fill-gray-300">
+                      <text className="text-[10.5px] uppercase font-bold tracking-[0.22em] fill-white dark:fill-gray-200 drop-shadow-sm">
                         <textPath href="#seal-curve" startOffset="0%">
                           {heroSealText}
                         </textPath>
                       </text>
                     </svg>
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-10 h-10 rounded-full bg-white dark:bg-gray-900 shadow-md border border-amber-300/60 dark:border-amber-400/30 flex items-center justify-center text-primary">
+                      <div className="w-10 h-10 rounded-full bg-white/90 dark:bg-gray-900/90 shadow-md border border-amber-300/60 dark:border-amber-400/30 flex items-center justify-center text-primary backdrop-blur-sm">
                         <ShieldCheck className="h-5 w-5" />
                       </div>
                     </div>
                   </div>
                 </div>
               ) : null}
+            </div>
 
-              {/* Floating Testimonial Mini-Card */}
-              {currentReview && (
+            {/* The Floating Tooth: absolutely positioned overlapping the bottom-left corner of the photo frame */}
+            <div className="absolute -bottom-6 -left-4 sm:-left-8 w-44 h-44 sm:w-52 sm:h-52 z-30 pointer-events-none">
+              <motion.div
+                animate={shouldReduceMotion ? undefined : { y: [0, -10, 0] }}
+                transition={{
+                  duration: 4,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+                className="w-full h-full flex items-center justify-center filter drop-shadow-[0_20px_25px_rgba(0,0,0,0.3)]"
+              >
                 <motion.div
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.4 }}
-                  className="absolute bottom-4 left-4 right-4 z-20 rounded-2xl border border-gray-200/80 dark:border-gray-800/80 bg-white/95 dark:bg-gray-900/95 p-3.5 shadow-lg backdrop-blur-md"
+                  style={
+                    shouldReduceMotion
+                      ? undefined
+                      : {
+                          x: toothX,
+                          y: toothY,
+                          rotate: toothRotate,
+                        }
+                  }
+                  className="w-full h-full flex items-center justify-center"
                 >
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <div className="flex items-center gap-1 text-amber-500">
-                      {Array.from({ length: currentReview.rating || 5 }).map((_, i) => (
-                        <Star key={i} className="h-3.5 w-3.5 fill-current" />
-                      ))}
-                    </div>
-                    {reviews.length > 1 && (
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={prevReview}
-                          className="p-1 rounded-md text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
-                          aria-label="Previous review"
-                        >
-                          <ChevronLeft className="h-3.5 w-3.5" />
-                        </button>
-                        <span className="text-[10px] text-gray-500 font-mono">
-                          {currentReviewIdx + 1}/{reviews.length}
-                        </span>
-                        <button
-                          onClick={nextReview}
-                          className="p-1 rounded-md text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
-                          aria-label="Next review"
-                        >
-                          <ChevronRight className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  <p className="text-xs text-gray-700 dark:text-gray-300 line-clamp-2 leading-relaxed">
-                    &ldquo;{currentReview.text}&rdquo;
-                  </p>
-                  <div className="mt-1 flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400">
-                    <span className="font-semibold text-gray-900 dark:text-white">
-                      {currentReview.authorName}
-                    </span>
-                    {currentReview.sourceLabel && (
-                      <span className="text-[10px] uppercase tracking-wider text-primary font-medium">
-                        {currentReview.sourceLabel}
-                      </span>
-                    )}
-                  </div>
+                  <Image
+                    src="/images/tooth-hero.png"
+                    alt="Professional anatomical tooth model illustrating dental care quality"
+                    priority
+                    width={220}
+                    height={220}
+                    className="w-full h-full object-contain select-none pointer-events-none"
+                  />
                 </motion.div>
-              )}
+              </motion.div>
+            </div>
+
+            {/* Trust Card: Next Available Appointment */}
+            <div className="absolute -bottom-4 right-2 sm:right-2 z-30 rounded-2xl border border-white/80 dark:border-gray-800 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-3.5 py-2.5 shadow-xl flex items-center gap-2.5">
+              <span className="relative flex h-2.5 w-2.5 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              </span>
+              <div className="text-start">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 leading-none mb-1">
+                  Next Available
+                </p>
+                <p className="text-xs font-bold text-gray-950 dark:text-white leading-none whitespace-nowrap">
+                  Today, 2:30 PM
+                </p>
+              </div>
             </div>
           </div>
         </div>

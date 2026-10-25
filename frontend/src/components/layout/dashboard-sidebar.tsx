@@ -14,6 +14,7 @@ import type { LucideIcon } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
 import { useAuth } from "@/components/providers/auth-provider";
+import { usePublicContent } from "@/components/providers/public-content-provider";
 import { cn } from "@/lib/utils";
 
 export interface SidebarLink {
@@ -46,6 +47,8 @@ export function DashboardSidebar({
 }: DashboardSidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { organization } = usePublicContent();
+  const orgName = organization?.displayName || organization?.name || "Dental Clinic";
   const [isCollapsed, setIsCollapsed] = useState(false);
   const shouldReduceMotion = useReducedMotion();
 
@@ -76,7 +79,7 @@ export function DashboardSidebar({
                 isCollapsed ? "opacity-0" : "group-hover:opacity-0"
               )}
             >
-              M
+              {orgName.charAt(0)}
             </span>
             <div
               className={cn(
@@ -99,7 +102,7 @@ export function DashboardSidebar({
             )}
           >
             <span className="font-display text-sm font-bold text-gray-900 dark:text-gray-100 block leading-tight tracking-tight hover:text-primary transition-colors">
-              Marlow Dental
+              {orgName}
             </span>
             <span className="text-[10px] font-mono text-gray-500 dark:text-gray-400 block uppercase tracking-wider">
               {roleLabel}

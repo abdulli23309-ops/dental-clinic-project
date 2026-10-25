@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ExternalLink, LogOut, Menu } from "lucide-react";
 
 import { useAuth } from "@/components/providers/auth-provider";
+import { usePublicContent } from "@/components/providers/public-content-provider";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export interface DashboardHeaderProps {
@@ -23,6 +24,8 @@ export function DashboardHeader({
   onMobileMenuOpen,
 }: DashboardHeaderProps) {
   const { logout } = useAuth();
+  const { organization } = usePublicContent();
+  const orgName = organization?.displayName || organization?.name || "Dental Clinic";
 
   return (
     <>
@@ -37,7 +40,7 @@ export function DashboardHeader({
             <Menu className="h-5 w-5" />
           </button>
           <span className="font-display font-semibold text-gray-900 dark:text-gray-100 text-base tracking-tight">
-            Marlow Dental
+            {orgName}
           </span>
           <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-mono uppercase font-bold text-primary">
             {badgeLabel}

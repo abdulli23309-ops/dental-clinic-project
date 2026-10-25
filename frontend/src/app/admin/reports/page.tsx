@@ -719,7 +719,7 @@ export default function AdminReportsPage() {
             <p className="leading-relaxed">
               <strong className="font-semibold">Aggregate Clinic Operations:</strong> Timings represent clinic-wide operational workflows 
               (from patient reception arrival to chair start, and operatory start to procedure completion). 
-              Per Marlow Dental policy, metrics reflect system aggregates and medians to prevent per-person staff scoring.
+              Per clinic policy, metrics reflect system aggregates and medians to prevent per-person staff scoring.
             </p>
           </div>
 

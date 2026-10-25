@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/components/providers/auth-provider";
+import { usePublicContent } from "@/components/providers/public-content-provider";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   canAccessWorkspace,
@@ -75,6 +76,8 @@ export function SharedDashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { user, isLoading, logout } = useAuth();
+  const { organization } = usePublicContent();
+  const orgName = organization?.displayName || organization?.name || "Dental Clinic";
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const shouldReduceMotion = useReducedMotion();
@@ -139,7 +142,7 @@ export function SharedDashboardLayout({
             <Menu className="h-5 w-5" />
           </button>
           <span className="font-display font-semibold text-gray-900 dark:text-gray-100 text-base tracking-tight">
-            Marlow Dental
+            {orgName}
           </span>
           <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-mono uppercase font-bold text-primary">
             {badgeLabel || roleTitle}
@@ -190,7 +193,7 @@ export function SharedDashboardLayout({
                   isCollapsed ? "opacity-0" : "group-hover:opacity-0"
                 }`}
               >
-                M
+                {orgName.charAt(0)}
               </span>
               <div
                 className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 ${
@@ -211,7 +214,7 @@ export function SharedDashboardLayout({
               }`}
             >
               <span className="font-display text-sm font-bold text-gray-900 dark:text-gray-100 block leading-tight tracking-tight hover:text-primary transition-colors">
-                Marlow Dental
+                {orgName}
               </span>
               <span className="text-[10px] font-mono text-gray-500 dark:text-gray-400 block uppercase tracking-wider">
                 {roleTitle}

@@ -22,9 +22,9 @@ export function MobileMenu({ isOpen, onClose, onOpenSearch }: MobileMenuProps) {
   const copy = getUiCopy("en");
 
   const practiceName =
+    content.general?.practiceName ||
     organization?.displayName ||
     organization?.name ||
-    content.general?.practiceName ||
     "";
   const phone = content.general?.phone || primaryLocation?.phone || "";
   const cleanPhone = phone.replace(/[^0-9+]/g, "");
@@ -36,11 +36,13 @@ export function MobileMenu({ isOpen, onClose, onOpenSearch }: MobileMenuProps) {
   const hoursText = primaryLocation?.hoursInfo || "";
 
   const navItems = [
-    { label: copy.treatments, href: "/#services" },
-    { label: copy.successStories, href: "/#commitments" },
+    { label: copy.treatments, href: "/#treatments" },
+    { label: copy.whyUs || "Why Choose Us", href: "/#why-us" },
+    { label: copy.successStories, href: "/#reviews" },
     { label: copy.team, href: "/#team" },
-    { label: copy.locationsAndTiming, href: "/#visit" },
+    { label: copy.locationsAndTiming, href: "/#locations" },
     { label: copy.faqs, href: "/#faq" },
+    { label: copy.blogs, href: "/blog" },
   ];
 
   useEffect(() => {

@@ -9,7 +9,7 @@ import { SearchDialog } from "@/components/ui/search-dialog";
 import { MobileMenu } from "@/components/layout/mobile-menu";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 import { AnnouncementMarquee } from "@/components/ui/announcement-marquee";
-import { getServices, ServiceItem } from "@/lib/api";
+import { getServices, ServiceItem, resolveMediaUrl } from "@/lib/api";
 
 export interface SiteHeaderProps {
   variant?: "default" | "minimal";
@@ -33,6 +33,7 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
   const [servicesMenuOpen, setServicesMenuOpen] = useState(false);
   const [services, setServices] = useState<ServiceItem[]>([]);
 
+  const [logoError, setLogoError] = useState(false);
   const brandName =
     content.general?.shortBrandName?.trim() ||
     content.general?.practiceName ||
@@ -45,12 +46,17 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
     organization?.name ||
     "";
   const tagline = content.general?.tagline || organization?.tagline || "";
-  const logoUrl = content.general?.logoUrl || organization?.logoUrl || null;
+  const rawLogoUrl = content.general?.logoUrl || organization?.logoUrl || null;
+  const logoUrl = resolveMediaUrl(rawLogoUrl);
   const phone =
     content.general?.phone ||
     primaryLocation?.phone ||
     organization?.contactPhone ||
     "";
+
+  useEffect(() => {
+    setLogoError(false);
+  }, [rawLogoUrl]);
 
   useEffect(() => {
     let mounted = true;
@@ -115,10 +121,11 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
             className="group flex items-center gap-2.5 transition-transform active:scale-[0.98] shrink-0 whitespace-nowrap"
             aria-label={brandName ? `${brandName} Homepage` : "Homepage"}
           >
-            {logoUrl ? (
+            {logoUrl && !logoError ? (
               <img
                 src={logoUrl}
                 alt={brandName || "Clinic Logo"}
+                onError={() => setLogoError(true)}
                 className="h-8 w-8 rounded-full object-contain border border-line bg-bone shrink-0"
               />
             ) : (

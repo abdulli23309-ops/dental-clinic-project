@@ -423,7 +423,23 @@ export interface PublicLeadCaptureResponse {
 }
 
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+/**
+ * Resolves a media/asset path (relative or absolute) to a full accessible URL.
+ * Handles backend media paths like "/media/..." by prepending API_BASE.
+ */
+export function resolveMediaUrl(url?: string | null): string | null {
+  if (!url) return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  if (/^(https?:|\/\/|data:)/i.test(trimmed)) {
+    return trimmed;
+  }
+  const cleanPath = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  return `${base.replace(/\/+$/, "")}${cleanPath}`;
+}
 
 /* -------------------------------------------------------------
  * PUBLIC API METHODS

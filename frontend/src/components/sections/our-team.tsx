@@ -18,6 +18,24 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 import { resolveMediaUrl } from "@/lib/api";
 
+// Helper for per-doctor portrait focal point framing
+function getDoctorFocalClass(name: string) {
+  const lower = name.toLowerCase();
+  if (lower.includes("maral")) {
+    // Zoom in past clinic ceiling lights directly onto Dr. Maral
+    return "object-[50%_65%] scale-110";
+  }
+  if (lower.includes("bilal")) {
+    // Frame Dr. Bilal's full face and glasses
+    return "object-[50%_25%]";
+  }
+  if (lower.includes("sarah") || lower.includes("faraz")) {
+    return "object-[50%_15%]";
+  }
+  // Standard clinical studio focal framing (upper third)
+  return "object-[50%_15%]";
+}
+
 export function OurTeam() {
   const { team, locations, isLoading, copy, locale } = usePublicContent();
   const [selectedCity, setSelectedCity] = useState<string>("all");
@@ -66,16 +84,17 @@ export function OurTeam() {
         );
 
   const n = filteredDoctors.length;
-  const isArcMode = n <= 3;
+  // Arc mode for n < 8 (Lahore = 4, Karachi = 2/4) so cards never turn 90deg edge-on
+  const isArcMode = n < 8;
   const cardWidth = 320;
   const cardGap = 36;
 
-  // Geometry calculations: exact rules
-  // For n >= 4: stepAngle = 360 / n, r = max(420, round((320 + 36) / (2 * tan(PI / n))))
-  // For n <= 3 (Karachi = 2): stepAngle = 32deg, r = 520px
-  const stepAngle = isArcMode ? 32 : n > 0 ? 360 / n : 0;
+  // Geometry calculations:
+  // For n >= 8 (All = 18, Islamabad = 10): 360deg cylinder ring
+  // For n < 8 (Lahore = 4, Karachi = 2/4): 28deg open stage arc
+  const stepAngle = isArcMode ? 28 : n > 0 ? 360 / n : 0;
   const radius = isArcMode
-    ? 520
+    ? 580
     : n > 0
     ? Math.max(420, Math.round((cardWidth + cardGap) / (2 * Math.tan(Math.PI / n))))
     : 450;
@@ -91,11 +110,13 @@ export function OurTeam() {
     }
   }, [selectedCity, isArcMode, n, stepAngle, isRtl]);
 
-  // Rotate ring to target doctor with shortest-arc rotation
+  // Rotate ring to target doctor
   const rotateToDoctor = useCallback(
     (targetIndex: number) => {
       if (n === 0) return;
-      const safeIndex = ((targetIndex % n) + n) % n;
+      const safeIndex = isArcMode
+        ? Math.max(0, Math.min(n - 1, targetIndex))
+        : ((targetIndex % n) + n) % n;
       setActiveIndex(safeIndex);
 
       if (isArcMode) {
@@ -115,13 +136,21 @@ export function OurTeam() {
 
   const handleNext = useCallback(() => {
     if (n <= 1) return;
-    rotateToDoctor(activeIndex + 1);
-  }, [activeIndex, n, rotateToDoctor]);
+    if (isArcMode) {
+      rotateToDoctor(activeIndex >= n - 1 ? 0 : activeIndex + 1);
+    } else {
+      rotateToDoctor(activeIndex + 1);
+    }
+  }, [activeIndex, n, isArcMode, rotateToDoctor]);
 
   const handlePrev = useCallback(() => {
     if (n <= 1) return;
-    rotateToDoctor(activeIndex - 1);
-  }, [activeIndex, n, rotateToDoctor]);
+    if (isArcMode) {
+      rotateToDoctor(activeIndex <= 0 ? n - 1 : activeIndex - 1);
+    } else {
+      rotateToDoctor(activeIndex - 1);
+    }
+  }, [activeIndex, n, isArcMode, rotateToDoctor]);
 
   // Pointer drag handlers
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -291,7 +320,7 @@ export function OurTeam() {
 
               {/* 3D Perspective Stage Container */}
               <div
-                className="team-perspective-container relative w-full h-[580px] flex items-center justify-center cursor-grab active:cursor-grabbing"
+                className="team-perspective-container relative w-full h-[600px] flex items-center justify-center cursor-grab active:cursor-grabbing"
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
@@ -316,7 +345,7 @@ export function OurTeam() {
                       ? (idx - (n - 1) / 2) * stepAngle * (isRtl ? -1 : 1)
                       : idx * stepAngle * (isRtl ? -1 : 1);
 
-                    // Shortest circular index distance between each card i and activeIndex
+                    // Shortest circular index distance
                     const distance = isArcMode
                       ? Math.abs(idx - activeIndex)
                       : Math.min(
@@ -325,8 +354,8 @@ export function OurTeam() {
                         );
 
                     const isFront = distance === 0;
-                    const isSide = distance === 1 || distance === 2;
-                    const isBack = distance > 2;
+                    // In arc mode, all cards are in the arc and visible without disappearing at 90deg
+                    const isVisible = isArcMode ? true : distance <= 2;
 
                     return (
                       <div
@@ -334,38 +363,40 @@ export function OurTeam() {
                         className={`team-3d-card transition-all duration-350 ${
                           isFront
                             ? "opacity-100 filter-none z-10 pointer-events-auto"
-                            : isSide
-                            ? "opacity-85 filter brightness-[0.94] z-[5] cursor-pointer pointer-events-auto"
+                            : isVisible
+                            ? "opacity-85 filter brightness-[0.94] z-[5] cursor-pointer pointer-events-auto hover:opacity-100 hover:brightness-100"
                             : "opacity-0 pointer-events-none z-0"
                         }`}
                         style={{
                           transform: `rotateY(${cardAngle}deg) translateZ(${radius}px)`,
                         }}
                         onClick={(e) => {
-                          if (!isFront && isSide && !hasDragged.current) {
+                          if (!isFront && isVisible && !hasDragged.current) {
                             e.stopPropagation();
                             rotateToDoctor(idx);
                           }
                         }}
                       >
                         <div
-                          className={`w-[320px] h-[510px] rounded-2xl bg-white dark:bg-gray-900 border p-4 shadow-xl flex flex-col justify-between transition-all ${
+                          className={`w-[320px] h-[540px] rounded-2xl bg-white dark:bg-gray-900 border p-4 shadow-xl flex flex-col justify-between transition-all ${
                             isFront
                               ? "border-emerald-600 dark:border-emerald-500 ring-2 ring-emerald-500/40 shadow-2xl"
                               : "border-gray-200/90 dark:border-gray-800/90 hover:border-emerald-500/40"
                           }`}
                         >
                           <div>
-                            {/* Portrait Photo Container */}
-                            <div className="w-full h-[225px] rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 mb-2.5 relative shadow-inner">
+                            {/* Portrait Photo Container: taller 255px height with smart focal point framing */}
+                            <div className="w-full h-[255px] rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 mb-2.5 relative shadow-inner">
                               {doc.photoUrl ? (
                                 <Image
                                   src={resolveMediaUrl(doc.photoUrl) || doc.photoUrl}
                                   alt={doc.displayName}
                                   width={320}
-                                  height={300}
+                                  height={320}
                                   sizes="320px"
-                                  className="w-full h-full object-cover object-top pointer-events-none"
+                                  className={`w-full h-full object-cover pointer-events-none transition-transform duration-300 ${getDoctorFocalClass(
+                                    doc.displayName
+                                  )}`}
                                 />
                               ) : (
                                 <div className="w-full h-full grid place-items-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 text-gray-400">
@@ -424,13 +455,13 @@ export function OurTeam() {
                               )}
 
                               {doc.biography && (
-                                <p className="text-[11px] leading-relaxed text-gray-600 dark:text-gray-400 line-clamp-2 pt-0.5">
+                                <p className="text-[11px] leading-relaxed text-gray-500 dark:text-gray-400 line-clamp-2 pt-0.5">
                                   {doc.biography}
                                 </p>
                               )}
 
                               {doc.locationName && (
-                                <div className="flex items-center gap-1 text-[11px] text-gray-600 dark:text-gray-400 pt-0.5">
+                                <div className="flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400 pt-0.5">
                                   <MapPin className="h-3 w-3 text-primary shrink-0" />
                                   <span className="truncate">{doc.locationName}</span>
                                 </div>
@@ -539,8 +570,10 @@ export function OurTeam() {
                             alt={doc.displayName}
                             width={320}
                             height={400}
-                            sizes="(max-width: 640px) 280px, 320px"
-                            className="w-full h-full object-cover object-top"
+                            sizes="(max-width: 640px) 85vw, 320px"
+                            className={`w-full h-full object-cover ${getDoctorFocalClass(
+                              doc.displayName
+                            )}`}
                           />
                         ) : (
                           <div className="w-full h-full grid place-items-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 text-gray-400">
@@ -605,7 +638,7 @@ export function OurTeam() {
                         )}
 
                         {doc.locationName && (
-                          <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400 pt-0.5">
+                          <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 pt-0.5">
                             <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
                             <span className="truncate">{doc.locationName}</span>
                           </div>

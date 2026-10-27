@@ -92,7 +92,6 @@ export function Gallery() {
                 src={resolveMediaUrl(firstPhoto.imageUrl) || firstPhoto.imageUrl}
                 alt={getLocalizedCaption(firstPhoto.caption) || copy.insideOurClinic}
                 fill
-                unoptimized
                 sizes="100vw"
                 className="object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
               />

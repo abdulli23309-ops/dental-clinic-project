@@ -516,7 +516,10 @@ export function OurTeam() {
 
               <div
                 ref={scrollRef}
-                className="flex overflow-x-auto snap-x snap-mandatory gap-5 pb-6 hide-scrollbar scrollbar-none scroll-smooth px-1"
+                tabIndex={0}
+                role="region"
+                aria-label={copy.team}
+                className="flex overflow-x-auto snap-x snap-mandatory gap-5 pb-6 hide-scrollbar scrollbar-none scroll-smooth px-1 focus:outline-none focus:ring-1 focus:ring-primary/40 rounded-2xl"
               >
                 {filteredDoctors.map((doc, idx) => (
                   <motion.div

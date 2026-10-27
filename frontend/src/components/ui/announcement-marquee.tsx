@@ -60,9 +60,9 @@ export function AnnouncementMarquee() {
     <div
       role="region"
       aria-label="Practice Announcements"
-      className="relative z-30 w-full overflow-hidden bg-white/95 dark:bg-black/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 py-2 text-xs select-none pr-10"
+      className="relative z-30 w-full max-w-full overflow-hidden bg-white/95 dark:bg-black/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 py-2 text-xs select-none pr-10"
     >
-      <div className="flex w-full overflow-hidden">
+      <div className="w-full max-w-full overflow-hidden">
         <motion.div
           className="flex shrink-0 items-center gap-12 whitespace-nowrap"
           animate={{ x: ["0%", "-50%"] }}

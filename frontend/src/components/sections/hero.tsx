@@ -193,7 +193,7 @@ export function Hero() {
             {/* Practice / Eyebrow Badge */}
             {(eyebrow || practiceName) && (
               <motion.div
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 1, y: 0 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35 }}
                 className="inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 px-3.5 py-1 text-xs text-gray-700 dark:text-gray-300 backdrop-blur-md shadow-xs"
@@ -214,7 +214,7 @@ export function Hero() {
             {/* Two-Tone Headline */}
             {heading && (
               <motion.h1
-                initial={{ opacity: 0, y: 12 }}
+                initial={{ opacity: 1, y: 0 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.45, delay: 0.05 }}
                 className="font-display text-4xl sm:text-5xl lg:text-6xl tracking-tight text-gray-950 dark:text-white leading-[1.12] font-bold"
@@ -226,7 +226,7 @@ export function Hero() {
             {/* Sub-headline description */}
             {description && (
               <motion.p
-                initial={{ opacity: 0, y: 12 }}
+                initial={{ opacity: 1, y: 0 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.45, delay: 0.12 }}
                 className="max-w-xl text-base sm:text-lg leading-relaxed text-gray-600 dark:text-gray-300"
@@ -237,7 +237,7 @@ export function Hero() {
 
             {/* CTAs and Starting Fee Badge */}
             <motion.div
-              initial={{ opacity: 0, y: 12 }}
+              initial={{ opacity: 1, y: 0 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.45, delay: 0.2 }}
               className="pt-2 flex flex-wrap items-center gap-3.5 justify-start"
@@ -333,7 +333,7 @@ export function Hero() {
             <div
               onPointerMove={handlePointerMove}
               onPointerLeave={handlePointerLeave}
-              className="relative w-full max-w-[420px] aspect-[4/5] rounded-t-[200px] rounded-b-3xl overflow-hidden shadow-2xl border-4 border-white dark:border-gray-800 bg-gray-100 dark:bg-gray-800 group"
+              className="relative w-full max-w-[420px] min-h-[420px] aspect-[4/5] rounded-t-[200px] rounded-b-3xl overflow-hidden shadow-2xl border-4 border-white dark:border-gray-800 bg-gray-100 dark:bg-gray-800 group"
             >
               <Image
                 src={

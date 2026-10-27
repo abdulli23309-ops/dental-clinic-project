@@ -108,7 +108,7 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
 
       <header
         role="banner"
-        className={`sticky top-0 z-50 border-b w-full max-w-full overflow-x-clip transition-all duration-300 ${
+        className={`sticky top-0 z-50 border-b w-full transition-all duration-300 ${
           isScrolled
             ? "border-gray-200/80 dark:border-gray-800/80 bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl shadow-sm py-2.5"
             : "border-transparent bg-white/40 dark:bg-gray-950/40 backdrop-blur-sm py-4"

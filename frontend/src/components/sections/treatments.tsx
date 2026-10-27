@@ -231,9 +231,9 @@ export function Treatments() {
                       )}
                     </div>
 
-                    <h4 className="font-display text-base font-semibold text-gray-900 dark:text-white leading-snug">
+                    <h3 className="font-display text-base font-semibold text-gray-900 dark:text-white leading-snug">
                       {service.title}
-                    </h4>
+                    </h3>
 
                     {service.shortDesc && (
                       <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400 line-clamp-3">

@@ -123,7 +123,7 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
             {logoUrl && !logoError ? (
               <img
                 src={logoUrl}
-                alt={brandName || "Clinic Logo"}
+                alt=""
                 onError={() => setLogoError(true)}
                 className="h-9 sm:h-10 w-auto object-contain dark:brightness-0 dark:invert shrink-0"
               />

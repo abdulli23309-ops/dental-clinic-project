@@ -424,13 +424,13 @@ export function OurTeam() {
                               )}
 
                               {doc.biography && (
-                                <p className="text-[11px] leading-relaxed text-gray-500 dark:text-gray-400 line-clamp-2 pt-0.5">
+                                <p className="text-[11px] leading-relaxed text-gray-600 dark:text-gray-400 line-clamp-2 pt-0.5">
                                   {doc.biography}
                                 </p>
                               )}
 
                               {doc.locationName && (
-                                <div className="flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400 pt-0.5">
+                                <div className="flex items-center gap-1 text-[11px] text-gray-600 dark:text-gray-400 pt-0.5">
                                   <MapPin className="h-3 w-3 text-primary shrink-0" />
                                   <span className="truncate">{doc.locationName}</span>
                                 </div>
@@ -602,7 +602,7 @@ export function OurTeam() {
                         )}
 
                         {doc.locationName && (
-                          <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 pt-0.5">
+                          <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400 pt-0.5">
                             <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
                             <span className="truncate">{doc.locationName}</span>
                           </div>

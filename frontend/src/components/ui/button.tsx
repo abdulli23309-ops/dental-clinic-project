@@ -3,7 +3,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "outline" | "ghost";
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "premium" | "tactile-secondary";
   size?: "sm" | "md" | "lg";
   isLoading?: boolean;
   href?: string;
@@ -13,7 +13,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 
 /**
  * Renders an interactive button or navigational link styled with the clinic's signature pill shape.
- * It supports multiple visual styles (primary, secondary, outline, ghost) and handles loading states.
+ * It supports multiple visual styles (primary / premium emerald 4-shadow, secondary, outline, ghost) and handles loading states.
  */
 export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonProps>(
   (
@@ -32,17 +32,21 @@ export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, Bu
   ) => {
     // Pill shape is an intentional editorial design choice for Marlow Dental
     const baseStyles =
-      "inline-flex items-center justify-center font-medium tracking-wide transition-all duration-200 select-none cursor-pointer rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50";
+      "inline-flex items-center justify-center font-medium tracking-wide select-none cursor-pointer rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50";
 
     const variantStyles = {
       primary:
-        "bg-primary text-white border border-transparent shadow-subtle hover:brightness-105 hover:-translate-y-0.5 hover:shadow-card active:translate-y-0 active:scale-[0.98] focus-visible:ring-primary",
+        "btn-premium-emerald focus-visible:ring-emerald-700",
+      premium:
+        "btn-premium-emerald focus-visible:ring-emerald-700",
       secondary:
-        "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 hover:-translate-y-0.5 hover:shadow-subtle active:translate-y-0 active:scale-[0.98] focus-visible:ring-primary",
+        "btn-tactile-secondary focus-visible:ring-gray-400",
+      "tactile-secondary":
+        "btn-tactile-secondary focus-visible:ring-gray-400",
       outline:
-        "bg-transparent text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 hover:border-primary hover:text-primary dark:hover:border-primary dark:hover:text-primary hover:-translate-y-0.5 hover:shadow-subtle active:translate-y-0 active:scale-[0.98] focus-visible:ring-primary",
+        "bg-transparent text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 hover:border-primary hover:text-primary dark:hover:border-primary dark:hover:text-primary hover:-translate-y-0.5 hover:shadow-subtle active:translate-y-0 active:scale-[0.98] focus-visible:ring-primary transition-all duration-200",
       ghost:
-        "bg-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-[0.98] focus-visible:ring-primary",
+        "bg-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-[0.98] focus-visible:ring-primary transition-all duration-200",
     };
 
     const sizeStyles = {
@@ -96,6 +100,7 @@ export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, Bu
             rel="noopener noreferrer"
             className={combinedClassName}
             ref={ref as React.Ref<HTMLAnchorElement>}
+            {...(props as any)}
           >
             {content}
           </a>
@@ -106,6 +111,7 @@ export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, Bu
           href={href}
           className={combinedClassName}
           ref={ref as React.Ref<HTMLAnchorElement>}
+          {...(props as any)}
         >
           {content}
         </Link>

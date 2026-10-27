@@ -97,10 +97,18 @@ export function Hero() {
     mouseY.set(0);
   };
 
+const DEFAULT_HERO_SERVICES: ServiceItem[] = [
+  { id: "1", title: "Cleanings & Comprehensive Exam", category: "preventive", shortDesc: "", fullDesc: "", duration: "45 min", cashPrice: "Rs. 2,000", insuranceNote: "", isActive: true },
+  { id: "2", title: "Tooth-Colored Fillings & Crowns", category: "restorative", shortDesc: "", fullDesc: "", duration: "60 min", cashPrice: "Rs. 4,500", insuranceNote: "", isActive: true },
+  { id: "3", title: "Gentle Endodontics (Root Canals)", category: "restorative", shortDesc: "", fullDesc: "", duration: "60 min", cashPrice: "Rs. 8,000", insuranceNote: "", isActive: true },
+  { id: "4", title: "Invisalign Clear Aligners", category: "cosmetic", shortDesc: "", fullDesc: "", duration: "30 min", cashPrice: "Rs. 150,000", insuranceNote: "", isActive: true },
+  { id: "5", title: "Professional Enamel Whitening", category: "cosmetic", shortDesc: "", fullDesc: "", duration: "45 min", cashPrice: "Rs. 12,000", insuranceNote: "", isActive: true },
+];
+
   const { content, primaryLocation, organization, copy, locale } = usePublicContent();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [currentReviewIdx, setCurrentReviewIdx] = useState(0);
-  const [services, setServices] = useState<ServiceItem[]>([]);
+  const [services, setServices] = useState<ServiceItem[]>(DEFAULT_HERO_SERVICES);
 
   const isUrdu = locale === "ur";
   const defaultHeading = copy.heroHeadingUr || "Not all heroes wear capes. Some wear gloves.";
@@ -408,7 +416,6 @@ export function Hero() {
                   <Image
                     src="/images/tooth-hero.png"
                     alt="Professional anatomical tooth model illustrating dental care quality"
-                    priority
                     width={220}
                     height={220}
                     className="w-full h-full object-contain select-none pointer-events-none"

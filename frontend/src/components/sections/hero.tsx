@@ -246,7 +246,7 @@ export function Hero() {
                 href={content.homepage?.heroCtaLink || "/book"}
                 variant="primary"
                 size="lg"
-                className="rounded-full px-6 shadow-md hover:shadow-lg transition-all flex items-center gap-2"
+                className="rounded-full px-7 flex items-center gap-2"
               >
                 <span>{isUrdu ? copy.bookAppointment : (content.homepage?.heroCtaText || copy.bookAppointment)}</span>
                 <ArrowRight className="h-4 w-4 rtl:rotate-180" />
@@ -256,9 +256,9 @@ export function Hero() {
                 <div className="flex items-center gap-1.5">
                   <Button
                     href={`tel:${cleanPhone}`}
-                    variant="outline"
+                    variant="secondary"
                     size="lg"
-                    className="rounded-full px-5 bg-white/70 dark:bg-gray-900/70 backdrop-blur-sm flex items-center gap-2"
+                    className="rounded-full px-5 flex items-center gap-2"
                   >
                     <Phone className="h-4 w-4 text-primary shrink-0" />
                     <span>
@@ -270,7 +270,7 @@ export function Hero() {
               ) : null}
 
               {startingFee && (
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 dark:bg-primary/20 border border-primary/20 px-3 py-1.5 text-xs font-semibold text-primary">
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 dark:bg-emerald-400/15 border border-emerald-600/25 px-3.5 py-1.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300 shadow-xs">
                   <Sparkles className="h-3.5 w-3.5" />
                   <span>
                     {copy.treatmentsFrom} {startingFee}
@@ -342,10 +342,11 @@ export function Hero() {
                     : "/images/benyamin.jpg"
                 }
                 alt="Modern state-of-the-art clinic treatment suite"
-                fill
-                priority
-                sizes="(max-width: 768px) 100vw, 420px"
-                className="object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
+                priority={true}
+                width={420}
+                height={525}
+                sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 420px"
+                className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent pointer-events-none" />
 

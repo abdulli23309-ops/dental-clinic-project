@@ -11,7 +11,7 @@ export default function BookPage() {
     <div className="min-h-screen bg-bone dark:bg-gray-950 flex flex-col justify-between">
       <SiteHeader />
 
-      <main className="flex-1 container-x py-10 md:py-14">
+      <main id="main-content" className="flex-1 container-x py-10 md:py-14 overflow-x-clip">
         <ProgressiveBookingFlow />
       </main>
 

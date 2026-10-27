@@ -100,11 +100,14 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
 
   return (
     <>
-      <a href="#main-content" className="skip-to-content">
-        Skip to main content
-      </a>
+      <nav aria-label="Skip links">
+        <a href="#main-content" className="skip-to-content">
+          Skip to main content
+        </a>
+      </nav>
 
       <header
+        role="banner"
         className={`sticky top-0 z-50 border-b w-full max-w-full overflow-x-clip transition-all duration-300 ${
           isScrolled
             ? "border-gray-200/80 dark:border-gray-800/80 bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl shadow-sm py-2.5"

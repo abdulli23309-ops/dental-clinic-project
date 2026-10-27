@@ -17,7 +17,7 @@ interface MobileMenuProps {
 }
 
 export function MobileMenu({ isOpen, onClose, onOpenSearch }: MobileMenuProps) {
-  const { content, primaryLocation, organization } = usePublicContent();
+  const { content, primaryLocation, organization, locale, setLocale } = usePublicContent();
   const containerRef = useRef<HTMLDivElement>(null);
   const copy = getUiCopy("en");
 
@@ -94,6 +94,13 @@ export function MobileMenu({ isOpen, onClose, onOpenSearch }: MobileMenuProps) {
               </span>
             ) : <span />}
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => setLocale(locale === "en" ? "ur" : "en")}
+                className="rounded-full border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-900 px-2.5 py-1 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:border-primary/40 hover:text-primary transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+                aria-label="Toggle language"
+              >
+                {locale === "en" ? "اردو" : "EN"}
+              </button>
               <ThemeToggle />
               <button
                 onClick={onClose}

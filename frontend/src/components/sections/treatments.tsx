@@ -1,21 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import {
   ArrowRight,
   Clock,
   ShieldCheck,
-  Sparkles,
-  Plus,
-  CheckCircle2,
-  Calendar,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getServices, resolveMediaUrl, ServiceItem } from "@/lib/api";
-import { motion, AnimatePresence } from "motion/react";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 
 type CategoryFilter = "all" | string;
@@ -24,8 +21,21 @@ export function Treatments() {
   const { copy } = usePublicContent();
   const [activeTab, setActiveTab] = useState<CategoryFilter>("all");
   const [services, setServices] = useState<ServiceItem[]>([]);
-  const [activeTreatmentId, setActiveTreatmentId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const scrollByCard = (direction: "left" | "right") => {
+    if (!scrollContainerRef.current) return;
+    const container = scrollContainerRef.current;
+    const firstCard = container.querySelector<HTMLElement>(":scope > div");
+    const cardWidth = firstCard
+      ? firstCard.getBoundingClientRect().width + 24
+      : container.clientWidth * 0.85;
+    container.scrollBy({
+      left: direction === "left" ? -cardWidth : cardWidth,
+      behavior: "smooth",
+    });
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -34,11 +44,7 @@ export function Treatments() {
       .then((data) => {
         if (isMounted) {
           if (data && data.length > 0) {
-            const activeServices = data.filter((s) => s.isActive !== false);
-            setServices(activeServices);
-            if (activeServices.length > 0) {
-              setActiveTreatmentId(activeServices[0].id);
-            }
+            setServices(data.filter((s) => s.isActive !== false));
           } else {
             setServices([]);
           }
@@ -56,6 +62,11 @@ export function Treatments() {
     };
   }, []);
 
+  // If no services in database, render nothing
+  if (!isLoading && services.length === 0) {
+    return null;
+  }
+
   const categories = Array.from(
     new Set(services.map((s) => s.category).filter(Boolean))
   );
@@ -64,24 +75,6 @@ export function Treatments() {
     activeTab === "all"
       ? services
       : services.filter((s) => s.category === activeTab);
-
-  // Sync active treatment when category tab changes
-  useEffect(() => {
-    if (filtered.length > 0) {
-      const exists = filtered.some((s) => s.id === activeTreatmentId);
-      if (!exists) {
-        setActiveTreatmentId(filtered[0].id);
-      }
-    }
-  }, [activeTab, filtered, activeTreatmentId]);
-
-  // If no services in database, render nothing
-  if (!isLoading && services.length === 0) {
-    return null;
-  }
-
-  const activeTreatment =
-    filtered.find((s) => s.id === activeTreatmentId) || filtered[0];
 
   return (
     <section
@@ -103,7 +96,7 @@ export function Treatments() {
           </p>
         </div>
 
-        {/* Category Filter Tabs */}
+        {/* Full Category Filter Pills */}
         {categories.length > 1 && (
           <div
             className="border-b border-gray-200 dark:border-gray-800 pb-4 flex items-center gap-2 overflow-x-auto scrollbar-none"
@@ -163,212 +156,117 @@ export function Treatments() {
           </div>
         )}
 
-        {/* Loading Skeletons */}
+        {/* Treatments Directory Horizontal Carousel (Filtered) */}
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[1, 2, 3].map((i) => (
+          <div className="flex overflow-x-auto snap-x snap-mandatory gap-6 pb-6 scrollbar-hide">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
               <Skeleton
                 key={i}
-                className="h-[480px] rounded-3xl border border-gray-200 dark:border-gray-800"
+                className="min-w-[85%] md:min-w-[45%] lg:min-w-[31%] shrink-0 snap-start h-80 rounded-2xl border border-gray-200 dark:border-gray-800"
               />
             ))}
           </div>
         ) : filtered.length === 0 ? null : (
-          <>
-            {/* ============================================================== */}
-            {/* 1. TOP FEATURED PROCEDURE STAGE                                */}
-            {/* ============================================================== */}
-            {activeTreatment && (
-              <div className="grid grid-cols-1 lg:grid-cols-12 rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden shadow-card mb-6 transition-all">
-                {/* Left (lg:col-span-6): High-res treatment photo */}
-                <div className="lg:col-span-6 relative h-64 sm:h-72 lg:h-80 w-full overflow-hidden bg-gray-100 dark:bg-gray-800">
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={activeTreatment.id}
-                      initial={{ opacity: 0, scale: 1.02 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                      className="w-full h-full relative"
-                    >
-                      {activeTreatment.imageUrl ? (
+          <div className="relative group/carousel">
+            {/* Absolute Left Arrow */}
+            <button
+              type="button"
+              onClick={() => scrollByCard("left")}
+              aria-label={copy.previousTreatments}
+              className="absolute left-0 sm:-left-3 top-1/2 -translate-y-1/2 z-20 grid h-10 w-10 sm:h-12 sm:w-12 place-items-center rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 shadow-xl hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-primary transition-all cursor-pointer"
+            >
+              <ChevronLeft className="h-5 w-5 rtl:rotate-180" />
+            </button>
+
+            {/* Absolute Right Arrow */}
+            <button
+              type="button"
+              onClick={() => scrollByCard("right")}
+              aria-label={copy.nextTreatments}
+              className="absolute right-0 sm:-right-3 top-1/2 -translate-y-1/2 z-20 grid h-10 w-10 sm:h-12 sm:w-12 place-items-center rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 shadow-xl hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-primary transition-all cursor-pointer"
+            >
+              <ChevronRight className="h-5 w-5 rtl:rotate-180" />
+            </button>
+
+            <div
+              ref={scrollContainerRef}
+              className="flex overflow-x-auto snap-x snap-mandatory gap-6 pb-6 px-1 scrollbar-hide items-stretch scroll-smooth"
+              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+            >
+              {filtered.map((service) => (
+                <div
+                  key={service.id}
+                  className="w-[85%] md:w-[45%] lg:w-[31%] min-w-[85%] md:min-w-[45%] lg:min-w-[31%] shrink-0 snap-start bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden shadow-xs p-4 sm:p-5 flex flex-col justify-between space-y-4 hover:border-emerald-600/40 hover:shadow-md transition-all self-stretch group"
+                >
+                  <div className="space-y-3">
+                    {/* Treatment Card Photo */}
+                    <div className="w-full aspect-[4/3] relative overflow-hidden rounded-xl bg-[#FAF9F5] dark:bg-gray-800/60 shadow-inner">
+                      {service.imageUrl ? (
                         <Image
-                          src={resolveMediaUrl(activeTreatment.imageUrl) || activeTreatment.imageUrl}
-                          alt={activeTreatment.title}
+                          src={resolveMediaUrl(service.imageUrl) || service.imageUrl}
+                          alt={service.title}
                           fill
-                          unoptimized
-                          className="object-cover object-center"
+                          sizes="(max-width: 768px) 85vw, (max-width: 1024px) 45vw, 31vw"
+                          className="object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
                         />
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-emerald-900/10 via-amber-50/20 to-transparent flex flex-col items-center justify-center p-6 text-center">
-                          <ShieldCheck className="h-16 w-16 text-emerald-700/60 mb-2" />
-                          <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                            {activeTreatment.category} Care
+                        <div className="w-full h-full bg-[#FAF9F5] dark:bg-gray-800/60 flex flex-col items-center justify-center p-4 text-center">
+                          <ShieldCheck className="h-8 w-8 text-primary/70 mb-1" />
+                          <span className="text-[11px] font-semibold text-gray-600 dark:text-gray-300 capitalize">
+                            {service.category} {copy.careSuffix}
                           </span>
                         </div>
                       )}
-                    </motion.div>
-                  </AnimatePresence>
-
-                  {/* Gradient Vignette */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20 pointer-events-none" />
-
-                  {/* Category Badge on Top-Left */}
-                  <span className="absolute top-4 left-4 rounded-full btn-premium-emerald text-white px-3 py-1 text-[10px] font-bold uppercase tracking-wider shadow-sm z-10">
-                    {activeTreatment.category}
-                  </span>
-
-                  {/* Glassmorphic Duration Pill on Top-Right */}
-                  {activeTreatment.duration && (
-                    <div className="absolute top-4 right-4 inline-flex items-center gap-1.5 rounded-full bg-black/60 dark:bg-black/70 backdrop-blur-md px-3 py-1 text-xs text-white shadow-sm font-medium z-10">
-                      <Clock className="h-3.5 w-3.5 text-emerald-400" />
-                      <span>{activeTreatment.duration}</span>
                     </div>
-                  )}
-                </div>
 
-                {/* Right (lg:col-span-6): Fraunces serif title, full clinical description, transparent price, 4-shadow button */}
-                <div className="lg:col-span-6 p-6 lg:p-8 flex flex-col justify-between">
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={activeTreatment.id}
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -6 }}
-                      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                      className="space-y-3"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-emerald-600 animate-pulse" />
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-                          Featured Clinical Procedure
+                    <div className="flex items-center justify-between text-xs pt-1">
+                      <span className="rounded-full bg-emerald-500/10 dark:bg-emerald-400/15 border border-emerald-600/20 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
+                        {service.category}
+                      </span>
+                      {service.duration && (
+                        <span className="inline-flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400">
+                          <Clock className="h-3 w-3" />
+                          <span>{service.duration}</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <h4 className="font-display text-base font-semibold text-gray-900 dark:text-white leading-snug">
+                      {service.title}
+                    </h4>
+
+                    {service.shortDesc && (
+                      <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400 line-clamp-3">
+                        {service.shortDesc}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-2 mt-auto">
+                    {service.cashPrice ? (
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">{copy.feeFrom}</span>
+                        <span className="font-mono text-xs font-bold text-gray-900 dark:text-white">
+                          {service.cashPrice}
                         </span>
                       </div>
-
-                      <h3 className="font-display text-2xl lg:text-3xl font-bold text-gray-950 dark:text-white leading-tight">
-                        {activeTreatment.title}
-                      </h3>
-
-                      <p className="text-xs sm:text-sm leading-relaxed text-gray-600 dark:text-gray-300">
-                        {activeTreatment.fullDesc || activeTreatment.shortDesc}
-                      </p>
-
-                      {/* Clinical Badges */}
-                      <div className="space-y-1.5 pt-1">
-                        {activeTreatment.recommendedInterval && (
-                          <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                            <span>{activeTreatment.recommendedInterval}</span>
-                          </div>
-                        )}
-                        {activeTreatment.insuranceNote && (
-                          <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                            <Sparkles className="h-4 w-4 text-emerald-600 shrink-0" />
-                            <span>{activeTreatment.insuranceNote}</span>
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  </AnimatePresence>
-
-                  {/* Footer Pricing & 4-Shadow CTA */}
-                  <div className="pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-4 mt-6">
-                    <div>
-                      <span className="text-[10px] text-gray-500 uppercase tracking-wider block font-medium">
-                        {copy.feeFrom}
-                      </span>
-                      <span className="font-mono text-base sm:text-lg font-bold text-gray-900 dark:text-white">
-                        {activeTreatment.cashPrice || copy.consultationRequired}
-                      </span>
-                    </div>
+                    ) : (
+                      <span className="text-[11px] text-gray-400">{copy.consultationRequired}</span>
+                    )}
 
                     <Button
-                      href={`/book?service=${encodeURIComponent(activeTreatment.id)}`}
+                      href={`/book?service=${encodeURIComponent(service.id)}`}
                       variant="primary"
-                      size="md"
-                      className="rounded-full px-6 flex items-center gap-2 text-xs sm:text-sm font-semibold"
+                      size="sm"
+                      className="rounded-full px-4 text-xs font-semibold"
                     >
                       <span>{copy.book}</span>
-                      <ArrowRight className="h-4 w-4 rtl:rotate-180" />
                     </Button>
                   </div>
                 </div>
-              </div>
-            )}
-
-            {/* ============================================================== */}
-            {/* 2. INTERACTIVE TREATMENT SELECTOR CARDS BELOW                  */}
-            {/* ============================================================== */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filtered.map((service) => {
-                const isSelected = service.id === activeTreatment?.id;
-                const thumbSrc = service.imageUrl
-                  ? resolveMediaUrl(service.imageUrl) || service.imageUrl
-                  : null;
-
-                return (
-                  <button
-                    key={service.id}
-                    type="button"
-                    onClick={() => setActiveTreatmentId(service.id)}
-                    className={`group flex items-center gap-3.5 p-3.5 sm:p-4 rounded-2xl border text-left rtl:text-right transition-all cursor-pointer ${
-                      isSelected
-                        ? "border-emerald-600 dark:border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 ring-2 ring-emerald-500/30 shadow-md scale-[1.01]"
-                        : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-emerald-500/40 hover:bg-gray-50/60 dark:hover:bg-gray-850 shadow-xs"
-                    }`}
-                  >
-                    {/* Thumbnail */}
-                    <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-xl overflow-hidden relative shrink-0 bg-gray-100 dark:bg-gray-800 border border-gray-100 dark:border-gray-800 shadow-inner">
-                      {thumbSrc ? (
-                        <Image
-                          src={thumbSrc}
-                          alt={service.title}
-                          fill
-                          unoptimized
-                          className="object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-emerald-700/60 dark:text-emerald-400 bg-emerald-500/5">
-                          <ShieldCheck className="h-6 w-6" />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 truncate">
-                          {service.category}
-                        </span>
-                        {service.duration && (
-                          <span className="text-[10px] text-gray-600 dark:text-gray-400 shrink-0">
-                            · {service.duration}
-                          </span>
-                        )}
-                      </div>
-                      <h4 className="font-display text-sm font-bold text-gray-950 dark:text-white leading-tight truncate">
-                        {service.title}
-                      </h4>
-                      <p className="font-mono text-xs font-semibold text-emerald-800 dark:text-emerald-300">
-                        {service.cashPrice || copy.consultationRequired}
-                      </p>
-                    </div>
-
-                    {/* Selection indicator checkmark */}
-                    <div
-                      className={`h-6 w-6 rounded-full flex items-center justify-center shrink-0 transition-colors ${
-                        isSelected
-                          ? "bg-emerald-600 text-white"
-                          : "border border-gray-300 dark:border-gray-700 text-transparent group-hover:border-emerald-500/50"
-                      }`}
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                    </div>
-                  </button>
-                );
-              })}
+              ))}
             </div>
-          </>
+          </div>
         )}
 
         {/* Signature Checkup Banner */}

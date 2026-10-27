@@ -285,6 +285,7 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
                   href="/book"
                   variant="primary"
                   size="sm"
+                  aria-label={copy.book}
                   className="rounded-full px-3 text-sm sm:px-4 sm:text-xs py-1.5 font-semibold shrink whitespace-nowrap"
                 >
                   <Calendar className="h-3.5 w-3.5 sm:mr-1 shrink-0" />

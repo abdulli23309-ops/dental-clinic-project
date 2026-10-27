@@ -672,7 +672,7 @@ export function ProgressiveBookingFlow() {
                     <h2 className="font-display text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">
                       {progressiveBookingCopy.contact.heading}
                     </h2>
-                    <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                       {progressiveBookingCopy.contact.subheading}
                     </p>
                   </div>

@@ -118,7 +118,10 @@ export function SuccessStories() {
 
             <div
               ref={scrollRef}
-              className="flex flex-row overflow-x-auto snap-x snap-mandatory gap-6 py-2 hide-scrollbar"
+              tabIndex={0}
+              role="region"
+              aria-label={copy.successStories}
+              className="flex flex-row overflow-x-auto snap-x snap-mandatory gap-6 py-2 hide-scrollbar focus:outline-none focus:ring-1 focus:ring-primary/40 rounded-2xl"
               style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
             >
               {reviews.map((rev, idx) => {

@@ -515,7 +515,7 @@ export function ProgressiveBookingFlow() {
           </div>
 
           <div className="space-y-2">
-            <span className="text-xs font-mono font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+            <span className="text-xs font-mono font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
               {progressiveBookingCopy.confirmation.eyebrow}
             </span>
             <h2 className="font-display text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white">
@@ -640,7 +640,7 @@ export function ProgressiveBookingFlow() {
                         className={`mt-1.5 text-[11px] font-medium tracking-tight ${
                           isCurrent
                             ? "text-gray-900 dark:text-white"
-                            : "text-gray-400 dark:text-gray-500"
+                            : "text-gray-600 dark:text-gray-400"
                         }`}
                       >
                         {label}
@@ -666,7 +666,7 @@ export function ProgressiveBookingFlow() {
               >
                 <Card shadow="card" className="p-6 sm:p-8 md:p-10 space-y-8" animate={false}>
                   <div className="space-y-1 pb-4 border-b border-gray-100 dark:border-gray-800">
-                    <span className="text-xs font-mono font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                    <span className="text-xs font-mono font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
                       {progressiveBookingCopy.contact.pageLabel}
                     </span>
                     <h2 className="font-display text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">
@@ -815,7 +815,7 @@ export function ProgressiveBookingFlow() {
               >
                 <Card shadow="card" className="p-6 sm:p-8 space-y-6" animate={false}>
                   <div className="space-y-1">
-                    <span className="text-xs font-mono font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                    <span className="text-xs font-mono font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
                       {progressiveBookingCopy.waterfall.pageLabel}
                     </span>
                     <h2
@@ -1459,7 +1459,7 @@ export function ProgressiveBookingFlow() {
               >
                 <Card shadow="card" className="p-6 sm:p-8 md:p-10 space-y-8" animate={false}>
                   <div className="space-y-1 pb-4 border-b border-gray-100 dark:border-gray-800">
-                    <span className="text-xs font-mono font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                    <span className="text-xs font-mono font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
                       {progressiveBookingCopy.review.pageLabel}
                     </span>
                     <h2 className="font-display text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">

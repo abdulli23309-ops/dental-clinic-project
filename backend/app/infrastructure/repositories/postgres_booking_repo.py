@@ -16,11 +16,15 @@ class PostgresBookingRepository(BookingRepository):
 
     @staticmethod
     def _to_orm(entity: Booking) -> BookingORM:
+        from app.domain.models.phone_utils import normalize_pakistan_phone
+        phone_norm = entity.phone_normalized or normalize_pakistan_phone(entity.patient_phone)
         return BookingORM(
             id=entity.id,
             confirmation_id=entity.confirmation_id,
             clinic_id=entity.clinic_id,
             patient_id=entity.patient_id,
+            lead_id=entity.lead_id,
+            source=entity.source or "reception",
             service_id=entity.service_id,
             team_member_id=entity.team_member_id,
             slot_id=entity.slot_id,
@@ -29,6 +33,7 @@ class PostgresBookingRepository(BookingRepository):
             status=entity.status,
             patient_full_name=entity.patient_full_name,
             patient_phone=entity.patient_phone,
+            phone_normalized=phone_norm,
             patient_email=entity.patient_email,
             notes=entity.notes,
             utm_source=entity.utm_source,
@@ -47,11 +52,14 @@ class PostgresBookingRepository(BookingRepository):
 
     @staticmethod
     def _to_domain(orm: BookingORM) -> Booking:
+        from app.domain.models.phone_utils import normalize_pakistan_phone
         return Booking(
             id=orm.id,
             confirmation_id=orm.confirmation_id,
             clinic_id=orm.clinic_id,
             patient_id=orm.patient_id,
+            lead_id=getattr(orm, "lead_id", None),
+            source=getattr(orm, "source", "reception") or "reception",
             service_id=orm.service_id,
             team_member_id=orm.team_member_id,
             slot_id=orm.slot_id,
@@ -60,6 +68,7 @@ class PostgresBookingRepository(BookingRepository):
             status=orm.status,
             patient_full_name=orm.patient_full_name,
             patient_phone=orm.patient_phone,
+            phone_normalized=getattr(orm, "phone_normalized", "") or normalize_pakistan_phone(orm.patient_phone),
             patient_email=orm.patient_email,
             notes=orm.notes,
             utm_source=orm.utm_source,
@@ -77,10 +86,16 @@ class PostgresBookingRepository(BookingRepository):
         )
 
     async def save(self, booking: Booking) -> Booking:
+        from app.domain.models.phone_utils import normalize_pakistan_phone
+        phone_norm = normalize_pakistan_phone(booking.patient_phone)
+        booking.phone_normalized = phone_norm
+
         existing = await self._session.get(BookingORM, booking.id)
         if existing:
             existing.clinic_id = booking.clinic_id
             existing.patient_id = booking.patient_id
+            existing.lead_id = booking.lead_id
+            existing.source = booking.source or "reception"
             existing.service_id = booking.service_id
             existing.team_member_id = booking.team_member_id
             existing.slot_id = booking.slot_id
@@ -89,6 +104,7 @@ class PostgresBookingRepository(BookingRepository):
             existing.status = booking.status
             existing.patient_full_name = booking.patient_full_name
             existing.patient_phone = booking.patient_phone
+            existing.phone_normalized = phone_norm
             existing.patient_email = booking.patient_email
             existing.notes = booking.notes
             existing.staff_notes = booking.staff_notes

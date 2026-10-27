@@ -45,8 +45,11 @@ import { useDirectory } from "@/lib/directory";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DentalChart } from "@/components/doctor/dental-chart";
+import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
+import { StaggerList } from "@/components/ui/stagger-list";
 import { ClinicalAlertBanner } from "@/components/doctor/clinical-alert-banner";
 import { getWaitingTimeCategory } from "@/lib/statuses";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export default function DoctorDashboardPage() {
   const { accessToken, user } = useAuth();
@@ -443,6 +446,7 @@ export default function DoctorDashboardPage() {
   const arrivedPatients = schedule.filter((b) => b.status === "arrived");
 
   return (
+  <AnimatedPage>
     <div className="space-y-8">
       {/* Unlinked doctor account warning banner */}
       {isUnlinkedDoctor && (
@@ -540,9 +544,21 @@ export default function DoctorDashboardPage() {
                 >
                   <div>
                     <div className="flex items-start justify-between gap-2">
-                      <p className="font-semibold text-xs text-ink truncate">
-                        {b.patientName}
-                      </p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="font-semibold text-xs text-ink truncate">
+                          {b.patientName}
+                        </p>
+                        {b.source && (
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-sand border border-line text-ink-soft">
+                            {b.source}
+                          </span>
+                        )}
+                        {b.isFirstVisit && (
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-950/60 dark:text-purple-300">
+                            First Visit
+                          </span>
+                        )}
+                      </div>
                       <span
                         className={`inline-flex items-center gap-1 font-mono text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 ${badgeClasses}`}
                       >
@@ -634,10 +650,17 @@ export default function DoctorDashboardPage() {
       </div>
 
       {/* Schedule Card Table */}
-      <Card surface="bone" shadow="card" className="overflow-hidden p-0">
+      <Card surface="bone" shadow="card" className="overflow-hidden p-0" hoverLift={true} index={0}>
         {isLoading ? (
-          <div className="p-12 text-center text-xs font-mono text-ink-soft">
-            Loading practitioner schedule...
+          <div className="p-6 space-y-4">
+            <StaggerList className="space-y-4" stagger={0.08}>
+              <Skeleton className="h-10 w-1/2" />
+              <Skeleton className="h-10 w-1/3" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-1/2" />
+              <Skeleton className="h-10 w-1/3" />
+              <Skeleton className="h-10 w-full" />
+            </StaggerList>
           </div>
         ) : schedule.length === 0 ? (
           <div className="p-12 text-center space-y-2">
@@ -673,6 +696,16 @@ export default function DoctorDashboardPage() {
                         <span className="font-semibold text-ink">
                           {b.patientName || "Patient"}
                         </span>
+                        {b.source && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-sand border border-line text-ink-soft">
+                            {b.source}
+                          </span>
+                        )}
+                        {b.isFirstVisit && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-800 border border-purple-300 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800">
+                            First Visit
+                          </span>
+                        )}
                         {b.paymentStatus === "paid" && (
                           <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800">
                             Paid
@@ -1241,5 +1274,6 @@ export default function DoctorDashboardPage() {
         </div>
       )}
     </div>
+  </AnimatedPage>
   );
 }

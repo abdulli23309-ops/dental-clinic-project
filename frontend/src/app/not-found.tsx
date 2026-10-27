@@ -1,20 +1,18 @@
-import Link from "next/link";
 import { ArrowLeft, Calendar, Compass } from "lucide-react";
 import SiteHeader from "@/components/layout/site-header";
 import Footer from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { getUiCopy } from "@/content/ui-copy";
 
 export const metadata = {
-  title: "Page Not Found | Marlow Dental",
-  description: "The page you requested could not be located. Explore Marlow Dental services or return home.",
+  title: "Page Not Found",
+  description: "The page you requested could not be located.",
 };
 
-/**
- * Custom 404 error page displayed when a visitor navigates to an unrecognized URL.
- * It provides helpful shortcuts back to the homepage, pricing schedule, or booking wizard.
- */
 export default function NotFound() {
+  const copy = getUiCopy("en");
+
   return (
     <>
       <SiteHeader variant="minimal" />
@@ -31,29 +29,29 @@ export default function NotFound() {
           </h1>
 
           <p className="text-sm sm:text-base leading-relaxed text-ink-soft">
-            The link you followed may be outdated or the page may have moved. Here are the most helpful destinations:
+            The link you followed may be outdated or the page may have moved.
           </p>
 
           <div className="pt-2 flex flex-col sm:flex-row justify-center gap-3">
             <Button href="/" variant="primary" size="md">
               <ArrowLeft className="h-4 w-4" />
-              <span>Return to Homepage</span>
+              <span>{copy.returnToHomepage}</span>
             </Button>
             <Button href="/#services" variant="secondary" size="md">
-              <span>View Treatment Fees</span>
+              <span>{copy.treatments}</span>
             </Button>
             <Button href="/book" variant="outline" size="md">
               <Calendar className="h-4 w-4 text-forest" />
-              <span>Book Appointment</span>
+              <span>{copy.book}</span>
             </Button>
           </div>
 
           <Card surface="cream" shadow="subtle" className="mt-12 p-6 text-xs text-ink-soft space-y-2">
             <p className="font-semibold text-ink uppercase tracking-wider text-[11px]">
-              Need Immediate Assistance?
+              Assistance
             </p>
             <p>
-              If you are looking for office hours or emergency dental care, please return to the homepage or book an appointment directly through our online reservation form.
+              Please return to the homepage or use the booking link to schedule a consultation.
             </p>
           </Card>
         </div>

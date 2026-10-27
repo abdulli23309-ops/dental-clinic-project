@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   AlertTriangle,
   Check,
@@ -22,6 +23,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/components/providers/auth-provider";
+import { AnimatedPage } from "@/components/ui/animated-page";
+import { Skeleton } from "@/components/ui/skeleton";
+import { StaggerList, StaggerItem } from "@/components/ui/stagger-list";
+import {
+  staggerContainer,
+  listItem,
+  modalOverlay,
+  modalContent,
+  reducedVariant,
+} from "@/animations/variants";
 import {
   adminCreateUser,
   adminGetTeam,
@@ -204,6 +215,7 @@ export default function AdminUsersPage() {
   });
 
   return (
+  <AnimatedPage>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -239,7 +251,7 @@ export default function AdminUsersPage() {
       )}
 
       {/* Filter bar */}
-      <Card className="p-4 bg-surface border-line flex flex-col sm:flex-row gap-3 items-center justify-between">
+      <Card className="p-4 bg-surface border-line flex flex-col sm:flex-row gap-3 items-center justify-between" hoverLift={true} index={0}>
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <input
             type="text"
@@ -265,7 +277,7 @@ export default function AdminUsersPage() {
       </Card>
 
       {/* Users Table */}
-      <Card className="border-line overflow-hidden bg-surface">
+      <Card className="border-line overflow-hidden bg-surface" hoverLift={true} index={1}>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-sand/30 border-b border-line text-muted-foreground uppercase font-medium">
@@ -278,12 +290,21 @@ export default function AdminUsersPage() {
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-line">
+            <motion.tbody
+              variants={staggerContainer}
+              initial="hidden"
+              animate="visible"
+              className="divide-y divide-line"
+            >
               {isLoading ? (
                 <tr>
                   <td colSpan={6} className="py-8 text-center text-muted-foreground">
-                    <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2 text-primary" />
-                    Loading staff accounts...
+                    <StaggerList className="flex flex-col items-center justify-center gap-2">
+                      <StaggerItem index={0}><Skeleton className="h-4 w-1/3" /></StaggerItem>
+                      <StaggerItem index={1}><Skeleton className="h-4 w-1/2" /></StaggerItem>
+                      <StaggerItem index={2}><Skeleton className="h-4 w-2/3" /></StaggerItem>
+                    </StaggerList>
+                    <p className="mt-2 text-xs text-muted-foreground">Loading staff accounts...</p>
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
@@ -298,7 +319,13 @@ export default function AdminUsersPage() {
                   const isDoctor = u.role.toLowerCase() === "doctor";
 
                   return (
-                    <tr key={u.id} className="hover:bg-sand/10 transition-colors">
+                    <motion.tr
+                      key={u.id}
+                      variants={listItem}
+                      initial="hidden"
+                      animate="visible"
+                      className="hover:bg-sand/10 transition-colors"
+                    >
                       <td className="py-3 px-4">
                         <div className="font-semibold text-ink">{u.fullName}</div>
                         <div className="text-muted-foreground text-[11px]">{u.email}</div>
@@ -398,19 +425,35 @@ export default function AdminUsersPage() {
                           </Button>
                         </div>
                       </td>
-                    </tr>
+                    </motion.tr>
                   );
                 })
               )}
-            </tbody>
+            </motion.tbody>
           </table>
         </div>
       </Card>
 
       {/* CREATE MODAL */}
-      {showCreateModal && (
-        <div role="dialog" aria-modal="true" aria-label="Create New Staff Account" className="fixed inset-0 bg-ink/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-surface rounded-[var(--radius-modal)] border border-line shadow-xl w-full max-w-md p-6 space-y-4">
+      <AnimatePresence>
+        {showCreateModal && (
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            variants={reducedVariant(modalOverlay)}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Create New Staff Account"
+            className="fixed inset-0 bg-ink/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              variants={modalContent}
+              className="bg-surface rounded-[var(--radius-modal)] border border-line shadow-xl w-full max-w-md p-6 space-y-4"
+            >
             <div className="flex items-center justify-between border-b border-line pb-3">
               <h3 className="font-semibold text-ink text-base flex items-center gap-2">
                 <UserPlus className="h-4 w-4 text-primary" />
@@ -533,14 +576,28 @@ export default function AdminUsersPage() {
                 </Button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* EDIT ROLE / LINK MODAL */}
-      {showEditModal && selectedUser && (
-        <div className="fixed inset-0 bg-ink/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-surface rounded-[var(--radius-modal)] border border-line shadow-xl w-full max-w-md p-6 space-y-4">
+      <AnimatePresence>
+        {showEditModal && selectedUser && (
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            variants={reducedVariant(modalOverlay)}
+            className="fixed inset-0 bg-ink/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              variants={modalContent}
+              className="bg-surface rounded-[var(--radius-modal)] border border-line shadow-xl w-full max-w-md p-6 space-y-4"
+            >
             <div className="flex items-center justify-between border-b border-line pb-3">
               <h3 className="font-semibold text-ink text-base flex items-center gap-2">
                 <UserCog className="h-4 w-4 text-primary" />
@@ -603,14 +660,28 @@ export default function AdminUsersPage() {
                 </Button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* RESET PASSWORD MODAL */}
-      {showResetModal && selectedUser && (
-        <div className="fixed inset-0 bg-ink/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-surface rounded-[var(--radius-modal)] border border-line shadow-xl w-full max-w-md p-6 space-y-4">
+      <AnimatePresence>
+        {showResetModal && selectedUser && (
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            variants={reducedVariant(modalOverlay)}
+            className="fixed inset-0 bg-ink/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              variants={modalContent}
+              className="bg-surface rounded-[var(--radius-modal)] border border-line shadow-xl w-full max-w-md p-6 space-y-4"
+            >
             <div className="flex items-center justify-between border-b border-line pb-3">
               <h3 className="font-semibold text-ink text-base flex items-center gap-2">
                 <KeyRound className="h-4 w-4 text-primary" />
@@ -658,9 +729,11 @@ export default function AdminUsersPage() {
                 </Button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        </motion.div>
+        )}
+      </AnimatePresence>
     </div>
+  </AnimatedPage>
   );
 }

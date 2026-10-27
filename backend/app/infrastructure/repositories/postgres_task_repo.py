@@ -1,7 +1,7 @@
 from typing import List, Optional, Tuple
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.models.booking_crm import Task
@@ -89,8 +89,8 @@ class PostgresTaskRepository(TaskRepository):
         count_stmt = select(func.count(TaskORM.id))
 
         if clinic_id:
-            stmt = stmt.where(TaskORM.clinic_id == clinic_id)
-            count_stmt = count_stmt.where(TaskORM.clinic_id == clinic_id)
+            stmt = stmt.where(or_(TaskORM.clinic_id == clinic_id, TaskORM.clinic_id.is_(None)))
+            count_stmt = count_stmt.where(or_(TaskORM.clinic_id == clinic_id, TaskORM.clinic_id.is_(None)))
         if assigned_to_user_id:
             stmt = stmt.where(TaskORM.assigned_to_user_id == assigned_to_user_id)
             count_stmt = count_stmt.where(TaskORM.assigned_to_user_id == assigned_to_user_id)

@@ -25,6 +25,7 @@ import {
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import {
   getReceptionReminders,
   markAppointmentReminded,
@@ -197,6 +198,7 @@ export default function ReceptionRemindersPage() {
   const optedOutCount = items.filter((it) => it.optedOut).length;
 
   return (
+  <AnimatedPage>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -295,7 +297,7 @@ export default function ReceptionRemindersPage() {
 
       {/* Metrics Banner */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-        <Card surface="bone" shadow="card" className="p-4 flex items-center justify-between">
+        <Card surface="bone" shadow="card" className="p-4 flex items-center justify-between" hoverLift={true} index={0}>
           <div>
             <span className="text-[11px] uppercase tracking-wider text-ink-soft block font-semibold">
               Confirmed for Date
@@ -307,7 +309,7 @@ export default function ReceptionRemindersPage() {
           </div>
         </Card>
 
-        <Card surface="bone" shadow="card" className="p-4 flex items-center justify-between">
+        <Card surface="bone" shadow="card" className="p-4 flex items-center justify-between" hoverLift={true} index={1}>
           <div>
             <span className="text-[11px] uppercase tracking-wider text-ink-soft block font-semibold">
               Pending Outreach
@@ -319,7 +321,7 @@ export default function ReceptionRemindersPage() {
           </div>
         </Card>
 
-        <Card surface="bone" shadow="card" className="p-4 flex items-center justify-between">
+        <Card surface="bone" shadow="card" className="p-4 flex items-center justify-between" hoverLift={true} index={2}>
           <div>
             <span className="text-[11px] uppercase tracking-wider text-ink-soft block font-semibold">
               Marked Reminded
@@ -331,7 +333,7 @@ export default function ReceptionRemindersPage() {
           </div>
         </Card>
 
-        <Card surface="bone" shadow="card" className="p-4 flex items-center justify-between">
+        <Card surface="bone" shadow="card" className="p-4 flex items-center justify-between" hoverLift={true} index={3}>
           <div>
             <span className="text-[11px] uppercase tracking-wider text-ink-soft block font-semibold">
               Opted-Out Patients
@@ -368,16 +370,16 @@ export default function ReceptionRemindersPage() {
 
       {/* Worklist Table / Cards */}
       {isLoading ? (
-        <Card surface="bone" shadow="card" className="p-12 text-center">
+        <Card surface="bone" shadow="card" className="p-12 text-center" hoverLift={true} index={4}>
           <RefreshCw className="h-6 w-6 animate-spin mx-auto text-primary mb-2" />
           <p className="text-xs text-ink-soft">Loading confirmed appointments for {selectedDate}...</p>
         </Card>
       ) : error ? (
-        <Card surface="bone" shadow="card" className="p-6 text-center text-red-600 text-xs">
+        <Card surface="bone" shadow="card" className="p-6 text-center text-red-600 text-xs" hoverLift={true} index={5}>
           {error}
         </Card>
       ) : filteredItems.length === 0 ? (
-        <Card surface="bone" shadow="card" className="p-12 text-center">
+        <Card surface="bone" shadow="card" className="p-12 text-center" hoverLift={true} index={6}>
           <Clock className="h-8 w-8 text-ink-soft mx-auto mb-2 opacity-50" />
           <p className="text-sm font-semibold text-ink">No confirmed appointments found</p>
           <p className="text-xs text-ink-soft mt-1">
@@ -407,7 +409,7 @@ export default function ReceptionRemindersPage() {
                     ? "border-emerald-500/20 bg-emerald-50/10"
                     : "border-line"
                 }`}
-              >
+               index={7}>
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                   {/* Left: Patient & Appointment Details */}
                   <div className="space-y-1.5 flex-1">
@@ -589,5 +591,6 @@ export default function ReceptionRemindersPage() {
         </div>
       )}
     </div>
+  </AnimatedPage>
   );
 }

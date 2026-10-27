@@ -15,6 +15,8 @@ Role allow-lists are read from the require_role() closure cells at audit time.
 | RECEPTIONIST_OR_ADMIN | require_receptionist |
 | ROLE_CHECKER[...] | require_role(...) closure with listed roles |
 | ROLES(enum) | require_roles(...) with UserRole enum members |
+| INTEGRATION_KEY | valid active integration client API key required |
+| INTEGRATION_SCOPE[...] | integration client with specific scope required |
 
 ## API Route Access Matrix
 
@@ -27,10 +29,13 @@ Role allow-lists are read from the require_role() closure cells at audit time.
 | `GET` | `/admin/audit` | ROLE_CHECKER[admin, platform owner, super admin] + GET_ACTIVITY_LOG_REPOSITORY | [admin, platform owner, super admin] |
 | `GET` | `/admin/audit/export` | ROLE_CHECKER[admin, platform owner, super admin] + GET_ACTIVITY_LOG_REPOSITORY + AUTH_ONLY | [admin, platform owner, super admin] |
 | `GET` | `/admin/booking/affected-bookings` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BOOKING_SETTINGS_SERVICE | [admin, platform owner, super admin] |
+| `GET` | `/admin/booking/bookability-check` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BOOKING_ELIGIBILITY_SERVICE + GET_DB_SESSION | [admin, platform owner, super admin] |
 | `GET` | `/admin/booking/closures` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BOOKING_SETTINGS_SERVICE | [admin, platform owner, super admin] |
 | `POST` | `/admin/booking/closures` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BOOKING_SETTINGS_SERVICE | [admin, platform owner, super admin] |
 | `DELETE` | `/admin/booking/closures/{closure_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BOOKING_SETTINGS_SERVICE | [admin, platform owner, super admin] |
 | `PUT` | `/admin/booking/closures/{closure_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BOOKING_SETTINGS_SERVICE | [admin, platform owner, super admin] |
+| `GET` | `/admin/booking/flow-settings` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BOOKING_FLOW_SETTINGS_REPOSITORY | [admin, platform owner, super admin] |
+| `PUT` | `/admin/booking/flow-settings` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BOOKING_FLOW_SETTINGS_REPOSITORY + GET_ACTIVITY_LOG_REPOSITORY | [admin, platform owner, super admin] |
 | `POST` | `/admin/booking/mode` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BOOKING_SETTINGS_SERVICE | [admin, platform owner, super admin] |
 | `GET` | `/admin/booking/provider-availability` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BOOKING_SETTINGS_SERVICE | [admin, platform owner, super admin] |
 | `POST` | `/admin/booking/provider-availability` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BOOKING_SETTINGS_SERVICE | [admin, platform owner, super admin] |
@@ -42,6 +47,7 @@ Role allow-lists are read from the require_role() closure cells at audit time.
 | `POST` | `/admin/booking/reschedule-tasks` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BOOKING_SETTINGS_SERVICE | [admin, platform owner, super admin] |
 | `PUT` | `/admin/booking/rules` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BOOKING_SETTINGS_SERVICE | [admin, platform owner, super admin] |
 | `GET` | `/admin/booking/settings` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BOOKING_SETTINGS_SERVICE | [admin, platform owner, super admin] |
+| `GET` | `/admin/booking/staff-users` | ROLE_CHECKER[admin, platform owner, super admin] + GET_DB_SESSION | [admin, platform owner, super admin] |
 | `GET` | `/admin/booking/working-hours` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BOOKING_SETTINGS_SERVICE | [admin, platform owner, super admin] |
 | `PUT` | `/admin/booking/working-hours` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BOOKING_SETTINGS_SERVICE | [admin, platform owner, super admin] |
 | `GET` | `/admin/cms/{section}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_CMS_SERVICE | [admin, platform owner, super admin] |
@@ -51,6 +57,11 @@ Role allow-lists are read from the require_role() closure cells at audit time.
 | `PATCH` | `/admin/faq/reorder` | ROLE_CHECKER[admin, platform owner, super admin] + GET_CMS_SERVICE | [admin, platform owner, super admin] |
 | `PUT` | `/admin/faq/{faq_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_CMS_SERVICE | [admin, platform owner, super admin] |
 | `PATCH` | `/admin/faq/{faq_id}/status` | ROLE_CHECKER[admin, platform owner, super admin] + GET_CMS_SERVICE | [admin, platform owner, super admin] |
+| `GET` | `/admin/integrations` | ROLE_CHECKER[admin, platform owner, super admin] + GET_INTEGRATION_CLIENT_SERVICE | [admin, platform owner, super admin] |
+| `POST` | `/admin/integrations` | ROLE_CHECKER[admin, platform owner, super admin] + GET_INTEGRATION_CLIENT_SERVICE + AUTH_ONLY | [admin, platform owner, super admin] |
+| `POST` | `/admin/integrations/{client_id}/revoke` | ROLE_CHECKER[admin, platform owner, super admin] + GET_INTEGRATION_CLIENT_SERVICE | [admin, platform owner, super admin] |
+| `POST` | `/admin/integrations/{client_id}/rotate` | ROLE_CHECKER[admin, platform owner, super admin] + GET_INTEGRATION_CLIENT_SERVICE | [admin, platform owner, super admin] |
+| `POST` | `/admin/integrations/{client_id}/toggle-active` | ROLE_CHECKER[admin, platform owner, super admin] + GET_INTEGRATION_CLIENT_SERVICE | [admin, platform owner, super admin] |
 | `GET` | `/admin/locations` | ROLE_CHECKER[admin, platform owner, super admin] + GET_ORGANIZATION_SERVICE | [admin, platform owner, super admin] |
 | `POST` | `/admin/locations` | ROLE_CHECKER[admin, platform owner, super admin] + GET_ORGANIZATION_SERVICE | [admin, platform owner, super admin] |
 | `PUT` | `/admin/locations/{location_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_ORGANIZATION_SERVICE | [admin, platform owner, super admin] |
@@ -70,15 +81,20 @@ Role allow-lists are read from the require_role() closure cells at audit time.
 | `GET` | `/admin/reports/cancellations-no-shows` | ROLE_CHECKER[admin, platform owner, super admin] + GET_DB_SESSION | [admin, platform owner, super admin] |
 | `GET` | `/admin/reports/export/appointments` | ROLE_CHECKER[admin, platform owner, super admin] + GET_DB_SESSION + GET_ACTIVITY_LOG_REPOSITORY + AUTH_ONLY | [admin, platform owner, super admin] |
 | `GET` | `/admin/reports/export/cancellations-no-shows` | ROLE_CHECKER[admin, platform owner, super admin] + GET_DB_SESSION + GET_ACTIVITY_LOG_REPOSITORY + AUTH_ONLY | [admin, platform owner, super admin] |
+| `GET` | `/admin/reports/export/lead-funnel` | ROLE_CHECKER[admin, platform owner, super admin] + GET_DB_SESSION + GET_ACTIVITY_LOG_REPOSITORY + AUTH_ONLY | [admin, platform owner, super admin] |
 | `GET` | `/admin/reports/export/operational-timing` | ROLE_CHECKER[admin, platform owner, super admin] + GET_DB_SESSION + GET_ACTIVITY_LOG_REPOSITORY + AUTH_ONLY | [admin, platform owner, super admin] |
 | `GET` | `/admin/reports/export/recall-compliance` | ROLE_CHECKER[admin, platform owner, super admin] + GET_DB_SESSION + GET_ACTIVITY_LOG_REPOSITORY + AUTH_ONLY | [admin, platform owner, super admin] |
+| `GET` | `/admin/reports/lead-funnel` | ROLE_CHECKER[admin, platform owner, super admin] + GET_DB_SESSION | [admin, platform owner, super admin] |
 | `GET` | `/admin/reports/operational-timing` | ROLE_CHECKER[admin, platform owner, super admin] + GET_DB_SESSION | [admin, platform owner, super admin] |
 | `GET` | `/admin/reports/recall-compliance` | ROLE_CHECKER[admin, platform owner, super admin] + GET_DB_SESSION | [admin, platform owner, super admin] |
 | `GET` | `/admin/services` | ROLE_CHECKER[admin, platform owner, super admin] + GET_SERVICE_SERVICE | [admin, platform owner, super admin] |
 | `POST` | `/admin/services` | ROLE_CHECKER[admin, platform owner, super admin] + GET_SERVICE_SERVICE | [admin, platform owner, super admin] |
+| `GET` | `/admin/services/clinic-matrix` | ROLE_CHECKER[admin, platform owner, super admin] + GET_SERVICE_SERVICE + GET_DB_SESSION | [admin, platform owner, super admin] |
 | `PATCH` | `/admin/services/reorder` | ROLE_CHECKER[admin, platform owner, super admin] + GET_SERVICE_SERVICE | [admin, platform owner, super admin] |
 | `GET` | `/admin/services/{service_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_SERVICE_SERVICE | [admin, platform owner, super admin] |
 | `PUT` | `/admin/services/{service_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_SERVICE_SERVICE | [admin, platform owner, super admin] |
+| `PUT` | `/admin/services/{service_id}/clinics` | ROLE_CHECKER[admin, platform owner, super admin] + GET_SERVICE_SERVICE | [admin, platform owner, super admin] |
+| `PUT` | `/admin/services/{service_id}/providers` | ROLE_CHECKER[admin, platform owner, super admin] + GET_SERVICE_SERVICE | [admin, platform owner, super admin] |
 | `PATCH` | `/admin/services/{service_id}/status` | ROLE_CHECKER[admin, platform owner, super admin] + GET_SERVICE_SERVICE | [admin, platform owner, super admin] |
 | `GET` | `/admin/team` | ROLE_CHECKER[admin, platform owner, super admin] + GET_TEAM_SERVICE | [admin, platform owner, super admin] |
 | `POST` | `/admin/team` | ROLE_CHECKER[admin, platform owner, super admin] + GET_TEAM_SERVICE | [admin, platform owner, super admin] |
@@ -114,7 +130,7 @@ Role allow-lists are read from the require_role() closure cells at audit time.
 | `POST` | `/consents` | ROLE_CHECKER[doctor] + AUTH_ONLY + GET_DB_SESSION | [doctor] |
 | `GET` | `/consents/patient/{patient_id}` | ROLE_CHECKER[admin, doctor, receptionist] + AUTH_ONLY + GET_DB_SESSION | [admin, doctor, receptionist] |
 | `POST` | `/consents/{consent_id}/void` | ROLE_CHECKER[doctor] + AUTH_ONLY + GET_DB_SESSION | [doctor] |
-| `GET` | `/doctor/appointments/{id}` | ROLE_CHECKER[admin, doctor, super admin] + GET_DOCTOR_SERVICE + GET_VISIT_PAYMENT_REPOSITORY | [admin, doctor, super admin] |
+| `GET` | `/doctor/appointments/{id}` | ROLE_CHECKER[admin, doctor, super admin] + GET_DOCTOR_SERVICE + GET_LEAD_STATUS_SERVICE + GET_VISIT_PAYMENT_REPOSITORY | [admin, doctor, super admin] |
 | `POST` | `/doctor/appointments/{id}/finish` | ROLE_CHECKER[admin, doctor, super admin] + ROLE_CHECKER[doctor] + GET_DOCTOR_SERVICE + GET_ENCOUNTER_SERVICE + GET_RECEPTION_SERVICE | [doctor] |
 | `PATCH` | `/doctor/appointments/{id}/notes` | ROLE_CHECKER[admin, doctor, super admin] + ROLE_CHECKER[doctor] + GET_DOCTOR_SERVICE | [doctor] |
 | `POST` | `/doctor/appointments/{id}/start` | ROLE_CHECKER[admin, doctor, super admin] + ROLE_CHECKER[doctor] + GET_RECEPTION_SERVICE + GET_DOCTOR_SERVICE | [doctor] |
@@ -147,7 +163,7 @@ Role allow-lists are read from the require_role() closure cells at audit time.
 | `GET` | `/doctor/patients/{patient_id}/chart` | ROLE_CHECKER[admin, doctor, super admin] + GET_DENTAL_CHART_SERVICE + GET_ACTIVITY_LOG_REPOSITORY | [admin, doctor, super admin] |
 | `GET` | `/doctor/patients/{patient_id}/chart/history` | ROLE_CHECKER[admin, doctor, super admin] + GET_DENTAL_CHART_SERVICE + GET_ACTIVITY_LOG_REPOSITORY | [admin, doctor, super admin] |
 | `GET` | `/doctor/patients/{patient_id}/encounters` | ROLE_CHECKER[admin, doctor, super admin] + GET_ENCOUNTER_SERVICE + GET_ACTIVITY_LOG_REPOSITORY | [admin, doctor, super admin] |
-| `GET` | `/doctor/schedule` | ROLE_CHECKER[admin, doctor, super admin] + GET_DOCTOR_SERVICE + GET_MEDICAL_ALERT_SERVICE + GET_VISIT_PAYMENT_REPOSITORY | [admin, doctor, super admin] |
+| `GET` | `/doctor/schedule` | ROLE_CHECKER[admin, doctor, super admin] + GET_DOCTOR_SERVICE + GET_MEDICAL_ALERT_SERVICE + GET_LEAD_STATUS_SERVICE + GET_VISIT_PAYMENT_REPOSITORY | [admin, doctor, super admin] |
 | `GET` | `/doctor/tasks` | ROLE_CHECKER[admin, doctor] + AUTH_ONLY + GET_DB_SESSION | [admin, doctor] |
 | `POST` | `/doctor/tasks` | ROLE_CHECKER[admin, doctor] + AUTH_ONLY + GET_DB_SESSION | [admin, doctor] |
 | `POST` | `/doctor/tasks/{task_id}/done` | ROLE_CHECKER[admin, doctor] + AUTH_ONLY + GET_DB_SESSION | [admin, doctor] |
@@ -156,21 +172,41 @@ Role allow-lists are read from the require_role() closure cells at audit time.
 | `PATCH` | `/doctor/treatment-plans/{item_id}/status` | ROLE_CHECKER[doctor] + AUTH_ONLY + GET_DB_SESSION | [doctor] |
 | `GET` | `/doctor/unsigned-notes` | ROLE_CHECKER[admin, doctor, super admin] + GET_ENCOUNTER_SERVICE | [admin, doctor, super admin] |
 | `GET` | `/health` | Public (no guard) | (public - no auth) |
-| `GET` | `/health` | Public (no guard) | (public - no auth) |
+| `GET` | `/integration/booking-options` | INTEGRATION_SCOPE[bookings:read] + GET_DB_SESSION + GET_BOOKING_ELIGIBILITY_SERVICE + GET_BOOKING_FLOW_SETTINGS_REPOSITORY | [integration:bookings:read] |
+| `POST` | `/integration/bookings` | INTEGRATION_SCOPE[bookings:write] + GET_DB_SESSION + GET_BOOKING_FLOW_SETTINGS_REPOSITORY | [integration:bookings:write] |
+| `GET` | `/integration/bookings/unconfirmed-messages` | INTEGRATION_SCOPE[bookings:read] + GET_DB_SESSION | [integration:bookings:read] |
+| `POST` | `/integration/bookings/{booking_id}/cancel` | INTEGRATION_SCOPE[bookings:write] + GET_DB_SESSION | [integration:bookings:write] |
+| `GET` | `/integration/bookings/{booking_id}/confirmation-data` | INTEGRATION_SCOPE[bookings:read] + GET_DB_SESSION | [integration:bookings:read] |
+| `POST` | `/integration/bookings/{booking_id}/reschedule` | INTEGRATION_SCOPE[bookings:write] + GET_DB_SESSION | [integration:bookings:write] |
+| `POST` | `/integration/leads` | INTEGRATION_SCOPE[leads:write] + GET_DB_SESSION + GET_ACTIVITY_LOG_REPOSITORY | [integration:leads:write] |
+| `GET` | `/integration/leads/due` | INTEGRATION_SCOPE[leads:read] + GET_DB_SESSION + GET_BOOKING_FLOW_SETTINGS_REPOSITORY | [integration:leads:read] |
+| `POST` | `/integration/leads/{lead_id}/attempt` | INTEGRATION_SCOPE[leads:write] + GET_DB_SESSION + GET_BOOKING_FLOW_SETTINGS_REPOSITORY | [integration:leads:write] |
+| `POST` | `/integration/leads/{lead_id}/failed-conversion` | INTEGRATION_SCOPE[leads:write] + GET_DB_SESSION + GET_BOOKING_FLOW_SETTINGS_REPOSITORY | [integration:leads:write] |
+| `PATCH` | `/integration/leads/{lead_id}/status` | INTEGRATION_SCOPE[leads:write] + GET_DB_SESSION + GET_BOOKING_FLOW_SETTINGS_REPOSITORY | [integration:leads:write] |
+| `GET` | `/integration/lookup` | INTEGRATION_SCOPE[lookup:read] + GET_DB_SESSION | [integration:lookup:read] |
+| `GET` | `/integration/messages` | INTEGRATION_SCOPE[messages:read] + GET_DB_SESSION | [integration:messages:read] |
+| `POST` | `/integration/messages` | INTEGRATION_SCOPE[messages:write] + GET_DB_SESSION | [integration:messages:write] |
 | `GET` | `/public/announcements` | GET_ANNOUNCEMENT_SERVICE | (public - no auth) |
 | `GET` | `/public/availability` | GET_AVAILABILITY_SERVICE | (public - no auth) |
 | `GET` | `/public/booking-schedule` | GET_BOOKING_SETTINGS_SERVICE | (public - no auth) |
 | `GET` | `/public/booking-status` | GET_BOOKING_SETTINGS_SERVICE | (public - no auth) |
+| `GET` | `/public/booking/clinics` | GET_BOOKING_ELIGIBILITY_SERVICE | (public - no auth) |
+| `GET` | `/public/booking/doctors` | GET_BOOKING_ELIGIBILITY_SERVICE | (public - no auth) |
+| `GET` | `/public/booking/services` | GET_BOOKING_ELIGIBILITY_SERVICE | (public - no auth) |
+| `GET` | `/public/booking/settings` | GET_BOOKING_FLOW_SETTINGS_REPOSITORY | (public - no auth) |
 | `GET` | `/public/clinics` | GET_ORGANIZATION_SERVICE | (public - no auth) |
 | `GET` | `/public/content` | GET_CMS_SERVICE | (public - no auth) |
 | `GET` | `/public/faq` | GET_CMS_SERVICE | (public - no auth) |
+| `POST` | `/public/leads` | GET_LEAD_REPOSITORY + GET_LEAD_EVENT_REPOSITORY + GET_BOOKING_FLOW_SETTINGS_REPOSITORY | (public - no auth) |
+| `PATCH` | `/public/leads/{capture_token}` | GET_LEAD_REPOSITORY + GET_LEAD_EVENT_REPOSITORY | (public - no auth) |
 | `GET` | `/public/locations` | GET_ORGANIZATION_SERVICE | (public - no auth) |
 | `GET` | `/public/organization` | GET_ORGANIZATION_SERVICE | (public - no auth) |
 | `GET` | `/public/services` | GET_SERVICE_SERVICE | (public - no auth) |
 | `GET` | `/public/team` | GET_TEAM_SERVICE | (public - no auth) |
 | `GET` | `/public/working-hours` | GET_BOOKING_SETTINGS_SERVICE | (public - no auth) |
-| `GET` | `/reception/appointments` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
+| `GET` | `/reception/appointments` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE + GET_LEAD_STATUS_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
 | `POST` | `/reception/appointments` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
+| `GET` | `/reception/appointments/{id}` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE + GET_LEAD_STATUS_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
 | `GET` | `/reception/appointments/{id}/payments` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
 | `POST` | `/reception/appointments/{id}/payments` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
 | `POST` | `/reception/appointments/{id}/payments/{payment_id}/void` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
@@ -179,6 +215,10 @@ Role allow-lists are read from the require_role() closure cells at audit time.
 | `PATCH` | `/reception/appointments/{id}/status` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
 | `GET` | `/reception/appointments/{id}/waitlist-offers` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
 | `POST` | `/reception/appointments/{id}/waitlist-offers/create-task` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
+| `DELETE` | `/reception/call-desk/holds` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_CALL_DESK_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
+| `POST` | `/reception/call-desk/holds` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_CALL_DESK_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
+| `GET` | `/reception/call-desk/lookup` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_CALL_DESK_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
+| `POST` | `/reception/call-desk/outcomes` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_CALL_DESK_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
 | `GET` | `/reception/dashboard` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
 | `POST` | `/reception/dashboard/snooze` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
 | `GET` | `/reception/end-of-day/payments-summary` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
@@ -187,7 +227,11 @@ Role allow-lists are read from the require_role() closure cells at audit time.
 | `GET` | `/reception/leads` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
 | `POST` | `/reception/leads` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
 | `PATCH` | `/reception/leads/{id}` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
+| `POST` | `/reception/leads/{id}/attempt` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_LEAD_STATUS_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
 | `POST` | `/reception/leads/{id}/convert` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
+| `POST` | `/reception/leads/{id}/failed-conversion` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_LEAD_STATUS_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
+| `PATCH` | `/reception/leads/{id}/status` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_LEAD_STATUS_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
+| `GET` | `/reception/leads/{id}/timeline` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_LEAD_STATUS_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
 | `GET` | `/reception/messages` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
 | `POST` | `/reception/messages` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
 | `GET` | `/reception/patients` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE + GET_MEDICAL_ALERT_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
@@ -199,7 +243,7 @@ Role allow-lists are read from the require_role() closure cells at audit time.
 | `GET` | `/reception/recalls` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
 | `POST` | `/reception/recalls/tasks` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
 | `GET` | `/reception/reminders` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
-| `GET` | `/reception/schedule` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
+| `GET` | `/reception/schedule` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE + GET_LEAD_STATUS_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
 | `GET` | `/reception/tasks` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
 | `POST` | `/reception/tasks` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE | [admin, clinic branch manager, receptionist, super admin] |
 | `PATCH` | `/reception/tasks/{id}` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE | [admin, clinic branch manager, receptionist, super admin] |

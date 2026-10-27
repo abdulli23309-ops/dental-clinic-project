@@ -36,6 +36,7 @@ class PostgresServiceRepository(ServiceRepository):
             is_public=orm.is_public,
             bookable_online=orm.bookable_online,
             buffer_minutes=orm.buffer_minutes,
+            image_url=orm.image_url,
             created_at=orm.created_at,
             updated_at=orm.updated_at,
         )
@@ -61,6 +62,7 @@ class PostgresServiceRepository(ServiceRepository):
             is_public=domain.is_public,
             bookable_online=domain.bookable_online,
             buffer_minutes=domain.buffer_minutes,
+            image_url=domain.image_url,
             created_at=domain.created_at,
             updated_at=domain.updated_at,
         )
@@ -105,6 +107,7 @@ class PostgresServiceRepository(ServiceRepository):
             existing.is_public = service.is_public
             existing.bookable_online = service.bookable_online
             existing.buffer_minutes = service.buffer_minutes
+            existing.image_url = service.image_url
             existing.updated_at = service.updated_at
             await self._session.flush()
             return self._to_domain(existing)

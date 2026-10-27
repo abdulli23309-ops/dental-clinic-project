@@ -34,6 +34,7 @@ class Service:
     is_public: bool = True
     bookable_online: bool = True
     buffer_minutes: int = 0
+    image_url: Optional[str] = None
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))

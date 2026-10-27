@@ -16,16 +16,25 @@ class PostgresMessageRepository(MessageRepository):
 
     @staticmethod
     def _to_orm(entity: Message) -> MessageORM:
+        from app.domain.models.phone_utils import normalize_pakistan_phone
+
+        phone_norm = getattr(entity, "phone_normalized", None) or (
+            normalize_pakistan_phone(entity.phone) if entity.phone else None
+        )
         return MessageORM(
             id=entity.id,
             patient_id=entity.patient_id,
+            lead_id=getattr(entity, "lead_id", None),
             sender_id=entity.sender_id,
             recipient_id=entity.recipient_id,
             phone=entity.phone,
+            phone_normalized=phone_norm,
             email=entity.email,
             content=entity.content,
             channel=entity.channel,
             status=entity.status,
+            direction=getattr(entity, "direction", "outbound"),
+            purpose=getattr(entity, "purpose", "manual"),
             booking_id=entity.booking_id,
             delivery_status=getattr(entity, "delivery_status", "simulated"),
             error_detail=getattr(entity, "error_detail", None),
@@ -40,16 +49,24 @@ class PostgresMessageRepository(MessageRepository):
 
     @staticmethod
     def _to_domain(orm: MessageORM) -> Message:
+        from app.domain.models.phone_utils import normalize_pakistan_phone
+
         return Message(
             id=orm.id,
             patient_id=orm.patient_id,
+            lead_id=getattr(orm, "lead_id", None),
             sender_id=orm.sender_id,
             recipient_id=orm.recipient_id,
             phone=orm.phone,
+            phone_normalized=getattr(orm, "phone_normalized", None) or (
+                normalize_pakistan_phone(orm.phone) if orm.phone else None
+            ),
             email=orm.email,
             content=orm.content,
             channel=orm.channel,
             status=orm.status,
+            direction=getattr(orm, "direction", "outbound"),
+            purpose=getattr(orm, "purpose", "manual"),
             booking_id=getattr(orm, "booking_id", None),
             delivery_status=getattr(orm, "delivery_status", "simulated"),
             error_detail=getattr(orm, "error_detail", None),

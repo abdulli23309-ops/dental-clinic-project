@@ -48,6 +48,7 @@ class Clinic:
     phone: Optional[str] = None
     email: Optional[str] = None
     hours_info: Optional[str] = None
+    image_url: Optional[str] = None
     is_primary: bool = True
     is_active: bool = True
     display_order: int = 0

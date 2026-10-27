@@ -100,6 +100,12 @@ class PostgresOrganizationRepository(OrganizationRepository):
             await self._session.flush()
             return self._to_domain(orm)
 
+    async def delete(self, org_id: UUID) -> None:
+        orm = await self._session.get(OrganizationORM, org_id)
+        if orm is not None:
+            await self._session.delete(orm)
+            await self._session.flush()
+
 
 class PostgresLocationRepository(LocationRepository):
     """PostgreSQL implementation of the LocationRepository abstraction."""
@@ -122,6 +128,7 @@ class PostgresLocationRepository(LocationRepository):
             phone=orm.phone,
             email=orm.email,
             hours_info=orm.hours_info,
+            image_url=orm.image_url,
             is_primary=orm.is_primary,
             is_active=orm.is_active,
             display_order=orm.display_order,
@@ -155,6 +162,7 @@ class PostgresLocationRepository(LocationRepository):
             existing.phone = location.phone
             existing.email = location.email
             existing.hours_info = location.hours_info
+            existing.image_url = location.image_url
             existing.is_primary = location.is_primary
             existing.is_active = location.is_active
             existing.display_order = location.display_order
@@ -175,6 +183,7 @@ class PostgresLocationRepository(LocationRepository):
                 phone=location.phone,
                 email=location.email,
                 hours_info=location.hours_info,
+                image_url=location.image_url,
                 is_primary=location.is_primary,
                 is_active=location.is_active,
                 display_order=location.display_order,
@@ -184,3 +193,8 @@ class PostgresLocationRepository(LocationRepository):
             self._session.add(orm)
             await self._session.flush()
             return self._to_domain(orm)
+    async def delete(self, location_id: UUID) -> None:
+        orm = await self._session.get(LocationORM, location_id)
+        if orm is not None:
+            await self._session.delete(orm)
+            await self._session.flush()

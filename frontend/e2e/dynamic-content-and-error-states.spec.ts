@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test.describe("Dynamic Content and Error States (Part G Proof)", () => {
   test("1. Dynamic services: custom service name and fee from API render on public site and /book", async ({ page }) => {
     // Intercept services API with dynamic procedure
-    await page.route("**/api/v1/public/services*", async (route) => {
+    await page.route(/.*\/api\/v1\/public\/(?:booking\/)?services.*/, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -31,9 +31,13 @@ test.describe("Dynamic Content and Error States (Part G Proof)", () => {
     await expect(page.locator("body")).toContainText("Dynamic Laser Whitening Procedure");
     await expect(page.locator("body")).toContainText("Rs 18,500");
 
-    // Visit /book page and verify dynamic service is present in procedure selector
+    // Visit /book and reveal the treatment waterfall to verify the dynamic service is present
     await page.goto("/book");
-    await expect(page.locator("body")).toContainText("Dynamic Laser Whitening Procedure");
+    await page.waitForSelector("#contact-name", { timeout: 15000 });
+    await page.fill("#contact-name", "Dynamic Content Visitor");
+    await page.fill("#contact-phone", "+92 300 1234500");
+    await page.click("[data-testid='contact-continue-btn']");
+    await expect(page.locator("body")).toContainText("Dynamic Laser Whitening Procedure", { timeout: 15000 });
   });
 
   test("2. Dynamic clinic identity: custom name and phone reflect in header and footer", async ({ page }) => {

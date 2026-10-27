@@ -35,6 +35,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { useDirectory } from "@/lib/directory";
 import { PatientAttachmentsTab } from "@/components/clinical/patient-attachments-tab";
 import { PatientBillingSection } from "@/components/reception/patient-billing-section";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export default function ReceptionPatientDetailPage() {
   const params = useParams();
@@ -250,6 +251,7 @@ export default function ReceptionPatientDetailPage() {
   }
 
   return (
+  <AnimatedPage>
     <div className="space-y-6">
       {/* Top Breadcrumb & Action Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -943,5 +945,6 @@ export default function ReceptionPatientDetailPage() {
         </div>
       )}
     </div>
+  </AnimatedPage>
   );
 }

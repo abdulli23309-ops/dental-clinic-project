@@ -1,15 +1,14 @@
 import type { MetadataRoute } from "next";
 
-/**
- * Generates the robots.txt search engine directive file instructing web crawlers to index the site.
- */
 export default function robots(): MetadataRoute.Robots {
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
+
   return {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: [],
+      disallow: ["/admin/", "/doctor/", "/reception/"],
     },
-    sitemap: "https://marlowdental.com/sitemap.xml",
+    sitemap: baseUrl ? `${baseUrl}/sitemap.xml` : "/sitemap.xml",
   };
 }

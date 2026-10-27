@@ -21,7 +21,10 @@ export interface ServiceItem {
   displayOrder?: number;
   bookableOnline?: boolean;
   bufferMinutes?: number;
+  imageUrl?: string | null;
+  slug?: string;
   providerIds?: string[];
+  clinicIds?: string[];
 }
 
 export interface DoctorProfile {
@@ -57,6 +60,19 @@ export interface TeamMember {
   servicesOffered?: string | null;
   displayOrder: number;
   isActive: boolean;
+  showPatientsTreated?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface RoleItem {
+  id: string;
+  name: string;
+  displayName: string;
+  description?: string | null;
+  displayOrder: number;
+  isActive: boolean;
+  isSystem?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -76,8 +92,10 @@ export interface BookingPayload {
   preferredTime: string;
   fullName: string;
   phone: string;
-  email: string;
+  email?: string;
   notes?: string;
+  clinicId?: string;
+  teamMemberId?: string;
   utmSource?: string;
   utmCampaign?: string;
 }
@@ -105,8 +123,10 @@ export interface User {
 }
 
 export interface SiteContent {
+  status: "loading" | "ready" | "unavailable";
   general: {
     practiceName: string;
+    shortBrandName?: string;
     tagline: string;
     logoUrl?: string | null;
     faviconUrl?: string | null;
@@ -118,12 +138,17 @@ export interface SiteContent {
   homepage: {
     heroEyebrow: string;
     heroHeading: string;
+    heroHighlightWord?: string;
     heroDescription: string;
     heroCtaText: string;
     heroCtaLink: string;
     heroSecondaryCtaText: string;
     heroSecondaryCtaLink: string;
     heroImageUrl?: string | null;
+    startingFee?: string | null;
+    heroTicks?: Array<{ label: string }>;
+    heroBadges?: string[];
+    promises?: Array<{ num?: string; title: string; subtitle?: string; description: string }>;
   };
   about: {
     eyebrow: string;
@@ -146,6 +171,11 @@ export interface SiteContent {
     copyrightNotice: string;
     cancellationPolicy: string;
   };
+  legalPages: {
+    privacy: string;
+    terms: string;
+    accessibility: string;
+  };
   seo: {
     siteTitle: string;
     metaDescription: string;
@@ -166,6 +196,7 @@ export interface LocationItem {
   phone?: string | null;
   email?: string | null;
   hoursInfo?: string | null;
+  imageUrl?: string | null;
   isPrimary: boolean;
   isActive: boolean;
   displayOrder: number;
@@ -210,15 +241,20 @@ export interface PublicBookingStatus {
   message?: string | null;
   phone?: string | null;
   resumeOn?: string | null;
+  leadCaptureNotice?: string | null;
 }
 
 export interface WorkingHoursItem {
   id: string;
+  clinicId?: string | null;
   dayOfWeek: number;
   dayName: string;
   openTime?: string | null;
   closeTime?: string | null;
   isClosed: boolean;
+  isOpen?: boolean | null;
+  breakStartTime?: string | null;
+  breakEndTime?: string | null;
 }
 
 export interface ClinicClosureItem {
@@ -265,6 +301,7 @@ export interface ProviderAvailabilityItem {
   endTime: string;
   breakStartTime?: string | null;
   breakEndTime?: string | null;
+  clinicId?: string | null;
   isActive: boolean;
 }
 
@@ -298,7 +335,129 @@ export interface AffectedBookingItem {
 
 export type ClinicItem = LocationItem;
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+export interface ClinicMatrixClinic {
+  id: string;
+  name: string;
+  isPrimary: boolean;
+}
+
+export interface ClinicMatrixService {
+  id: string;
+  slug: string;
+  title: string;
+  category: string;
+  code?: string | null;
+  bookableOnline: boolean;
+  isActive: boolean;
+  clinicIds: string[];
+  providerIds: string[];
+}
+
+export interface ClinicMatrixResponse {
+  clinics: ClinicMatrixClinic[];
+  services: ClinicMatrixService[];
+}
+
+export interface BookingFlowSettingsDto {
+  id?: string;
+  organizationId?: string;
+  followupGapsMinutes: number[];
+  maxAttempts: number;
+  coldWaitHours: number;
+  holdMinutes: number;
+  fallbackOwnerUserId: string | null;
+  autoConfirmOnline: boolean;
+  daysShown: number;
+  showPatientsTreated: boolean;
+  leadCaptureNotice: string;
+}
+
+export interface StaffUserDto {
+  id: string;
+  fullName: string;
+  email: string;
+  role: string;
+  isActive: boolean;
+}
+
+export interface BookabilityCheckItem {
+  serviceId: string;
+  serviceTitle: string;
+  category: string;
+  bookableOnline: boolean;
+  isActive: boolean;
+  isEligible: boolean;
+  reasonCode: string | null;
+  message: string;
+  fixUrl: string;
+}
+
+export interface PublicBookingServiceItem {
+  id: string;
+  slug: string;
+  title: string;
+  category: string;
+  duration: string;
+  cashPrice: string;
+  shortDesc: string;
+}
+
+export interface PublicBookingClinicItem {
+  id: string;
+  name: string;
+  addressLine1: string;
+  city: string;
+  phone: string;
+  isPrimary: boolean;
+}
+
+export interface PublicBookingDoctorItem {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  displayName: string;
+  professionalTitle: string;
+  role?: string;
+  /** Live field name returned by GET /api/v1/public/booking/doctors. */
+  biography?: string | null;
+  bio?: string | null;
+  photoUrl?: string | null;
+  specialties?: string[];
+  patientsTreated: number | null;
+  /** Live field name returned by GET /api/v1/public/booking/doctors. */
+  weeklyScheduleSummary?: string | null;
+  workingDaysHours?: string;
+  slotsByDate: Record<string, string[]>;
+}
+
+export interface PublicLeadCaptureResponse {
+  success?: boolean;
+  captureToken: string;
+  leadCaptureNotice?: string | null;
+  noticeVersion?: string;
+}
+
+
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+/**
+ * Resolves a media/asset path (relative or absolute) to a full accessible URL.
+ * Handles backend media paths like "/media/..." by prepending API_BASE.
+ */
+export function resolveMediaUrl(url?: string | null): string | null {
+  if (!url) return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  if (/^(https?:|\/\/|data:)/i.test(trimmed)) {
+    return trimmed;
+  }
+  if (trimmed.startsWith("/images/")) {
+    return trimmed;
+  }
+  const cleanPath = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  return `${base.replace(/\/+$/, "")}${cleanPath}`;
+}
 
 /* -------------------------------------------------------------
  * PUBLIC API METHODS
@@ -351,6 +510,8 @@ export async function getServices(): Promise<ServiceItem[]> {
         highlight: s.isHighlighted,
         isActive: s.isActive,
         displayOrder: s.displayOrder,
+        imageUrl: (s as any).imageUrl || null,
+        slug: s.slug,
       };
     });
   } catch {
@@ -440,11 +601,80 @@ export async function submitBookingRequest(
     } catch {
       // Ignore parse failure; retain fallback
     }
-    throw new Error(errorDetail);
+    const error = new Error(errorDetail);
+    (error as any).status = response.status;
+    throw error;
   }
 
   return response.json();
 }
+
+/**
+ * Public Booking Flow 2.0 API methods
+ */
+export async function getPublicBookingServices(): Promise<PublicBookingServiceItem[]> {
+  const res = await fetch(`${API_BASE}/api/v1/public/booking/services`);
+  if (!res.ok) throw new Error("Failed to fetch bookable services.");
+  return res.json();
+}
+
+export async function getPublicBookingClinics(serviceId: string): Promise<PublicBookingClinicItem[]> {
+  const res = await fetch(`${API_BASE}/api/v1/public/booking/clinics?serviceId=${encodeURIComponent(serviceId)}`);
+  if (!res.ok) throw new Error("Failed to fetch clinics for service.");
+  return res.json();
+}
+
+export async function getPublicBookingDoctors(
+  serviceId: string,
+  clinicId: string,
+  days?: number
+): Promise<PublicBookingDoctorItem[]> {
+  const url = `${API_BASE}/api/v1/public/booking/doctors?serviceId=${encodeURIComponent(serviceId)}&clinicId=${encodeURIComponent(clinicId)}${days ? `&days=${days}` : ""}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Failed to fetch doctors for service and clinic.");
+  return res.json();
+}
+
+
+
+export async function publicLeadCapture(payload: {
+  fullName: string;
+  phone: string;
+  email?: string;
+}): Promise<PublicLeadCaptureResponse> {
+  const res = await fetch(`${API_BASE}/api/v1/public/leads`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to capture contact details.");
+  }
+  return res.json();
+}
+
+export async function publicLeadUpdate(payload: {
+  captureToken: string;
+  serviceId?: string;
+  clinicId?: string;
+  teamMemberId?: string;
+  notes?: string;
+  email?: string;
+}): Promise<{ success: boolean; captureToken: string }> {
+  const { captureToken, ...rest } = payload;
+  const res = await fetch(`${API_BASE}/api/v1/public/leads/${encodeURIComponent(captureToken)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(rest),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update lead progress.");
+  }
+  return res.json();
+}
+
 
 /* -------------------------------------------------------------
  * AUTHENTICATION & SINGLE-FLIGHT FIFO REQUEST QUEUE
@@ -774,6 +1004,52 @@ export async function adminReorderServices(orderedIds: string[], token?: string)
   return res.json();
 }
 
+export async function adminGetClinicMatrix(token?: string): Promise<ClinicMatrixResponse> {
+  const res = await authorizedFetch(`/api/v1/admin/services/clinic-matrix`, {}, token);
+  if (!res.ok) throw new Error("Failed to load clinic matrix.");
+  return res.json();
+}
+
+export async function adminUpdateServiceClinics(
+  serviceId: string,
+  clinicIds: string[],
+  token?: string
+): Promise<{ success: boolean; serviceId: string; clinicIds: string[] }> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/services/${serviceId}/clinics`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ clinicIds }),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update service clinics.");
+  }
+  return res.json();
+}
+
+export async function adminUpdateServiceProviders(
+  serviceId: string,
+  providerIds: string[],
+  token?: string
+): Promise<{ success: boolean; serviceId: string; providerIds: string[] }> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/services/${serviceId}/providers`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ providerIds }),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update service providers.");
+  }
+  return res.json();
+}
+
 /** Persists the display order of team members from an ordered list of IDs. */
 export async function adminReorderTeam(orderedIds: string[], token?: string) {
   const res = await authorizedFetch(
@@ -808,11 +1084,44 @@ export async function adminReorderFaqs(orderedIds: string[], token?: string) {
   return res.json();
 }
 
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 // Team
 export async function adminGetTeam(token?: string): Promise<TeamMember[]> {
   const res = await authorizedFetch(`/api/v1/admin/team`, {}, token);
   if (!res.ok) throw new Error("Failed to load team members.");
-  return res.json();
+  const data = await res.json();
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.items)) return data.items;
+  return [];
+}
+
+export async function adminGetPaginatedTeam(
+  page: number = 1,
+  limit: number = 20,
+  token?: string | null,
+  search?: string
+): Promise<PaginatedResult<TeamMember>> {
+  const q = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (search && search.trim()) q.append("search", search.trim());
+  const res = await authorizedFetch(`/api/v1/admin/team?${q.toString()}`, {}, token);
+  if (!res.ok) throw new Error("Failed to load team members.");
+  const data = await res.json();
+  if (data && Array.isArray(data.items)) return data as PaginatedResult<TeamMember>;
+  if (Array.isArray(data)) {
+    return {
+      items: data.slice((page - 1) * limit, page * limit),
+      total: data.length,
+      page,
+      limit,
+    };
+  }
+  return { items: [], total: 0, page, limit };
 }
 
 export async function adminCreateTeamMember(data: Record<string, unknown>, token?: string) {
@@ -857,6 +1166,80 @@ export async function adminToggleTeamMemberStatus(id: string, isActive: boolean,
     token
   );
   if (!res.ok) throw new Error("Failed to update team member status.");
+  return res.json();
+}
+
+// Roles
+export async function adminGetRoles(token?: string): Promise<RoleItem[]> {
+  const res = await authorizedFetch(`/api/v1/admin/roles`, {}, token);
+  if (!res.ok) throw new Error("Failed to load roles.");
+  return res.json();
+}
+
+export async function adminCreateRole(
+  data: {
+    name: string;
+    displayName?: string | null;
+    description?: string | null;
+    displayOrder?: number;
+    isActive?: boolean;
+  },
+  token?: string
+): Promise<RoleItem> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/roles`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to create role.");
+  }
+  return res.json();
+}
+
+export async function adminUpdateRole(
+  id: string,
+  data: Partial<RoleItem>,
+  token?: string
+): Promise<RoleItem> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/roles/${id}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update role.");
+  }
+  return res.json();
+}
+
+export async function adminDeleteRole(id: string, token?: string): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/roles/${id}`,
+    {
+      method: "DELETE",
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to delete role.");
+  }
+}
+
+export async function publicGetRoles(): Promise<RoleItem[]> {
+  const res = await fetch(`${API_BASE}/api/v1/public/roles`, {
+    headers: { Accept: "application/json" },
+  });
+  if (!res.ok) throw new Error("Failed to fetch public roles.");
   return res.json();
 }
 
@@ -979,6 +1362,24 @@ export async function fetchPublicBookingStatus(): Promise<PublicBookingStatus> {
   }
 }
 
+export interface PublicBookingSettings {
+  leadCaptureNotice?: string;
+  daysShown?: number;
+  showPatientsTreated?: boolean;
+}
+
+export async function fetchPublicBookingSettings(): Promise<PublicBookingSettings> {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/public/booking/settings`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return {};
+    return await res.json();
+  } catch {
+    return {};
+  }
+}
+
 // Public Single Source of Truth Working Hours
 export async function fetchPublicWorkingHours(): Promise<WorkingHoursItem[]> {
   try {
@@ -1032,7 +1433,33 @@ export async function adminUpdateOrganization(data: Partial<Organization>, token
 export async function adminGetLocations(token?: string | null): Promise<LocationItem[]> {
   const res = await authorizedFetch(`/api/v1/admin/locations`, {}, token);
   if (!res.ok) throw new Error("Failed to load locations.");
-  return res.json();
+  const data = await res.json();
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.items)) return data.items;
+  return [];
+}
+
+export async function adminGetPaginatedLocations(
+  page: number = 1,
+  limit: number = 20,
+  token?: string | null,
+  search?: string
+): Promise<PaginatedResult<LocationItem>> {
+  const q = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (search && search.trim()) q.append("search", search.trim());
+  const res = await authorizedFetch(`/api/v1/admin/locations?${q.toString()}`, {}, token);
+  if (!res.ok) throw new Error("Failed to load locations.");
+  const data = await res.json();
+  if (data && Array.isArray(data.items)) return data as PaginatedResult<LocationItem>;
+  if (Array.isArray(data)) {
+    return {
+      items: data.slice((page - 1) * limit, page * limit),
+      total: data.length,
+      page,
+      limit,
+    };
+  }
+  return { items: [], total: 0, page, limit };
 }
 
 export async function adminCreateLocation(data: {
@@ -1046,6 +1473,7 @@ export async function adminCreateLocation(data: {
   phone?: string | null;
   email?: string | null;
   hoursInfo?: string | null;
+  imageUrl?: string | null;
   isPrimary?: boolean;
   displayOrder?: number;
 }, token?: string | null): Promise<LocationItem> {
@@ -1075,6 +1503,7 @@ export async function adminUpdateLocation(id: string, data: {
   phone?: string | null;
   email?: string | null;
   hoursInfo?: string | null;
+  imageUrl?: string | null;
   isPrimary?: boolean;
   displayOrder?: number;
 }, token?: string | null): Promise<LocationItem> {
@@ -1363,10 +1792,14 @@ export async function adminUpdateReminderTemplate(
 
 export async function adminGetProviderAvailabilities(
   teamMemberId?: string,
+  clinicId?: string,
   token?: string | null
 ): Promise<ProviderAvailabilityItem[]> {
-  const q = teamMemberId ? `?teamMemberId=${teamMemberId}` : "";
-  const res = await authorizedFetch(`/api/v1/admin/booking/provider-availability${q}`, {}, token);
+  const q = new URLSearchParams();
+  if (teamMemberId) q.append("teamMemberId", teamMemberId);
+  if (clinicId) q.append("clinicId", clinicId);
+  const qs = q.toString() ? `?${q.toString()}` : "";
+  const res = await authorizedFetch(`/api/v1/admin/booking/provider-availability${qs}`, {}, token);
   if (!res.ok) throw new Error("Failed to load clinician shifts.");
   return res.json();
 }
@@ -1379,6 +1812,7 @@ export async function adminSaveProviderAvailability(
     endTime: string;
     breakStartTime?: string | null;
     breakEndTime?: string | null;
+    clinicId?: string | null;
     isActive?: boolean;
   },
   token?: string | null
@@ -1395,6 +1829,49 @@ export async function adminSaveProviderAvailability(
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Failed to save clinician schedule.");
   }
+  return res.json();
+}
+
+export async function adminGetBookingFlowSettings(
+  token?: string | null
+): Promise<BookingFlowSettingsDto> {
+  const res = await authorizedFetch(`/api/v1/admin/booking/flow-settings`, {}, token);
+  if (!res.ok) throw new Error("Failed to load booking flow settings.");
+  return res.json();
+}
+
+export async function adminUpdateBookingFlowSettings(
+  data: BookingFlowSettingsDto,
+  token?: string | null
+): Promise<BookingFlowSettingsDto> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/booking/flow-settings`,
+    {
+      method: "PUT",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update booking flow settings.");
+  }
+  return res.json();
+}
+
+export async function adminGetStaffUsers(
+  token?: string | null
+): Promise<StaffUserDto[]> {
+  const res = await authorizedFetch(`/api/v1/admin/booking/staff-users`, {}, token);
+  if (!res.ok) throw new Error("Failed to load staff users.");
+  return res.json();
+}
+
+export async function adminGetBookabilityCheck(
+  token?: string | null
+): Promise<BookabilityCheckItem[]> {
+  const res = await authorizedFetch(`/api/v1/admin/booking/bookability-check`, {}, token);
+  if (!res.ok) throw new Error("Failed to load bookability check.");
   return res.json();
 }
 
@@ -1548,6 +2025,12 @@ interface RawBooking {
   serviceName?: string | null;
   hasAlerts?: boolean;
   paymentStatus?: "paid" | "unpaid" | "partial" | null;
+  source?: string;
+  leadId?: string | null;
+  leadStatus?: string | null;
+  isFirstVisit?: boolean | null;
+  utmSource?: string | null;
+  utmCampaign?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1645,9 +2128,15 @@ interface RawMessage {
   senderId?: string | null;
   recipientId?: string | null;
   phone?: string | null;
+  phoneNormalized?: string | null;
   email?: string | null;
   channel: string;
   status: string;
+  direction?: string;
+  purpose?: string;
+  deliveryStatus?: string;
+  patientId?: string | null;
+  leadId?: string | null;
   createdAt: string;
 }
 
@@ -1663,6 +2152,11 @@ interface RawLead {
   notes?: string | null;
   utmSource?: string | null;
   utmCampaign?: string | null;
+  attempts?: number;
+  lastContactedAt?: string | null;
+  nextAttemptAt?: string | null;
+  coldAt?: string | null;
+  lastActivityAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1751,6 +2245,12 @@ export interface ReceptionBooking {
   serviceName?: string | null;
   hasAlerts?: boolean;
   paymentStatus?: "paid" | "unpaid" | "partial" | null;
+  source?: string;
+  leadId?: string | null;
+  leadStatus?: string | null;
+  isFirstVisit?: boolean | null;
+  utmSource?: string | null;
+  utmCampaign?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1810,6 +2310,13 @@ export interface ReceptionMessage {
   status: string;
   recipient?: string | null;
   senderId?: string | null;
+  direction: "inbound" | "outbound" | string;
+  purpose: "reminder" | "confirmation" | "lead_recovery" | "manual" | "inbound" | string;
+  deliveryStatus: "simulated" | "delivered" | "sent" | "failed" | string;
+  patientId?: string | null;
+  leadId?: string | null;
+  phone?: string | null;
+  phoneNormalized?: string | null;
   createdAt: string;
 }
 
@@ -1824,8 +2331,34 @@ export interface ReceptionLead {
   convertedPatientId?: string | null;
   utmSource?: string | null;
   utmCampaign?: string | null;
+  source?: string | null;
+  attempts: number;
+  lastContactedAt?: string | null;
+  nextAttemptAt?: string | null;
+  coldAt?: string | null;
+  lastActivityAt?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface LeadTimelineItem {
+  id: string;
+  type: "event" | "message" | "call" | "booking" | string;
+  timestamp?: string | null;
+  eventType?: string | null;
+  actorType?: string | null;
+  actorId?: string | null;
+  channel?: string | null;
+  direction?: string | null;
+  purpose?: string | null;
+  content?: string | null;
+  deliveryStatus?: string | null;
+  outcome?: string | null;
+  notes?: string | null;
+  confirmationId?: string | null;
+  status?: string | null;
+  source?: string | null;
+  payload?: Record<string, any> | null;
 }
 
 export interface ReceptionRequestItem {
@@ -1939,6 +2472,12 @@ function mapBooking(raw: RawBooking): ReceptionBooking {
     serviceName: raw.serviceName,
     hasAlerts: raw.hasAlerts ?? false,
     paymentStatus: raw.paymentStatus ?? null,
+    source: raw.source || "reception",
+    leadId: raw.leadId,
+    leadStatus: raw.leadStatus,
+    isFirstVisit: raw.isFirstVisit,
+    utmSource: raw.utmSource,
+    utmCampaign: raw.utmCampaign,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
   };
@@ -1971,6 +2510,13 @@ function mapMessage(raw: RawMessage): ReceptionMessage {
     status: raw.status,
     recipient: raw.phone || raw.email || null,
     senderId: raw.senderId,
+    direction: raw.direction || "outbound",
+    purpose: raw.purpose || "manual",
+    deliveryStatus: raw.deliveryStatus || "simulated",
+    patientId: raw.patientId,
+    leadId: raw.leadId,
+    phone: raw.phone,
+    phoneNormalized: raw.phoneNormalized,
     createdAt: raw.createdAt,
   };
 }
@@ -1987,6 +2533,12 @@ function mapLead(raw: RawLead): ReceptionLead {
     convertedPatientId: raw.patientId,
     utmSource: raw.utmSource,
     utmCampaign: raw.utmCampaign,
+    source: raw.utmSource || "manual",
+    attempts: raw.attempts ?? 0,
+    lastContactedAt: raw.lastContactedAt,
+    nextAttemptAt: raw.nextAttemptAt,
+    coldAt: raw.coldAt,
+    lastActivityAt: raw.lastActivityAt,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
   };
@@ -2123,7 +2675,10 @@ export async function createReceptionBooking(
     bookingDate: string;
     bookingTime: string;
     notes?: string;
+    staffNotes?: string;
     status?: string;
+    source?: string;
+    leadId?: string | null;
   },
   token?: string | null
 ): Promise<ReceptionBooking> {
@@ -2160,7 +2715,10 @@ export async function createReceptionBooking(
         serviceId: data.serviceId ?? null,
         clinicId: data.clinicId ?? null,
         notes: data.notes ?? null,
+        staffNotes: data.staffNotes ?? null,
         status: data.status || "confirmed",
+        source: data.source || "reception",
+        leadId: data.leadId ?? null,
       }),
     },
     token
@@ -2900,10 +3458,13 @@ export async function updateReceptionTask(
  * filter is applied client-side on the returned records.
  */
 export async function getReceptionMessages(
-  params?: { channel?: string },
+  params?: { channel?: string; phone?: string },
   token?: string | null
 ): Promise<ReceptionMessage[]> {
-  const res = await authorizedFetch(`/api/v1/reception/messages`, {}, token);
+  const q = new URLSearchParams();
+  if (params?.phone) q.set("phone", params.phone);
+  const qs = q.toString() ? `?${q.toString()}` : "";
+  const res = await authorizedFetch(`/api/v1/reception/messages${qs}`, {}, token);
   if (!res.ok) throw new Error("Failed to load messages.");
   const raw: RawMessage[] = await res.json();
   const mapped = raw.map(mapMessage);
@@ -2923,6 +3484,9 @@ export async function sendReceptionMessage(
     recipient?: string;
     body: string;
     patientId?: string;
+    leadId?: string;
+    direction?: string;
+    purpose?: string;
   },
   token?: string | null
 ): Promise<ReceptionMessage> {
@@ -2936,11 +3500,44 @@ export async function sendReceptionMessage(
         phone: data.channel === "email" ? null : data.recipient || null,
         email: data.channel === "email" ? data.recipient || null : null,
         patientId: data.patientId || null,
+        leadId: data.leadId || null,
+        direction: data.direction || "outbound",
+        purpose: data.purpose || "manual",
       }),
     },
     token
   );
   if (!res.ok) await apiError(res, "Failed to log message.");
+  return mapMessage(await res.json());
+}
+
+export async function logInboundNote(
+  data: {
+    phone: string;
+    content: string;
+    channel?: string;
+    leadId?: string;
+    patientId?: string;
+  },
+  token?: string | null
+): Promise<ReceptionMessage> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/messages`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        phone: data.phone,
+        content: data.content,
+        direction: "inbound",
+        purpose: "inbound",
+        channel: data.channel || "whatsapp",
+        leadId: data.leadId || null,
+        patientId: data.patientId || null,
+      }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to log inbound note.");
   return mapMessage(await res.json());
 }
 
@@ -2965,6 +3562,7 @@ export async function createReceptionLead(
     phone: string;
     email?: string;
     notes?: string;
+    utmSource?: string;
   },
   token?: string | null
 ): Promise<ReceptionLead> {
@@ -2978,7 +3576,8 @@ export async function createReceptionLead(
         phone: data.phone,
         email: data.email || null,
         notes: data.notes || null,
-        status: "new",
+        utmSource: data.utmSource || "manual",
+        status: "unconverted",
       }),
     },
     token
@@ -3008,18 +3607,112 @@ export async function convertReceptionLead(
 export async function updateReceptionLeadStatus(
   leadId: string,
   status: string,
+  reason: string = "Reception manual status update",
   token?: string | null
 ): Promise<ReceptionLead> {
   const res = await authorizedFetch(
-    `/api/v1/reception/leads/${leadId}`,
+    `/api/v1/reception/leads/${leadId}/status`,
     {
       method: "PATCH",
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, reason: reason.trim() || "Manual update" }),
     },
     token
   );
   if (!res.ok) await apiError(res, "Failed to update lead status.");
   return mapLead(await res.json());
+}
+
+export async function logReceptionLeadAttempt(
+  leadId: string,
+  data: {
+    channel: string;
+    result: string;
+    note?: string;
+  },
+  token?: string | null
+): Promise<ReceptionLead> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/leads/${leadId}/attempt`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to log contact attempt.");
+  return mapLead(await res.json());
+}
+
+export async function getReceptionLeadTimeline(
+  leadId: string,
+  token?: string | null
+): Promise<LeadTimelineItem[]> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/leads/${leadId}/timeline`,
+    {},
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to load lead timeline.");
+  return await res.json();
+}
+
+export async function markReceptionLeadFailedConversion(
+  leadId: string,
+  reason?: string,
+  token?: string | null
+): Promise<ReceptionLead> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/leads/${leadId}/failed-conversion`,
+    {
+      method: "POST",
+      body: JSON.stringify({ reason: reason || "Automation reports all channels failed" }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to record failed conversion.");
+  return mapLead(await res.json());
+}
+
+/* --- Lead Funnel Report --- */
+
+export interface LeadFunnelMetrics {
+  captured: number;
+  unconverted: number;
+  converted: number;
+  patient: number;
+  cold: number;
+  failed: number;
+}
+
+export interface LeadSourcePerformance {
+  source: string;
+  totalLeads: number;
+  convertedLeads: number;
+  patientLeads: number;
+  coldLeads: number;
+  failedLeads: number;
+  conversionRatePercent: number;
+}
+
+export interface LeadFunnelReport {
+  startDate: string;
+  endDate: string;
+  funnel: LeadFunnelMetrics;
+  sources: LeadSourcePerformance[];
+}
+
+export async function getLeadFunnelReport(
+  startDate?: string,
+  endDate?: string,
+  token?: string | null
+): Promise<LeadFunnelReport> {
+  const params = new URLSearchParams();
+  if (startDate) params.set("start_date", startDate);
+  if (endDate) params.set("end_date", endDate);
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  const res = await authorizedFetch(`/api/v1/admin/reports/lead-funnel${qs}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to load lead funnel report.");
+  return await res.json();
 }
 
 /* --- Recalls & waitlist --- */
@@ -4793,5 +5486,592 @@ export async function getOperationalTimingReport(
   return res.json();
 }
 
+/* --- Reception Call Desk Types & API --- */
+
+export interface CallDeskPatient {
+  id: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  phone: string;
+  phoneNormalized?: string;
+  email?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  clinicId?: string;
+  medicalAlertCount: number;
+}
+
+export interface CallDeskLeadEvent {
+  id: string;
+  leadId: string;
+  eventType: string;
+  actorType: string;
+  payload: Record<string, unknown>;
+  actorId?: string;
+  createdAt: string;
+}
+
+export interface CallDeskLead {
+  id: string;
+  fullName?: string;
+  phone?: string;
+  phoneNormalized?: string;
+  email?: string;
+  status: string;
+  source?: string;
+  attempts: number;
+  consentNoticeVersion?: string;
+  events: CallDeskLeadEvent[];
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface CallDeskBooking {
+  id: string;
+  confirmationId: string;
+  preferredDate: string;
+  preferredTime: string;
+  patientFullName: string;
+  patientPhone: string;
+  patientId?: string;
+  clinicId?: string;
+  clinicName?: string;
+  serviceId?: string;
+  serviceName?: string;
+  teamMemberId?: string;
+  doctorName?: string;
+  status: string;
+  source?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface CallDeskMessage {
+  id: string;
+  channel: string;
+  content: string;
+  direction: string;
+  purpose: string;
+  status: string;
+  deliveryStatus: string;
+  phone?: string;
+  createdAt: string;
+}
+
+export interface CallDeskHold {
+  id: string;
+  phoneNormalized: string;
+  heldUntil: string;
+  remainingSeconds: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CallDeskLookupData {
+  phoneNormalized: string;
+  phoneRaw: string;
+  patients: CallDeskPatient[];
+  leads: CallDeskLead[];
+  upcomingBookings: CallDeskBooking[];
+  recentMessages: CallDeskMessage[];
+  activeHold?: CallDeskHold | null;
+}
+
+export interface CallDeskOutcomePayload {
+  phone: string;
+  outcome: string;
+  notes?: string;
+  leadCapture?: {
+    name?: string;
+    email?: string;
+  };
+  leadId?: string;
+  patientId?: string;
+  bookingId?: string;
+  startedAt?: string;
+  endedAt?: string;
+}
+
+export interface CallDeskOutcomeResult {
+  callLog: {
+    id: string;
+    phoneNormalized: string;
+    leadId?: string;
+    patientId?: string;
+    bookingId?: string;
+    outcome: string;
+    notes?: string;
+    startedAt: string;
+    endedAt?: string;
+    recordedByUserId?: string;
+    createdAt: string;
+  };
+  leadCaptured: boolean;
+  capturedLeadId?: string;
+  holdReleased: boolean;
+}
+
+export async function lookupCallDesk(phone: string, token?: string | null): Promise<CallDeskLookupData> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/call-desk/lookup?phone=${encodeURIComponent(phone)}`,
+    {},
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to perform call desk lookup.");
+  return res.json();
+}
+
+export async function startCallDeskHold(
+  phone: string,
+  holdMinutes: number = 30,
+  reason: string = "call_desk",
+  token?: string | null
+): Promise<CallDeskHold> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/call-desk/holds`,
+    {
+      method: "POST",
+      body: JSON.stringify({ phone, holdMinutes, reason }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to start contact hold.");
+  return res.json();
+}
+
+export async function releaseCallDeskHold(
+  phone: string,
+  token?: string | null
+): Promise<{ released: boolean; count: number }> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/call-desk/holds?phone=${encodeURIComponent(phone)}`,
+    {
+      method: "DELETE",
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to release contact hold.");
+  return res.json();
+}
+
+export async function recordCallDeskOutcome(
+  payload: CallDeskOutcomePayload,
+  token?: string | null
+): Promise<CallDeskOutcomeResult> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/call-desk/outcomes`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to record call outcome.");
+  return res.json();
+}
+
+// ---------------------------------------------------------
+// Admin Integration Clients Management API
+// ---------------------------------------------------------
+
+export interface AdminIntegrationClient {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  scopes: string[];
+  isActive: boolean;
+  lastUsedAt?: string | null;
+  ipAllowlist?: string[] | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface AdminIntegrationClientCreated {
+  client: AdminIntegrationClient;
+  rawKey: string;
+  warning: string;
+}
+
+export interface AdminIntegrationClientRotate {
+  client: AdminIntegrationClient;
+  rawKey: string;
+  warning: string;
+}
+
+export async function getAdminIntegrationClients(token?: string | null): Promise<AdminIntegrationClient[]> {
+  const res = await authorizedFetch("/api/v1/admin/integrations", { method: "GET" }, token);
+  if (!res.ok) await apiError(res, "Failed to load integration clients.");
+  return res.json();
+}
+
+export async function createAdminIntegrationClient(
+  payload: { name: string; scopes: string[]; ipAllowlist?: string[] },
+  token?: string | null
+): Promise<AdminIntegrationClientCreated> {
+  const res = await authorizedFetch(
+    "/api/v1/admin/integrations",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to create integration client.");
+  return res.json();
+}
+
+export async function rotateAdminIntegrationClientKey(
+  clientId: string,
+  token?: string | null
+): Promise<AdminIntegrationClientRotate> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/integrations/${clientId}/rotate`,
+    {
+      method: "POST",
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to rotate integration client key.");
+  return res.json();
+}
+
+export async function revokeAdminIntegrationClient(
+  clientId: string,
+  token?: string | null
+): Promise<AdminIntegrationClient> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/integrations/${clientId}/revoke`,
+    {
+      method: "POST",
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to revoke integration client.");
+  return res.json();
+}
+
+export async function toggleAdminIntegrationClientActive(
+  clientId: string,
+  token?: string | null
+): Promise<AdminIntegrationClient> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/integrations/${clientId}/toggle-active`,
+    {
+      method: "POST",
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to update integration client status.");
+  return res.json();
+}
 
 
+// ---------------------------------------------------------------------------
+// Stage-2: Reviews, Blog Posts, Social Links
+// ---------------------------------------------------------------------------
+
+// --- Types ---
+
+export interface Review {
+  id: string;
+  authorName: string;
+  rating: number;
+  text: string;
+  reviewDate: string | null;
+  sourceLabel: string | null;
+  displayOrder: number;
+  isPublished: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BlogPost {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  body: string | null;
+  coverImageUrl: string | null;
+  publishedDate: string | null;
+  displayOrder: number;
+  isPublished: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SocialLink {
+  id: string;
+  platform: string;
+  url: string;
+  displayOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// --- Public endpoints ---
+
+export async function getPublicReviews(): Promise<Review[]> {
+  const res = await fetch(`${API_BASE}/api/v1/public/reviews`, {
+    cache: "no-store",
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function getPublicBlogs(): Promise<BlogPost[]> {
+  const res = await fetch(`${API_BASE}/api/v1/public/blogs`, {
+    cache: "no-store",
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function getPublicBlogPostBySlug(slug: string): Promise<BlogPost | null> {
+  const res = await fetch(`${API_BASE}/api/v1/public/blogs/${encodeURIComponent(slug)}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function getPublicSocialLinks(): Promise<SocialLink[]> {
+  const res = await fetch(`${API_BASE}/api/v1/public/social-links`, {
+    cache: "no-store",
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+// --- Admin endpoints: Reviews ---
+
+export async function adminListReviews(token?: string | null): Promise<Review[]> {
+  const res = await authorizedFetch("/api/v1/admin/reviews", {}, token);
+  if (!res.ok) await apiError(res, "Failed to fetch reviews.");
+  return res.json();
+}
+
+export async function adminCreateReview(
+  data: {
+    authorName: string;
+    rating: number;
+    text: string;
+    reviewDate?: string;
+    sourceLabel?: string;
+    displayOrder?: number;
+    isPublished?: boolean;
+  },
+  token?: string | null
+): Promise<Review> {
+  const res = await authorizedFetch(
+    "/api/v1/admin/reviews",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to create review.");
+  return res.json();
+}
+
+export async function adminUpdateReview(
+  id: string,
+  data: Partial<{
+    authorName: string;
+    rating: number;
+    text: string;
+    reviewDate: string;
+    sourceLabel: string;
+    displayOrder: number;
+    isPublished: boolean;
+  }>,
+  token?: string | null
+): Promise<Review> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/reviews/${id}`,
+    { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to update review.");
+  return res.json();
+}
+
+export async function adminDeleteReview(id: string, token?: string | null): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/reviews/${id}`,
+    { method: "DELETE" },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to delete review.");
+}
+
+// --- Admin endpoints: Blog Posts ---
+
+export async function adminListBlogPosts(token?: string | null): Promise<BlogPost[]> {
+  const res = await authorizedFetch("/api/v1/admin/blogs", {}, token);
+  if (!res.ok) await apiError(res, "Failed to fetch blog posts.");
+  return res.json();
+}
+
+export async function adminCreateBlogPost(
+  data: {
+    title: string;
+    slug: string;
+    excerpt?: string;
+    body?: string;
+    coverImageUrl?: string;
+    publishedDate?: string;
+    displayOrder?: number;
+    isPublished?: boolean;
+  },
+  token?: string | null
+): Promise<BlogPost> {
+  const res = await authorizedFetch(
+    "/api/v1/admin/blogs",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to create blog post.");
+  return res.json();
+}
+
+export async function adminUpdateBlogPost(
+  id: string,
+  data: Partial<{
+    title: string;
+    slug: string;
+    excerpt: string;
+    body: string;
+    coverImageUrl: string;
+    publishedDate: string;
+    displayOrder: number;
+    isPublished: boolean;
+  }>,
+  token?: string | null
+): Promise<BlogPost> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/blogs/${id}`,
+    { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to update blog post.");
+  return res.json();
+}
+
+export async function adminDeleteBlogPost(id: string, token?: string | null): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/blogs/${id}`,
+    { method: "DELETE" },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to delete blog post.");
+}
+
+// --- Admin endpoints: Social Links ---
+
+export async function adminListSocialLinks(token?: string | null): Promise<SocialLink[]> {
+  const res = await authorizedFetch("/api/v1/admin/social-links", {}, token);
+  if (!res.ok) await apiError(res, "Failed to fetch social links.");
+  return res.json();
+}
+
+export async function adminCreateSocialLink(
+  data: {
+    platform: string;
+    url: string;
+    displayOrder?: number;
+    isActive?: boolean;
+  },
+  token?: string | null
+): Promise<SocialLink> {
+  const res = await authorizedFetch(
+    "/api/v1/admin/social-links",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to create social link.");
+  return res.json();
+}
+
+export async function adminUpdateSocialLink(
+  id: string,
+  data: Partial<{
+    platform: string;
+    url: string;
+    displayOrder: number;
+    isActive: boolean;
+  }>,
+  token?: string | null
+): Promise<SocialLink> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/social-links/${id}`,
+    { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to update social link.");
+  return res.json();
+}
+
+export async function adminDeleteSocialLink(id: string, token?: string | null): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/social-links/${id}`,
+    { method: "DELETE" },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to delete social link.");
+}
+
+// --- Gallery endpoints ---
+
+export interface GalleryImageItem {
+  id: string;
+  imageUrl: string;
+  caption?: string | null;
+  displayOrder: number;
+  isActive: boolean;
+  createdAt?: string;
+}
+
+export async function publicGetGallery(): Promise<GalleryImageItem[]> {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/public/gallery`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
+
+export async function adminGetGallery(token?: string | null): Promise<GalleryImageItem[]> {
+  const res = await authorizedFetch("/api/v1/admin/cms/gallery", {}, token);
+  if (!res.ok) await apiError(res, "Failed to fetch gallery images.");
+  return res.json();
+}
+
+export async function adminCreateGalleryImage(
+  data: {
+    imageUrl: string;
+    caption?: string | null;
+    displayOrder?: number;
+    isActive?: boolean;
+  },
+  token?: string | null
+): Promise<GalleryImageItem> {
+  const res = await authorizedFetch(
+    "/api/v1/admin/cms/gallery",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to create gallery image.");
+  return res.json();
+}
+
+export async function adminDeleteGalleryImage(id: string, token?: string | null): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/cms/gallery/${id}`,
+    { method: "DELETE" },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to delete gallery image.");
+}

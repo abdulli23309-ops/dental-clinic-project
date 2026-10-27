@@ -11,6 +11,8 @@ import React, {
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Clock, LogOut, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { motion, AnimatePresence } from "motion/react";
+import { modalOverlay, modalContent } from "@/animations/variants";
 import {
   changePassword,
   getMe,
@@ -92,7 +94,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(data.user);
         lastActivityRef.current = Date.now();
         const homePath = homePathForRole(data.user.role);
-        router.push(homePath ?? "/login?reason=no-workspace");
+        if (typeof window !== "undefined" && homePath) {
+          window.location.href = homePath;
+        } else {
+          router.push(homePath ?? "/login?reason=no-workspace");
+        }
       } else {
         const profile = await getMe(accessToken || undefined);
         setUser(profile);
@@ -288,163 +294,187 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {children}
 
       {/* Accessible Inactivity Countdown Warning Modal */}
-      {warningSecondsLeft !== null && (
-        <div
-          role="alertdialog"
-          aria-modal="true"
-          aria-labelledby="inactivity-warning-title"
-          aria-describedby="inactivity-warning-desc"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-forest-deep/60 backdrop-blur-sm animate-fade-in"
-        >
-          <div className="w-full max-w-md rounded-2xl border border-line bg-bone p-6 shadow-2xl space-y-5 animate-scale-in">
-            <div className="flex items-start gap-4">
-              <div className="grid h-12 w-12 place-items-center rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400 shrink-0">
-                <AlertTriangle className="h-6 w-6" />
+      <AnimatePresence>
+        {warningSecondsLeft !== null && (
+          <motion.div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="inactivity-warning-title"
+            aria-describedby="inactivity-warning-desc"
+            variants={modalOverlay}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-forest-deep/60 backdrop-blur-sm"
+          >
+            <motion.div
+              variants={modalContent}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="w-full max-w-md rounded-2xl border border-line bg-bone p-6 shadow-2xl space-y-5"
+            >
+              <div className="flex items-start gap-4">
+                <div className="grid h-12 w-12 place-items-center rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400 shrink-0">
+                  <AlertTriangle className="h-6 w-6" />
+                </div>
+                <div className="space-y-1">
+                  <h2
+                    id="inactivity-warning-title"
+                    className="text-lg font-display font-semibold text-ink"
+                  >
+                    Session Inactivity Warning
+                  </h2>
+                  <p id="inactivity-warning-desc" className="text-xs text-ink-soft leading-relaxed">
+                    For clinic patient privacy and session security, your administrator session will
+                    automatically lock due to inactivity.
+                  </p>
+                </div>
               </div>
-              <div className="space-y-1">
-                <h2
-                  id="inactivity-warning-title"
-                  className="text-lg font-display font-semibold text-ink"
+
+              <div className="rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/40 p-4 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-medium text-amber-800 dark:text-amber-300">
+                  <Clock className="h-4 w-4" />
+                  <span>Signing out automatically in:</span>
+                </div>
+                <span className="font-mono text-xl font-bold text-amber-600 dark:text-amber-400">
+                  {warningSecondsLeft}s
+                </span>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                <Button
+                  variant="primary"
+                  className="w-full justify-center"
+                  autoFocus
+                  onClick={() => {
+                    resetActivity();
+                    getMe(accessToken || undefined).catch(() => {});
+                  }}
                 >
-                  Session Inactivity Warning
-                </h2>
-                <p id="inactivity-warning-desc" className="text-xs text-ink-soft leading-relaxed">
-                  For clinic patient privacy and session security, your administrator session will
-                  automatically lock due to inactivity.
-                </p>
+                  <ShieldCheck className="h-4 w-4 mr-1.5" />
+                  Stay Signed In
+                </Button>
+                <Button
+                  variant="secondary"
+                  className="w-full justify-center text-ink-soft"
+                  onClick={() => logout(false)}
+                >
+                  <LogOut className="h-4 w-4 mr-1.5" />
+                  Sign Out Now
+                </Button>
               </div>
-            </div>
-
-            <div className="rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/40 p-4 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs font-medium text-amber-800 dark:text-amber-300">
-                <Clock className="h-4 w-4" />
-                <span>Signing out automatically in:</span>
-              </div>
-              <span className="font-mono text-xl font-bold text-amber-600 dark:text-amber-400">
-                {warningSecondsLeft}s
-              </span>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-2 pt-1">
-              <Button
-                variant="primary"
-                className="w-full justify-center"
-                autoFocus
-                onClick={() => {
-                  resetActivity();
-                  getMe(accessToken || undefined).catch(() => {});
-                }}
-              >
-                <ShieldCheck className="h-4 w-4 mr-1.5" />
-                Stay Signed In
-              </Button>
-              <Button
-                variant="secondary"
-                className="w-full justify-center text-ink-soft"
-                onClick={() => logout(false)}
-              >
-                <LogOut className="h-4 w-4 mr-1.5" />
-                Sign Out Now
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Forced Password Change Modal — shown and enforced when requiresPasswordChange is true.
           Rendered with a higher z-index than navigation so the user must change their password
           before continuing. */}
-      {requiresPasswordChange && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="force-password-title"
-          aria-describedby="force-password-desc"
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-forest-deep/70 backdrop-blur-sm"
-          data-testid="forced-password-change"
-        >
-          <div className="w-full max-w-md rounded-2xl border border-line bg-bone p-6 shadow-2xl space-y-4">
-            <div className="space-y-1">
-              <h2
-                id="force-password-title"
-                className="text-lg font-display font-semibold text-ink"
-              >
-                Change Your Password to Continue
-              </h2>
-              <p id="force-password-desc" className="text-xs text-ink-soft">
-                Your account requires a password change before you can access the workspace.
-                Enter your current password and choose a new one.
-              </p>
-            </div>
+      <AnimatePresence>
+        {requiresPasswordChange && (
+          <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="force-password-title"
+            aria-describedby="force-password-desc"
+            variants={modalOverlay}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-forest-deep/70 backdrop-blur-sm"
+            data-testid="forced-password-change"
+          >
+            <motion.div
+              variants={modalContent}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="w-full max-w-md rounded-2xl border border-line bg-bone p-6 shadow-2xl space-y-4"
+            >
+              <div className="space-y-1">
+                <h2
+                  id="force-password-title"
+                  className="text-lg font-display font-semibold text-ink"
+                >
+                  Change Your Password to Continue
+                </h2>
+                <p id="force-password-desc" className="text-xs text-ink-soft">
+                  Your account requires a password change before you can access the workspace.
+                  Enter your current password and choose a new one.
+                </p>
+              </div>
 
-            {passwordError && (
-              <div
-                role="alert"
-                className="rounded-lg border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 p-3 text-xs text-rose-700 dark:text-rose-300"
-                data-testid="password-change-error"
-              >
-                {passwordError}
-              </div>
-            )}
+              {passwordError && (
+                <div
+                  role="alert"
+                  className="rounded-lg border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 p-3 text-xs text-rose-700 dark:text-rose-300"
+                  data-testid="password-change-error"
+                >
+                  {passwordError}
+                </div>
+              )}
 
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-ink mb-1" htmlFor="current-password">
-                  Current Password
-                </label>
-                <input
-                  id="current-password"
-                  type="password"
-                  autoComplete="current-password"
-                  value={oldPassword}
-                  onChange={(e) => setOldPassword(e.target.value)}
-                  className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink focus:outline-none focus:ring-1 focus:ring-primary"
-                />
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-ink mb-1" htmlFor="current-password">
+                    Current Password
+                  </label>
+                  <input
+                    id="current-password"
+                    type="password"
+                    autoComplete="current-password"
+                    value={oldPassword}
+                    onChange={(e) => setOldPassword(e.target.value)}
+                    className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-ink mb-1" htmlFor="new-password">
+                    New Password
+                  </label>
+                  <input
+                    id="new-password"
+                    type="password"
+                    autoComplete="new-password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-ink mb-1" htmlFor="confirm-password">
+                    Confirm New Password
+                  </label>
+                  <input
+                    id="confirm-password"
+                    type="password"
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-ink mb-1" htmlFor="new-password">
-                  New Password
-                </label>
-                <input
-                  id="new-password"
-                  type="password"
-                  autoComplete="new-password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-ink mb-1" htmlFor="confirm-password">
-                  Confirm New Password
-                </label>
-                <input
-                  id="confirm-password"
-                  type="password"
-                  autoComplete="new-password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-            </div>
 
-            <div className="flex flex-col gap-2">
-              <Button
-                variant="primary"
-                onClick={submitPasswordChange}
-                disabled={isChangingPassword}
-                data-testid="submit-password-change"
-              >
-                {isChangingPassword ? "Changing password..." : "Change Password & Continue"}
-              </Button>
-              <Button variant="secondary" onClick={() => logout(false)} disabled={isChangingPassword}>
-                Sign Out Instead
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="primary"
+                  onClick={submitPasswordChange}
+                  disabled={isChangingPassword}
+                  data-testid="submit-password-change"
+                >
+                  {isChangingPassword ? "Changing password..." : "Change Password & Continue"}
+                </Button>
+                <Button variant="secondary" onClick={() => logout(false)} disabled={isChangingPassword}>
+                  Sign Out Instead
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </AuthContext.Provider>
   );
 }

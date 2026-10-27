@@ -23,6 +23,7 @@ class TeamMemberCreateRequest(BaseModel):
     servicesOffered: Optional[str] = None
     displayOrder: int = 0
     isActive: bool = True
+    showPatientsTreated: bool = True
 
     model_config = ConfigDict(extra="ignore")
 
@@ -45,6 +46,7 @@ class TeamMemberUpdateRequest(BaseModel):
     servicesOffered: Optional[str] = None
     displayOrder: Optional[int] = None
     isActive: Optional[bool] = None
+    showPatientsTreated: Optional[bool] = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -74,6 +76,7 @@ class TeamMemberResponse(BaseModel):
     servicesOffered: Optional[str] = None
     displayOrder: int
     isActive: bool
+    showPatientsTreated: bool = True
     createdAt: datetime
     updatedAt: datetime
 
@@ -83,3 +86,11 @@ class TeamMemberResponse(BaseModel):
 class ReorderRequest(BaseModel):
     """Payload for updating display ordering of items."""
     orderedIds: List[UUID]
+
+
+class PaginatedTeamResponse(BaseModel):
+    """Paginated list of team members."""
+    items: List[TeamMemberResponse]
+    total: int
+    page: int
+    limit: int

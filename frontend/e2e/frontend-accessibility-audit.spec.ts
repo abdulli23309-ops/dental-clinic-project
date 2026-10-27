@@ -208,12 +208,53 @@ test.describe("Frontend role accessibility audit", () => {
     for (const route of publicRoutes) findings.push(await auditRoute(page, route, info));
     await page.goto("/book");
     await page.waitForLoadState("domcontentloaded");
-    const continueBtn = page.locator("button:has-text('Continue')");
-    if (await continueBtn.isVisible().catch(() => false)) {
-      await continueBtn.click();
+    if (await page.locator("#contact-name").isVisible().catch(() => false)) {
+      await page.fill("#contact-name", "Audit User");
+      await page.fill("#contact-phone", "+92 300 1234567");
+      await page.click("[data-testid='contact-continue-btn']");
+      await page.waitForTimeout(500);
+
+      // Waterfall: treatment
+      await page.waitForSelector("[data-testid^='service-option-']", { timeout: 10000 }).catch(() => {});
+      const svcOpt = page.locator("[data-testid^='service-option-']").first();
+      if (await svcOpt.isVisible().catch(() => false)) {
+        await svcOpt.click();
+
+        // Wait for the waterfall to reveal the city step or the clinic list
+        await page
+          .waitForSelector("[data-testid^='city-option-'], [data-testid^='clinic-option-']", { timeout: 10000 })
+          .catch(() => {});
+
+        // City (only when the treatment spans multiple cities)
+        const ctyOpt = page.locator("[data-testid^='city-option-']").first();
+        if (await ctyOpt.isVisible().catch(() => false)) {
+          await ctyOpt.click();
+        }
+
+        // Clinic
+        await page.waitForSelector("[data-testid^='clinic-option-']", { timeout: 10000 }).catch(() => {});
+        const clnOpt = page.locator("[data-testid^='clinic-option-']").first();
+        if (await clnOpt.isVisible().catch(() => false)) {
+          await clnOpt.click();
+        }
+
+        // Doctor (auto-selected when only one clinician exists)
+        await page
+          .waitForSelector("[data-testid^='doctor-card-'], [data-testid='single-doctor-intro']", { timeout: 10000 })
+          .catch(() => {});
+        const docOpt = page.locator("[data-testid^='doctor-card-']").first();
+        if (await docOpt.isVisible().catch(() => false)) {
+          await docOpt.click();
+        }
+      }
+    } else {
+      const continueBtn = page.locator("button:has-text('Continue')");
+      if (await continueBtn.isVisible().catch(() => false)) {
+        await continueBtn.click();
+      }
     }
     await page.waitForTimeout(1000);
-    const slots = page.locator("button:has-text('AM'), button:has-text('PM')");
+    const slots = page.locator("button:has-text('AM'), button:has-text('PM'), [data-testid^='slot-chip-']");
     const hasSlots = await slots.first().isVisible({ timeout: 5000 }).catch(() => false);
     const body = await page.locator("body").innerText();
     const pausedOrClosed = /paused|closed|booking (?:is )?(?:unavailable|not available)/i.test(body);

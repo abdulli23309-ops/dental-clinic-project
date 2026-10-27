@@ -88,3 +88,7 @@
 22. **Centralized Public Content Provider & Elimination of Hardcoding (October 2026)**
     - *Decision*: Implemented `PublicContentProvider` wrapping the root application, caching and distributing organization metadata, locations, team roster, and CMS content to presentational components.
     - *Why*: Avoids duplicate network calls across components, eliminates hardcoded clinic copy across 15+ pages, and ensures instant synchronization when CMS content is updated.
+
+23. **Public Progressive Booking Flow on Live API (October 2026)**
+    - *Decision*: Rewrote `src/components/booking/progressive-booking-flow.tsx` from a mock prototype into the production public `/book` flow: 3 pages (Contact with lead capture, progressive disclosure waterfall of service/city/clinic/doctor/day/slot, summary with real `POST /api/v1/appointments` submission). Uses shared `Button`/`Card`/`TextField` primitives, `useReducedMotion` fallbacks, and the same best-effort lead capture/update contract as the call desk wizard.
+    - *Why*: The earlier version embedded mock datasets and a simulated `setTimeout` confirmation, violating rules §2/§3/§4/§6 of `frontend/docs/rules.md` and silently dropping real patient leads. The legacy `booking-wizard.tsx` remains untouched for the `/reception/call-desk` staff route. E2E suites (`booking-flow-roles-and-states`, `booking-flow-admin-integration`, `scripted-visit`, `dynamic-content`, `live-dynamic`, `frontend-accessibility-audit`) were re-authored to the new journey; call desk tests unchanged.

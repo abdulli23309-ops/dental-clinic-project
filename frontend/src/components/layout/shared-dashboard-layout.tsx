@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import {
   ChevronLeft,
   ChevronRight,
@@ -13,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/components/providers/auth-provider";
+import { usePublicContent } from "@/components/providers/public-content-provider";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   canAccessWorkspace,
@@ -73,8 +76,11 @@ export function SharedDashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { user, isLoading, logout } = useAuth();
+  const { organization } = usePublicContent();
+  const orgName = organization?.displayName || organization?.name || "Dental Clinic";
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const shouldReduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (!isLoading) {
@@ -136,7 +142,7 @@ export function SharedDashboardLayout({
             <Menu className="h-5 w-5" />
           </button>
           <span className="font-display font-semibold text-gray-900 dark:text-gray-100 text-base tracking-tight">
-            Marlow Dental
+            {orgName}
           </span>
           <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-mono uppercase font-bold text-primary">
             {badgeLabel || roleTitle}
@@ -187,7 +193,7 @@ export function SharedDashboardLayout({
                   isCollapsed ? "opacity-0" : "group-hover:opacity-0"
                 }`}
               >
-                M
+                {orgName.charAt(0)}
               </span>
               <div
                 className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 ${
@@ -208,7 +214,7 @@ export function SharedDashboardLayout({
               }`}
             >
               <span className="font-display text-sm font-bold text-gray-900 dark:text-gray-100 block leading-tight tracking-tight hover:text-primary transition-colors">
-                Marlow Dental
+                {orgName}
               </span>
               <span className="text-[10px] font-mono text-gray-500 dark:text-gray-400 block uppercase tracking-wider">
                 {roleTitle}
@@ -245,17 +251,27 @@ export function SharedDashboardLayout({
                 key={item.href}
                 href={item.href}
                 title={title}
-                className={`flex items-center rounded-full text-xs font-medium transition-all duration-200 ease-in-out ${
+                className={`relative flex items-center rounded-full text-xs font-medium transition-all duration-200 ease-in-out ${
                   isCollapsed
                     ? "h-12 w-12 justify-center p-0"
                     : "gap-3.5 px-4 py-3 w-full justify-between"
                 } ${
                   isActive
-                    ? "bg-primary text-white shadow-md font-semibold"
+                    ? "text-white font-semibold"
                     : "text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
                 }`}
               >
-                <div className="flex items-center gap-3.5 min-w-0">
+                {isActive && !shouldReduceMotion && (
+                  <motion.span
+                    layoutId="shared-sidebar-active-indicator"
+                    className="absolute inset-0 rounded-full bg-primary shadow-md"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
+                )}
+                {isActive && shouldReduceMotion && (
+                  <span className="absolute inset-0 rounded-full bg-primary shadow-md" />
+                )}
+                <div className="relative z-10 flex items-center gap-3.5 min-w-0">
                   {renderIcon(item.icon, isActive)}
                   <span
                     className={`truncate transition-opacity duration-300 ${
@@ -267,7 +283,7 @@ export function SharedDashboardLayout({
                 </div>
                 {!isCollapsed && item.badge !== undefined && (
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                    className={`relative z-10 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
                       isActive
                         ? "bg-white/20 text-white"
                         : "bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
@@ -363,7 +379,11 @@ export function SharedDashboardLayout({
         </header>
 
         <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full">
+          <AnimatePresence mode="wait" key={pathname}>
+        <AnimatedPage key={pathname}>
           {children}
+        </AnimatedPage>
+      </AnimatePresence>
         </main>
       </div>
     </div>

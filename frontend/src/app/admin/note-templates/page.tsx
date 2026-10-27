@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   AlertCircle,
   CheckCircle2,
@@ -21,6 +22,17 @@ import {
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { TextField } from "@/components/ui/text-field";
+import { AnimatedPage } from "@/components/ui/animated-page";
+import { Skeleton } from "@/components/ui/skeleton";
+import { StaggerList, StaggerItem } from "@/components/ui/stagger-list";
+import {
+  staggerContainer,
+  listItem,
+  modalOverlay,
+  modalContent,
+  reducedVariant,
+} from "@/animations/variants";
 
 export default function AdminNoteTemplatesPage() {
   const { accessToken } = useAuth();
@@ -153,6 +165,7 @@ export default function AdminNoteTemplatesPage() {
   };
 
   return (
+  <AnimatedPage>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-line pb-5">
@@ -184,9 +197,16 @@ export default function AdminNoteTemplatesPage() {
 
       {/* Templates List */}
       {isLoading ? (
-        <div className="p-12 text-center text-ink-soft">Loading note templates...</div>
+        <div className="p-12 text-center text-ink-soft flex flex-col items-center justify-center gap-3">
+          <StaggerList className="flex flex-col items-center justify-center gap-2">
+            <StaggerItem index={0}><Skeleton className="h-4 w-1/3" /></StaggerItem>
+            <StaggerItem index={1}><Skeleton className="h-4 w-1/2" /></StaggerItem>
+            <StaggerItem index={2}><Skeleton className="h-4 w-2/3" /></StaggerItem>
+          </StaggerList>
+          <p className="text-xs text-ink-soft">Loading note templates...</p>
+        </div>
       ) : templates.length === 0 ? (
-        <Card className="p-12 text-center">
+        <Card className="p-12 text-center" hoverLift={true} index={0}>
           <FileText className="h-10 w-10 text-ink-soft mx-auto mb-3 opacity-60" />
           <p className="text-base font-medium text-ink">No templates configured</p>
           <p className="text-xs text-ink-soft mt-1">
@@ -194,9 +214,10 @@ export default function AdminNoteTemplatesPage() {
           </p>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {templates.map((tmpl) => (
-            <Card key={tmpl.id} className="p-5 space-y-4 border hover:border-primary/40 transition-all flex flex-col justify-between">
+        <StaggerList className="grid gap-4 md:grid-cols-2">
+          {templates.map((tmpl, idx) => (
+            <StaggerItem key={tmpl.id} index={idx}>
+              <Card className="p-5 space-y-4 border hover:border-primary/40 transition-all flex flex-col justify-between" index={1}>
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -267,14 +288,28 @@ export default function AdminNoteTemplatesPage() {
                 </div>
               </div>
             </Card>
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerList>
       )}
 
       {/* Edit / Create Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-fade-in overflow-y-auto">
-          <div className="bg-surface rounded-xl shadow-xl w-full max-w-2xl border border-line p-6 space-y-4 my-8">
+      <AnimatePresence>
+        {isModalOpen && (
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            variants={reducedVariant(modalOverlay)}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm overflow-y-auto"
+          >
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              variants={modalContent}
+              className="bg-surface rounded-xl shadow-xl w-full max-w-2xl border border-line p-6 space-y-4 my-8"
+            >
             <div className="flex items-center justify-between border-b border-line pb-3">
               <h2 className="text-lg font-display font-medium text-ink">
                 {editingTemplate ? `Edit Template: ${editingTemplate.name}` : "Create Note Template"}
@@ -330,12 +365,14 @@ export default function AdminNoteTemplatesPage() {
                   <label className="block text-xs font-medium text-ink mb-1">
                     Subjective (S) Prompt Structure
                   </label>
-                  <textarea
+                  <TextField
+                    id="template-subjective"
+                    label="Subjective (S) Prompt Structure"
+                    multiline
                     rows={2}
                     value={subjective}
                     onChange={(e) => setSubjective(e.target.value)}
                     placeholder="Chief Complaint: [...]\nHistory of Present Complaint: [...]"
-                    className="w-full text-xs p-2.5 font-mono bg-surface rounded-md border border-line focus:outline-none focus:ring-1 focus:ring-primary text-ink resize-none"
                   />
                 </div>
 
@@ -343,12 +380,14 @@ export default function AdminNoteTemplatesPage() {
                   <label className="block text-xs font-medium text-ink mb-1">
                     Objective (O) Prompt Structure
                   </label>
-                  <textarea
+                  <TextField
+                    id="template-objective"
+                    label="Objective (O) Prompt Structure"
+                    multiline
                     rows={2}
                     value={objective}
                     onChange={(e) => setObjective(e.target.value)}
                     placeholder="Clinical Examination: [...]\nRadiographic Findings: [...]"
-                    className="w-full text-xs p-2.5 font-mono bg-surface rounded-md border border-line focus:outline-none focus:ring-1 focus:ring-primary text-ink resize-none"
                   />
                 </div>
 
@@ -356,12 +395,14 @@ export default function AdminNoteTemplatesPage() {
                   <label className="block text-xs font-medium text-ink mb-1">
                     Assessment (A) Prompt Structure
                   </label>
-                  <textarea
+                  <TextField
+                    id="template-assessment"
+                    label="Assessment (A) Prompt Structure"
+                    multiline
                     rows={2}
                     value={assessment}
                     onChange={(e) => setAssessment(e.target.value)}
                     placeholder="Diagnosis / Impression: [...]\nPrognosis: [...]"
-                    className="w-full text-xs p-2.5 font-mono bg-surface rounded-md border border-line focus:outline-none focus:ring-1 focus:ring-primary text-ink resize-none"
                   />
                 </div>
 
@@ -369,12 +410,14 @@ export default function AdminNoteTemplatesPage() {
                   <label className="block text-xs font-medium text-ink mb-1">
                     Plan (P) Prompt Structure
                   </label>
-                  <textarea
+                  <TextField
+                    id="template-plan"
+                    label="Plan (P) Prompt Structure"
+                    multiline
                     rows={2}
                     value={plan}
                     onChange={(e) => setPlan(e.target.value)}
                     placeholder="Procedures Executed: [...]\nPost-Operative Instructions: [...]\nNext Visit: [...]"
-                    className="w-full text-xs p-2.5 font-mono bg-surface rounded-md border border-line focus:outline-none focus:ring-1 focus:ring-primary text-ink resize-none"
                   />
                 </div>
               </div>
@@ -398,9 +441,11 @@ export default function AdminNoteTemplatesPage() {
                 </Button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        </motion.div>
+        )}
+      </AnimatePresence>
     </div>
+  </AnimatedPage>
   );
 }

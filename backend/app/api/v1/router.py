@@ -9,6 +9,7 @@ from app.api.v1.endpoints import (
     admin_messaging,
     admin_organization,
     admin_reports,
+    admin_roles,
     admin_services,
     admin_team,
     admin_users,
@@ -20,6 +21,8 @@ from app.api.v1.endpoints import (
     doctor,
     doctor_tasks,
     health,
+    integration,
+    admin_integrations,
     patient_attachments,
     public_content,
     reception,
@@ -33,6 +36,7 @@ api_v1_router.include_router(health.router, tags=["Health"])
 api_v1_router.include_router(appointments.router, tags=["Appointments"])
 api_v1_router.include_router(auth.router, tags=["Authentication"])
 api_v1_router.include_router(public_content.router, tags=["Public Content"])
+api_v1_router.include_router(integration.router, tags=["Integration API"])
 
 # Receptionist Front-Office workspace
 api_v1_router.include_router(reception.router, tags=["Receptionist Front-Office"])
@@ -50,6 +54,7 @@ api_v1_router.include_router(clinical_documents.router, tags=["Clinical Document
 api_v1_router.include_router(admin_cms.router, tags=["Admin CMS"])
 api_v1_router.include_router(admin_announcements.router, tags=["Admin Announcements"])
 api_v1_router.include_router(admin_team.router, tags=["Admin Team"])
+api_v1_router.include_router(admin_roles.router, tags=["Admin Roles"])
 api_v1_router.include_router(admin_services.router, tags=["Admin Services"])
 api_v1_router.include_router(admin_organization.router, tags=["Admin Organization"])
 api_v1_router.include_router(admin_media.router, tags=["Admin Media"])
@@ -58,3 +63,4 @@ api_v1_router.include_router(admin_booking.router, tags=["Admin Booking Settings
 api_v1_router.include_router(admin_messaging.router, tags=["Admin Messaging & Reminders"])
 api_v1_router.include_router(admin_audit.router, tags=["Admin Audit Viewer"])
 api_v1_router.include_router(admin_reports.router, tags=["Admin Reports"])
+api_v1_router.include_router(admin_integrations.router, tags=["Admin Integrations"])

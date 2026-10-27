@@ -21,7 +21,7 @@ LEGAL_DISCLAIMER_NOTICE = "Template wording must be reviewed by the clinic and l
 # This is a demonstration project. Signed prescription and referral documents are
 # demo documents and are watermarked as such so they cannot be mistaken for
 # real clinical correspondence.
-DEMO_DOCUMENT_WATERMARK = "DEMO DOCUMENT - NOT FOR CLINICAL USE"
+DOCUMENT_WATERMARK_TEXT = "DEMO DOCUMENT - NOT FOR CLINICAL USE"
 
 
 class ClinicalDocumentService:
@@ -204,7 +204,7 @@ class ClinicalDocumentService:
             "licenceNumber": doctor_info["licenceNumber"],
             "signedAt": prescription.signed_at,
             "clinicHeader": await self._get_clinic_header(),
-            "watermark": DEMO_DOCUMENT_WATERMARK,
+            "watermark": DOCUMENT_WATERMARK_TEXT,
             "legalDisclaimer": LEGAL_DISCLAIMER_NOTICE,
         }
 
@@ -343,7 +343,7 @@ class ClinicalDocumentService:
             "licenceNumber": doctor_info["licenceNumber"],
             "signedAt": referral.signed_at,
             "clinicHeader": await self._get_clinic_header(),
-            "watermark": DEMO_DOCUMENT_WATERMARK,
+            "watermark": DOCUMENT_WATERMARK_TEXT,
             "legalDisclaimer": LEGAL_DISCLAIMER_NOTICE,
         }
 

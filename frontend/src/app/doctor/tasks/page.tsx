@@ -25,6 +25,7 @@ import {
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export default function DoctorTasksPage() {
   const { accessToken } = useAuth();
@@ -168,6 +169,7 @@ export default function DoctorTasksPage() {
   };
 
   return (
+  <AnimatedPage>
     <div className="space-y-6">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-line pb-5">
@@ -237,7 +239,7 @@ export default function DoctorTasksPage() {
       {isLoading ? (
         <div className="p-12 text-center text-ink-soft">Loading tasks...</div>
       ) : filteredTasks.length === 0 ? (
-        <Card className="p-12 text-center">
+        <Card className="p-12 text-center" hoverLift={true} index={0}>
           <ListTodo className="h-10 w-10 text-ink-soft mx-auto mb-3 opacity-60" />
           <p className="text-base font-medium text-ink">No tasks found</p>
           <p className="text-xs text-ink-soft mt-1">
@@ -254,7 +256,7 @@ export default function DoctorTasksPage() {
               className={`p-4 transition-all border ${
                 t.status === "done" ? "opacity-75 bg-muted/30" : "hover:border-primary/40"
               }`}
-            >
+             index={1}>
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                 <div className="space-y-1.5 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -514,5 +516,6 @@ export default function DoctorTasksPage() {
         </div>
       )}
     </div>
+  </AnimatedPage>
   );
 }

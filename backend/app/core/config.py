@@ -1,7 +1,11 @@
 import os
+from pathlib import Path
 from typing import Any, List, Optional
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Resolve .env file relative to project root (three directories up from this module)
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 class Settings(BaseSettings):
@@ -33,6 +37,8 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
     DATABASE_URL: str = "postgresql+asyncpg://user:password@localhost:5432/dentai_dev"
     APPOINTMENTS_RATE_LIMIT: str = "5/minute"
+    PUBLIC_LEADS_RATE_LIMIT: str = "30/minute"
+    PUBLIC_BOOKING_RATE_LIMIT: str = "60/minute"
 
     # Authentication & Security
     JWT_SECRET_KEY: str = "dev-marlow-dental-insecure-secret-key-change-in-production-2026"
@@ -50,12 +56,12 @@ class Settings(BaseSettings):
 
     # Storage & Attachments
     UPLOAD_DIR: str = "uploads"
-    MAX_UPLOAD_SIZE_BYTES: int = 5 * 1024 * 1024  # 5 MB
+    MAX_UPLOAD_SIZE_BYTES: int = 20 * 1024 * 1024  # 20 MB
     ATTACHMENT_DIR: str = os.getenv(
         "ATTACHMENT_DIR",
         os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "storage", "attachments")),
     )
-    ATTACHMENT_MAX_SIZE_BYTES: int = 15 * 1024 * 1024  # 15 MB
+    ATTACHMENT_MAX_SIZE_BYTES: int = 20 * 1024 * 1024  # 20 MB
 
     # Messaging & Reminders Scheduler
     SCHEDULER_ENABLED: bool = False
@@ -84,7 +90,7 @@ class Settings(BaseSettings):
         return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(PROJECT_ROOT / ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )

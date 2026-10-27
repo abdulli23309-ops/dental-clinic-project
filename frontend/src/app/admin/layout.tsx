@@ -35,9 +35,11 @@ const ADMIN_LINKS: SidebarLink[] = [
   { href: "/admin/locations", title: "Clinics & Branches", icon: MapPin },
   { href: "/admin/services", title: "Services & Fees", icon: Layers },
   { href: "/admin/team", title: "Team Members", icon: Users },
+  { href: "/admin/roles", title: "Roles", icon: ShieldCheck },
   { href: "/admin/users", title: "Staff Accounts", icon: User },
   { href: "/admin/announcements", title: "Announcements", icon: Bell },
   { href: "/admin/website", title: "Website CMS", icon: Globe },
+  { href: "/admin/integrations", title: "API Integrations", icon: ShieldCheck },
   { href: "/admin/settings", title: "Settings", icon: Settings },
   { href: "/admin/account", title: "Account", icon: User },
 ];

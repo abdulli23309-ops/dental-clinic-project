@@ -68,9 +68,14 @@ async def lifespan(app: FastAPI):
                             booking_settings_repo=PostgresBookingSettingsRepository(session),
                         )
                         res = await service.dispatch_due_reminders()
+                        from app.application.services.lead_status_service import LeadStatusService
+                        lead_svc = LeadStatusService(session)
+                        cold_res = await lead_svc.mark_cold_leads()
                         await session.commit()
                         if res.get("dispatchedCount", 0) > 0:
                             logger.info("Scheduler dispatched %d reminders", res["dispatchedCount"])
+                        if cold_res.get("marked_cold_count", 0) > 0:
+                            logger.info("Scheduler marked %d leads cold", cold_res["marked_cold_count"])
                 except asyncio.CancelledError:
                     break
                 except Exception as e:

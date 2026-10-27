@@ -21,6 +21,7 @@ import {
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export default function DoctorNoteTemplatesPage() {
   const { accessToken } = useAuth();
@@ -159,6 +160,7 @@ export default function DoctorNoteTemplatesPage() {
   };
 
   return (
+  <AnimatedPage>
     <div className="space-y-6 max-w-6xl">
       {/* Header */}
       <div className="border-b border-line pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -198,7 +200,7 @@ export default function DoctorNoteTemplatesPage() {
           Loading clinical templates...
         </div>
       ) : templates.length === 0 ? (
-        <Card className="p-10 text-center space-y-3">
+        <Card className="p-10 text-center space-y-3" hoverLift={true} index={0}>
           <FileText className="h-10 w-10 text-ink-soft mx-auto" />
           <h3 className="font-semibold text-ink">No Note Templates Configured</h3>
           <p className="text-sm text-ink-soft max-w-md mx-auto">
@@ -217,7 +219,7 @@ export default function DoctorNoteTemplatesPage() {
                 tmpl.active ? "border-line" : "border-line/40 opacity-70 bg-sand/10"
               }`}
               data-testid={`template-card-${tmpl.id}`}
-            >
+             index={1}>
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2">
@@ -439,5 +441,6 @@ export default function DoctorNoteTemplatesPage() {
         </div>
       )}
     </div>
+  </AnimatedPage>
   );
 }

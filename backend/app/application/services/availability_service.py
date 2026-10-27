@@ -94,6 +94,7 @@ class AvailabilityService:
         target_date: date,
         service_id: Optional[Union[UUID, str]] = None,
         team_member_id: Optional[UUID] = None,
+        clinic_id: Optional[UUID] = None,
         enforce_lead_time: bool = True,
     ) -> List[str]:
         now_local = datetime.now(self.tz)
@@ -104,7 +105,7 @@ class AvailabilityService:
             return []
 
         # 2. Settings check (advance booking days and booking mode)
-        settings = await self.booking_settings_repo.get_settings()
+        settings = await self.booking_settings_repo.get_settings(clinic_id=clinic_id)
         if settings.booking_mode != "open":
             return []
 
@@ -112,14 +113,14 @@ class AvailabilityService:
             return []
 
         # 3. Clinic closures check
-        closures = await self.booking_settings_repo.list_closures()
+        closures = await self.booking_settings_repo.list_closures(clinic_id=clinic_id)
         for c in closures:
             if c.start_date <= target_date <= c.end_date:
                 return []
 
         # 4. Clinic working hours for day of week
         dow = target_date.weekday()  # 0=Monday .. 6=Sunday
-        working_hours = await self.booking_settings_repo.list_working_hours()
+        working_hours = await self.booking_settings_repo.list_working_hours(clinic_id=clinic_id)
         wh = next((h for h in working_hours if h.day_of_week == dow), None)
         if not wh or wh.is_closed or not wh.open_time or not wh.close_time:
             return []
@@ -200,8 +201,13 @@ class AvailabilityService:
                 clinician_shifts_map[cid] = [(clinic_open_mins, clinic_close_mins)]
                 clinician_breaks_map[cid] = []
             else:
-                avails = await self.booking_settings_repo.list_provider_availabilities(team_member_id=cid)
-                day_avails = [a for a in avails if a.is_active and a.day_of_week == dow]
+                avails = await self.booking_settings_repo.list_provider_availabilities(team_member_id=cid, clinic_id=clinic_id)
+                day_avails = [
+                    a for a in avails 
+                    if a.is_active 
+                    and a.day_of_week == dow 
+                    and (a.clinic_id is None or clinic_id is None or a.clinic_id == clinic_id)
+                ]
                 if avails and not day_avails:
                     # Clinician has custom weekly schedule configured, but is off today
                     clinician_shifts_map[cid] = []
@@ -328,12 +334,14 @@ class AvailabilityService:
         time_str: str,
         service_id: Optional[Union[UUID, str]] = None,
         team_member_id: Optional[UUID] = None,
+        clinic_id: Optional[UUID] = None,
         enforce_lead_time: bool = False,
     ) -> bool:
         slots = await self.get_available_slots(
             target_date=target_date,
             service_id=service_id,
             team_member_id=team_member_id,
+            clinic_id=clinic_id,
             enforce_lead_time=enforce_lead_time,
         )
         norm_time = parse_time_to_minutes(time_str)

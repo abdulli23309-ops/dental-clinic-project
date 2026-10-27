@@ -23,8 +23,11 @@ import {
 } from "@/lib/api";
 import { WaitlistOfferModal } from "@/components/reception/waitlist-offer-modal";
 import { RecordPaymentModal } from "@/components/reception/record-payment-modal";
+import { TabNav } from "@/components/ui/tab-nav";
+import { AnimatedView } from "@/components/ui/animated-view";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useDirectory } from "@/lib/directory";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import {
   isExpected,
   isWaiting,
@@ -108,6 +111,7 @@ export default function ReceptionAppointmentsPage() {
   };
 
   return (
+  <AnimatedPage>
     <div className="space-y-6">
       {/* Header with Submodule Links */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -149,21 +153,13 @@ export default function ReceptionAppointmentsPage() {
 
       {/* Tabs & Search */}
       <div className="p-2 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-xs flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1">
-          {(["all", "today", "completed", "cancelled"] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-medium capitalize transition-all cursor-pointer ${
-                activeTab === tab
-                  ? "bg-primary text-white font-semibold shadow-xs"
-                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
+        <TabNav
+          tabs={["all", "today", "completed", "cancelled"]}
+          activeTab={activeTab}
+          onSelect={(tab) => setActiveTab(tab as typeof activeTab)}
+          layoutId="receptionAppointmentsTabPill"
+          pillClassName="bg-primary text-white shadow-xs"
+        />
 
         <div className="relative">
           <Search className="h-3.5 w-3.5 text-gray-400 absolute left-3 top-2.5" />
@@ -179,7 +175,8 @@ export default function ReceptionAppointmentsPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden shadow-xs">
+      <AnimatedView viewKey={activeTab}>
+        <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden shadow-xs">
         {isLoading ? (
           <div className="p-12 text-center text-xs text-gray-500 font-mono">
             Loading appointments queue...
@@ -214,15 +211,27 @@ export default function ReceptionAppointmentsPage() {
                       <span className="text-gray-500">{b.bookingTime}</span>
                     </td>
                     <td className="px-5 py-4">
-                      <Link
-                        href={`/reception/patients/${b.patientId}`}
-                        className="font-medium text-primary hover:underline flex items-center gap-1"
-                      >
-                        <User className="h-3 w-3" />
-                        <span>{b.patientName || "Patient"}</span>
-                      </Link>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Link
+                          href={`/reception/patients/${b.patientId}`}
+                          className="font-medium text-primary hover:underline flex items-center gap-1"
+                        >
+                          <User className="h-3 w-3" />
+                          <span>{b.patientName || "Patient"}</span>
+                        </Link>
+                        {b.source && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400">
+                            {b.source}
+                          </span>
+                        )}
+                        {b.leadStatus && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-semibold border border-amber-200">
+                            {b.leadStatus}
+                          </span>
+                        )}
+                      </div>
                       {b.patientPhone && (
-                        <span className="text-[11px] text-gray-400 block">{b.patientPhone}</span>
+                        <span className="text-[11px] text-gray-400 block mt-0.5">{b.patientPhone}</span>
                       )}
                     </td>
                     <td className="px-5 py-4 text-gray-700 dark:text-gray-300">
@@ -331,6 +340,7 @@ export default function ReceptionAppointmentsPage() {
           </div>
         )}
       </div>
+      </AnimatedView>
 
       <WaitlistOfferModal
         bookingId={waitlistModalBookingId}
@@ -345,5 +355,6 @@ export default function ReceptionAppointmentsPage() {
         onClose={() => setSelectedPaymentBooking(null)}
       />
     </div>
+  </AnimatedPage>
   );
 }

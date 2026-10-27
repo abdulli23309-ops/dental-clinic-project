@@ -13,10 +13,13 @@ class BookingResponseDto(BaseModel):
     preferredTime: str
     patientFullName: str
     patientPhone: str
-    patientEmail: str
+    patientEmail: Optional[str] = None
+    phoneNormalized: Optional[str] = None
     status: str
     clinicId: Optional[UUID] = None
     patientId: Optional[UUID] = None
+    leadId: Optional[UUID] = None
+    source: str = "reception"
     serviceId: Optional[str] = None
     teamMemberId: Optional[UUID] = None
     slotId: Optional[UUID] = None
@@ -36,8 +39,44 @@ class BookingResponseDto(BaseModel):
     serviceName: Optional[str] = None
     hasAlerts: bool = False
     paymentStatus: Optional[str] = None
+    leadStatus: Optional[str] = None
+    isFirstVisit: Optional[bool] = None
     createdAt: datetime
     updatedAt: datetime
+
+
+class DoctorScheduleBookingDto(BaseModel):
+    id: UUID
+    confirmationId: str
+    preferredDate: date
+    preferredTime: str
+    patientFullName: str
+    patientPhone: str
+    patientEmail: Optional[str] = None
+    phoneNormalized: Optional[str] = None
+    status: str
+    clinicId: Optional[UUID] = None
+    patientId: Optional[UUID] = None
+    source: str = "reception"
+    serviceId: Optional[str] = None
+    teamMemberId: Optional[UUID] = None
+    slotId: Optional[UUID] = None
+    notes: Optional[str] = None
+    staffNotes: Optional[str] = None
+    arrivedAt: Optional[datetime] = None
+    startedAt: Optional[datetime] = None
+    completedAt: Optional[datetime] = None
+    cancellationReason: Optional[str] = None
+    cancelledByUserId: Optional[UUID] = None
+    clinicianName: Optional[str] = None
+    serviceName: Optional[str] = None
+    hasAlerts: bool = False
+    paymentStatus: Optional[str] = None
+    isFirstVisit: Optional[bool] = None
+    createdAt: datetime
+    updatedAt: datetime
+
+    model_config = ConfigDict(populate_by_name=True)
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -49,7 +88,7 @@ class ReminderItemDto(BaseModel):
     preferredTime: str
     patientFullName: str
     patientPhone: str
-    patientEmail: str
+    patientEmail: Optional[str] = None
     status: str
     clinicId: Optional[UUID] = None
     patientId: Optional[UUID] = None
@@ -163,13 +202,15 @@ class BookingCreateRequest(BaseModel):
     patientId: Optional[UUID] = None
     patientFullName: str = Field(..., min_length=2, max_length=150)
     patientPhone: str = Field(..., min_length=7, max_length=30)
-    patientEmail: str = Field(..., min_length=5, max_length=150)
+    patientEmail: Optional[str] = Field(default=None, max_length=150)
     preferredDate: date
     preferredTime: str
     serviceId: Optional[str] = None
     teamMemberId: Optional[UUID] = None
     clinicId: Optional[UUID] = None
     slotId: Optional[UUID] = None
+    leadId: Optional[UUID] = None
+    source: str = Field(default="reception")
     notes: Optional[str] = None
     staffNotes: Optional[str] = None
     status: str = Field(default="confirmed")
@@ -312,14 +353,24 @@ class LeadResponseDto(BaseModel):
     id: UUID
     fullName: str
     phone: str
+    phoneNormalized: Optional[str] = None
     email: Optional[str] = None
     clinicId: Optional[UUID] = None
     patientId: Optional[UUID] = None
     leadSourceId: Optional[UUID] = None
+    serviceId: Optional[str] = None
+    teamMemberId: Optional[UUID] = None
     status: str
     notes: Optional[str] = None
     utmSource: Optional[str] = None
     utmCampaign: Optional[str] = None
+    attempts: int = 0
+    lastContactedAt: Optional[datetime] = None
+    nextAttemptAt: Optional[datetime] = None
+    coldAt: Optional[datetime] = None
+    lastActivityAt: Optional[datetime] = None
+    captureToken: Optional[str] = None
+    consentNoticeVersion: Optional[str] = None
     createdAt: datetime
     updatedAt: datetime
 
@@ -330,10 +381,14 @@ class LeadCreateRequest(BaseModel):
     email: Optional[str] = None
     clinicId: Optional[UUID] = None
     leadSourceId: Optional[UUID] = None
-    status: str = Field(default="new")
+    serviceId: Optional[str] = None
+    teamMemberId: Optional[UUID] = None
+    status: str = Field(default="unconverted")
     notes: Optional[str] = None
     utmSource: Optional[str] = None
     utmCampaign: Optional[str] = None
+    captureToken: Optional[str] = None
+    consentNoticeVersion: Optional[str] = None
 
 
 class LeadUpdateRequest(BaseModel):
@@ -341,9 +396,16 @@ class LeadUpdateRequest(BaseModel):
     phone: Optional[str] = None
     email: Optional[str] = None
     status: Optional[str] = None
+    serviceId: Optional[str] = None
+    teamMemberId: Optional[UUID] = None
     notes: Optional[str] = None
     clinicId: Optional[UUID] = None
     leadSourceId: Optional[UUID] = None
+    attempts: Optional[int] = None
+    lastContactedAt: Optional[datetime] = None
+    nextAttemptAt: Optional[datetime] = None
+    coldAt: Optional[datetime] = None
+    lastActivityAt: Optional[datetime] = None
 
 
 class LeadConvertRequest(BaseModel):
@@ -352,28 +414,71 @@ class LeadConvertRequest(BaseModel):
     notes: Optional[str] = None
 
 
+class LeadStatusUpdateRequest(BaseModel):
+    status: str = Field(..., min_length=1, max_length=50)
+    reason: str = Field(..., min_length=1, max_length=1000)
+
+
+class LeadFailedConversionRequest(BaseModel):
+    reason: Optional[str] = Field(default=None, max_length=1000)
+
+
+class LeadAttemptRequest(BaseModel):
+    channel: str = Field(default="phone", max_length=50)
+    result: str = Field(default="no_answer", max_length=50)
+    note: Optional[str] = Field(default=None, max_length=1000)
+
+
+class LeadTimelineItemDto(BaseModel):
+    id: str
+    type: str  # event | message | call | booking
+    timestamp: Optional[str] = None
+    eventType: Optional[str] = None
+    actorType: Optional[str] = None
+    actorId: Optional[str] = None
+    channel: Optional[str] = None
+    direction: Optional[str] = None
+    purpose: Optional[str] = None
+    content: Optional[str] = None
+    deliveryStatus: Optional[str] = None
+    outcome: Optional[str] = None
+    notes: Optional[str] = None
+    confirmationId: Optional[str] = None
+    status: Optional[str] = None
+    source: Optional[str] = None
+    payload: Optional[Dict[str, Any]] = None
+
+
 # --- Message DTOs ---
 
 class MessageResponseDto(BaseModel):
     id: UUID
     content: str
     patientId: Optional[UUID] = None
+    leadId: Optional[UUID] = None
     senderId: Optional[UUID] = None
     recipientId: Optional[UUID] = None
     phone: Optional[str] = None
+    phoneNormalized: Optional[str] = None
     email: Optional[str] = None
     channel: str
     status: str
+    direction: str = "outbound"
+    purpose: str = "manual"
+    deliveryStatus: str = "simulated"
     createdAt: datetime
 
 
 class MessageCreateRequest(BaseModel):
     content: str = Field(..., min_length=1, max_length=2000)
     patientId: Optional[UUID] = None
+    leadId: Optional[UUID] = None
     recipientId: Optional[UUID] = None
     phone: Optional[str] = None
     email: Optional[str] = None
     channel: str = Field(default="sms")
+    direction: str = Field(default="outbound")
+    purpose: str = Field(default="manual")
 
 
 # --- Dashboard & Command Center DTOs ---
@@ -431,8 +536,8 @@ class EndOfDayItemDto(BaseModel):
     preferredDate: date
     preferredTime: str
     patientFullName: str
-    patientPhone: str
-    patientEmail: str
+    patientPhone: Optional[str] = None
+    patientEmail: Optional[str] = None
     status: str
     clinicId: Optional[UUID] = None
     patientId: Optional[UUID] = None
@@ -563,4 +668,204 @@ class EndOfDayPaymentsSummaryDto(BaseModel):
     payments: List[VisitPaymentDto]
 
     model_config = ConfigDict(populate_by_name=True)
+
+
+# --- Booking Flow & Call Desk DTOs ---
+
+class ContactHoldResponseDto(BaseModel):
+    id: UUID
+    phoneNormalized: str
+    heldUntil: datetime
+    reason: Optional[str] = None
+    createdByUserId: Optional[UUID] = None
+    releasedAt: Optional[datetime] = None
+    isActive: bool
+    createdAt: datetime
+
+
+class ContactHoldCreateRequest(BaseModel):
+    phone: str = Field(..., min_length=7, max_length=50)
+    holdMinutes: int = Field(default=30, ge=1, le=1440)
+    reason: Optional[str] = None
+
+
+class CallLogCreateRequest(BaseModel):
+    phone: str = Field(..., min_length=7, max_length=50)
+    outcome: str = Field(..., min_length=2, max_length=50)
+    leadId: Optional[UUID] = None
+    patientId: Optional[UUID] = None
+    bookingId: Optional[UUID] = None
+    notes: Optional[str] = None
+    startedAt: Optional[datetime] = None
+    endedAt: Optional[datetime] = None
+
+
+class CallLogResponseDto(BaseModel):
+    id: UUID
+    phoneNormalized: str
+    leadId: Optional[UUID] = None
+    patientId: Optional[UUID] = None
+    bookingId: Optional[UUID] = None
+    outcome: str
+    notes: Optional[str] = None
+    startedAt: datetime
+    endedAt: Optional[datetime] = None
+    recordedByUserId: Optional[UUID] = None
+    createdAt: datetime
+
+
+class CallDeskPatientDto(BaseModel):
+    id: UUID
+    firstName: str
+    lastName: str
+    fullName: str
+    phone: str
+    phoneNormalized: Optional[str] = None
+    email: Optional[str] = None
+    dateOfBirth: Optional[date] = None
+    gender: Optional[str] = None
+    clinicId: Optional[UUID] = None
+    medicalAlertCount: int = 0
+
+
+class CallDeskLeadDto(BaseModel):
+    id: UUID
+    fullName: Optional[str] = None
+    phone: Optional[str] = None
+    phoneNormalized: Optional[str] = None
+    email: Optional[str] = None
+    status: str
+    source: Optional[str] = None
+    attempts: int = 0
+    consentNoticeVersion: Optional[str] = None
+    events: List["LeadEventResponseDto"] = []
+    createdAt: datetime
+    updatedAt: Optional[datetime] = None
+
+
+class CallDeskBookingDto(BaseModel):
+    id: UUID
+    confirmationId: str
+    preferredDate: date
+    preferredTime: str
+    patientFullName: str
+    patientPhone: str
+    patientId: Optional[UUID] = None
+    clinicId: Optional[UUID] = None
+    clinicName: Optional[str] = None
+    serviceId: Optional[str] = None
+    serviceName: Optional[str] = None
+    teamMemberId: Optional[UUID] = None
+    doctorName: Optional[str] = None
+    status: str
+    source: Optional[str] = None
+    notes: Optional[str] = None
+    createdAt: datetime
+
+
+class CallDeskMessageDto(BaseModel):
+    id: UUID
+    channel: str
+    content: str
+    direction: str
+    purpose: str
+    status: str
+    deliveryStatus: str
+    phone: Optional[str] = None
+    createdAt: datetime
+
+
+class CallDeskHoldDto(BaseModel):
+    id: UUID
+    phoneNormalized: str
+    heldUntil: datetime
+    remainingSeconds: int
+    isActive: bool
+    createdAt: datetime
+
+
+class CallDeskLookupResponse(BaseModel):
+    phoneNormalized: str
+    phoneRaw: str
+    patients: List[CallDeskPatientDto] = []
+    leads: List[CallDeskLeadDto] = []
+    upcomingBookings: List[CallDeskBookingDto] = []
+    recentMessages: List[CallDeskMessageDto] = []
+    activeHold: Optional[CallDeskHoldDto] = None
+
+
+class LeadCaptureData(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+
+
+class CallDeskOutcomeRequest(BaseModel):
+    phone: str = Field(..., min_length=7, max_length=50)
+    outcome: str = Field(..., min_length=2, max_length=50)
+    notes: Optional[str] = None
+    leadCapture: Optional[LeadCaptureData] = None
+    leadId: Optional[UUID] = None
+    patientId: Optional[UUID] = None
+    bookingId: Optional[UUID] = None
+    startedAt: Optional[datetime] = None
+    endedAt: Optional[datetime] = None
+
+
+class CallDeskOutcomeResponse(BaseModel):
+    callLog: CallLogResponseDto
+    leadCaptured: bool = False
+    capturedLeadId: Optional[UUID] = None
+    holdReleased: bool = True
+
+
+class LeadEventResponseDto(BaseModel):
+    id: UUID
+    leadId: UUID
+    eventType: str
+    actorType: str
+    payload: Dict[str, Any]
+    actorId: Optional[str] = None
+    createdAt: datetime
+
+
+class BookingFlowSettingsResponseDto(BaseModel):
+    id: UUID
+    organizationId: UUID
+    followupGapsMinutes: List[int]
+    maxAttempts: int
+    coldWaitHours: int
+    holdMinutes: int
+    fallbackOwnerUserId: Optional[UUID] = None
+    autoConfirmOnline: bool
+    daysShown: int
+    showPatientsTreated: bool
+    leadCaptureNotice: str
+    createdAt: datetime
+    updatedAt: datetime
+
+
+class BookingFlowSettingsUpdateRequest(BaseModel):
+    followupGapsMinutes: Optional[List[int]] = None
+    maxAttempts: Optional[int] = None
+    coldWaitHours: Optional[int] = None
+    holdMinutes: Optional[int] = None
+    fallbackOwnerUserId: Optional[UUID] = None
+    autoConfirmOnline: Optional[bool] = None
+    daysShown: Optional[int] = None
+    showPatientsTreated: Optional[bool] = None
+    leadCaptureNotice: Optional[str] = None
+
+
+class ClinicServiceResponseDto(BaseModel):
+    id: UUID
+    clinicId: UUID
+    serviceId: UUID
+    isActive: bool
+    createdAt: datetime
+    updatedAt: datetime
+
+
+class ClinicServiceSetRequest(BaseModel):
+    serviceIds: List[UUID]
+
 

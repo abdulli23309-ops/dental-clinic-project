@@ -209,7 +209,7 @@ cp .env.example .env
 Open `backend/.env` in your code editor and verify your database connection string:
 
 ```env
-DATABASE_URL=postgresql+asyncpg://postgres:YOUR_POSTGRES_PASSWORD@localhost:5432/dentai_dev
+DATABASE_URL=postgresql+asyncpg://<username>:<password>@localhost:5432/dental_dev
 JWT_SECRET_KEY=dev-jwt-secret-key-32-chars-minimum
 REFRESH_SECRET_KEY=dev-refresh-secret-key-32-chars-minimum
 ACCESS_TOKEN_EXPIRE_MINUTES=10080

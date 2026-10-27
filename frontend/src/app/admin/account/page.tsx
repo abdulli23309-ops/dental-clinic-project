@@ -5,6 +5,7 @@ import { Check, Clock, LogOut, ShieldCheck, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/components/providers/auth-provider";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export default function AdminAccountPage() {
   const { user, logout, updateInactivity } = useAuth();
@@ -48,6 +49,7 @@ export default function AdminAccountPage() {
   };
 
   return (
+  <AnimatedPage>
     <div className="space-y-6 max-w-3xl">
       <div className="border-b border-line pb-4">
         <p className="eyebrow mb-1">Administrative Profile</p>
@@ -59,7 +61,7 @@ export default function AdminAccountPage() {
         </p>
       </div>
 
-      <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6">
+      <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={0}>
         <div className="flex items-center gap-4">
           <div className="h-16 w-16 rounded-full bg-forest text-[#FAF7F2] grid place-items-center text-xl font-display">
             {user?.fullName
@@ -120,7 +122,7 @@ export default function AdminAccountPage() {
       </Card>
 
       {/* Inactivity Security Configuration */}
-      <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6">
+      <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={1}>
         <div className="flex items-start justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-forest dark:text-emerald-400">
@@ -219,5 +221,6 @@ export default function AdminAccountPage() {
         </form>
       </Card>
     </div>
+  </AnimatedPage>
   );
 }

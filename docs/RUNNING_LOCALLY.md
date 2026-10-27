@@ -1,6 +1,6 @@
 # Running Marlow Dental Practice Locally
 
-Complete step-by-step developer and operator guide for bootstrapping, seeding, verifying, and running the Marlow Dental Practice Management System (`feat/clinical-workflows`).
+Complete step-by-step developer and operator guide for bootstrapping, seeding, verifying, and running the Marlow Dental Practice Management System.
 
 ---
 
@@ -9,7 +9,7 @@ Complete step-by-step developer and operator guide for bootstrapping, seeding, v
 - **Node.js**: `v20.x` or `v22.x` (LTS recommended)
 - **Python**: `3.11` to `3.14`
 - **PostgreSQL**: PostgreSQL 15+ database running locally or in Docker
-- **Git**: Branch `feat/clinical-workflows`
+- **Git**: Working copy of the repository
 
 ---
 
@@ -51,10 +51,10 @@ INFO  [alembic.runtime.migration] Will assume transactional DDL.
 
 Seed complete operational clinic data (hours, planned closures, clinicians, 15 patients with minor/guardian, bookings in every status, alerts, clinical notes, payments, and simulated reminders):
 ```bash
-# Optional: Set custom demo passwords in your environment
-$env:DEMO_ADMIN_PASSWORD="YourAdminPassword123!"
-$env:DEMO_RECEPTIONIST_PASSWORD="YourReceptionPassword123!"
-$env:DEMO_DOCTOR_PASSWORD="YourDoctorPassword123!"
+# Optional: Set custom passwords in your environment
+$env:DEMO_ADMIN_PASSWORD=<custom-admin-password>
+$env:DEMO_RECEPTIONIST_PASSWORD=<custom-reception-password>
+$env:DEMO_DOCTOR_PASSWORD=<custom-doctor-password>
 
 # Run idempotent demo seed
 python -m app.cli seed-demo
@@ -117,7 +117,60 @@ Open `http://localhost:3000` in your web browser.
 
 ---
 
-## 4. Troubleshooting & "Why Can't I See Feature X?" Checklist
+## 4. Integration Clients & Automation Bot Key (Part BF13)
+
+When `seed-demo` runs, it creates a demo integration client for testing automated workflows (WhatsApp bot, telephony IVR, or external web services). It generates a key at runtime and prints it once to stdout (or reads `MARLOW_DEMO_INTEGRATION_KEY` from your environment):
+
+```http
+X-Marlow-Key: <key-printed-by-seed-demo>
+```
+
+| Client Name | Scopes | Authentication Header |
+| :--- | :--- | :--- |
+| **Demo Integration Bot** | `bookings:read`, `bookings:write`, `leads:read`, `leads:write`, `messages:write`, `lookup:read` | `X-Marlow-Key: <key-printed-by-seed-demo>` |
+
+### Managing Integration Clients
+- Navigate to `/admin/integrations` as an Administrator.
+- View all active clients, key prefixes, and assigned scopes.
+- Generate new random 32-byte API keys (displayed only once).
+- Rotate or revoke existing API keys instantly.
+- Test endpoints directly with HTTP: see `docs/integration_api.http` or `docs/INTEGRATION_API.md`.
+
+---
+
+## 5. Running from a Fresh Database
+
+Never run `alembic downgrade base` on your active development database. To start from a clean slate, create a fresh database instead:
+
+```bash
+# 1. Create a fresh PostgreSQL database
+psql -U postgres -h localhost -p 5433 -c "CREATE DATABASE dental_fresh;"
+
+# 2. Configure DATABASE_URL in backend/.env to point to dental_fresh
+
+# 3. Upgrade to canonical head
+cd backend
+alembic upgrade head
+
+# 4. Seed demo dataset (includes organizations, clinics, clinicians, patients, bookings, leads, holds, and integration client)
+python -m app.cli seed-demo
+
+# 5. Run system health doctor
+python -m app.cli doctor
+```
+
+### Test Database Isolation (`marlow_test`)
+
+Automated test suites (`pytest` and Playwright) run against a separate, isolated test database (`marlow_test`) so the development database remains clean with exact seed counts:
+
+```bash
+# Run test database setup script (creates, migrates, and seeds marlow_test)
+python backend/scripts/setup_test_db.py
+```
+
+---
+
+## 6. Troubleshooting & "Why Can't I See Feature X?" Checklist
 
 If an expected button, patient, tab, or appointment is missing from your screen, check this diagnosis tree:
 

@@ -72,9 +72,22 @@ export function formatTime12(
 ): string {
   if (!dateOrTime) return "";
 
-  // If already in 12-hour string format (e.g. "10:00 AM", "4:30 PM"), return as is
-  if (typeof dateOrTime === "string" && /^\d{1,2}:\d{2}\s*(AM|PM)$/i.test(dateOrTime.trim())) {
-    return dateOrTime.trim().toUpperCase();
+  if (typeof dateOrTime === "string") {
+    const trimmed = dateOrTime.trim();
+    // If already in 12-hour string format (e.g. "10:00 AM", "4:30 PM", "8:00 AM"), return normalized
+    if (/^\d{1,2}:\d{2}\s*(AM|PM)$/i.test(trimmed)) {
+      return trimmed.toUpperCase();
+    }
+    // If in 24-hour "HH:MM" or "HH:MM:SS" format
+    const match = trimmed.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+    if (match) {
+      let h = parseInt(match[1], 10);
+      const m = match[2];
+      const ampm = h >= 12 ? "PM" : "AM";
+      h = h % 12;
+      if (h === 0) h = 12;
+      return `${h}:${m} ${ampm}`;
+    }
   }
 
   try {
@@ -92,6 +105,39 @@ export function formatTime12(
   }
 }
 
+/**
+ * Formats a single time range or composite range string into clean 12-hour format.
+ */
+export function formatTimeRangeString(
+  open: string | null | undefined,
+  close: string | null | undefined
+): string {
+  if (!open && !close) return "Closed";
+  if (open && close) {
+    return `${formatTime12(open)} – ${formatTime12(close)}`;
+  }
+  if (open && !close) {
+    if (open.includes(",")) {
+      return open
+        .split(",")
+        .map((part) => {
+          const sub = part.trim().split(/\s*[-–]\s*/);
+          if (sub.length === 2) {
+            return `${formatTime12(sub[0])} – ${formatTime12(sub[1])}`;
+          }
+          return formatTime12(part.trim());
+        })
+        .join(", ");
+    }
+    const sub = open.trim().split(/\s*[-–]\s*/);
+    if (sub.length === 2) {
+      return `${formatTime12(sub[0])} – ${formatTime12(sub[1])}`;
+    }
+    return formatTime12(open);
+  }
+  return "Closed";
+}
+
 export interface FormattedHoursLine {
   label: string;
   timeRange: string;
@@ -100,7 +146,8 @@ export interface FormattedHoursLine {
 
 /**
  * Groups and formats clinic_working_hours into clean, human-readable schedule lines.
- * Automatically groups consecutive days with identical operating hours (e.g., 'Mon – Thu: 8:00 AM – 6:00 PM').
+ * Automatically merges multiple blocks per day and groups consecutive days with identical operating hours.
+ * (e.g., 'Mon – Fri: 8:00 AM – 5:00 PM', 'Sat: 9:00 AM – 1:00 PM', 'Sun: Closed').
  */
 export function formatWorkingHoursSchedule(
   workingHours: Array<{
@@ -120,26 +167,58 @@ export function formatWorkingHoursSchedule(
   const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const fullDayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
-  const items = [...workingHours]
-    .map((h) => {
-      const dow = h.dayOfWeek ?? h.day_of_week ?? 0;
-      const closed = Boolean(h.isClosed ?? h.is_closed);
-      const open = h.openTime ?? h.open_time;
-      const close = h.closeTime ?? h.close_time;
-      let timeStr = "Closed";
-      if (!closed && open && close) {
-        timeStr = `${formatTime12(open)} – ${formatTime12(close)}`;
-      }
-      return {
+  // 1. Group input entries by day_of_week (0 through 6)
+  const byDow = new Map<number, typeof workingHours>();
+  for (const h of workingHours) {
+    const dow = h.dayOfWeek ?? h.day_of_week ?? 0;
+    if (!byDow.has(dow)) byDow.set(dow, []);
+    byDow.get(dow)!.push(h);
+  }
+
+  // Determine which days of week to present: if full week or subset
+  const dowsPresent = Array.from(byDow.keys()).sort((a, b) => a - b);
+  const items: Array<{
+    dow: number;
+    dayName: string;
+    shortName: string;
+    timeStr: string;
+    isClosed: boolean;
+  }> = [];
+
+  for (const dow of dowsPresent) {
+    const entries = byDow.get(dow) || [];
+    const openEntries = entries.filter((e) => {
+      const closed = Boolean(e.isClosed ?? e.is_closed);
+      const open = e.openTime ?? e.open_time;
+      return !closed && Boolean(open);
+    });
+
+    if (openEntries.length === 0) {
+      items.push({
         dow,
         dayName: fullDayNames[dow] || `Day ${dow}`,
         shortName: dayNames[dow] || `Day ${dow}`,
-        timeStr,
-        isClosed: closed,
-      };
-    })
-    .sort((a, b) => a.dow - b.dow);
+        timeStr: "Closed",
+        isClosed: true,
+      });
+    } else {
+      // Merge multiple blocks on the same day
+      const blockStrings = openEntries.map((e) => {
+        const open = e.openTime ?? e.open_time;
+        const close = e.closeTime ?? e.close_time;
+        return formatTimeRangeString(open, close);
+      });
+      items.push({
+        dow,
+        dayName: fullDayNames[dow] || `Day ${dow}`,
+        shortName: dayNames[dow] || `Day ${dow}`,
+        timeStr: blockStrings.join(", "),
+        isClosed: false,
+      });
+    }
+  }
 
+  // 2. Group consecutive days with identical timeStr
   const grouped: FormattedHoursLine[] = [];
   let i = 0;
   while (i < items.length) {
@@ -154,7 +233,8 @@ export function formatWorkingHoursSchedule(
 
     let label = "";
     if (i === j) {
-      label = items[i].dayName;
+      // Single day: if exactly 1 day present in total input, use full name, otherwise short
+      label = items.length === 1 ? items[i].dayName : items[i].shortName;
     } else if (j === i + 1) {
       label = `${items[i].shortName}, ${items[j].shortName}`;
     } else {

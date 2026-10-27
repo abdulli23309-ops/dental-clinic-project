@@ -2,7 +2,7 @@ from datetime import date, datetime, timezone
 from typing import List, Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.models.booking_settings import (
@@ -33,12 +33,18 @@ class PostgresBookingSettingsRepository(BookingSettingsRepository):
         self.session = session
 
     async def get_settings(self, clinic_id: Optional[UUID] = None) -> BookingSettings:
-        stmt = select(ClinicBookingSettingsORM)
+        orm = None
         if clinic_id:
-            stmt = stmt.where(ClinicBookingSettingsORM.clinic_id == clinic_id)
-        stmt = stmt.order_by(ClinicBookingSettingsORM.created_at.asc()).limit(1)
-        res = await self.session.execute(stmt)
-        orm = res.scalar_one_or_none()
+            c_stmt = select(ClinicBookingSettingsORM).where(ClinicBookingSettingsORM.clinic_id == clinic_id).limit(1)
+            c_res = await self.session.execute(c_stmt)
+            orm = c_res.scalar_one_or_none()
+
+        if not orm:
+            p_stmt = select(ClinicBookingSettingsORM).where(
+                ClinicBookingSettingsORM.clinic_id.is_(None) if clinic_id else True
+            ).order_by(ClinicBookingSettingsORM.created_at.asc()).limit(1)
+            p_res = await self.session.execute(p_stmt)
+            orm = p_res.scalar_one_or_none()
 
         if not orm:
             return BookingSettings(
@@ -214,7 +220,12 @@ class PostgresBookingSettingsRepository(BookingSettingsRepository):
     async def list_closures(self, clinic_id: Optional[UUID] = None, future_only: bool = False) -> List[ClinicClosure]:
         stmt = select(ClinicClosureORM)
         if clinic_id:
-            stmt = stmt.where(ClinicClosureORM.clinic_id == clinic_id)
+            stmt = stmt.where(
+                or_(
+                    ClinicClosureORM.clinic_id == clinic_id,
+                    ClinicClosureORM.clinic_id.is_(None),
+                )
+            )
         if future_only:
             today = date.today()
             stmt = stmt.where(ClinicClosureORM.end_date >= today)
@@ -292,10 +303,21 @@ class PostgresBookingSettingsRepository(BookingSettingsRepository):
         await self.session.flush()
         return res.rowcount > 0
 
-    async def list_provider_availabilities(self, team_member_id: Optional[UUID] = None) -> List[ProviderAvailability]:
+    async def list_provider_availabilities(
+        self,
+        team_member_id: Optional[UUID] = None,
+        clinic_id: Optional[UUID] = None,
+    ) -> List[ProviderAvailability]:
         stmt = select(ProviderAvailabilityORM)
         if team_member_id:
             stmt = stmt.where(ProviderAvailabilityORM.team_member_id == team_member_id)
+        if clinic_id:
+            stmt = stmt.where(
+                or_(
+                    ProviderAvailabilityORM.clinic_id == clinic_id,
+                    ProviderAvailabilityORM.clinic_id.is_(None),
+                )
+            )
         stmt = stmt.order_by(ProviderAvailabilityORM.day_of_week.asc())
         res = await self.session.execute(stmt)
         orms = res.scalars().all()
@@ -306,6 +328,7 @@ class PostgresBookingSettingsRepository(BookingSettingsRepository):
                 day_of_week=o.day_of_week,
                 start_time=o.start_time,
                 end_time=o.end_time,
+                clinic_id=o.clinic_id,
                 break_start_time=o.break_start_time,
                 break_end_time=o.break_end_time,
                 is_active=o.is_active,
@@ -330,6 +353,7 @@ class PostgresBookingSettingsRepository(BookingSettingsRepository):
         o.day_of_week = avail.day_of_week
         o.start_time = avail.start_time
         o.end_time = avail.end_time
+        o.clinic_id = avail.clinic_id
         o.break_start_time = avail.break_start_time
         o.break_end_time = avail.break_end_time
         o.is_active = avail.is_active
@@ -341,6 +365,7 @@ class PostgresBookingSettingsRepository(BookingSettingsRepository):
             day_of_week=o.day_of_week,
             start_time=o.start_time,
             end_time=o.end_time,
+            clinic_id=o.clinic_id,
             break_start_time=o.break_start_time,
             break_end_time=o.break_end_time,
             is_active=o.is_active,

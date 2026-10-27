@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/components/providers/auth-provider";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export default function ReceptionAccountPage() {
   const { user, logout, updateInactivity } = useAuth();
@@ -46,6 +47,7 @@ export default function ReceptionAccountPage() {
   };
 
   return (
+  <AnimatedPage>
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
       <div>
@@ -222,5 +224,6 @@ export default function ReceptionAccountPage() {
         </button>
       </div>
     </div>
+  </AnimatedPage>
   );
 }

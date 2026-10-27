@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   Activity,
   Calendar,
@@ -19,6 +20,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/components/providers/auth-provider";
+import { AnimatedPage } from "@/components/ui/animated-page";
+import { Skeleton } from "@/components/ui/skeleton";
+import { StaggerList, StaggerItem } from "@/components/ui/stagger-list";
+import {
+  staggerContainer,
+  listItem,
+  modalOverlay,
+  modalContent,
+  reducedVariant,
+} from "@/animations/variants";
 import {
   ActivityLogItem,
   downloadAuthorizedCsv,
@@ -170,6 +181,7 @@ export default function AdminAuditPage() {
   };
 
   return (
+  <AnimatedPage>
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
       {/* Header */}
       <div className="border-b border-line pb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -223,7 +235,7 @@ export default function AdminAuditPage() {
       </div>
 
       {/* Filter Toolbar */}
-      <Card className="p-4 bg-card border-line shadow-sm">
+      <Card className="p-4 bg-card border-line shadow-sm" hoverLift={true} index={0}>
         <form onSubmit={handleSearchSubmit} className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             {/* Actor Search */}
@@ -350,7 +362,7 @@ export default function AdminAuditPage() {
       )}
 
       {/* Table Card */}
-      <Card className="overflow-hidden border-line shadow-sm bg-card">
+      <Card className="overflow-hidden border-line shadow-sm bg-card" hoverLift={true} index={1}>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-ink">
             <thead className="bg-surface border-b border-line text-ink-soft uppercase text-[10px] tracking-wider font-semibold">
@@ -364,12 +376,21 @@ export default function AdminAuditPage() {
                 <th className="py-3 px-4 text-right">Details</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-line/60 font-sans">
+            <motion.tbody
+              variants={staggerContainer}
+              initial="hidden"
+              animate="visible"
+              className="divide-y divide-line/60 font-sans"
+            >
               {loading && logs.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-ink-soft">
-                    <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-primary/60" />
-                    Loading audit trail...
+                    <StaggerList className="flex flex-col items-center justify-center gap-2">
+                      <StaggerItem index={0}><Skeleton className="h-4 w-1/3" /></StaggerItem>
+                      <StaggerItem index={1}><Skeleton className="h-4 w-1/2" /></StaggerItem>
+                      <StaggerItem index={2}><Skeleton className="h-4 w-2/3" /></StaggerItem>
+                    </StaggerList>
+                    <p className="mt-2 text-xs text-ink-soft">Loading audit trail...</p>
                   </td>
                 </tr>
               ) : logs.length === 0 ? (
@@ -392,7 +413,13 @@ export default function AdminAuditPage() {
                     : "—";
 
                   return (
-                    <tr key={log.id} className="hover:bg-surface/50 transition-colors">
+                    <motion.tr
+                      key={log.id}
+                      variants={listItem}
+                      initial="hidden"
+                      animate="visible"
+                      className="hover:bg-surface/50 transition-colors"
+                    >
                       <td className="py-3 px-4 whitespace-nowrap text-ink-soft font-mono text-[11px]">
                         {dateStr}
                       </td>
@@ -440,11 +467,11 @@ export default function AdminAuditPage() {
                           Inspect
                         </Button>
                       </td>
-                    </tr>
+                    </motion.tr>
                   );
                 })
               )}
-            </tbody>
+            </motion.tbody>
           </table>
         </div>
 
@@ -496,9 +523,22 @@ export default function AdminAuditPage() {
       </Card>
 
       {/* Inspect Modal */}
-      {selectedLog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-card rounded-xl border border-line shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in-50 zoom-in-95">
+      <AnimatePresence>
+        {selectedLog && (
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            variants={reducedVariant(modalOverlay)}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+          >
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              variants={modalContent}
+              className="bg-card rounded-xl border border-line shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden"
+            >
             <div className="p-4 border-b border-line flex items-center justify-between bg-surface">
               <div className="flex items-center gap-2">
                 <Shield className="h-4 w-4 text-primary" />
@@ -567,9 +607,11 @@ export default function AdminAuditPage() {
                 Close
               </Button>
             </div>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        </motion.div>
+        )}
+      </AnimatePresence>
     </div>
+  </AnimatedPage>
   );
 }

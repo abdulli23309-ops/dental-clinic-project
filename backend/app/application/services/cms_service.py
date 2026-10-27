@@ -19,7 +19,7 @@ from app.domain.models.cms import FaqItem, SiteSection
 from app.domain.repositories.cms_repo import CmsRepository
 
 DEFAULT_SECTIONS = {
-    "general": GeneralSectionDTO().model_dump(),
+    "general": {**GeneralSectionDTO().model_dump(), "practiceName": "Marlow Dental", "shortBrandName": "Marlow Dental"},
     "homepage": HomepageSectionDTO().model_dump(),
     "about": AboutSectionDTO().model_dump(),
     "contact": ContactSectionDTO().model_dump(),

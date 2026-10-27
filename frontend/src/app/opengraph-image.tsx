@@ -1,17 +1,41 @@
 import { ImageResponse } from "next/og";
+import { fetchPublicOrganization, getSiteContent } from "@/lib/api";
 
-export const alt = "Marlow Dental | Comprehensive, Ethical Dental Care";
 export const size = {
   width: 1200,
   height: 630,
 };
 export const contentType = "image/png";
 
-/**
- * Generates a dynamic Open Graph social preview image (1200x630 PNG) at the edge.
- * It renders the practice's brand typography and core messaging for social cards.
- */
-export default function Image() {
+export default async function Image() {
+  let org = null;
+  let content = null;
+
+  try {
+    const [orgData, contentData] = await Promise.all([
+      fetchPublicOrganization().catch(() => null),
+      getSiteContent().catch(() => null),
+    ]);
+    org = orgData;
+    content = contentData;
+  } catch {
+    org = null;
+    content = null;
+  }
+
+  const name =
+    org?.displayName ||
+    org?.name ||
+    content?.seo?.siteTitle ||
+    "Dental Clinic";
+  const tagline =
+    content?.homepage?.heroHeading ||
+    org?.tagline ||
+    "Professional Dental Care";
+
+  const primaryColor = org?.primaryColor || "#0F766E";
+  const bgColor = org?.backgroundColor || "#FAF7F2";
+
   return new ImageResponse(
     (
       <div
@@ -22,9 +46,8 @@ export default function Image() {
           flexDirection: "column",
           justifyContent: "space-between",
           padding: "60px 80px",
-          backgroundColor: "#FAF7F2",
-          fontFamily: "serif",
-          border: "16px solid #1F3D34",
+          backgroundColor: bgColor,
+          border: `16px solid ${primaryColor}`,
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
@@ -33,15 +56,15 @@ export default function Image() {
               width: "48px",
               height: "48px",
               borderRadius: "50%",
-              backgroundColor: "#1F3D34",
+              backgroundColor: primaryColor,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "#FAF7F2",
+              color: "#FFFFFF",
               fontSize: "24px",
             }}
           >
-            M
+            ✦
           </div>
           <span
             style={{
@@ -50,44 +73,22 @@ export default function Image() {
               color: "#151613",
             }}
           >
-            Marlow <span style={{ color: "#1F3D34" }}>Dental</span>
+            {name}
           </span>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          <span
-            style={{
-              fontSize: "16px",
-              letterSpacing: "0.18em",
-              textTransform: "uppercase",
-              color: "#C4704F",
-              fontWeight: 600,
-            }}
-          >
-            Modern, Ethical Dental Care
-          </span>
           <h1
             style={{
-              fontSize: "64px",
-              lineHeight: 1.05,
+              fontSize: "56px",
+              lineHeight: 1.1,
               color: "#151613",
               margin: 0,
-              fontWeight: 400,
+              fontWeight: 500,
             }}
           >
-            Dentistry without the dread.
+            {tagline}
           </h1>
-          <p
-            style={{
-              fontSize: "24px",
-              color: "#4F5047",
-              margin: 0,
-              maxWidth: "850px",
-              lineHeight: 1.4,
-            }}
-          >
-            One dentist, start to finish. Same-week openings. Written estimates before treatment.
-          </p>
         </div>
 
         <div
@@ -95,14 +96,16 @@ export default function Image() {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            borderTop: "2px solid #E2DACB",
+            borderTop: "2px solid rgba(0,0,0,0.1)",
             paddingTop: "24px",
             fontSize: "18px",
             color: "#4F5047",
           }}
         >
-          <span>Marlow Dental Practice Facility</span>
-          <span style={{ color: "#1F3D34", fontWeight: 600 }}>Ethical Patient Care</span>
+          <span>{name}</span>
+          <span style={{ color: primaryColor, fontWeight: 600 }}>
+            Online Appointment Reservation
+          </span>
         </div>
       </div>
     ),

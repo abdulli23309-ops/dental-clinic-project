@@ -3,9 +3,12 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { X, Phone, Calendar, MapPin, Clock, Search } from "lucide-react";
+import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { usePublicContent } from "@/components/providers/public-content-provider";
+import { modalOverlay, modalContent } from "@/animations/variants";
+import { getUiCopy } from "@/content/ui-copy";
 
 interface MobileMenuProps {
   isOpen: boolean;
@@ -13,35 +16,34 @@ interface MobileMenuProps {
   onOpenSearch: () => void;
 }
 
-const navItems = [
-  { label: "Treatments & Fees", href: "/#services" },
-  { label: "Clinical Philosophy", href: "/#commitments" },
-  { label: "Clinical Team", href: "/#team" },
-  { label: "Office & Location", href: "/#visit" },
-  { label: "Frequently Asked", href: "/#faq" },
-];
-
-/**
- * Renders an accessible slide-over navigation drawer for mobile devices and smaller screens.
- * It locks background scrolling while open and provides quick links to all sections, contact actions, and theme settings.
- */
 export function MobileMenu({ isOpen, onClose, onOpenSearch }: MobileMenuProps) {
-  const { content, primaryLocation } = usePublicContent();
+  const { content, primaryLocation, organization } = usePublicContent();
   const containerRef = useRef<HTMLDivElement>(null);
+  const copy = getUiCopy("en");
 
-  const practiceName = content.general?.practiceName || "Marlow Dental";
-  const phone = content.general?.phone || primaryLocation?.phone || "(312) 555-0147";
+  const practiceName =
+    content.general?.practiceName ||
+    organization?.displayName ||
+    organization?.name ||
+    "";
+  const phone = content.general?.phone || primaryLocation?.phone || "";
   const cleanPhone = phone.replace(/[^0-9+]/g, "");
-  const addressText = primaryLocation?.addressLine1 || "214 Alder St, Suite 3";
-  const cityState =
-    primaryLocation?.city && primaryLocation?.state
-      ? `${primaryLocation.city}, ${primaryLocation.state}`
-      : "Lincoln Park";
-  const hoursText = primaryLocation?.hoursInfo || "Mon–Thu 8–6 · Fri 8–2 · Sat 9–1";
 
-  const nameParts = practiceName.split(" ");
-  const firstNamePart = nameParts[0] || "Marlow";
-  const restNameParts = nameParts.slice(1).join(" ") || "Dental";
+  const addressText = primaryLocation?.addressLine1 || "";
+  const cityState = [primaryLocation?.city, primaryLocation?.state]
+    .filter(Boolean)
+    .join(", ");
+  const hoursText = primaryLocation?.hoursInfo || "";
+
+  const navItems = [
+    { label: copy.treatments, href: "/#treatments" },
+    { label: copy.whyUs || "Why Choose Us", href: "/#why-us" },
+    { label: copy.successStories, href: "/#reviews" },
+    { label: copy.team, href: "/#team" },
+    { label: copy.locationsAndTiming, href: "/#locations" },
+    { label: copy.faqs, href: "/#faq" },
+    { label: copy.blogs, href: "/blog" },
+  ];
 
   useEffect(() => {
     if (isOpen) {
@@ -66,25 +68,31 @@ export function MobileMenu({ isOpen, onClose, onOpenSearch }: MobileMenuProps) {
       aria-modal="true"
       aria-label="Mobile Navigation Menu"
     >
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+      <motion.div
+        variants={modalOverlay}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Slide-over panel */}
-      <div
+      <motion.div
         ref={containerRef}
+        variants={modalContent}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
         className="fixed inset-y-0 right-0 flex w-full max-w-sm flex-col justify-between border-l border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-6 shadow-2xl"
       >
         <div>
-          {/* Header */}
           <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-800 pb-4">
-            <span className="font-display text-lg tracking-tight text-gray-900 dark:text-white">
-              {firstNamePart}{" "}
-              <span className="text-primary">{restNameParts}</span>
-            </span>
+            {practiceName ? (
+              <span className="font-display text-lg tracking-tight text-gray-900 dark:text-white">
+                {practiceName}
+              </span>
+            ) : <span />}
             <div className="flex items-center gap-2">
               <ThemeToggle />
               <button
@@ -97,7 +105,6 @@ export function MobileMenu({ isOpen, onClose, onOpenSearch }: MobileMenuProps) {
             </div>
           </div>
 
-          {/* Quick Search trigger */}
           <button
             onClick={() => {
               onClose();
@@ -107,14 +114,10 @@ export function MobileMenu({ isOpen, onClose, onOpenSearch }: MobileMenuProps) {
           >
             <span className="flex items-center gap-2">
               <Search className="h-4 w-4" />
-              <span>Search procedures &amp; fees...</span>
-            </span>
-            <span className="rounded bg-primary/10 text-primary px-1.5 py-0.5 text-[10px] uppercase font-semibold">
-              Find
+              <span>{copy.search}</span>
             </span>
           </button>
 
-          {/* Navigation links */}
           <nav className="mt-6 flex flex-col space-y-1">
             {navItems.map((item) => (
               <Link
@@ -129,26 +132,34 @@ export function MobileMenu({ isOpen, onClose, onOpenSearch }: MobileMenuProps) {
           </nav>
         </div>
 
-        {/* Footer info & CTA */}
         <div className="border-t border-gray-200 dark:border-gray-800 pt-6 space-y-4">
-          <div className="space-y-2 text-xs text-gray-600 dark:text-gray-400">
-            <div className="flex items-center gap-2">
-              <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
-              <span>
-                {addressText}, {cityState}
-              </span>
+          {(addressText || hoursText || phone) && (
+            <div className="space-y-2 text-xs text-gray-600 dark:text-gray-400">
+              {addressText && (
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
+                  <span>
+                    {addressText}
+                    {cityState ? `, ${cityState}` : ""}
+                  </span>
+                </div>
+              )}
+              {hoursText && (
+                <div className="flex items-center gap-2">
+                  <Clock className="h-3.5 w-3.5 text-primary shrink-0" />
+                  <span>{hoursText}</span>
+                </div>
+              )}
+              {phone && (
+                <div className="flex items-center gap-2">
+                  <Phone className="h-3.5 w-3.5 text-primary shrink-0" />
+                  <a href={`tel:${cleanPhone}`} className="hover:text-primary font-medium">
+                    {phone}
+                  </a>
+                </div>
+              )}
             </div>
-            <div className="flex items-center gap-2">
-              <Clock className="h-3.5 w-3.5 text-primary shrink-0" />
-              <span>{hoursText}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Phone className="h-3.5 w-3.5 text-primary shrink-0" />
-              <a href={`tel:${cleanPhone}`} className="hover:text-primary font-medium">
-                {phone}
-              </a>
-            </div>
-          </div>
+          )}
 
           <Button
             href="/book"
@@ -158,10 +169,10 @@ export function MobileMenu({ isOpen, onClose, onOpenSearch }: MobileMenuProps) {
             onClick={onClose}
           >
             <Calendar className="h-4 w-4 mr-1.5" />
-            <span>Book an Appointment</span>
+            <span>{copy.book}</span>
           </Button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

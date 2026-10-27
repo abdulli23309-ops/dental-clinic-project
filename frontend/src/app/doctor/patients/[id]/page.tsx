@@ -20,11 +20,14 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { useDirectory } from "@/lib/directory";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { TabNav } from "@/components/ui/tab-nav";
+import { AnimatedView } from "@/components/ui/animated-view";
 import { DentalChart } from "@/components/doctor/dental-chart";
 import { ClinicalAlertBanner } from "@/components/doctor/clinical-alert-banner";
 import TreatmentPlanTab from "@/components/doctor/treatment-plan-tab";
 import { ClinicalDocumentsTab } from "@/components/doctor/clinical-documents-tab";
 import { PatientAttachmentsTab } from "@/components/clinical/patient-attachments-tab";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export default function DoctorPatientDetailPage() {
   const params = useParams();
@@ -89,7 +92,7 @@ export default function DoctorPatientDetailPage() {
           <ArrowLeft className="h-3.5 w-3.5" />
           <span>Back to Patients</span>
         </Link>
-        <Card className="p-8 text-center space-y-3">
+        <Card className="p-8 text-center space-y-3" hoverLift={true} index={0}>
           <ShieldAlert className="h-8 w-8 text-red-500 mx-auto" />
           <p className="text-sm font-semibold text-ink">Failed to load patient record</p>
           <p className="text-xs text-ink-soft">{error || "Patient not found."}</p>
@@ -102,6 +105,7 @@ export default function DoctorPatientDetailPage() {
   }
 
   return (
+  <AnimatedPage>
     <div className="space-y-6">
       {/* Back Link & Header */}
       <div className="space-y-3">
@@ -148,74 +152,29 @@ export default function DoctorPatientDetailPage() {
       <ClinicalAlertBanner patientId={patient.id} onAlertsChange={loadPatient} />
 
       {/* Workspace Tabs */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-line pb-2">
-        <button
-          onClick={() => setActiveTab("overview")}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors ${
-            activeTab === "overview"
-              ? "bg-primary text-white"
-              : "text-ink-soft hover:text-ink hover:bg-sand/60"
-          }`}
-        >
-          Clinical Summary & Visits
-        </button>
-        <button
-          onClick={() => setActiveTab("chart")}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors ${
-            activeTab === "chart"
-              ? "bg-primary text-white"
-              : "text-ink-soft hover:text-ink hover:bg-sand/60"
-          }`}
-        >
-          Odontogram Dental Chart
-        </button>
-        <button
-          onClick={() => setActiveTab("treatment-plan")}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors ${
-            activeTab === "treatment-plan"
-              ? "bg-primary text-white"
-              : "text-ink-soft hover:text-ink hover:bg-sand/60"
-          }`}
-        >
-          Treatment Plan
-        </button>
-        <button
-          onClick={() => setActiveTab("documents")}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors ${
-            activeTab === "documents"
-              ? "bg-primary text-white"
-              : "text-ink-soft hover:text-ink hover:bg-sand/60"
-          }`}
-        >
-          Prescriptions & Referrals
-        </button>
-        <button
-          onClick={() => setActiveTab("attachments")}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors ${
-            activeTab === "attachments"
-              ? "bg-primary text-white"
-              : "text-ink-soft hover:text-ink hover:bg-sand/60"
-          }`}
-        >
-          Attachments & Consents
-        </button>
-        <button
-          onClick={() => setActiveTab("encounters")}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors ${
-            activeTab === "encounters"
-              ? "bg-primary text-white"
-              : "text-ink-soft hover:text-ink hover:bg-sand/60"
-          }`}
-        >
-          Encounters ({patient.encounters.length})
-        </button>
+      <div className="border-b border-line pb-2">
+        <TabNav
+          tabs={[
+            { id: "overview", label: "Clinical Summary & Visits" },
+            { id: "chart", label: "Odontogram Dental Chart" },
+            { id: "treatment-plan", label: "Treatment Plan" },
+            { id: "documents", label: "Prescriptions & Referrals" },
+            { id: "attachments", label: "Attachments & Consents" },
+            { id: "encounters", label: "Encounters", count: patient.encounters.length },
+          ]}
+          activeTab={activeTab}
+          onSelect={(tab) => setActiveTab(tab as typeof activeTab)}
+          layoutId="doctorPatientTabPill"
+          pillClassName="bg-primary text-white shadow-xs"
+        />
       </div>
 
+      <AnimatedView viewKey={activeTab}>
       {/* Tab: Overview */}
       {activeTab === "overview" && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Demographics Card */}
-          <Card className="p-5 space-y-4 md:col-span-1">
+          <Card className="p-5 space-y-4 md:col-span-1" hoverLift={true} index={1}>
             <h2 className="text-xs font-semibold text-ink uppercase tracking-wider font-mono">
               Patient Demographics
             </h2>
@@ -247,7 +206,7 @@ export default function DoctorPatientDetailPage() {
           </Card>
 
           {/* Visit History Card */}
-          <Card className="p-5 space-y-4 md:col-span-2">
+          <Card className="p-5 space-y-4 md:col-span-2" hoverLift={true} index={2}>
             <div className="flex items-center justify-between">
               <h2 className="text-xs font-semibold text-ink uppercase tracking-wider font-mono">
                 Visit History ({patient.visits.length})
@@ -335,7 +294,7 @@ export default function DoctorPatientDetailPage() {
 
       {/* Tab: Encounters */}
       {activeTab === "encounters" && (
-        <Card className="p-5 space-y-4">
+        <Card className="p-5 space-y-4" hoverLift={true} index={3}>
           <h2 className="text-xs font-semibold text-ink uppercase tracking-wider font-mono">
             Clinical Encounters ({patient.encounters.length})
           </h2>
@@ -380,6 +339,8 @@ export default function DoctorPatientDetailPage() {
           )}
         </Card>
       )}
+      </AnimatedView>
     </div>
+  </AnimatedPage>
   );
 }

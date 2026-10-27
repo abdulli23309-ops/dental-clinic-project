@@ -35,8 +35,11 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Panel } from "@/components/dashboard/panel";
 import { StatusBadge } from "@/components/dashboard/status-badge";
-import { EmptyState, ErrorState, LoadingState } from "@/components/dashboard/states";
+import { EmptyState, ErrorState } from "@/components/dashboard/states";
 import { Button } from "@/components/ui/button";
+import { AnimatedPage } from "@/components/ui/animated-page";
+import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
+import { StaggerList } from "@/components/ui/stagger-list";
 
 /**
  * Receptionist dashboard: front-desk workflow fed entirely by
@@ -174,12 +177,29 @@ export default function ReceptionDashboardPage() {
           title={`Welcome back, ${user?.fullName.split(" ")[0] ?? ""}`}
           description="Today's schedule, waiting-room flow and front-desk follow-ups."
         />
-        <LoadingState title="Loading front-desk metrics..." />
+        <StaggerList className="space-y-5" stagger={0.08}>
+          {/* Stat card skeletons (6 cards in grid) */}
+          <section className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2.5">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <Skeleton key={i} className="h-20 rounded-xl border border-line" />
+            ))}
+          </section>
+
+          {/* Queue panel skeleton */}
+          <div className="rounded-2xl border border-line bg-bone p-6 shadow-subtle space-y-3">
+            <div className="flex items-center justify-between space-y-2 sm:space-y-0 sm:flex-row">
+              <Skeleton className="h-5 w-1/3" />
+              <Skeleton className="h-5 w-1/4" />
+            </div>
+            <SkeletonText lines={4} className="space-y-2" />
+          </div>
+        </StaggerList>
       </div>
     );
   }
 
   return (
+  <AnimatedPage>
     <div className="space-y-5">
       <PageHeader
         eyebrow="Front-Office Operations"
@@ -217,36 +237,42 @@ export default function ReceptionDashboardPage() {
           {/* Actionable Front-Desk Queues */}
           <section className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2.5">
             <StatCard
+              index={0}
               label="Online requests"
               value={stats.pendingRequestsCount}
               tone={stats.pendingRequestsCount > 0 ? "warning" : "neutral"}
               href="/reception/appointments/requests"
             />
             <StatCard
+              index={1}
               label="Unconfirmed tomorrow"
               value={stats.unconfirmedTomorrowCount}
               tone={stats.unconfirmedTomorrowCount > 0 ? "warning" : "neutral"}
               href="/reception/reminders"
             />
             <StatCard
+              index={2}
               label="Waiting delayed"
               value={stats.waitingDelayedCount}
               tone={stats.waitingDelayedCount > 0 ? "danger" : "neutral"}
               href="#needs-action-queue"
             />
             <StatCard
+              index={3}
               label="Overdue tasks"
               value={stats.overdueTasksCount}
               tone={stats.overdueTasksCount > 0 ? "danger" : "neutral"}
               href="/reception/tasks"
             />
             <StatCard
+              index={4}
               label="Past unresolved"
               value={stats.pastUnresolvedCount}
               tone={stats.pastUnresolvedCount > 0 ? "danger" : "neutral"}
               href="/reception/end-of-day"
             />
             <StatCard
+              index={5}
               label="Recalls due"
               value={stats.recallsDueCount}
               tone={stats.recallsDueCount > 0 ? "info" : "neutral"}
@@ -257,6 +283,7 @@ export default function ReceptionDashboardPage() {
 
           {/* Today's appointment flow */}
           <Panel
+            index={0}
             title="Today's appointments"
             description="Live status of every booking scheduled for today."
             action={
@@ -369,6 +396,7 @@ export default function ReceptionDashboardPage() {
           <section id="needs-action-queue" className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2">
               <Panel
+                index={1}
                 title="Needs-action queue"
                 description="Actionable triage queue: online requests, unconfirmed visits, waiting delays, overdue tasks, and past unresolved visits."
                 action={
@@ -520,6 +548,7 @@ export default function ReceptionDashboardPage() {
               <Panel
                 title="Daily briefing"
                 description="Derived from today's real bookings."
+                index={2}
               >
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-2.5">
@@ -657,6 +686,7 @@ export default function ReceptionDashboardPage() {
         </>
       )}
     </div>
+  </AnimatedPage>
   );
 }
 

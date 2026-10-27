@@ -48,7 +48,7 @@ async def test_scripted_visit_full_lifecycle_e2e(
     saved_service = await service_repo.save(test_service)
     await test_session.commit()
 
-    today = date.today()
+    today = date.today() if date.today().weekday() != 6 else date.today() + timedelta(days=1)
 
     # --- Step 1: Online appointment request ---
     request_payload = {

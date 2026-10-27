@@ -1,7 +1,11 @@
+import secrets
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from typing import Optional
 from uuid import UUID, uuid4
+
+from app.domain.models.booking_flow import LeadStatus
+from app.domain.models.phone_utils import normalize_pakistan_phone
 
 
 @dataclass
@@ -28,9 +32,14 @@ class Patient:
     emergency_contact_relationship: Optional[str] = None
     messaging_opt_out: bool = False
     preferred_channel: str = "sms"  # sms | whatsapp | none
+    phone_normalized: str = ""
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+    def __post_init__(self):
+        if not self.phone_normalized and self.phone:
+            self.phone_normalized = normalize_pakistan_phone(self.phone)
 
     @property
     def full_name(self) -> str:
@@ -54,8 +63,6 @@ class PatientMedicalAlert:
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-
-
 
 
 @dataclass
@@ -82,13 +89,27 @@ class Lead:
     clinic_id: Optional[UUID] = None
     patient_id: Optional[UUID] = None
     lead_source_id: Optional[UUID] = None
-    status: str = "new"
+    service_id: Optional[str] = None
+    team_member_id: Optional[UUID] = None
+    status: str = LeadStatus.UNCONVERTED.value
     notes: Optional[str] = None
     utm_source: Optional[str] = None
     utm_campaign: Optional[str] = None
+    attempts: int = 0
+    last_contacted_at: Optional[datetime] = None
+    next_attempt_at: Optional[datetime] = None
+    cold_at: Optional[datetime] = None
+    last_activity_at: Optional[datetime] = None
+    capture_token: str = field(default_factory=lambda: secrets.token_urlsafe(32))
+    consent_notice_version: Optional[str] = None
+    phone_normalized: str = ""
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+    def __post_init__(self):
+        if not self.phone_normalized and self.phone:
+            self.phone_normalized = normalize_pakistan_phone(self.phone)
 
 
 @dataclass
@@ -101,12 +122,14 @@ class Booking:
     preferred_time: str
     patient_full_name: str
     patient_phone: str
-    patient_email: str
+    patient_email: Optional[str] = None
     clinic_id: Optional[UUID] = None
     patient_id: Optional[UUID] = None
     service_id: Optional[str] = None
     team_member_id: Optional[UUID] = None
     slot_id: Optional[UUID] = None
+    lead_id: Optional[UUID] = None
+    source: str = "reception"
     status: str = "requested"
     notes: Optional[str] = None
     utm_source: Optional[str] = None
@@ -119,9 +142,14 @@ class Booking:
     cancelled_by_user_id: Optional[UUID] = None
     reminded_at: Optional[datetime] = None
     reminded_by_user_id: Optional[UUID] = None
+    phone_normalized: str = ""
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+    def __post_init__(self):
+        if not self.phone_normalized and self.patient_phone:
+            self.phone_normalized = normalize_pakistan_phone(self.patient_phone)
 
 
 @dataclass
@@ -153,10 +181,14 @@ class Message:
     sender_id: Optional[UUID] = None
     recipient_id: Optional[UUID] = None
     patient_id: Optional[UUID] = None
+    lead_id: Optional[UUID] = None
     phone: Optional[str] = None
+    phone_normalized: Optional[str] = None
     email: Optional[str] = None
     channel: str = "sms"
     status: str = "logged"
+    direction: str = "outbound"
+    purpose: str = "manual"
     booking_id: Optional[UUID] = None
     delivery_status: str = "simulated"  # "simulated" | "queued" | "sent" | "delivered" | "failed" | "opted_out" | "quiet_hours_held" | "cancelled"
     error_detail: Optional[str] = None
@@ -168,6 +200,10 @@ class Message:
     reminder_type: Optional[str] = None  # "reminder_24h" | "reminder_2h" | "manual"
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+    def __post_init__(self):
+        if not self.phone_normalized and self.phone:
+            self.phone_normalized = normalize_pakistan_phone(self.phone)
 
 
 @dataclass

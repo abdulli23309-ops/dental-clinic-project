@@ -42,6 +42,7 @@ const RECEPTION_LINKS: SidebarLink[] = [
   { href: "/reception/tasks", title: "Tasks", icon: ListTodo },
   { href: "/reception/messages", title: "Messages", icon: Mail },
   { href: "/reception/recalls", title: "Recalls", icon: PhoneCall },
+  { href: "/reception/call-desk", title: "Call Desk", icon: PhoneCall },
   { href: "/reception/waitlist", title: "Waitlist", icon: Zap },
   { href: "/reception/leads", title: "Leads", icon: UserX },
   { href: "/reception/account", title: "Account", icon: ShieldCheck },

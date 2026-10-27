@@ -19,6 +19,8 @@ import {
   ReceptionRecall,
 } from "@/lib/api";
 import { useAuth } from "@/components/providers/auth-provider";
+import { Card } from "@/components/ui/card";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export default function ReceptionRecallsPage() {
   const { accessToken } = useAuth();
@@ -68,6 +70,7 @@ export default function ReceptionRecallsPage() {
   };
 
   return (
+  <AnimatedPage>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -105,7 +108,7 @@ export default function ReceptionRecallsPage() {
       )}
 
       {/* Recall Queue */}
-      <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden shadow-xs">
+      <Card surface="bone" shadow="subtle" className="overflow-hidden" hoverLift={true} index={0}>
         {isLoading ? (
           <div className="p-12 text-center text-xs font-mono text-gray-500">
             Loading recall queue...
@@ -227,7 +230,8 @@ export default function ReceptionRecallsPage() {
             })}
           </div>
         )}
-      </div>
+      </Card>
     </div>
+  </AnimatedPage>
   );
 }

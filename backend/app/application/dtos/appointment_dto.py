@@ -1,6 +1,7 @@
 import re
 from datetime import date, datetime, timezone
 from typing import Optional, Set
+from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 # Ground truth from frontend: src/app/book/page.tsx
@@ -35,7 +36,11 @@ class AppointmentCreateRequest(BaseModel):
     preferredTime: str = Field(..., description="Requested time slot")
     fullName: str = Field(..., min_length=2, max_length=100, description="Full legal name")
     phone: str = Field(..., min_length=10, max_length=30, description="Patient contact telephone")
-    email: str = Field(..., min_length=5, max_length=150, description="Patient email address")
+    email: Optional[str] = Field(default=None, max_length=150, description="Optional patient email address")
+    clinicId: Optional[UUID] = Field(default=None, description="Optional target clinic branch ID")
+    teamMemberId: Optional[UUID] = Field(default=None, description="Optional selected clinician ID")
+    leadToken: Optional[str] = Field(default=None, description="Optional capture token from previous booking steps")
+    bookingFor: Optional[str] = Field(default="myself", max_length=100, description="Booking for myself or someone else")
     notes: Optional[str] = Field(default=None, max_length=1000, description="Optional patient notes or symptoms")
     utmSource: Optional[str] = Field(default=None, max_length=100, description="Marketing source attribution")
     utmCampaign: Optional[str] = Field(default=None, max_length=100, description="Marketing campaign attribution")
@@ -111,8 +116,10 @@ class AppointmentCreateRequest(BaseModel):
 
     @field_validator("email")
     @classmethod
-    def validate_email(cls, v: str) -> str:
-        """Confirms the email address has a standard format with an '@' symbol and a domain name."""
+    def validate_email(cls, v: Optional[str]) -> Optional[str]:
+        """Confirms the email address has a standard format with an '@' symbol and a domain name if provided."""
+        if not v or not v.strip():
+            return None
         clean = v.strip().lower()
         if "@" not in clean or "." not in clean.split("@")[-1]:
             raise ValueError("email must be a valid email address.")

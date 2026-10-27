@@ -18,8 +18,13 @@
 
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 
-const ROOT = process.cwd();
+const __filename = fileURLToPath(import.meta.url);
+const SCRIPT_DIR = path.dirname(__filename);
+const ROOT = fs.existsSync(path.join(process.cwd(), "src"))
+  ? process.cwd()
+  : path.resolve(SCRIPT_DIR, "..");
 const SRC_DIR = path.join(ROOT, "src");
 
 const ALLOWED_MARLOW_IDENTIFIERS = [
@@ -171,6 +176,10 @@ for (const file of files) {
     // Check city names
     for (const city of CITY_NAMES) {
       if (line.includes(city)) {
+        // Allow IANA timezone strings like "Asia/Karachi" or timezone properties
+        if (line.includes(`Asia/${city}`) || line.toLowerCase().includes("timezone")) {
+          continue;
+        }
         console.error(`FAIL: ${relativePath}:${lineNum} - hardcoded city name "${city}"`);
         console.error(`  ${line.trim()}`);
         failures++;

@@ -118,7 +118,7 @@ export default function AdminOverviewPage() {
       <div className="space-y-5">
         <PageHeader
           eyebrow="Practice Administration"
-          title={`Welcome back, ${user?.fullName.split(" ")[0] ?? ""}`}
+          title={`Welcome back, ${user?.fullName || "Dr."}`}
           description="Clinic-wide operations, practice content and configuration."
         />
         <LoadingState title="Loading practice overview..." />
@@ -132,7 +132,7 @@ export default function AdminOverviewPage() {
     <div className="space-y-5">
       <PageHeader
         eyebrow="Practice Administration"
-        title={`Welcome back, ${user?.fullName.split(" ")[0] ?? ""}`}
+        title={`Welcome back, ${user?.fullName || "Dr."}`}
         description="Clinic-wide operations, practice content and configuration."
         actions={
           <>

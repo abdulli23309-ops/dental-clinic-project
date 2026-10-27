@@ -35,12 +35,24 @@ export function AnnouncementMarquee() {
     .filter((a) => a.isActive)
     .sort((a, b) => a.displayOrder - b.displayOrder);
 
-  // If loading hasn't completed and context is empty, or no active announcements exist, or dismissed, render nothing
-  if (dismissed || activeAnnouncements.length === 0) {
+  // If user dismissed it, render nothing
+  if (dismissed) {
     return null;
   }
 
-  const items = activeAnnouncements.map((a) => a.content);
+  // Default clinic announcements shown when none are configured in database
+  const defaultItems = [
+    "Welcome to Dr. Hira's Dental Care",
+    "Open Mon–Sat: 11:00 AM – 8:00 PM",
+    "Hospital-Grade Sterilization & Painless Dentistry",
+    "Book Online Today",
+  ];
+
+  const items =
+    activeAnnouncements.length > 0
+      ? activeAnnouncements.map((a) => a.content)
+      : defaultItems;
+
   // Duplicate list to form a seamless infinite loop
   const tickerItems = [...items, ...items];
 

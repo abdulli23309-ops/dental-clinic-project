@@ -129,7 +129,6 @@ export function Gallery() {
                   src={resolveMediaUrl(firstPhoto.imageUrl) || firstPhoto.imageUrl}
                   alt={getLocalizedCaption(firstPhoto.caption) || copy.insideOurClinic}
                   fill
-                  unoptimized
                   sizes="(max-width: 768px) 100vw, 60vw"
                   className="object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
                 />
@@ -169,7 +168,6 @@ export function Gallery() {
                         src={resolveMediaUrl(photo.imageUrl) || photo.imageUrl}
                         alt={getLocalizedCaption(photo.caption) || copy.insideOurClinic}
                         fill
-                        unoptimized
                         sizes="(max-width: 768px) 100vw, 40vw"
                         className="object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
                       />
@@ -209,7 +207,6 @@ export function Gallery() {
                       src={resolveMediaUrl(photo.imageUrl) || photo.imageUrl}
                       alt={getLocalizedCaption(photo.caption) || copy.insideOurClinic}
                       fill
-                      unoptimized
                       sizes="(max-width: 768px) 100vw, 33vw"
                       className="object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
                     />

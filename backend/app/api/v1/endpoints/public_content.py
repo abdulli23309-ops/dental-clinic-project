@@ -19,9 +19,11 @@ from app.api.deps import (
     get_lead_event_repository,
     get_lead_repository,
     get_organization_service,
+    get_role_service,
     get_service_service,
     get_team_service,
 )
+from app.application.dtos.role_dto import RoleResponse
 from app.application.dtos.announcement_dto import AnnouncementResponse
 from app.application.dtos.booking_settings_dto import (
     PublicAvailabilityResponse,
@@ -172,6 +174,7 @@ async def get_public_locations(
             phone=loc.phone,
             email=loc.email,
             hoursInfo=loc.hours_info,
+            imageUrl=loc.image_url,
             isPrimary=loc.is_primary,
             isActive=loc.is_active,
             displayOrder=loc.display_order,
@@ -746,3 +749,12 @@ async def get_public_gallery(
         )
         for g in items
     ]
+
+
+@router.get("/roles", response_model=List[RoleResponse])
+async def get_public_roles(
+    role_service: RoleService = Depends(get_role_service),
+) -> List[RoleResponse]:
+    """Returns active roles for public / dropdown consumption."""
+    return await role_service.list_roles(include_inactive=False)
+

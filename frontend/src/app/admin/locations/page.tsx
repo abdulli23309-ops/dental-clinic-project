@@ -4,12 +4,15 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   Check,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Edit2,
   Mail,
   MapPin,
   Phone,
   Plus,
+  Search,
   ShieldCheck,
   X,
 } from "lucide-react";
@@ -27,8 +30,11 @@ import {
 import {
   adminCreateLocation,
   adminGetLocations,
+  adminGetPaginatedLocations,
   adminToggleLocationStatus,
   adminUpdateLocation,
+  adminUploadMedia,
+  resolveMediaUrl,
   LocationItem,
 } from "@/lib/api";
 
@@ -37,8 +43,15 @@ export default function AdminLocationsPage() {
   const [locations, setLocations] = useState<LocationItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Pagination & Search State
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [total, setTotal] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Modal State
   const [modalOpen, setModalOpen] = useState(false);
@@ -55,16 +68,18 @@ export default function AdminLocationsPage() {
     phone: "",
     email: "",
     hoursInfo: "",
+    imageUrl: "",
     isPrimary: false,
     displayOrder: 0,
   });
 
-  const loadLocations = async () => {
+  const loadLocations = async (targetPage = page, targetSearch = searchQuery) => {
     setIsLoading(true);
     setErrorMsg(null);
     try {
-      const data = await adminGetLocations(accessToken);
-      setLocations(data);
+      const data = await adminGetPaginatedLocations(targetPage, limit, accessToken, targetSearch);
+      setLocations(data.items);
+      setTotal(data.total);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to load locations.";
       setErrorMsg(msg);
@@ -75,11 +90,38 @@ export default function AdminLocationsPage() {
 
   useEffect(() => {
     if (accessToken) {
-      queueMicrotask(() => {
-        loadLocations();
-      });
+      loadLocations(page, searchQuery);
     }
-  }, [accessToken]);
+  }, [accessToken, page]);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setSearchQuery(val);
+    setPage(1);
+    loadLocations(1, val);
+  };
+
+  const handleUploadPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !accessToken) return;
+    if (file.size > 20 * 1024 * 1024) {
+      setErrorMsg("File exceeds maximum allowed size of 20MB.");
+      return;
+    }
+    setIsUploadingPhoto(true);
+    setErrorMsg(null);
+    try {
+      const res = await adminUploadMedia(file, accessToken);
+      setForm((prev) => ({ ...prev, imageUrl: res.url }));
+      setSuccessMsg("Branch photo uploaded successfully.");
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to upload photo.";
+      setErrorMsg(msg);
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
 
   const handleOpenAdd = () => {
     setEditingLocation(null);
@@ -94,6 +136,7 @@ export default function AdminLocationsPage() {
       phone: "",
       email: "",
       hoursInfo: "",
+      imageUrl: "",
       isPrimary: locations.length === 0,
       displayOrder: locations.length,
     });
@@ -113,6 +156,7 @@ export default function AdminLocationsPage() {
       phone: loc.phone || "",
       email: loc.email || "",
       hoursInfo: loc.hoursInfo || "",
+      imageUrl: loc.imageUrl || "",
       isPrimary: loc.isPrimary,
       displayOrder: loc.displayOrder,
     });
@@ -145,6 +189,7 @@ export default function AdminLocationsPage() {
             phone: form.phone.trim() || null,
             email: form.email.trim() || null,
             hoursInfo: form.hoursInfo.trim() || null,
+            imageUrl: form.imageUrl.trim() || null,
             isPrimary: form.isPrimary,
             displayOrder: Number(form.displayOrder) || 0,
           },
@@ -164,6 +209,7 @@ export default function AdminLocationsPage() {
             phone: form.phone.trim() || null,
             email: form.email.trim() || null,
             hoursInfo: form.hoursInfo.trim() || null,
+            imageUrl: form.imageUrl.trim() || null,
             isPrimary: form.isPrimary,
             displayOrder: Number(form.displayOrder) || 0,
           },
@@ -243,6 +289,24 @@ export default function AdminLocationsPage() {
         </div>
       )}
 
+      {/* Search & Overview Bar */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-soft/60 pointer-events-none" />
+          <input
+            id="locations-search"
+            type="text"
+            placeholder="Search locations by name, city, or address..."
+            value={searchQuery}
+            onChange={handleSearchChange}
+            className="w-full rounded-2xl border border-line dark:border-gray-700 bg-cream/70 dark:bg-gray-800/80 pl-9 pr-4 py-2.5 text-xs text-ink dark:text-white placeholder:text-ink-soft/50 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+          />
+        </div>
+        <div className="text-xs text-ink-soft font-medium self-center">
+          Showing {locations.length} of {total} locations
+        </div>
+      </div>
+
       {isLoading ? (
         <div className="py-16 flex flex-col justify-center items-center gap-3">
           <div className="h-7 w-7 animate-spin rounded-full border-2 border-forest border-t-transparent" />
@@ -317,6 +381,16 @@ export default function AdminLocationsPage() {
                 </div>
               </div>
 
+              {loc.imageUrl && (
+                <div className="relative w-full h-36 rounded-xl overflow-hidden mb-2 border border-line bg-sand/30">
+                  <img
+                    src={resolveMediaUrl(loc.imageUrl) || loc.imageUrl}
+                    alt={loc.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-ink-soft pt-1">
                 <div className="flex items-start gap-2.5">
                   <MapPin className="h-4 w-4 text-forest shrink-0 mt-0.5" />
@@ -358,6 +432,39 @@ export default function AdminLocationsPage() {
               )}
             </Card>
           ))}
+
+          {/* Pagination Controls */}
+          <div className="border-t border-line dark:border-gray-800 pt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p className="text-xs text-ink-soft font-medium">
+              Showing {locations.length} of {total} locations
+            </p>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1 || isLoading}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                <ChevronLeft className="h-3.5 w-3.5 mr-1" />
+                <span>Previous</span>
+              </Button>
+
+              <span className="text-xs text-ink-soft px-2">
+                Page {page} of {Math.max(1, Math.ceil(total / limit))}
+              </span>
+
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= Math.ceil(total / limit) || isLoading}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                <span>Next</span>
+                <ChevronRight className="h-3.5 w-3.5 ml-1" />
+              </Button>
+            </div>
+          </div>
 
           <Card surface="bone" shadow="subtle" className="p-6" hoverLift={true} index={1}>
             <div className="flex items-center gap-2 text-ink text-sm font-medium mb-1">
@@ -483,6 +590,42 @@ export default function AdminLocationsPage() {
                     onChange={(e) => setForm({ ...form, email: e.target.value })}
                     placeholder="e.g. care@marlowdental.com"
                   />
+                </div>
+
+                {/* Branch Photo Upload */}
+                <div className="sm:col-span-2 space-y-2">
+                  <label htmlFor="branch-photo-input" className="block text-xs font-semibold text-ink dark:text-gray-300">
+                    Branch Photo
+                  </label>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-3.5 rounded-xl border border-line dark:border-gray-800 bg-sand/30 dark:bg-gray-800/40">
+                    <input
+                      id="branch-photo-input"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleUploadPhoto}
+                      disabled={isUploadingPhoto || isSaving}
+                      className="block w-full sm:w-auto text-xs text-ink file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-white hover:file:opacity-90 cursor-pointer border border-line dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900"
+                    />
+                    {isUploadingPhoto && (
+                      <span className="text-xs text-primary font-medium animate-pulse">Uploading photo...</span>
+                    )}
+                    {form.imageUrl && !isUploadingPhoto && (
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={resolveMediaUrl(form.imageUrl) || form.imageUrl}
+                          alt="Branch Preview"
+                          className="h-14 w-24 object-cover rounded-md border border-line shadow-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, imageUrl: "" })}
+                          className="text-xs text-red-500 hover:underline cursor-pointer font-medium"
+                        >
+                          Remove Photo
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="sm:col-span-2">

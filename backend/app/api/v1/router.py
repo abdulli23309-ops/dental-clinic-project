@@ -9,6 +9,7 @@ from app.api.v1.endpoints import (
     admin_messaging,
     admin_organization,
     admin_reports,
+    admin_roles,
     admin_services,
     admin_team,
     admin_users,
@@ -53,6 +54,7 @@ api_v1_router.include_router(clinical_documents.router, tags=["Clinical Document
 api_v1_router.include_router(admin_cms.router, tags=["Admin CMS"])
 api_v1_router.include_router(admin_announcements.router, tags=["Admin Announcements"])
 api_v1_router.include_router(admin_team.router, tags=["Admin Team"])
+api_v1_router.include_router(admin_roles.router, tags=["Admin Roles"])
 api_v1_router.include_router(admin_services.router, tags=["Admin Services"])
 api_v1_router.include_router(admin_organization.router, tags=["Admin Organization"])
 api_v1_router.include_router(admin_media.router, tags=["Admin Media"])

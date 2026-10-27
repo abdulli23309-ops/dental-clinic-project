@@ -58,6 +58,37 @@ export interface UiCopyDictionary {
   getDirections: string;
   viewTreatmentFees: string;
   returnToHomepage: string;
+  galleryEyebrow: string;
+  galleryTitle: string;
+  galleryDesc: string;
+  clinicalSuite: string;
+  clinicAtmosphere: string;
+  insideOurClinic: string;
+  closeImagePreview: string;
+  expandedClinicView: string;
+  branchSchedule: string;
+  assignedDoctors: string;
+  viewDetails: string;
+  hideDetails: string;
+  noAssignedDoctors: string;
+  allSpecialists: string;
+  noDoctorsForCity: string;
+  specialistsEyebrow: string;
+  specialistsDesc: string;
+  facilitiesEyebrow: string;
+  experienceYears: string;
+  nextAvailable: string;
+  todayTime: string;
+  director: string;
+  patientsTreatedSuffix: string;
+  bookConsultation: string;
+  previousTreatments: string;
+  nextTreatments: string;
+  previousClinicians: string;
+  nextClinicians: string;
+  careSuffix: string;
+  daysOfWeek: string[];
+  galleryCaptions: Record<string, string>;
 }
 
 export const UI_COPY: Record<SupportedLocale, UiCopyDictionary> = {
@@ -123,6 +154,52 @@ export const UI_COPY: Record<SupportedLocale, UiCopyDictionary> = {
     getDirections: "Get Directions",
     viewTreatmentFees: "Treatments We Offer",
     returnToHomepage: "Return to Homepage",
+    galleryEyebrow: "Clinical Atmosphere",
+    galleryTitle: "Inside Our Modern Clinic",
+    galleryDesc:
+      "Step into our serene, sterile clinical suites engineered for maximum comfort, hospital-grade hygiene, and precision dental artistry.",
+    clinicalSuite: "Clinical Suite",
+    clinicAtmosphere: "Clinical Atmosphere",
+    insideOurClinic: "Inside Our Modern Clinic",
+    closeImagePreview: "Close image preview",
+    expandedClinicView: "Expanded clinic view",
+    branchSchedule: "Weekly Schedule",
+    assignedDoctors: "Assigned Doctors & Specialists",
+    viewDetails: "View Hours & Details",
+    hideDetails: "Hide Details",
+    noAssignedDoctors: "Specialists on rotation. Call clinic for today's doctor schedule.",
+    allSpecialists: "All Clinicians",
+    noDoctorsForCity: "No clinicians currently assigned to this city.",
+    specialistsEyebrow: "Clinical Specialists",
+    specialistsDesc:
+      "Dedicated clinicians committed to continuous medical education, compassionate communication, and meticulous clinical artistry.",
+    facilitiesEyebrow: "Facilities & Office Timing",
+    experienceYears: "Years Experience",
+    nextAvailable: "Next Available",
+    todayTime: "Today, 2:30 PM",
+    director: "Director",
+    patientsTreatedSuffix: "Patients Treated",
+    bookConsultation: "Book Consultation",
+    previousTreatments: "Previous treatments",
+    nextTreatments: "Next treatments",
+    previousClinicians: "Previous clinicians",
+    nextClinicians: "Next clinicians",
+    careSuffix: "Care",
+    daysOfWeek: [
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+      "Sunday",
+    ],
+    galleryCaptions: {
+      "Sterile Surgical Suite": "Sterile Surgical Suite",
+      "Diagnostic & Preventive Station": "Diagnostic & Preventive Station",
+      "Endodontic Microsurgery Suite": "Endodontic Microsurgery Suite",
+      "Patient Comfort & Smile Lounge": "Patient Comfort & Smile Lounge",
+    },
   },
   ur: {
     book: "بک کریں",
@@ -186,6 +263,52 @@ export const UI_COPY: Record<SupportedLocale, UiCopyDictionary> = {
     getDirections: "راستہ معلوم کریں",
     viewTreatmentFees: "ہماری پیش کردہ خدمات",
     returnToHomepage: "ہوم پیج پر واپس جائیں",
+    galleryEyebrow: "کلینک کا ماحول اور سہولیات",
+    galleryTitle: "ہمارے جدید کلینک کا اندرونی منظر",
+    galleryDesc:
+      "ہمارے پرسکون اور جراثیم سے پاک کلینیکل سویٹس میں قدم رکھیں جو مکمل آرام، ہسپتال گریڈ حفظانِ صحت اور جدید ترین ڈینٹل آرٹسٹری کے لیے ڈیزائن کیے گئے ہیں۔",
+    clinicalSuite: "کلینیکل سویٹ",
+    clinicAtmosphere: "کلینک کا ماحول",
+    insideOurClinic: "ہمارے کلینک کا اندرونی جائزہ",
+    closeImagePreview: "تصویر بند کریں",
+    expandedClinicView: "کلینک کا تفصیلی منظر",
+    branchSchedule: "ہفتہ وار شیڈول",
+    assignedDoctors: "متعلقہ ڈاکٹرز اور ماہرین",
+    viewDetails: "تفصیلات اور اوقات دیکھیں",
+    hideDetails: "تفصیلات چھپائیں",
+    noAssignedDoctors: "ماہرین کی روٹیشن جاری ہے۔ تازہ ترین شیڈول کے لیے کلینک سے رابطہ کریں۔",
+    allSpecialists: "تمام ماہر ڈاکٹرز",
+    noDoctorsForCity: "اس شہر کے لیے فی الوقت کوئی ڈاکٹر متعین نہیں ہے۔",
+    specialistsEyebrow: "طبی ماہرین",
+    specialistsDesc:
+      "اعلیٰ طبی تعلیم، پرخلوص دیکھ بھال اور نفیس ترین علاج کے لیے وقف شدہ ماہر دندان۔",
+    facilitiesEyebrow: "برانچز اور اوقات کار",
+    experienceYears: "سال کا تجربہ",
+    nextAvailable: "اگلی دستیابی",
+    todayTime: "آج، 2:30 بعد دوپہر",
+    director: "ڈائریکٹر",
+    patientsTreatedSuffix: "مریضوں کا علاج کیا گیا",
+    bookConsultation: "مشاورت بک کریں",
+    previousTreatments: "پچھلی خدمات",
+    nextTreatments: "اگلی خدمات",
+    previousClinicians: "پچھلے ڈاکٹرز",
+    nextClinicians: "اگلے ڈاکٹرز",
+    careSuffix: "کیئر",
+    daysOfWeek: [
+      "پیر",
+      "منگل",
+      "بدھ",
+      "جمعرات",
+      "جمعہ",
+      "ہفتہ",
+      "اتوار",
+    ],
+    galleryCaptions: {
+      "Sterile Surgical Suite": "جراثیم سے پاک سرجیکل سویٹ",
+      "Diagnostic & Preventive Station": "تشخیصی اور حفاظتی کیئر اسٹیشن",
+      "Endodontic Microsurgery Suite": "اینڈوڈونٹک مائیکرو سرجری سویٹ",
+      "Patient Comfort & Smile Lounge": "مریضوں کے آرام اور مسکراہٹ کا لاؤنج",
+    },
   },
 };
 

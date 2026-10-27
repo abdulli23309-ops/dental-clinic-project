@@ -28,12 +28,30 @@ from app.infrastructure.database.orm_models import (
     LocationORM,
     OrganizationORM,
     ReviewORM,
+    RoleORM,
     TeamMemberORM,
 )
 
 # ---------------------------------------------------------------------------
 # Data Definitions
 # ---------------------------------------------------------------------------
+
+ROLE_SEEDS = [
+    ("Dentist", "Dentist", "General dental care and clinical dentistry"),
+    ("General Dentist", "General Dentist", "Comprehensive primary dental examinations and restorative treatments"),
+    ("Orthodontist", "Orthodontist", "Alignment of teeth and malocclusion correction"),
+    ("Endodontist", "Endodontist", "Root canals and dental pulp therapy"),
+    ("Periodontist", "Periodontist", "Gum health, periodontal care, and bone preservation"),
+    ("Prosthodontist", "Prosthodontist", "Prosthetics, crowns, bridges, and full smile rehabilitation"),
+    ("Pediatric Dentist", "Pediatric Dentist", "Specialized gentle oral healthcare for children"),
+    ("Oral Surgeon", "Oral Surgeon", "Oral surgery, wisdom teeth extraction, and corrective jaw therapy"),
+    ("Implantologist", "Implantologist", "Dental implant placement and surgical restorations"),
+    ("Cosmetic Dentist", "Cosmetic Dentist", "Aesthetic veneers, teeth whitening, and smile design"),
+    ("Hygienist", "Hygienist", "Preventative dental hygiene, scale and polish treatments"),
+    ("Dental Assistant", "Dental Assistant", "Chairside assisting and clinical patient support"),
+    ("Receptionist", "Receptionist", "Patient concierge, scheduling, and front-desk coordination"),
+    ("Practice Manager", "Practice Manager", "Clinical operations, administration, and team management"),
+]
 
 BRANCHES = [
     {
@@ -148,7 +166,7 @@ DOCTORS = [
         "last_name": "Rasheed",
         "display_name": "Dr. Yaser Rasheed",
         "professional_title": "General Dentist",
-        "role": "Dentist",
+        "role": "General Dentist",
         "specialties_json": '["General Dentistry", "Root Canal Therapy", "Preventive Care"]',
         "biography": "Dr. Yaser Rasheed leads restorative procedures at the Lahore clinic. He has dedicated over a decade to pain-free endodontics and single-visit restorations.",
         "photo_url": "/media/b296e9876020459db93fb64aa133fbd0.jpg",
@@ -182,7 +200,7 @@ DOCTORS = [
         "last_name": "John",
         "display_name": "Dr. Sarah John",
         "professional_title": "Orthodontist",
-        "role": "Dentist",
+        "role": "Orthodontist",
         "specialties_json": '["Orthodontics", "Interceptive Care", "Smile Design"]',
         "biography": "Dr. Sarah John coordinates orthodontic diagnostic simulations and digital clear aligner treatment plans.",
         "photo_url": "/media/fa158e07a80d4ef3b7a2bd05b87aec5e.jpg",
@@ -216,7 +234,7 @@ DOCTORS = [
         "last_name": "Raza",
         "display_name": "Dr. Ahmed Raza",
         "professional_title": "General Dentist",
-        "role": "Dentist",
+        "role": "General Dentist",
         "specialties_json": '["Preventive Care", "Composite Fillings", "Teeth Whitening"]',
         "biography": "Dr. Ahmed Raza has 8 years of experience in restorative and preventive oral health. He is known for gentle local anesthesia and thorough patient education.",
         "photo_url": "/media/febb95fe14a945a1be248d2892208ac7.png",
@@ -267,7 +285,7 @@ DOCTORS = [
         "last_name": "Tariq",
         "display_name": "Dr. Sana Tariq",
         "professional_title": "Cosmetic Dentist",
-        "role": "Dentist",
+        "role": "Cosmetic Dentist",
         "specialties_json": '["Cosmetic Dentistry", "Veneers", "Smile Makeovers"]',
         "biography": "Dr. Sana Tariq crafts natural porcelain veneers, composite bonding, and in-office smile makeovers.",
         "photo_url": "/media/4bed73834ea54ddf8263682ec58f09a3.png",
@@ -301,7 +319,7 @@ DOCTORS = [
         "last_name": "Ali",
         "display_name": "Dr. Usman Ali",
         "professional_title": "Periodontist",
-        "role": "Dentist",
+        "role": "Periodontist",
         "specialties_json": '["Periodontics", "Gum Surgery", "Deep Cleaning", "Laser Therapy"]',
         "biography": "Dr. Usman is our periodontist with 10 years of specialized experience in gum health, laser therapy, and dental implant maintenance.",
         "photo_url": "/media/d2cde336f6bd4bbcaa7fa9610b9aee3c.jpg",
@@ -318,7 +336,7 @@ DOCTORS = [
         "last_name": "Abbas",
         "display_name": "Dr. Daniyal Abbas",
         "professional_title": "Implantologist",
-        "role": "Dentist",
+        "role": "Implantologist",
         "specialties_json": '["Dental Implants", "Bone Grafting", "Full-Arch Restoration"]',
         "biography": "Dr. Daniyal is our implantology specialist with 11 years of experience in guided surgery, 3D CBCT planning, and long-term full-arch rehabilitation.",
         "photo_url": "/media/55641bc41c5849c7990af3eec8db4280.jpg",
@@ -335,7 +353,7 @@ DOCTORS = [
         "last_name": "Sheikh",
         "display_name": "Dr. Hamza Sheikh",
         "professional_title": "Prosthodontist",
-        "role": "Dentist",
+        "role": "Prosthodontist",
         "specialties_json": '["Crowns", "Bridges", "Dentures", "Full Mouth Rehabilitation"]',
         "biography": "Dr. Hamza is a prosthodontist specializing in digitally designed ceramic crowns, fixed bridges, and comprehensive full-mouth restorations.",
         "photo_url": "/media/2d1a9244830844e8b6826729e1b6db2d.png",
@@ -352,7 +370,7 @@ DOCTORS = [
         "last_name": "Malik",
         "display_name": "Dr. Zain Malik",
         "professional_title": "Endodontist",
-        "role": "Dentist",
+        "role": "Endodontist",
         "specialties_json": '["Endodontics", "Root Canal Therapy", "Microsurgery"]',
         "biography": "Dr. Zain is our endodontic specialist using rotary files and dental operating microscopes to provide pain-free single-visit root canals.",
         "photo_url": "/media/248de043ded14857812660efdd5f354b.jpg",
@@ -369,7 +387,7 @@ DOCTORS = [
         "last_name": "Ahmed",
         "display_name": "Dr. Faraz Ahmed",
         "professional_title": "General Dentist",
-        "role": "Dentist",
+        "role": "General Dentist",
         "specialties_json": '["General Dentistry", "Preventive Care", "Emergency Dentistry"]',
         "biography": "Dr. Faraz handles walk-in emergencies, urgent pain triage, and preventive checkups with a calm, comforting clinical approach.",
         "photo_url": "/media/e6d46183c5c2431e8c1c8041f7b0e0ff.jpg",
@@ -386,7 +404,7 @@ DOCTORS = [
         "last_name": "Iqbal",
         "display_name": "Dr. Saad Iqbal",
         "professional_title": "Cosmetic Dentist",
-        "role": "Dentist",
+        "role": "Cosmetic Dentist",
         "specialties_json": '["Cosmetic Dentistry", "Composite Bonding", "Smile Design"]',
         "biography": "Dr. Saad is focused on micro-dentistry, tooth color matching, and conservative cosmetic bonding for chipped or discolored teeth.",
         "photo_url": "/media/286ac9e85dd04672902e6265b29b7b98.jpg",
@@ -697,6 +715,25 @@ async def seed_database(database_name: str | None = None, dry_run: bool = False)
         # Flush locations and clinics before inserting team members referencing them
         await session.flush()
 
+        # Roles: RoleORM (insert-or-skip before creating doctors)
+        role_seed_count = 0
+        for r_name, r_disp, r_desc in ROLE_SEEDS:
+            role_obj = (await session.execute(select(RoleORM).where(RoleORM.name == r_name))).scalars().first()
+            if not role_obj:
+                role_obj = RoleORM(
+                    id=uuid4(),
+                    name=r_name,
+                    display_name=r_disp,
+                    description=r_desc,
+                    is_active=True,
+                    display_order=role_seed_count,
+                )
+                session.add(role_obj)
+                role_seed_count += 1
+            else:
+                role_obj.is_active = True
+        await session.flush()
+
         # 3. Doctors: TeamMemberORM
         doc_count = 0
         PRIMARY_DEFAULT_UUID = UUID("96fffc52-d9c2-4115-af5d-13705c74e02a")
@@ -784,6 +821,20 @@ async def seed_database(database_name: str | None = None, dry_run: bool = False)
                 rev.display_order = r_data["display_order"]
                 rev.is_published = r_data["is_published"]
             rev_count += 1
+
+        await session.flush()
+
+        # Validation step: Ensure every active doctor has a role in the roles table
+        mismatched = await session.execute(text("""
+            SELECT tm.display_name, tm.role
+            FROM team_members tm
+            LEFT JOIN roles r ON tm.role = r.name
+            WHERE tm.is_active = true AND r.id IS NULL
+        """))
+        rows = mismatched.fetchall()
+        if rows:
+            raise RuntimeError(f"Seed produced {len(rows)} mismatched doctors: {rows}")
+        print("[OK] All active doctors have roles present in the roles table.")
 
         if dry_run:
             await session.rollback()

@@ -86,3 +86,11 @@ class TeamMemberResponse(BaseModel):
 class ReorderRequest(BaseModel):
     """Payload for updating display ordering of items."""
     orderedIds: List[UUID]
+
+
+class PaginatedTeamResponse(BaseModel):
+    """Paginated list of team members."""
+    items: List[TeamMemberResponse]
+    total: int
+    page: int
+    limit: int

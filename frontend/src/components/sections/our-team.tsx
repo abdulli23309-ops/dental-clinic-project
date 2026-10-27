@@ -40,7 +40,7 @@ export function OurTeam() {
     )
   );
 
-  // Map each doctor to facility
+  // Map each doctor to facility and city
   const doctorsWithLocations = activeTeam.map((member) => {
     const loc = member.locationId
       ? locations.find((l) => l.id === member.locationId)
@@ -72,11 +72,11 @@ export function OurTeam() {
         {/* Section Heading */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <SectionHeading
-            eyebrow="Clinical Specialists"
+            eyebrow={copy.specialistsEyebrow}
             title={copy.team}
           />
           <p className="max-w-md text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-            Dedicated clinicians committed to continuous medical education, compassionate communication, and meticulous clinical artistry.
+            {copy.specialistsDesc}
           </p>
         </div>
 
@@ -96,7 +96,7 @@ export function OurTeam() {
                   : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700"
               }`}
             >
-              All Clinicians ({activeTeam.length})
+              {copy.allSpecialists} ({activeTeam.length})
             </button>
             {availableCities.map((city) => {
               const isSelected = selectedCity.toLowerCase() === city.toLowerCase();
@@ -132,24 +132,30 @@ export function OurTeam() {
               />
             ))}
           </div>
-        ) : filteredDoctors.length === 0 ? null : (
-          /* Clinician Cards Grid / Scroll */
+        ) : filteredDoctors.length === 0 ? (
+          /* Empty State for selected city */
+          <div className="rounded-3xl border border-dashed border-gray-200 dark:border-gray-800 p-12 text-center text-gray-500 dark:text-gray-400 text-sm">
+            <User className="h-10 w-10 mx-auto text-gray-400 mb-3" />
+            <p>{copy.noDoctorsForCity}</p>
+          </div>
+        ) : (
+          /* Clinician Cards Horizontal Scroll */
           <div className="relative w-full group">
             {filteredDoctors.length > 3 && (
               <>
                 <button
                   onClick={() => scroll(-340)}
-                  aria-label="Previous clinicians"
+                  aria-label={copy.previousClinicians}
                   className="hidden md:flex absolute -left-3 top-1/2 -translate-y-1/2 z-20 h-10 w-10 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-full shadow-lg border border-gray-200 dark:border-gray-700 items-center justify-center hover:scale-105 active:scale-95 transition-all cursor-pointer"
                 >
-                  <ChevronLeft className="h-5 w-5" />
+                  <ChevronLeft className="h-5 w-5 rtl:rotate-180" />
                 </button>
                 <button
                   onClick={() => scroll(340)}
-                  aria-label="Next clinicians"
+                  aria-label={copy.nextClinicians}
                   className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 z-20 h-10 w-10 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-full shadow-lg border border-gray-200 dark:border-gray-700 items-center justify-center hover:scale-105 active:scale-95 transition-all cursor-pointer"
                 >
-                  <ChevronRight className="h-5 w-5" />
+                  <ChevronRight className="h-5 w-5 rtl:rotate-180" />
                 </button>
               </>
             )}
@@ -190,7 +196,7 @@ export function OurTeam() {
                       {doc.role === "Director" && (
                         <span className="absolute top-3 left-3 rounded-full bg-primary text-white px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm">
                           <Award className="h-3 w-3" />
-                          <span>Director</span>
+                          <span>{copy.director}</span>
                         </span>
                       )}
 
@@ -209,7 +215,9 @@ export function OurTeam() {
                         return (
                           <span className="absolute bottom-3 left-3 rounded-full bg-black/70 backdrop-blur-md text-white px-2.5 py-0.5 text-[10px] font-semibold flex items-center gap-1 shadow-sm">
                             <Users className="h-3 w-3 text-primary" />
-                            <span>{count.toLocaleString()}+ Patients Treated</span>
+                            <span>
+                              {count.toLocaleString()}+ {copy.patientsTreatedSuffix}
+                            </span>
                           </span>
                         );
                       })()}
@@ -272,7 +280,7 @@ export function OurTeam() {
                       className="w-full justify-center text-xs font-semibold rounded-xl"
                     >
                       <Calendar className="h-3.5 w-3.5 mr-1.5" />
-                      <span>{copy.book} Consultation</span>
+                      <span>{copy.bookConsultation}</span>
                     </Button>
                   </div>
                 </motion.div>

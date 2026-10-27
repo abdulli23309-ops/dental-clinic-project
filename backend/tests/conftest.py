@@ -38,6 +38,36 @@ async def test_session():
 
     session_factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
     async with session_factory() as session:
+        from app.infrastructure.database.orm_models import RoleORM
+        import uuid
+        default_roles = [
+            ("Dentist", "Dentist", "General dental care and oral health", 1),
+            ("Orthodontist", "Orthodontist", "Alignment of teeth and jaws", 2),
+            ("Endodontist", "Endodontist", "Root canals and dental pulp therapy", 3),
+            ("Periodontist", "Periodontist", "Gum diseases and dental implants", 4),
+            ("Prosthodontist", "Prosthodontist", "Restoration and replacement of teeth", 5),
+            ("Pediatric Dentist", "Pediatric Dentist", "Dental care for children and adolescents", 6),
+            ("Oral Surgeon", "Oral Surgeon", "Surgical treatment of oral cavity and jaw", 7),
+            ("Implantologist", "Implantologist", "Dental implants and bone augmentation", 8),
+            ("Cosmetic Dentist", "Cosmetic Dentist", "Aesthetic and smile enhancement", 9),
+            ("Hygienist", "Hygienist", "Preventative cleanings and periodontal hygiene", 10),
+            ("Dental Assistant", "Dental Assistant", "Chairside clinical assisting and sterilization", 11),
+            ("Receptionist", "Receptionist", "Front desk reception and patient coordination", 12),
+            ("Practice Manager", "Practice Manager", "Clinic administration and operations management", 13),
+        ]
+        for name, display_name, description, order in default_roles:
+            session.add(
+                RoleORM(
+                    id=uuid.uuid4(),
+                    name=name,
+                    display_name=display_name,
+                    description=description,
+                    display_order=order,
+                    is_active=True,
+                    is_system=False,
+                )
+            )
+        await session.commit()
         yield session
 
     async with engine.begin() as conn:

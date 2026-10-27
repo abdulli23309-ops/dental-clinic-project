@@ -424,10 +424,10 @@ export function Hero() {
               </span>
               <div className="text-start">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 leading-none mb-1">
-                  Next Available
+                  {copy.nextAvailable}
                 </p>
                 <p className="text-xs font-bold text-gray-950 dark:text-white leading-none whitespace-nowrap">
-                  Today, 2:30 PM
+                  {copy.todayTime}
                 </p>
               </div>
             </div>

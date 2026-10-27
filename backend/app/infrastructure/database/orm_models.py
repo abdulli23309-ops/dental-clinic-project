@@ -21,14 +21,30 @@ class RoleORM(Base):
         default=uuid4,
     )
     name: Mapped[str] = mapped_column(
-        String(100),
+        String(50),
         unique=True,
         nullable=False,
         index=True,
     )
+    display_name: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+    )
     description: Mapped[Optional[str]] = mapped_column(
         Text,
         nullable=True,
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default=true(),
+    )
+    display_order: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default=text("0"),
     )
     is_system: Mapped[bool] = mapped_column(
         Boolean,
@@ -271,6 +287,10 @@ class ClinicORM(Base):
         Text,
         nullable=True,
     )
+    image_url: Mapped[Optional[str]] = mapped_column(
+        String(500),
+        nullable=True,
+    )
     is_primary: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
@@ -355,6 +375,10 @@ class LocationORM(Base):
     )
     hours_info: Mapped[Optional[str]] = mapped_column(
         Text,
+        nullable=True,
+    )
+    image_url: Mapped[Optional[str]] = mapped_column(
+        String(500),
         nullable=True,
     )
     is_primary: Mapped[bool] = mapped_column(
@@ -796,6 +820,10 @@ class TeamMemberORM(Base):
         String(150),
         nullable=False,
     )
+    # Allowed role categories:
+    # Dentist, Orthodontist, Endodontist, Periodontist, Prosthodontist,
+    # Pediatric Dentist, Oral Surgeon, Implantologist, Cosmetic Dentist,
+    # Hygienist, Dental Assistant, Receptionist, Practice Manager
     role: Mapped[str] = mapped_column(
         String(100),
         nullable=False,

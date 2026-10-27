@@ -185,7 +185,7 @@ export function Treatments() {
             <button
               type="button"
               onClick={() => scrollByCard("left")}
-              aria-label="Previous treatments"
+              aria-label={copy.previousTreatments}
               className="absolute left-0 sm:-left-3 top-1/2 -translate-y-1/2 z-20 grid h-10 w-10 sm:h-12 sm:w-12 place-items-center rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 shadow-xl hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-primary transition-all cursor-pointer"
             >
               <ChevronLeft className="h-5 w-5 rtl:rotate-180" />
@@ -195,7 +195,7 @@ export function Treatments() {
             <button
               type="button"
               onClick={() => scrollByCard("right")}
-              aria-label="Next treatments"
+              aria-label={copy.nextTreatments}
               className="absolute right-0 sm:-right-3 top-1/2 -translate-y-1/2 z-20 grid h-10 w-10 sm:h-12 sm:w-12 place-items-center rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 shadow-xl hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-primary transition-all cursor-pointer"
             >
               <ChevronRight className="h-5 w-5 rtl:rotate-180" />
@@ -226,7 +226,7 @@ export function Treatments() {
                         <div className="w-full h-full bg-[#FAF9F5] dark:bg-gray-800/60 flex flex-col items-center justify-center p-4 text-center">
                           <ShieldCheck className="h-8 w-8 text-primary/70 mb-1" />
                           <span className="text-[11px] font-semibold text-gray-600 dark:text-gray-300 capitalize">
-                            {service.category} Care
+                            {service.category} {copy.careSuffix}
                           </span>
                         </div>
                       )}

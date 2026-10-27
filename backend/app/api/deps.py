@@ -19,6 +19,7 @@ from app.application.services.encounter_service import EncounterService
 from app.application.services.medical_alert_service import MedicalAlertService
 from app.application.services.organization_service import OrganizationService
 from app.application.services.reception_service import ReceptionService
+from app.application.services.role_service import RoleService
 from app.application.services.service_service import ServiceService
 from app.application.services.team_service import TeamService
 from app.core.database import get_db_session
@@ -41,6 +42,7 @@ from app.domain.repositories.medical_alert_repo import MedicalAlertRepository
 from app.domain.repositories.message_repo import MessageRepository
 from app.domain.repositories.organization_repo import LocationRepository, OrganizationRepository
 from app.domain.repositories.patient_repo import PatientRepository
+from app.domain.repositories.role_repo import RoleRepository
 from app.domain.repositories.service_repo import ServiceRepository
 from app.domain.repositories.task_repo import TaskRepository
 from app.domain.repositories.team_repo import TeamMemberRepository
@@ -72,6 +74,7 @@ from app.infrastructure.repositories.postgres_organization_repo import (
     PostgresOrganizationRepository,
 )
 from app.infrastructure.repositories.postgres_patient_repo import PostgresPatientRepository
+from app.infrastructure.repositories.postgres_role_repo import PostgresRoleRepository
 from app.infrastructure.repositories.postgres_service_repo import PostgresServiceRepository
 from app.infrastructure.repositories.postgres_task_repo import PostgresTaskRepository
 from app.infrastructure.repositories.postgres_team_repo import PostgresTeamMemberRepository
@@ -291,6 +294,18 @@ def get_team_service(
     org_repo: OrganizationRepository = Depends(get_organization_repository),
 ) -> TeamService:
     return TeamService(team_repo, org_repo)
+
+
+def get_role_repository(
+    session: AsyncSession = Depends(get_db_session),
+) -> RoleRepository:
+    return PostgresRoleRepository(session)
+
+
+def get_role_service(
+    role_repo: RoleRepository = Depends(get_role_repository),
+) -> RoleService:
+    return RoleService(role_repo)
 
 
 def get_service_service(

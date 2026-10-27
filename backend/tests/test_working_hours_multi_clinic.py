@@ -175,3 +175,26 @@ async def test_public_working_hours_multi_clinic_two_blocks(
     data_clinic_a = res_clinic_a.json()
     assert len(data_clinic_a) == 7
     assert all(row["clinicId"] == str(clinic_a_id) for row in data_clinic_a)
+
+
+@pytest.mark.asyncio
+async def test_admin_locations_pagination(
+    client_with_db: AsyncClient, test_session: AsyncSession, admin_auth
+):
+    headers = admin_auth["headers"]
+
+    # Test backward compatibility without pagination params
+    resp_all = await client_with_db.get("/api/v1/admin/locations", headers=headers)
+    assert resp_all.status_code == 200
+    assert isinstance(resp_all.json(), list)
+
+    # Test pagination response with page and limit
+    resp_paged = await client_with_db.get("/api/v1/admin/locations?page=1&limit=20", headers=headers)
+    assert resp_paged.status_code == 200
+    data = resp_paged.json()
+    assert "items" in data
+    assert "total" in data
+    assert data["page"] == 1
+    assert data["limit"] == 20
+    assert isinstance(data["items"], list)
+

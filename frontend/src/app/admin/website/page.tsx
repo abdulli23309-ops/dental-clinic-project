@@ -61,6 +61,10 @@ import {
 } from "@/lib/api";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 
+// Aliases matching user-specified signatures
+const adminCreateGallery = adminCreateGalleryImage;
+const adminDeleteGallery = adminDeleteGalleryImage;
+
 type SectionTab =
   | "general"
   | "homepage"
@@ -530,7 +534,7 @@ export default function AdminWebsitePage() {
     setIsSaving(true);
     setSaveError(null);
     try {
-      await adminCreateGalleryImage(
+      await adminCreateGallery(
         {
           imageUrl: galleryForm.imageUrl.trim(),
           caption: galleryForm.caption.trim() || undefined,
@@ -558,7 +562,7 @@ export default function AdminWebsitePage() {
   const handleDeleteGalleryImage = async (id: string) => {
     if (!accessToken) return;
     try {
-      await adminDeleteGalleryImage(id, accessToken);
+      await adminDeleteGallery(id, accessToken);
       const updated = await adminGetGallery(accessToken);
       setGalleryImages(updated);
       setSaveSuccess("Gallery image deleted successfully.");
@@ -609,6 +613,7 @@ export default function AdminWebsitePage() {
         {[
           { id: "general", label: "General & Branding", icon: Globe },
           { id: "homepage", label: "Homepage Hero", icon: Layers },
+          { id: "gallery", label: "Gallery", icon: ImageIcon },
           { id: "about", label: "About Story", icon: Info },
           { id: "contact", label: "Contact & Hours", icon: Phone },
           { id: "faq", label: "FAQ Items", icon: HelpCircle },
@@ -616,7 +621,6 @@ export default function AdminWebsitePage() {
           { id: "success-stories", label: "Success Stories", icon: Check },
           { id: "blogs", label: "Blogs", icon: Layers },
           { id: "social-links", label: "Social Links", icon: Globe },
-          { id: "gallery", label: "Gallery", icon: ImageIcon },
         ].map((tab) => {
           const isActive = activeTab === tab.id;
           const Icon = tab.icon;
@@ -624,6 +628,8 @@ export default function AdminWebsitePage() {
             <button
               key={tab.id}
               role="tab"
+              id={`tab-${tab.id}`}
+              data-tab={tab.id}
               aria-selected={isActive}
               onClick={() => setActiveTab(tab.id as SectionTab)}
               className={`relative inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-medium transition-all cursor-pointer select-none ${
@@ -1584,21 +1590,18 @@ export default function AdminWebsitePage() {
                 <form onSubmit={handleAddGalleryImage} className="space-y-6">
                   {/* File Upload Field */}
                   <div className="space-y-2">
-                    <label className="block text-xs font-medium text-ink">
+                    <label htmlFor="gallery-file-input" className="block text-xs font-medium text-ink">
                       Clinic Photo <span className="text-red-500">*</span>
                     </label>
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                      <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-line bg-sand/40 hover:bg-sand/70 text-xs font-medium text-ink transition-colors">
-                        <Upload className="h-4 w-4" />
-                        <span>{isUploadingGallery ? "Uploading..." : "Choose Photo File"}</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handleUploadGalleryImage}
-                          disabled={isUploadingGallery || isSaving}
-                        />
-                      </label>
+                      <input
+                        id="gallery-file-input"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleUploadGalleryImage}
+                        disabled={isUploadingGallery || isSaving}
+                        className="block w-full sm:w-auto text-xs text-ink file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-sand/60 hover:file:bg-sand file:text-ink cursor-pointer border border-line rounded-lg"
+                      />
                       {galleryForm.imageUrl && (
                         <div className="flex items-center gap-3">
                           <img
@@ -1614,10 +1617,10 @@ export default function AdminWebsitePage() {
                     </div>
                   </div>
 
-                  {/* Caption Input */}
+                  {/* Caption/Description Input */}
                   <TextField
                     id="gallery-caption"
-                    label="Optional Caption / Title"
+                    label="Caption / Description"
                     value={galleryForm.caption}
                     onChange={(e) => setGalleryForm({ ...galleryForm, caption: e.target.value })}
                     placeholder="e.g. Sterile Surgical Suite or Consultation Lounge"

@@ -5,8 +5,10 @@ import Image from "next/image";
 import { motion } from "motion/react";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { GalleryImageItem, publicGetGallery, resolveMediaUrl } from "@/lib/api";
+import { usePublicContent } from "@/components/providers/public-content-provider";
 
 export function Gallery() {
+  const { copy, locale } = usePublicContent();
   const [photos, setPhotos] = useState<GalleryImageItem[]>([]);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -35,6 +37,15 @@ export function Gallery() {
     };
   }, []);
 
+  // Helper to translate caption if available in ui-copy, or fallback to custom admin text
+  const getLocalizedCaption = (caption?: string | null) => {
+    if (!caption) return "";
+    if (locale === "ur" && copy.galleryCaptions && copy.galleryCaptions[caption]) {
+      return copy.galleryCaptions[caption];
+    }
+    return caption;
+  };
+
   // If there are no images once loaded, hide the entire section (return null)
   if (hasLoaded && photos.length === 0) {
     return null;
@@ -58,11 +69,11 @@ export function Gallery() {
         {/* Section Heading */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <SectionHeading
-            eyebrow="Clinical Atmosphere"
-            title="Inside Our Modern Clinic"
+            eyebrow={copy.galleryEyebrow}
+            title={copy.galleryTitle}
           />
           <p className="max-w-md text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-            Step into our serene, sterile clinical suites engineered for maximum comfort, hospital-grade hygiene, and precision dental artistry.
+            {copy.galleryDesc}
           </p>
         </div>
 
@@ -79,7 +90,7 @@ export function Gallery() {
             >
               <Image
                 src={resolveMediaUrl(firstPhoto.imageUrl) || firstPhoto.imageUrl}
-                alt={firstPhoto.caption || "Inside Our Clinic"}
+                alt={getLocalizedCaption(firstPhoto.caption) || copy.insideOurClinic}
                 fill
                 unoptimized
                 sizes="100vw"
@@ -90,10 +101,10 @@ export function Gallery() {
                 <div className="absolute bottom-6 left-6 right-6 flex items-center justify-between text-white">
                   <div>
                     <span className="text-[10px] font-bold uppercase tracking-wider bg-white/20 backdrop-blur-md px-2.5 py-1 rounded-full mb-2 inline-block">
-                      Clinical Suite
+                      {copy.clinicalSuite}
                     </span>
                     <h3 className="font-display text-lg sm:text-xl font-bold leading-tight">
-                      {firstPhoto.caption}
+                      {getLocalizedCaption(firstPhoto.caption)}
                     </h3>
                   </div>
                 </div>
@@ -116,7 +127,7 @@ export function Gallery() {
               >
                 <Image
                   src={resolveMediaUrl(firstPhoto.imageUrl) || firstPhoto.imageUrl}
-                  alt={firstPhoto.caption || "Inside Our Clinic"}
+                  alt={getLocalizedCaption(firstPhoto.caption) || copy.insideOurClinic}
                   fill
                   unoptimized
                   sizes="(max-width: 768px) 100vw, 60vw"
@@ -126,11 +137,11 @@ export function Gallery() {
                 <div className="absolute bottom-6 left-6 right-6 flex items-center justify-between text-white">
                   <div>
                     <span className="text-[10px] font-bold uppercase tracking-wider bg-white/20 backdrop-blur-md px-2.5 py-1 rounded-full mb-2 inline-block">
-                      Clinical Suite
+                      {copy.clinicalSuite}
                     </span>
                     {firstPhoto.caption && (
                       <h3 className="font-display text-lg sm:text-xl font-bold leading-tight">
-                        {firstPhoto.caption}
+                        {getLocalizedCaption(firstPhoto.caption)}
                       </h3>
                     )}
                   </div>
@@ -156,7 +167,7 @@ export function Gallery() {
                     >
                       <Image
                         src={resolveMediaUrl(photo.imageUrl) || photo.imageUrl}
-                        alt={photo.caption || "Inside Our Clinic"}
+                        alt={getLocalizedCaption(photo.caption) || copy.insideOurClinic}
                         fill
                         unoptimized
                         sizes="(max-width: 768px) 100vw, 40vw"
@@ -166,11 +177,11 @@ export function Gallery() {
                       <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-white">
                         <div>
                           <span className="text-[9px] font-bold uppercase tracking-wider bg-white/20 backdrop-blur-md px-2 py-0.5 rounded-full mb-1 inline-block">
-                            Clinic Atmosphere
+                            {copy.clinicAtmosphere}
                           </span>
                           {photo.caption && (
                             <h4 className="font-display text-sm font-semibold leading-tight">
-                              {photo.caption}
+                              {getLocalizedCaption(photo.caption)}
                             </h4>
                           )}
                         </div>
@@ -196,7 +207,7 @@ export function Gallery() {
                   >
                     <Image
                       src={resolveMediaUrl(photo.imageUrl) || photo.imageUrl}
-                      alt={photo.caption || "Inside Our Clinic"}
+                      alt={getLocalizedCaption(photo.caption) || copy.insideOurClinic}
                       fill
                       unoptimized
                       sizes="(max-width: 768px) 100vw, 33vw"
@@ -207,7 +218,7 @@ export function Gallery() {
                       <div>
                         {photo.caption && (
                           <h4 className="font-display text-sm font-semibold leading-tight">
-                            {photo.caption}
+                            {getLocalizedCaption(photo.caption)}
                           </h4>
                         )}
                       </div>
@@ -232,13 +243,13 @@ export function Gallery() {
             type="button"
             onClick={() => setSelectedImage(null)}
             className="absolute top-6 right-6 text-white text-xl font-bold bg-white/10 hover:bg-white/25 rounded-full h-11 w-11 flex items-center justify-center transition-colors cursor-pointer z-10"
-            aria-label="Close image preview"
+            aria-label={copy.closeImagePreview}
           >
             ✕
           </button>
           <img
             src={selectedImage}
-            alt="Expanded clinic view"
+            alt={copy.expandedClinicView}
             className="max-w-[92vw] max-h-[88vh] object-contain rounded-2xl shadow-2xl"
           />
         </div>

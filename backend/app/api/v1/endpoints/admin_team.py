@@ -1,28 +1,34 @@
-from typing import List
+from typing import List, Optional, Union
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
-from app.api.deps import get_team_service, require_admin
+from app.api.deps import get_role_service, get_team_service, require_admin
 from app.application.dtos.team_dto import (
+    PaginatedTeamResponse,
     ReorderRequest,
     TeamMemberCreateRequest,
     TeamMemberResponse,
     TeamMemberStatusRequest,
     TeamMemberUpdateRequest,
 )
+from app.application.services.role_service import RoleService
 from app.application.services.team_service import TeamService
+from fastapi import HTTPException
 
 router = APIRouter(prefix="/admin/team", tags=["Admin Team"], dependencies=[Depends(require_admin)])
 
 
-@router.get("", response_model=List[TeamMemberResponse])
+@router.get("", response_model=Union[PaginatedTeamResponse, List[TeamMemberResponse]])
 async def list_all_team_members(
+    page: Optional[int] = Query(None, ge=1, description="Page number starting at 1"),
+    limit: Optional[int] = Query(None, ge=1, le=100, description="Items per page"),
+    search: Optional[str] = Query(None, description="Search filter by name, title, or role"),
     team_service: TeamService = Depends(get_team_service),
-) -> List[TeamMemberResponse]:
-    """Lists all team members including inactive ones."""
+) -> Union[PaginatedTeamResponse, List[TeamMemberResponse]]:
+    """Lists all team members including inactive ones with optional pagination."""
     members = await team_service.list_members(include_inactive=True)
-    return [
+    all_responses = [
         TeamMemberResponse(
             id=m.id,
             organizationId=m.organization_id,
@@ -48,14 +54,39 @@ async def list_all_team_members(
         )
         for m in members
     ]
+    if search:
+        q = search.strip().lower()
+        all_responses = [
+            m for m in all_responses
+            if q in m.displayName.lower()
+            or q in f"{m.firstName} {m.lastName}".lower()
+            or q in m.professionalTitle.lower()
+            or q in m.role.lower()
+        ]
+
+    if page is not None or limit is not None:
+        p = page or 1
+        l = limit or 20
+        total = len(all_responses)
+        start = (p - 1) * l
+        items = all_responses[start : start + l]
+        return PaginatedTeamResponse(items=items, total=total, page=p, limit=l)
+
+    return all_responses
 
 
 @router.post("", response_model=TeamMemberResponse, status_code=status.HTTP_201_CREATED)
 async def create_team_member(
     req: TeamMemberCreateRequest,
     team_service: TeamService = Depends(get_team_service),
+    role_service: RoleService = Depends(get_role_service),
 ) -> TeamMemberResponse:
     """Adds a new clinical or administrative team member."""
+    if not await role_service.validate_role_active(req.role):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Role '{req.role}' is not a valid active role.",
+        )
     m = await team_service.create_member(req)
     return TeamMemberResponse(
         id=m.id,
@@ -119,8 +150,15 @@ async def update_team_member(
     member_id: UUID,
     req: TeamMemberUpdateRequest,
     team_service: TeamService = Depends(get_team_service),
+    role_service: RoleService = Depends(get_role_service),
 ) -> TeamMemberResponse:
     """Updates team member information."""
+    if req.role is not None:
+        if not await role_service.validate_role_active(req.role):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Role '{req.role}' is not a valid active role.",
+            )
     m = await team_service.update_member(member_id, req)
     return TeamMemberResponse(
         id=m.id,

@@ -128,6 +128,7 @@ class PostgresLocationRepository(LocationRepository):
             phone=orm.phone,
             email=orm.email,
             hours_info=orm.hours_info,
+            image_url=orm.image_url,
             is_primary=orm.is_primary,
             is_active=orm.is_active,
             display_order=orm.display_order,
@@ -161,6 +162,7 @@ class PostgresLocationRepository(LocationRepository):
             existing.phone = location.phone
             existing.email = location.email
             existing.hours_info = location.hours_info
+            existing.image_url = location.image_url
             existing.is_primary = location.is_primary
             existing.is_active = location.is_active
             existing.display_order = location.display_order
@@ -181,6 +183,7 @@ class PostgresLocationRepository(LocationRepository):
                 phone=location.phone,
                 email=location.email,
                 hours_info=location.hours_info,
+                image_url=location.image_url,
                 is_primary=location.is_primary,
                 is_active=location.is_active,
                 display_order=location.display_order,

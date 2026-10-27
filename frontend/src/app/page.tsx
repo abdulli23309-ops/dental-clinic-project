@@ -1,6 +1,7 @@
 'use client';
 
 import SiteHeader from '@/components/layout/site-header';
+import { AnnouncementMarquee } from '@/components/ui/announcement-marquee';
 import Hero from '@/components/sections/hero';
 import WhyChooseUs from '@/components/sections/why-choose-us';
 import Treatments from '@/components/sections/treatments';
@@ -26,6 +27,7 @@ export default function Home() {
     <AnimatedPage>
       <>
         <ScrollProgress />
+        <AnnouncementMarquee />
         <SiteHeader />
         <main id="main-content" className="bg-white dark:bg-gray-950 min-h-[60vh]">
           {isUnavailable ? (

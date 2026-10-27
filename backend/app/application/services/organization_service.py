@@ -106,6 +106,7 @@ class OrganizationService:
             phone=req.phone.strip() if req.phone else None,
             email=req.email.strip() if req.email else None,
             hours_info=req.hoursInfo.strip() if req.hoursInfo else None,
+            image_url=req.imageUrl.strip() if req.imageUrl else None,
             is_primary=req.isPrimary,
             is_active=req.isActive,
             display_order=req.displayOrder,
@@ -135,6 +136,8 @@ class OrganizationService:
             loc.email = req.email.strip() or None
         if req.hoursInfo is not None:
             loc.hours_info = req.hoursInfo.strip() or None
+        if req.imageUrl is not None:
+            loc.image_url = req.imageUrl.strip() or None
         if req.isPrimary is not None:
             loc.is_primary = req.isPrimary
         if req.isActive is not None:

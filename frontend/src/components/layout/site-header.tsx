@@ -8,7 +8,6 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { SearchDialog } from "@/components/ui/search-dialog";
 import { MobileMenu } from "@/components/layout/mobile-menu";
 import { usePublicContent } from "@/components/providers/public-content-provider";
-import { AnnouncementMarquee } from "@/components/ui/announcement-marquee";
 import { getServices, ServiceItem, resolveMediaUrl } from "@/lib/api";
 
 export interface SiteHeaderProps {
@@ -104,8 +103,6 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
       <a href="#main-content" className="skip-to-content">
         Skip to main content
       </a>
-
-      {!isMinimal && !isUnavailable && <AnnouncementMarquee />}
 
       <header
         className={`sticky top-0 z-50 border-b transition-all duration-300 ${

@@ -65,6 +65,18 @@ export interface TeamMember {
   updatedAt?: string;
 }
 
+export interface RoleItem {
+  id: string;
+  name: string;
+  displayName: string;
+  description?: string | null;
+  displayOrder: number;
+  isActive: boolean;
+  isSystem?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface FaqItem {
   id: string;
   category: "insurance" | "pricing" | "comfort" | "scheduling";
@@ -184,6 +196,7 @@ export interface LocationItem {
   phone?: string | null;
   email?: string | null;
   hoursInfo?: string | null;
+  imageUrl?: string | null;
   isPrimary: boolean;
   isActive: boolean;
   displayOrder: number;
@@ -1071,11 +1084,44 @@ export async function adminReorderFaqs(orderedIds: string[], token?: string) {
   return res.json();
 }
 
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 // Team
 export async function adminGetTeam(token?: string): Promise<TeamMember[]> {
   const res = await authorizedFetch(`/api/v1/admin/team`, {}, token);
   if (!res.ok) throw new Error("Failed to load team members.");
-  return res.json();
+  const data = await res.json();
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.items)) return data.items;
+  return [];
+}
+
+export async function adminGetPaginatedTeam(
+  page: number = 1,
+  limit: number = 20,
+  token?: string | null,
+  search?: string
+): Promise<PaginatedResult<TeamMember>> {
+  const q = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (search && search.trim()) q.append("search", search.trim());
+  const res = await authorizedFetch(`/api/v1/admin/team?${q.toString()}`, {}, token);
+  if (!res.ok) throw new Error("Failed to load team members.");
+  const data = await res.json();
+  if (data && Array.isArray(data.items)) return data as PaginatedResult<TeamMember>;
+  if (Array.isArray(data)) {
+    return {
+      items: data.slice((page - 1) * limit, page * limit),
+      total: data.length,
+      page,
+      limit,
+    };
+  }
+  return { items: [], total: 0, page, limit };
 }
 
 export async function adminCreateTeamMember(data: Record<string, unknown>, token?: string) {
@@ -1120,6 +1166,80 @@ export async function adminToggleTeamMemberStatus(id: string, isActive: boolean,
     token
   );
   if (!res.ok) throw new Error("Failed to update team member status.");
+  return res.json();
+}
+
+// Roles
+export async function adminGetRoles(token?: string): Promise<RoleItem[]> {
+  const res = await authorizedFetch(`/api/v1/admin/roles`, {}, token);
+  if (!res.ok) throw new Error("Failed to load roles.");
+  return res.json();
+}
+
+export async function adminCreateRole(
+  data: {
+    name: string;
+    displayName?: string | null;
+    description?: string | null;
+    displayOrder?: number;
+    isActive?: boolean;
+  },
+  token?: string
+): Promise<RoleItem> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/roles`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to create role.");
+  }
+  return res.json();
+}
+
+export async function adminUpdateRole(
+  id: string,
+  data: Partial<RoleItem>,
+  token?: string
+): Promise<RoleItem> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/roles/${id}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update role.");
+  }
+  return res.json();
+}
+
+export async function adminDeleteRole(id: string, token?: string): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/roles/${id}`,
+    {
+      method: "DELETE",
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to delete role.");
+  }
+}
+
+export async function publicGetRoles(): Promise<RoleItem[]> {
+  const res = await fetch(`${API_BASE}/api/v1/public/roles`, {
+    headers: { Accept: "application/json" },
+  });
+  if (!res.ok) throw new Error("Failed to fetch public roles.");
   return res.json();
 }
 
@@ -1313,7 +1433,33 @@ export async function adminUpdateOrganization(data: Partial<Organization>, token
 export async function adminGetLocations(token?: string | null): Promise<LocationItem[]> {
   const res = await authorizedFetch(`/api/v1/admin/locations`, {}, token);
   if (!res.ok) throw new Error("Failed to load locations.");
-  return res.json();
+  const data = await res.json();
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.items)) return data.items;
+  return [];
+}
+
+export async function adminGetPaginatedLocations(
+  page: number = 1,
+  limit: number = 20,
+  token?: string | null,
+  search?: string
+): Promise<PaginatedResult<LocationItem>> {
+  const q = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (search && search.trim()) q.append("search", search.trim());
+  const res = await authorizedFetch(`/api/v1/admin/locations?${q.toString()}`, {}, token);
+  if (!res.ok) throw new Error("Failed to load locations.");
+  const data = await res.json();
+  if (data && Array.isArray(data.items)) return data as PaginatedResult<LocationItem>;
+  if (Array.isArray(data)) {
+    return {
+      items: data.slice((page - 1) * limit, page * limit),
+      total: data.length,
+      page,
+      limit,
+    };
+  }
+  return { items: [], total: 0, page, limit };
 }
 
 export async function adminCreateLocation(data: {
@@ -1327,6 +1473,7 @@ export async function adminCreateLocation(data: {
   phone?: string | null;
   email?: string | null;
   hoursInfo?: string | null;
+  imageUrl?: string | null;
   isPrimary?: boolean;
   displayOrder?: number;
 }, token?: string | null): Promise<LocationItem> {
@@ -1356,6 +1503,7 @@ export async function adminUpdateLocation(id: string, data: {
   phone?: string | null;
   email?: string | null;
   hoursInfo?: string | null;
+  imageUrl?: string | null;
   isPrimary?: boolean;
   displayOrder?: number;
 }, token?: string | null): Promise<LocationItem> {

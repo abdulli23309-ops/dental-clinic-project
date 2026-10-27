@@ -90,3 +90,21 @@ async def test_admin_team_lifecycle(client_with_db: AsyncClient, test_session: A
     # 9. Public endpoint shows reactivated member again
     public_after_react = await client_with_db.get("/api/v1/public/team")
     assert any(m["id"] == member_id for m in public_after_react.json())
+
+    # 10. Admin list with pagination params returns PaginatedTeamResponse
+    paged_resp = await client_with_db.get("/api/v1/admin/team?page=1&limit=20", headers=headers)
+    assert paged_resp.status_code == 200
+    paged_data = paged_resp.json()
+    assert "items" in paged_data
+    assert "total" in paged_data
+    assert paged_data["page"] == 1
+    assert paged_data["limit"] == 20
+    assert any(m["id"] == member_id for m in paged_data["items"])
+
+    # 11. Admin list with search filtering
+    search_resp = await client_with_db.get("/api/v1/admin/team?page=1&limit=20&search=Marcus", headers=headers)
+    assert search_resp.status_code == 200
+    search_data = search_resp.json()
+    assert len(search_data["items"]) >= 1
+    assert search_data["items"][0]["firstName"] == "Marcus"
+

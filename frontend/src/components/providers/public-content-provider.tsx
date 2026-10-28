@@ -102,10 +102,24 @@ interface PublicContentContextType {
 
 const PublicContentContext = createContext<PublicContentContextType | undefined>(undefined);
 
-export function PublicContentProvider({ children }: { children: React.ReactNode }) {
-  const [status, setStatus] = useState<PublicContentStatus>('loading');
-  const [content, setContent] = useState<SiteContent>(EMPTY_SITE_CONTENT);
-  const [organization, setOrganization] = useState<Organization | null>(null);
+export interface PublicContentProviderProps {
+  children: React.ReactNode;
+  initialContent?: SiteContent | null;
+  initialOrganization?: Organization | null;
+  initialError?: boolean;
+}
+
+export function PublicContentProvider({
+  children,
+  initialContent,
+  initialOrganization,
+  initialError = false,
+}: PublicContentProviderProps) {
+  const [status, setStatus] = useState<PublicContentStatus>(
+    initialError ? 'unavailable' : initialContent ? 'ready' : 'loading'
+  );
+  const [content, setContent] = useState<SiteContent>(initialContent || EMPTY_SITE_CONTENT);
+  const [organization, setOrganization] = useState<Organization | null>(initialOrganization || null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [locations, setLocations] = useState<LocationItem[]>([]);
   const [workingHours, setWorkingHours] = useState<WorkingHoursItem[]>([]);
@@ -144,7 +158,10 @@ export function PublicContentProvider({ children }: { children: React.ReactNode 
   const copy = getUiCopy(locale);
 
   const loadData = async () => {
-    setStatus('loading');
+    // Only set loading if we don't already have initial content
+    if (!initialContent) {
+      setStatus('loading');
+    }
     try {
       const results = await Promise.allSettled([
         getSiteContent(),
@@ -166,14 +183,16 @@ export function PublicContentProvider({ children }: { children: React.ReactNode 
 
       // If backend is unreachable or core endpoints failed
       if (!contentData && !orgData && locationsData.length === 0 && teamData.length === 0) {
-        setStatus('unavailable');
-        setContent({ ...EMPTY_SITE_CONTENT, status: 'unavailable' });
+        if (!initialContent) {
+          setStatus('unavailable');
+          setContent({ ...EMPTY_SITE_CONTENT, status: 'unavailable' });
+        }
         return;
       }
 
       if (contentData) {
         setContent({ ...contentData, status: contentData.status || 'ready' });
-      } else {
+      } else if (!initialContent) {
         setContent({ ...EMPTY_SITE_CONTENT, status: 'ready' });
       }
 
@@ -185,8 +204,10 @@ export function PublicContentProvider({ children }: { children: React.ReactNode 
 
       setStatus(contentData?.status || 'ready');
     } catch {
-      setStatus('unavailable');
-      setContent({ ...EMPTY_SITE_CONTENT, status: 'unavailable' });
+      if (!initialContent) {
+        setStatus('unavailable');
+        setContent({ ...EMPTY_SITE_CONTENT, status: 'unavailable' });
+      }
     }
   };
 

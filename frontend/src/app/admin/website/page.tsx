@@ -246,6 +246,11 @@ export default function AdminWebsitePage() {
 
     try {
       await adminUpdateCmsSection(sectionKey, payload, accessToken);
+      // Revalidate server-rendered public cache
+      fetch('/api/revalidate', {
+        method: 'POST',
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+      }).catch(() => {});
       // Trigger client provider re-fetch and broadcast to other open tabs
       await refreshPublicContent();
 

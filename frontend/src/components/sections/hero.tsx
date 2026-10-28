@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import {
   motion,
   useReducedMotion,
@@ -14,16 +12,13 @@ import {
   ArrowRight,
   Phone,
   CheckCircle2,
-  Star,
-  ChevronLeft,
-  ChevronRight,
   Sparkles,
   ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
 import { usePublicContent } from "@/components/providers/public-content-provider";
-import { getPublicReviews, getServices, Review, ServiceItem, resolveMediaUrl } from "@/lib/api";
+import { resolveMediaUrl } from "@/lib/api";
 
 function renderTwoToneHeadline(heading: string, highlightWord?: string) {
   if (highlightWord && highlightWord.trim()) {
@@ -98,9 +93,6 @@ export function Hero() {
   };
 
   const { content, primaryLocation, organization, copy, locale, isLoading } = usePublicContent();
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [currentReviewIdx, setCurrentReviewIdx] = useState(0);
-  const [services, setServices] = useState<ServiceItem[]>([]);
 
   const isUrdu = locale === "ur";
   const practiceName =
@@ -122,30 +114,6 @@ export function Hero() {
   const startingFee = content.homepage?.startingFee?.trim() || "";
   const heroSealText = ((content.homepage as any)?.heroSealText || "").trim();
 
-  // Load reviews and active services for testimonial card & pills
-  useEffect(() => {
-    let mounted = true;
-    getPublicReviews()
-      .then((data) => {
-        if (mounted && Array.isArray(data)) {
-          setReviews(data.filter((r) => r.isPublished !== false));
-        }
-      })
-      .catch(() => {});
-
-    getServices()
-      .then((data) => {
-        if (mounted && Array.isArray(data)) {
-          setServices(data.filter((s) => s.isActive !== false).slice(0, 5));
-        }
-      })
-      .catch(() => {});
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
   // Section with no data is not rendered once loading is complete
   if (!isLoading && !heading && !description) {
     return null;
@@ -155,35 +123,18 @@ export function Hero() {
     ? content.homepage.heroBadges
     : content.homepage?.heroTicks?.map((t) => t.label) || [];
 
-  const currentReview = reviews.length > 0 ? reviews[currentReviewIdx] : null;
-
-  const nextReview = () => {
-    if (reviews.length > 1) {
-      setCurrentReviewIdx((prev) => (prev + 1) % reviews.length);
-    }
-  };
-
-  const prevReview = () => {
-    if (reviews.length > 1) {
-      setCurrentReviewIdx((prev) => (prev - 1 + reviews.length) % reviews.length);
-    }
-  };
-
   return (
     <section className="relative overflow-hidden pt-12 pb-20 md:pt-16 md:pb-28 lg:pt-20 lg:pb-32 bg-[radial-gradient(ellipse_75%_50%_at_50%_-5%,rgba(var(--color-primary-rgb,16,125,82),0.08),transparent)] dark:bg-[radial-gradient(ellipse_75%_50%_at_50%_-5%,rgba(var(--color-primary-rgb,16,125,82),0.14),transparent)]">
       <div className="container-x">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
           {/* Left Column: Two-Tone Copy, Badges, CTAs, Trust Ticks */}
-          <div className="lg:col-span-7 space-y-6 text-start min-h-[380px] sm:min-h-[360px] lg:min-h-0">
+          <div className="lg:col-span-7 space-y-6 text-start">
             {/* Practice / Eyebrow Badge */}
             {(eyebrow || practiceName) ? (
-              <motion.div
-                initial={{ opacity: 1, y: 0 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.35 }}
+              <div
                 className="inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 px-3.5 py-1 text-xs text-gray-700 dark:text-gray-300 backdrop-blur-md shadow-xs"
               >
-                <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                <span className="h-2 w-2 rounded-full bg-primary" />
                 {eyebrow && (
                   <span className="font-semibold text-primary uppercase tracking-wider text-[11px]">
                     {eyebrow}
@@ -193,52 +144,29 @@ export function Hero() {
                   <span className="text-gray-300 dark:text-gray-700">|</span>
                 )}
                 {practiceName && <span className="font-medium">{practiceName}</span>}
-              </motion.div>
-            ) : isLoading ? (
-              <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 px-3.5 py-1 text-xs backdrop-blur-md shadow-xs animate-pulse" aria-hidden="true">
-                <span className="h-2 w-2 rounded-full bg-primary" />
-                <span className="h-3 w-32 rounded bg-gray-200 dark:bg-gray-700" />
               </div>
             ) : null}
 
             {/* Two-Tone Headline */}
             {heading ? (
-              <motion.h1
-                initial={{ opacity: 1, y: 0 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.45, delay: 0.05 }}
+              <h1
                 className="font-display text-4xl sm:text-5xl lg:text-6xl tracking-tight text-gray-950 dark:text-white leading-[1.12] font-bold"
               >
                 {renderTwoToneHeadline(heading, highlightWord)}
-              </motion.h1>
-            ) : isLoading ? (
-              <div className="py-1" aria-hidden="true">
-                <div className="h-10 sm:h-12 lg:h-14 w-4/5 rounded-lg bg-gray-200 dark:bg-gray-800 animate-pulse" />
-              </div>
+              </h1>
             ) : null}
 
             {/* Sub-headline description */}
             {description ? (
-              <motion.p
-                initial={{ opacity: 1, y: 0 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.45, delay: 0.12 }}
+              <p
                 className="max-w-xl text-base sm:text-lg leading-relaxed text-gray-600 dark:text-gray-300"
               >
                 {description}
-              </motion.p>
-            ) : isLoading ? (
-              <div className="space-y-2 py-1 max-w-xl" aria-hidden="true">
-                <div className="h-4 sm:h-5 w-full rounded bg-gray-200 dark:bg-gray-800 animate-pulse" />
-                <div className="h-4 sm:h-5 w-2/3 rounded bg-gray-200 dark:bg-gray-800 animate-pulse" />
-              </div>
+              </p>
             ) : null}
 
             {/* CTAs and Starting Fee Badge */}
-            <motion.div
-              initial={{ opacity: 1, y: 0 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45, delay: 0.2 }}
+            <div
               className="pt-2 flex flex-wrap items-center gap-3.5 justify-start min-h-[48px]"
             >
               <Button
@@ -266,8 +194,6 @@ export function Hero() {
                   </Button>
                   <CopyButton text={phone} label={copy.copyPhone} className="h-10 px-2.5 rounded-full" />
                 </div>
-              ) : isLoading ? (
-                <div className="h-11 w-36 rounded-full bg-gray-200 dark:bg-gray-800 animate-pulse" aria-hidden="true" />
               ) : null}
 
               {startingFee && (
@@ -278,39 +204,13 @@ export function Hero() {
                   </span>
                 </div>
               )}
-            </motion.div>
-
-            {/* Active Service Pills / Skeleton */}
-            <div className="pt-2 min-h-[36px] flex flex-wrap items-center gap-2" aria-label={copy.popular}>
-              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mr-1 rtl:ml-1 rtl:mr-0">
-                {copy.popular}
-              </span>
-              {services.length > 0 ? (
-                services.map((svc) => (
-                  <Link
-                    key={svc.id}
-                    href="/#treatments"
-                    className="rounded-full border border-gray-200 dark:border-gray-800 bg-gray-50/80 dark:bg-gray-900/80 px-3 py-1 text-xs text-gray-700 dark:text-gray-300 hover:border-primary/50 hover:text-primary transition-colors"
-                  >
-                    {svc.title}
-                  </Link>
-                ))
-              ) : (
-                <div className="flex flex-wrap items-center gap-2" aria-hidden="true">
-                  <div className="h-6 w-24 rounded-full bg-gray-200 dark:bg-gray-800 animate-pulse" />
-                  <div className="h-6 w-32 rounded-full bg-gray-200 dark:bg-gray-800 animate-pulse" />
-                  <div className="h-6 w-28 rounded-full bg-gray-200 dark:bg-gray-800 animate-pulse" />
-                </div>
-              )}
             </div>
+
 
             {/* Trust Ticks */}
             {heroTicks.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.45, delay: 0.35 }}
-                className="pt-6 border-t border-gray-200/80 dark:border-gray-800/80 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-gray-600 dark:text-gray-300 min-h-[49px]"
+              <div
+                className="pt-6 border-t border-gray-200/80 dark:border-gray-800/80 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-gray-600 dark:text-gray-300"
               >
                 {heroTicks.map((tick, idx) => (
                   <div key={idx} className="flex items-center gap-2">
@@ -318,7 +218,7 @@ export function Hero() {
                     <span>{tick}</span>
                   </div>
                 ))}
-              </motion.div>
+              </div>
             )}
           </div>
 
@@ -344,9 +244,11 @@ export function Hero() {
                 }
                 alt="Modern state-of-the-art clinic treatment suite"
                 priority={true}
+                fetchPriority="high"
+                quality={70}
                 width={420}
                 height={525}
-                sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 420px"
+                sizes="(max-width: 640px) 380px, (max-width: 1024px) 50vw, 420px"
                 className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent pointer-events-none" />

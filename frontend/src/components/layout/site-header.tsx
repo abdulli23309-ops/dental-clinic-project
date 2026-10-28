@@ -126,6 +126,8 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
                 alt=""
                 onError={() => setLogoError(true)}
                 className="h-9 sm:h-10 w-auto object-contain dark:brightness-0 dark:invert shrink-0"
+                width="40"
+                height="40"
               />
             ) : (
               <span className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-full bg-primary text-white shadow-subtle group-hover:brightness-90 transition-all shrink-0">

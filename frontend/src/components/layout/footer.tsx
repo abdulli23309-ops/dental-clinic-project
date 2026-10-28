@@ -197,6 +197,8 @@ export function Footer() {
                     alt={practiceName || "Clinic Logo"}
                     onError={() => setLogoError(true)}
                     className="h-10 w-auto object-contain dark:brightness-0 dark:invert"
+                    width="40"
+                    height="40"
                   />
                 ) : (
                   <span className="grid h-10 w-10 place-items-center rounded-full bg-primary text-white shadow-xs shrink-0">

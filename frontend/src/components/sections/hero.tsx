@@ -97,36 +97,29 @@ export function Hero() {
     mouseY.set(0);
   };
 
-const DEFAULT_HERO_SERVICES: ServiceItem[] = [
-  { id: "1", title: "Cleanings & Comprehensive Exam", category: "preventive", shortDesc: "", fullDesc: "", duration: "45 min", cashPrice: "Rs. 2,000", insuranceNote: "", isActive: true },
-  { id: "2", title: "Tooth-Colored Fillings & Crowns", category: "restorative", shortDesc: "", fullDesc: "", duration: "60 min", cashPrice: "Rs. 4,500", insuranceNote: "", isActive: true },
-  { id: "3", title: "Gentle Endodontics (Root Canals)", category: "restorative", shortDesc: "", fullDesc: "", duration: "60 min", cashPrice: "Rs. 8,000", insuranceNote: "", isActive: true },
-  { id: "4", title: "Invisalign Clear Aligners", category: "cosmetic", shortDesc: "", fullDesc: "", duration: "30 min", cashPrice: "Rs. 150,000", insuranceNote: "", isActive: true },
-  { id: "5", title: "Professional Enamel Whitening", category: "cosmetic", shortDesc: "", fullDesc: "", duration: "45 min", cashPrice: "Rs. 12,000", insuranceNote: "", isActive: true },
-];
-
-  const { content, primaryLocation, organization, copy, locale } = usePublicContent();
+  const { content, primaryLocation, organization, copy, locale, isLoading } = usePublicContent();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [currentReviewIdx, setCurrentReviewIdx] = useState(0);
-  const [services, setServices] = useState<ServiceItem[]>(DEFAULT_HERO_SERVICES);
+  const [services, setServices] = useState<ServiceItem[]>([]);
 
   const isUrdu = locale === "ur";
-  const defaultHeading = copy.heroHeadingUr || "Not all heroes wear capes. Some wear gloves.";
-  const defaultDescription =
-    copy.heroDescriptionUr ||
-    "We fix problems. You keep smiling. From routine checkups to complex root canals, trust our expert team in Islamabad for a fresh, confident smile.";
+  const practiceName =
+    content.general?.practiceName ||
+    organization?.displayName ||
+    organization?.name ||
+    "";
+  const phone = content.general?.phone || primaryLocation?.phone || "";
+  const cleanPhone = phone.replace(/[^0-9+]/g, "");
 
-  const heading = isUrdu
-    ? copy.heroHeadingUr
-    : (content.homepage?.heroHeading?.trim() || defaultHeading);
-  const description = isUrdu
-    ? copy.heroDescriptionUr
-    : (content.homepage?.heroDescription?.trim() || defaultDescription);
-  const eyebrow = content.homepage?.heroEyebrow?.trim();
-  const highlightWord = isUrdu
-    ? "کچھ دستانے پہنتے ہیں"
-    : (content.homepage?.heroHighlightWord?.trim() || "Some wear gloves.");
-  const startingFee = content.homepage?.startingFee?.trim();
+  const heading = content.homepage?.heroHeading?.trim() || practiceName;
+  const description =
+    content.homepage?.heroDescription?.trim() ||
+    organization?.description ||
+    organization?.tagline ||
+    "";
+  const eyebrow = content.homepage?.heroEyebrow?.trim() || (content.homepage?.heroHeading ? practiceName : "");
+  const highlightWord = content.homepage?.heroHighlightWord?.trim() || "";
+  const startingFee = content.homepage?.startingFee?.trim() || "";
   const heroSealText = ((content.homepage as any)?.heroSealText || "").trim();
 
   // Load reviews and active services for testimonial card & pills
@@ -153,28 +146,12 @@ const DEFAULT_HERO_SERVICES: ServiceItem[] = [
     };
   }, []);
 
-  // Section with no data is not rendered at all
-  if (!heading && !description) {
+  // Section with no data is not rendered once loading is complete
+  if (!isLoading && !heading && !description) {
     return null;
   }
 
-  const practiceName =
-    content.general?.practiceName ||
-    organization?.displayName ||
-    organization?.name ||
-    "";
-  const phone = content.general?.phone || primaryLocation?.phone || "";
-  const cleanPhone = phone.replace(/[^0-9+]/g, "");
-
-  const urduDefaultTicks = [
-    "سیم ڈے ایمرجنسی کیئر",
-    "درد سے پاک جدید اینستھیزیا",
-    "شفاف فیس، کوئی پوشیدہ اخراجات نہیں",
-  ];
-
-  const heroTicks = isUrdu
-    ? urduDefaultTicks
-    : content.homepage?.heroBadges?.length
+  const heroTicks = content.homepage?.heroBadges?.length
     ? content.homepage.heroBadges
     : content.homepage?.heroTicks?.map((t) => t.label) || [];
 
@@ -197,9 +174,9 @@ const DEFAULT_HERO_SERVICES: ServiceItem[] = [
       <div className="container-x">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
           {/* Left Column: Two-Tone Copy, Badges, CTAs, Trust Ticks */}
-          <div className="lg:col-span-7 space-y-6 text-start">
+          <div className="lg:col-span-7 space-y-6 text-start min-h-[380px] sm:min-h-[360px] lg:min-h-0">
             {/* Practice / Eyebrow Badge */}
-            {(eyebrow || practiceName) && (
+            {(eyebrow || practiceName) ? (
               <motion.div
                 initial={{ opacity: 1, y: 0 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -217,10 +194,15 @@ const DEFAULT_HERO_SERVICES: ServiceItem[] = [
                 )}
                 {practiceName && <span className="font-medium">{practiceName}</span>}
               </motion.div>
-            )}
+            ) : isLoading ? (
+              <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 px-3.5 py-1 text-xs backdrop-blur-md shadow-xs animate-pulse" aria-hidden="true">
+                <span className="h-2 w-2 rounded-full bg-primary" />
+                <span className="h-3 w-32 rounded bg-gray-200 dark:bg-gray-700" />
+              </div>
+            ) : null}
 
             {/* Two-Tone Headline */}
-            {heading && (
+            {heading ? (
               <motion.h1
                 initial={{ opacity: 1, y: 0 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -229,10 +211,14 @@ const DEFAULT_HERO_SERVICES: ServiceItem[] = [
               >
                 {renderTwoToneHeadline(heading, highlightWord)}
               </motion.h1>
-            )}
+            ) : isLoading ? (
+              <div className="py-1" aria-hidden="true">
+                <div className="h-10 sm:h-12 lg:h-14 w-4/5 rounded-lg bg-gray-200 dark:bg-gray-800 animate-pulse" />
+              </div>
+            ) : null}
 
             {/* Sub-headline description */}
-            {description && (
+            {description ? (
               <motion.p
                 initial={{ opacity: 1, y: 0 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -241,14 +227,19 @@ const DEFAULT_HERO_SERVICES: ServiceItem[] = [
               >
                 {description}
               </motion.p>
-            )}
+            ) : isLoading ? (
+              <div className="space-y-2 py-1 max-w-xl" aria-hidden="true">
+                <div className="h-4 sm:h-5 w-full rounded bg-gray-200 dark:bg-gray-800 animate-pulse" />
+                <div className="h-4 sm:h-5 w-2/3 rounded bg-gray-200 dark:bg-gray-800 animate-pulse" />
+              </div>
+            ) : null}
 
             {/* CTAs and Starting Fee Badge */}
             <motion.div
               initial={{ opacity: 1, y: 0 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.45, delay: 0.2 }}
-              className="pt-2 flex flex-wrap items-center gap-3.5 justify-start"
+              className="pt-2 flex flex-wrap items-center gap-3.5 justify-start min-h-[48px]"
             >
               <Button
                 href={content.homepage?.heroCtaLink || "/book"}
@@ -275,6 +266,8 @@ const DEFAULT_HERO_SERVICES: ServiceItem[] = [
                   </Button>
                   <CopyButton text={phone} label={copy.copyPhone} className="h-10 px-2.5 rounded-full" />
                 </div>
+              ) : isLoading ? (
+                <div className="h-11 w-36 rounded-full bg-gray-200 dark:bg-gray-800 animate-pulse" aria-hidden="true" />
               ) : null}
 
               {startingFee && (
@@ -287,19 +280,13 @@ const DEFAULT_HERO_SERVICES: ServiceItem[] = [
               )}
             </motion.div>
 
-            {/* Active Service Pills */}
-            {services.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.45, delay: 0.28 }}
-                className="pt-2 flex flex-wrap items-center gap-2"
-                aria-label={copy.popular}
-              >
-                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mr-1 rtl:ml-1 rtl:mr-0">
-                  {copy.popular}
-                </span>
-                {services.map((svc) => (
+            {/* Active Service Pills / Skeleton */}
+            <div className="pt-2 min-h-[36px] flex flex-wrap items-center gap-2" aria-label={copy.popular}>
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mr-1 rtl:ml-1 rtl:mr-0">
+                {copy.popular}
+              </span>
+              {services.length > 0 ? (
+                services.map((svc) => (
                   <Link
                     key={svc.id}
                     href="/#treatments"
@@ -307,9 +294,15 @@ const DEFAULT_HERO_SERVICES: ServiceItem[] = [
                   >
                     {svc.title}
                   </Link>
-                ))}
-              </motion.div>
-            )}
+                ))
+              ) : (
+                <div className="flex flex-wrap items-center gap-2" aria-hidden="true">
+                  <div className="h-6 w-24 rounded-full bg-gray-200 dark:bg-gray-800 animate-pulse" />
+                  <div className="h-6 w-32 rounded-full bg-gray-200 dark:bg-gray-800 animate-pulse" />
+                  <div className="h-6 w-28 rounded-full bg-gray-200 dark:bg-gray-800 animate-pulse" />
+                </div>
+              )}
+            </div>
 
             {/* Trust Ticks */}
             {heroTicks.length > 0 && (
@@ -317,7 +310,7 @@ const DEFAULT_HERO_SERVICES: ServiceItem[] = [
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.45, delay: 0.35 }}
-                className="pt-6 border-t border-gray-200/80 dark:border-gray-800/80 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-gray-600 dark:text-gray-300"
+                className="pt-6 border-t border-gray-200/80 dark:border-gray-800/80 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-gray-600 dark:text-gray-300 min-h-[49px]"
               >
                 {heroTicks.map((tick, idx) => (
                   <div key={idx} className="flex items-center gap-2">

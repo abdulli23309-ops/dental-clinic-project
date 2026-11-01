@@ -22,17 +22,14 @@ import { resolveMediaUrl } from "@/lib/api";
 function getDoctorFocalClass(name: string) {
   const lower = name.toLowerCase();
   if (lower.includes("maral")) {
-    // Zoom in past clinic ceiling lights directly onto Dr. Maral
     return "object-[50%_65%] scale-110";
   }
   if (lower.includes("bilal")) {
-    // Frame Dr. Bilal's full face and glasses
     return "object-[50%_25%]";
   }
   if (lower.includes("sarah") || lower.includes("faraz")) {
     return "object-[50%_15%]";
   }
-  // Standard clinical studio focal framing (upper third)
   return "object-[50%_15%]";
 }
 
@@ -42,11 +39,12 @@ export function OurTeam() {
   const [activeIndex, setActiveIndex] = useState<number>(0);
   const [rotationAngle, setRotationAngle] = useState<number>(0);
   const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
+
   const dragStartX = useRef<number>(0);
   const dragStartAngle = useRef<number>(0);
   const hasDragged = useRef<boolean>(false);
   const ringRef = useRef<HTMLDivElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
   const shouldReduceMotion = useReducedMotion();
 
   const isRtl = locale === "ur";
@@ -84,14 +82,14 @@ export function OurTeam() {
         );
 
   const n = filteredDoctors.length;
-  // Arc mode for n < 8 (Lahore = 4, Karachi = 2/4) so cards never turn 90deg edge-on
+  // Arc mode for n < 8 so cards never turn 90deg edge-on
   const isArcMode = n < 8;
   const cardWidth = 320;
   const cardGap = 36;
 
   // Geometry calculations:
-  // For n >= 8 (All = 18, Islamabad = 10): 360deg cylinder ring
-  // For n < 8 (Lahore = 4, Karachi = 2/4): 28deg open stage arc
+  // For n >= 8: 360deg cylinder ring
+  // For n < 8: 28deg open stage arc
   const stepAngle = isArcMode ? 28 : n > 0 ? 360 / n : 0;
   const radius = isArcMode
     ? 580
@@ -152,7 +150,7 @@ export function OurTeam() {
     }
   }, [activeIndex, n, isArcMode, rotateToDoctor]);
 
-  // Pointer drag handlers
+  // Pointer drag & touch-swipe handlers
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (shouldReduceMotion || n <= 1) return;
     setIsDragging(true);
@@ -203,8 +201,8 @@ export function OurTeam() {
     }
   };
 
-  const scrollMobile = (offset: number) => {
-    scrollRef.current?.scrollBy({ left: offset, behavior: "smooth" });
+  const handleImageError = (id: string) => {
+    setImageErrors((prev) => ({ ...prev, [id]: true }));
   };
 
   // If no doctors exist, return null
@@ -215,14 +213,14 @@ export function OurTeam() {
   return (
     <section
       id="team"
-      className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 py-20 md:py-28 overflow-hidden select-none"
+      className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 py-16 md:py-28 overflow-hidden select-none"
       onKeyDown={handleKeyDown}
       tabIndex={0}
       aria-label="Our Clinical Specialists"
     >
-      <div className="container-x space-y-12">
+      <div className="container-x space-y-8 md:space-y-12">
         {/* Section Heading */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6">
           <SectionHeading
             eyebrow={copy.specialistsEyebrow}
             title={copy.team}
@@ -242,7 +240,7 @@ export function OurTeam() {
               role="tab"
               aria-selected={selectedCity === "all"}
               onClick={() => setSelectedCity("all")}
-              className={`rounded-full px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
+              className={`rounded-full px-4 sm:px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
                 selectedCity === "all"
                   ? "btn-premium-emerald text-white font-semibold"
                   : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700"
@@ -261,7 +259,7 @@ export function OurTeam() {
                   role="tab"
                   aria-selected={isSelected}
                   onClick={() => setSelectedCity(city)}
-                  className={`rounded-full px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
+                  className={`rounded-full px-4 sm:px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
                     isSelected
                       ? "btn-premium-emerald text-white font-semibold"
                       : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700"
@@ -291,392 +289,242 @@ export function OurTeam() {
             <p>{copy.noDoctorsForCity}</p>
           </div>
         ) : (
-          <>
-            {/* ============================================================== */}
-            {/* DESKTOP: Pure-CSS 3D Cylindrical Ring / Stage Arc (lg+)       */}
-            {/* ============================================================== */}
-            <div className="hidden lg:block relative w-full overflow-visible py-8">
-              {/* Navigation Arrows */}
-              {n > 1 && (
-                <>
-                  <button
-                    type="button"
-                    onClick={handlePrev}
-                    aria-label={copy.previousClinicians}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 z-30 h-12 w-12 rounded-full border border-gray-200 dark:border-gray-700 bg-white/90 dark:bg-gray-900/90 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-md flex items-center justify-center hover:scale-105 active:scale-95 transition-all cursor-pointer"
-                  >
-                    <ChevronLeft className="h-6 w-6 rtl:rotate-180" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleNext}
-                    aria-label={copy.nextClinicians}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 z-30 h-12 w-12 rounded-full border border-gray-200 dark:border-gray-700 bg-white/90 dark:bg-gray-900/90 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-md flex items-center justify-center hover:scale-105 active:scale-95 transition-all cursor-pointer"
-                  >
-                    <ChevronRight className="h-6 w-6 rtl:rotate-180" />
-                  </button>
-                </>
-              )}
-
-              {/* 3D Perspective Stage Container */}
-              <div
-                className="team-perspective-container relative w-full h-[600px] flex items-center justify-center cursor-grab active:cursor-grabbing"
-                onPointerDown={handlePointerDown}
-                onPointerMove={handlePointerMove}
-                onPointerUp={handlePointerUp}
-                onPointerCancel={handlePointerUp}
-              >
-                {/* 3D Ring */}
-                <div
-                  ref={ringRef}
-                  className="team-3d-ring"
-                  style={{
-                    ["--r" as any]: `${radius}px`,
-                    ["--ring-rotation" as any]: `${rotationAngle}deg`,
-                    transform: `translateZ(calc(${radius}px * -1)) rotateX(-3deg) rotateY(${rotationAngle}deg)`,
-                    transition: isDragging ? "none" : "transform 750ms cubic-bezier(0.22, 1, 0.36, 1)",
-                  }}
+          /* ============================================================== */
+          /* UNIFIED 3D COVERFLOW PERSPECTIVE STAGE (Desktop & Mobile)      */
+          /* ============================================================== */
+          <div className="relative w-full overflow-visible py-4 md:py-8">
+            {/* Navigation Arrows */}
+            {n > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={handlePrev}
+                  aria-label={copy.previousClinicians}
+                  className="absolute left-1 sm:left-2 top-1/2 -translate-y-1/2 z-30 h-10 w-10 sm:h-12 sm:w-12 rounded-full border border-gray-200 dark:border-gray-700 bg-white/90 dark:bg-gray-900/90 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-md flex items-center justify-center hover:scale-105 active:scale-95 transition-all cursor-pointer"
                 >
-                  {filteredDoctors.map((doc, idx) => {
-                    const isActive = idx === activeIndex;
+                  <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6 rtl:rotate-180" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  aria-label={copy.nextClinicians}
+                  className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 z-30 h-10 w-10 sm:h-12 sm:w-12 rounded-full border border-gray-200 dark:border-gray-700 bg-white/90 dark:bg-gray-900/90 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-md flex items-center justify-center hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                >
+                  <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6 rtl:rotate-180" />
+                </button>
+              </>
+            )}
 
-                    // Angle for card i
-                    const cardAngle = isArcMode
-                      ? (idx - (n - 1) / 2) * stepAngle * (isRtl ? -1 : 1)
-                      : idx * stepAngle * (isRtl ? -1 : 1);
+            {/* 3D Perspective Stage Container with touch-swipe */}
+            <div
+              className="team-perspective-container relative w-full h-[540px] sm:h-[580px] md:h-[600px] flex items-center justify-center cursor-grab active:cursor-grabbing touch-pan-y"
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
+            >
+              {/* 3D Ring */}
+              <div
+                ref={ringRef}
+                className="team-3d-ring"
+                style={{
+                  ["--r" as any]: `${radius}px`,
+                  ["--ring-rotation" as any]: `${rotationAngle}deg`,
+                  transform: `translateZ(calc(${radius}px * -1)) rotateX(-2deg) rotateY(${rotationAngle}deg)`,
+                  transition: isDragging ? "none" : "transform 750ms cubic-bezier(0.22, 1, 0.36, 1)",
+                }}
+              >
+                {filteredDoctors.map((doc, idx) => {
+                  const cardAngle = isArcMode
+                    ? (idx - (n - 1) / 2) * stepAngle * (isRtl ? -1 : 1)
+                    : idx * stepAngle * (isRtl ? -1 : 1);
 
-                    // Shortest circular index distance
-                    const distance = isArcMode
-                      ? Math.abs(idx - activeIndex)
-                      : Math.min(
-                          Math.abs(idx - activeIndex),
-                          n - Math.abs(idx - activeIndex)
-                        );
+                  const distance = isArcMode
+                    ? Math.abs(idx - activeIndex)
+                    : Math.min(
+                        Math.abs(idx - activeIndex),
+                        n - Math.abs(idx - activeIndex)
+                      );
 
-                    const isFront = distance === 0;
-                    // In arc mode, all cards are in the arc and visible without disappearing at 90deg
-                    const isVisible = isArcMode ? true : distance <= 2;
+                  const isFront = distance === 0;
+                  const isVisible = isArcMode ? true : distance <= 2;
+                  const hasImage = Boolean(doc.photoUrl && !imageErrors[doc.id]);
 
-                    return (
+                  return (
+                    <div
+                      key={doc.id}
+                      className={`team-3d-card transition-all duration-350 ${
+                        isFront
+                          ? "opacity-100 filter-none z-10 pointer-events-auto"
+                          : isVisible
+                          ? "opacity-80 sm:opacity-85 filter brightness-[0.92] sm:brightness-[0.94] z-[5] cursor-pointer pointer-events-auto hover:opacity-100 hover:brightness-100"
+                          : "opacity-0 pointer-events-none z-0"
+                      }`}
+                      style={{
+                        transform: `rotateY(${cardAngle}deg) translateZ(${radius}px)`,
+                      }}
+                      onClick={(e) => {
+                        if (!isFront && isVisible && !hasDragged.current) {
+                          e.stopPropagation();
+                          rotateToDoctor(idx);
+                        }
+                      }}
+                    >
                       <div
-                        key={doc.id}
-                        className={`team-3d-card transition-all duration-350 ${
+                        className={`w-[280px] sm:w-[320px] h-[500px] sm:h-[540px] rounded-2xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border p-3.5 sm:p-4 shadow-xl flex flex-col justify-between transition-all ${
                           isFront
-                            ? "opacity-100 filter-none z-10 pointer-events-auto"
-                            : isVisible
-                            ? "opacity-85 filter brightness-[0.94] z-[5] cursor-pointer pointer-events-auto hover:opacity-100 hover:brightness-100"
-                            : "opacity-0 pointer-events-none z-0"
+                            ? "border-emerald-600 dark:border-emerald-500 ring-2 ring-emerald-500/40 shadow-2xl scale-[1.02]"
+                            : "border-gray-200/90 dark:border-gray-800/90 hover:border-emerald-500/40"
                         }`}
-                        style={{
-                          transform: `rotateY(${cardAngle}deg) translateZ(${radius}px)`,
-                        }}
-                        onClick={(e) => {
-                          if (!isFront && isVisible && !hasDragged.current) {
-                            e.stopPropagation();
-                            rotateToDoctor(idx);
-                          }
-                        }}
                       >
-                        <div
-                          className={`w-[320px] h-[540px] rounded-2xl bg-white dark:bg-gray-900 border p-4 shadow-xl flex flex-col justify-between transition-all ${
-                            isFront
-                              ? "border-emerald-600 dark:border-emerald-500 ring-2 ring-emerald-500/40 shadow-2xl"
-                              : "border-gray-200/90 dark:border-gray-800/90 hover:border-emerald-500/40"
-                          }`}
-                        >
-                          <div>
-                            {/* Portrait Photo Container: taller 255px height with smart focal point framing */}
-                            <div className="w-full h-[255px] rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 mb-2.5 relative shadow-inner">
-                              {doc.photoUrl ? (
-                                <Image
-                                  src={resolveMediaUrl(doc.photoUrl) || doc.photoUrl}
-                                  alt={doc.displayName}
-                                  width={320}
-                                  height={320}
-                                  sizes="320px"
-                                  className={`w-full h-full object-cover pointer-events-none transition-transform duration-300 ${getDoctorFocalClass(
-                                    doc.displayName
-                                  )}`}
-                                />
-                              ) : (
-                                <div className="w-full h-full grid place-items-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 text-gray-400">
-                                  <User className="h-16 w-16 stroke-[1.2]" />
-                                </div>
-                              )}
+                        <div>
+                          {/* Portrait Photo Container with branded fallback avatar */}
+                          <div className="w-full h-[220px] sm:h-[255px] rounded-xl overflow-hidden bg-stone-100 dark:bg-gray-800 mb-2.5 relative shadow-inner">
+                            {hasImage ? (
+                              <Image
+                                src={resolveMediaUrl(doc.photoUrl) || doc.photoUrl!}
+                                alt={doc.displayName}
+                                width={320}
+                                height={320}
+                                sizes="(max-width: 640px) 280px, 320px"
+                                className={`w-full h-full object-cover pointer-events-none transition-transform duration-300 ${getDoctorFocalClass(
+                                  doc.displayName
+                                )}`}
+                                onError={() => handleImageError(doc.id)}
+                              />
+                            ) : (
+                              <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-stone-100 via-stone-200/70 to-stone-100 dark:from-gray-850 dark:via-gray-800 dark:to-gray-850 text-emerald-800 dark:text-emerald-300 select-none p-4 text-center">
+                                <span className="font-display text-3xl font-bold tracking-wider">
+                                  {doc.displayName
+                                    .split(" ")
+                                    .filter((w) => !w.toLowerCase().includes("dr"))
+                                    .slice(0, 2)
+                                    .map((w) => w[0])
+                                    .join("") || "MD"}
+                                </span>
+                                <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500 dark:text-gray-400 mt-1">
+                                  {doc.role || "Clinical Specialist"}
+                                </span>
+                              </div>
+                            )}
 
-                              {/* Director / Role Badge */}
-                              {doc.role === "Director" && (
-                                <span className="absolute top-2.5 left-2.5 rounded-full btn-premium-emerald text-white px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm">
-                                  <Award className="h-3 w-3" />
-                                  <span>{copy.director}</span>
+                            {/* Director / Role Badge */}
+                            {doc.role === "Director" && (
+                              <span className="absolute top-2.5 left-2.5 rounded-full btn-premium-emerald text-white px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm">
+                                <Award className="h-3 w-3" />
+                                <span>{copy.director}</span>
+                              </span>
+                            )}
+
+                            {/* Patients Treated Badge */}
+                            {(() => {
+                              const count =
+                                (doc as any).patientsTreated ??
+                                (doc as any).patientsTreatedCount;
+                              if (
+                                !doc.showPatientsTreated ||
+                                typeof count !== "number" ||
+                                count <= 0
+                              ) {
+                                return null;
+                              }
+                              return (
+                                <span className="absolute bottom-2.5 left-2.5 rounded-full bg-black/75 backdrop-blur-md text-white px-2.5 py-0.5 text-[10px] font-semibold flex items-center gap-1 shadow-sm">
+                                  <Users className="h-3 w-3 text-emerald-400" />
+                                  <span>
+                                    {count.toLocaleString()}+ {copy.patientsTreatedSuffix}
+                                  </span>
+                                </span>
+                              );
+                            })()}
+                          </div>
+
+                          {/* Name, Credentials, Title */}
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <h3 className="font-display text-sm sm:text-base font-bold text-gray-950 dark:text-white leading-tight truncate">
+                                {doc.displayName}
+                              </h3>
+                              {doc.credentials && (
+                                <span className="text-[9.5px] sm:text-[10px] font-mono font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0">
+                                  {doc.credentials}
                                 </span>
                               )}
-
-                              {/* Patients Treated Badge */}
-                              {(() => {
-                                const count =
-                                  (doc as any).patientsTreated ??
-                                  (doc as any).patientsTreatedCount;
-                                if (
-                                  !doc.showPatientsTreated ||
-                                  typeof count !== "number" ||
-                                  count <= 0
-                                ) {
-                                  return null;
-                                }
-                                return (
-                                  <span className="absolute bottom-2.5 left-2.5 rounded-full bg-black/75 backdrop-blur-md text-white px-2.5 py-0.5 text-[10px] font-semibold flex items-center gap-1 shadow-sm">
-                                    <Users className="h-3 w-3 text-emerald-400" />
-                                    <span>
-                                      {count.toLocaleString()}+ {copy.patientsTreatedSuffix}
-                                    </span>
-                                  </span>
-                                );
-                              })()}
                             </div>
 
-                            {/* Name, Credentials, Title */}
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-between gap-2">
-                                <h3 className="font-display text-base font-bold text-gray-950 dark:text-white leading-tight truncate">
-                                  {doc.displayName}
-                                </h3>
-                                {doc.credentials && (
-                                  <span className="text-[10px] font-mono font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0">
-                                    {doc.credentials}
-                                  </span>
-                                )}
+                            {doc.professionalTitle && (
+                              <p className="text-[10.5px] sm:text-[11px] font-medium text-gray-600 dark:text-gray-300 truncate">
+                                {doc.professionalTitle}
+                              </p>
+                            )}
+
+                            {doc.biography && (
+                              <p className="text-[10.5px] sm:text-[11px] leading-relaxed text-gray-500 dark:text-gray-400 line-clamp-2 pt-0.5">
+                                {doc.biography}
+                              </p>
+                            )}
+
+                            {doc.locationName && (
+                              <div className="flex items-center gap-1 text-[10.5px] sm:text-[11px] text-gray-500 dark:text-gray-400 pt-0.5">
+                                <MapPin className="h-3 w-3 text-primary shrink-0" />
+                                <span className="truncate">{doc.locationName}</span>
                               </div>
+                            )}
 
-                              {doc.professionalTitle && (
-                                <p className="text-[11px] font-medium text-gray-600 dark:text-gray-300 truncate">
-                                  {doc.professionalTitle}
-                                </p>
-                              )}
-
-                              {doc.biography && (
-                                <p className="text-[11px] leading-relaxed text-gray-500 dark:text-gray-400 line-clamp-2 pt-0.5">
-                                  {doc.biography}
-                                </p>
-                              )}
-
-                              {doc.locationName && (
-                                <div className="flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400 pt-0.5">
-                                  <MapPin className="h-3 w-3 text-primary shrink-0" />
-                                  <span className="truncate">{doc.locationName}</span>
-                                </div>
-                              )}
-
-                              {/* Specialties Tags */}
-                              {doc.specialties && doc.specialties.length > 0 && (
-                                <div className="flex flex-wrap gap-1 pt-1.5">
-                                  {doc.specialties.slice(0, 3).map((spec, i) => (
-                                    <span
-                                      key={i}
-                                      className="rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-[9.5px] text-gray-600 dark:text-gray-300"
-                                    >
-                                      {spec}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Book Consultation Button */}
-                          <div className="pt-2 border-t border-gray-100 dark:border-gray-800 mt-2">
-                            <Button
-                              href={`/book?doctor=${encodeURIComponent(doc.id)}`}
-                              variant="primary"
-                              size="sm"
-                              className="w-full justify-center text-xs font-semibold rounded-full"
-                            >
-                              <Calendar className="h-3.5 w-3.5 mr-1.5" />
-                              <span>{copy.bookConsultation}</span>
-                            </Button>
+                            {/* Specialties Tags */}
+                            {doc.specialties && doc.specialties.length > 0 && (
+                              <div className="flex flex-wrap gap-1 pt-1">
+                                {doc.specialties.slice(0, 3).map((spec, i) => (
+                                  <span
+                                    key={i}
+                                    className="rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-[9px] sm:text-[9.5px] text-gray-600 dark:text-gray-300"
+                                  >
+                                    {spec}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
 
-              {/* Ring Pagination Indicators */}
-              {n > 1 && (
-                <div className="flex items-center justify-center gap-1.5 pt-6">
-                  {filteredDoctors.map((_, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => rotateToDoctor(i)}
-                      aria-label={`Go to clinician ${i + 1}`}
-                      className={`h-2 rounded-full transition-all cursor-pointer ${
-                        i === activeIndex
-                          ? "w-7 bg-emerald-700 dark:bg-emerald-500"
-                          : "w-2 bg-gray-300 dark:bg-gray-700 hover:bg-gray-400"
-                      }`}
-                    />
-                  ))}
-                </div>
-              )}
+                        {/* Book Consultation Button (tappable on mobile) */}
+                        <div className="pt-2 border-t border-gray-100 dark:border-gray-800 mt-2">
+                          <Button
+                            href={`/book?doctor=${encodeURIComponent(doc.id)}`}
+                            variant="primary"
+                            size="sm"
+                            className="w-full justify-center text-xs font-semibold rounded-full py-2"
+                          >
+                            <Calendar className="h-3.5 w-3.5 mr-1.5" />
+                            <span>{copy.bookConsultation}</span>
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
-            {/* ============================================================== */}
-            {/* MOBILE & TABLET FALLBACK: Touch-Snapping Horizontal Carousel   */}
-            {/* ============================================================== */}
-            <div className="lg:hidden relative w-full group">
-              {filteredDoctors.length > 1 && (
-                <>
+            {/* Pagination Indicators */}
+            {n > 1 && (
+              <div className="flex items-center justify-center gap-1.5 pt-4 md:pt-6">
+                {filteredDoctors.map((_, i) => (
                   <button
-                    onClick={() => scrollMobile(-300)}
-                    aria-label={copy.previousClinicians}
-                    className="absolute -left-2 top-1/2 -translate-y-1/2 z-20 h-10 w-10 bg-white/95 dark:bg-gray-900/95 text-gray-900 dark:text-white rounded-full shadow-lg border border-gray-200 dark:border-gray-700 flex items-center justify-center active:scale-95 transition-all cursor-pointer"
-                  >
-                    <ChevronLeft className="h-5 w-5 rtl:rotate-180" />
-                  </button>
-                  <button
-                    onClick={() => scrollMobile(300)}
-                    aria-label={copy.nextClinicians}
-                    className="absolute -right-2 top-1/2 -translate-y-1/2 z-20 h-10 w-10 bg-white/95 dark:bg-gray-900/95 text-gray-900 dark:text-white rounded-full shadow-lg border border-gray-200 dark:border-gray-700 flex items-center justify-center active:scale-95 transition-all cursor-pointer"
-                  >
-                    <ChevronRight className="h-5 w-5 rtl:rotate-180" />
-                  </button>
-                </>
-              )}
-
-              <div
-                ref={scrollRef}
-                tabIndex={0}
-                role="region"
-                aria-label={copy.team}
-                className="flex overflow-x-auto snap-x snap-mandatory gap-5 pb-6 hide-scrollbar scrollbar-none scroll-smooth px-1 focus:outline-none focus:ring-1 focus:ring-primary/40 rounded-2xl"
-              >
-                {filteredDoctors.map((doc, idx) => (
-                  <motion.div
-                    key={doc.id}
-                    initial={{ opacity: 0, y: 16 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, amount: 0.15 }}
-                    transition={{ duration: 0.45, delay: idx * 0.05 }}
-                    className="w-[85%] sm:w-[320px] min-w-[280px] shrink-0 snap-start bg-white dark:bg-gray-900 rounded-2xl border border-gray-200/90 dark:border-gray-800/90 p-4 shadow-sm flex flex-col justify-between space-y-3"
-                  >
-                    <div>
-                      {/* Portrait Photo Container */}
-                      <div className="w-full aspect-[4/5] rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 mb-3 relative shadow-inner">
-                        {doc.photoUrl ? (
-                          <Image
-                            src={resolveMediaUrl(doc.photoUrl) || doc.photoUrl}
-                            alt={doc.displayName}
-                            width={320}
-                            height={400}
-                            sizes="(max-width: 640px) 85vw, 320px"
-                            className={`w-full h-full object-cover ${getDoctorFocalClass(
-                              doc.displayName
-                            )}`}
-                          />
-                        ) : (
-                          <div className="w-full h-full grid place-items-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 text-gray-400">
-                            <User className="h-16 w-16 stroke-[1.2]" />
-                          </div>
-                        )}
-
-                        {/* Director / Role Badge */}
-                        {doc.role === "Director" && (
-                          <span className="absolute top-2.5 left-2.5 rounded-full btn-premium-emerald text-white px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm">
-                            <Award className="h-3 w-3" />
-                            <span>{copy.director}</span>
-                          </span>
-                        )}
-
-                        {/* Patients Treated Badge */}
-                        {(() => {
-                          const count =
-                            (doc as any).patientsTreated ??
-                            (doc as any).patientsTreatedCount;
-                          if (
-                            !doc.showPatientsTreated ||
-                            typeof count !== "number" ||
-                            count <= 0
-                          ) {
-                            return null;
-                          }
-                          return (
-                            <span className="absolute bottom-2.5 left-2.5 rounded-full bg-black/75 backdrop-blur-md text-white px-2.5 py-0.5 text-[10px] font-semibold flex items-center gap-1 shadow-sm">
-                              <Users className="h-3 w-3 text-emerald-400" />
-                              <span>
-                                {count.toLocaleString()}+ {copy.patientsTreatedSuffix}
-                              </span>
-                            </span>
-                          );
-                        })()}
-                      </div>
-
-                      {/* Name, Credentials, Title */}
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <h3 className="font-display text-base font-bold text-gray-950 dark:text-white leading-tight">
-                            {doc.displayName}
-                          </h3>
-                          {doc.credentials && (
-                            <span className="text-[10px] font-mono font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full uppercase tracking-wider">
-                              {doc.credentials}
-                            </span>
-                          )}
-                        </div>
-
-                        {doc.professionalTitle && (
-                          <p className="text-xs font-medium text-gray-600 dark:text-gray-300">
-                            {doc.professionalTitle}
-                          </p>
-                        )}
-
-                        {doc.biography && (
-                          <p className="text-xs leading-relaxed text-gray-500 dark:text-gray-400 line-clamp-3 pt-0.5">
-                            {doc.biography}
-                          </p>
-                        )}
-
-                        {doc.locationName && (
-                          <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 pt-0.5">
-                            <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
-                            <span className="truncate">{doc.locationName}</span>
-                          </div>
-                        )}
-
-                        {/* Specialties Tags */}
-                        {doc.specialties && doc.specialties.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 pt-1.5">
-                            {doc.specialties.slice(0, 3).map((spec, i) => (
-                              <span
-                                key={i}
-                                className="rounded-full bg-gray-100 dark:bg-gray-800 px-2.5 py-0.5 text-[10px] text-gray-600 dark:text-gray-300"
-                              >
-                                {spec}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Book Consultation Button */}
-                    <div className="pt-2.5 border-t border-gray-100 dark:border-gray-800">
-                      <Button
-                        href={`/book?doctor=${encodeURIComponent(doc.id)}`}
-                        variant="primary"
-                        size="sm"
-                        className="w-full justify-center text-xs font-semibold rounded-full"
-                      >
-                        <Calendar className="h-3.5 w-3.5 mr-1.5" />
-                        <span>{copy.bookConsultation}</span>
-                      </Button>
-                    </div>
-                  </motion.div>
+                    key={i}
+                    type="button"
+                    onClick={() => rotateToDoctor(i)}
+                    aria-label={`Go to clinician ${i + 1}`}
+                    className={`h-2 rounded-full transition-all cursor-pointer ${
+                      i === activeIndex
+                        ? "w-6 sm:w-7 bg-emerald-700 dark:bg-emerald-500"
+                        : "w-2 bg-gray-300 dark:bg-gray-700 hover:bg-gray-400"
+                    }`}
+                  />
                 ))}
               </div>
-            </div>
-          </>
+            )}
+          </div>
         )}
       </div>
     </section>

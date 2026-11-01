@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Search, Menu, RefreshCw, Calendar, ChevronDown } from "lucide-react";
+import { Search, RefreshCw, Calendar, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { SearchDialog } from "@/components/ui/search-dialog";
 import { MobileMenu } from "@/components/layout/mobile-menu";
+import { AnimatedHamburger } from "@/components/ui/animated-hamburger";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 import { getServices, ServiceItem, resolveMediaUrl } from "@/lib/api";
 
@@ -295,13 +296,12 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
                 </Button>
 
                 {!isMinimal && (
-                  <button
-                    onClick={() => setMobileMenuOpen(true)}
-                    className="grid h-9 w-9 place-items-center rounded-full border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white lg:hidden cursor-pointer shrink-0"
-                    aria-label="Open mobile navigation"
-                  >
-                    <Menu className="h-4.5 w-4.5" />
-                  </button>
+                  <AnimatedHamburger
+                    isOpen={mobileMenuOpen}
+                    onClick={() => setMobileMenuOpen((prev) => !prev)}
+                    className="lg:hidden"
+                    aria-label="Toggle navigation menu"
+                  />
                 )}
               </div>
             </>

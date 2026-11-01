@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.api.deps import get_organization_service, require_admin
+from app.api.deps import get_organization_service, require_admin, require_platform_owner
 from app.application.dtos.organization_dto import (
     LocationCreateRequest,
     LocationResponse,
@@ -131,7 +131,7 @@ async def list_all_locations(
     return all_responses
 
 
-@router.post("/locations", response_model=LocationResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/locations", response_model=LocationResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_platform_owner)])
 async def create_location(
     req: LocationCreateRequest,
     org_service: OrganizationService = Depends(get_organization_service),
@@ -220,7 +220,7 @@ async def toggle_location_status(
     )
 
 
-@router.delete("/organization", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/organization", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_platform_owner)])
 async def delete_organization(
     org_service: OrganizationService = Depends(get_organization_service),
 ) -> None:
@@ -235,7 +235,7 @@ async def delete_organization(
     return None
 
 
-@router.delete("/locations/{location_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/locations/{location_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_platform_owner)])
 async def delete_location(
     location_id: UUID,
     org_service: OrganizationService = Depends(get_organization_service),

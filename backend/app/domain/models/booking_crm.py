@@ -142,6 +142,11 @@ class Booking:
     cancelled_by_user_id: Optional[UUID] = None
     reminded_at: Optional[datetime] = None
     reminded_by_user_id: Optional[UUID] = None
+    category_id: Optional[UUID] = None
+    approval_required: bool = False
+    approved_by_user_id: Optional[UUID] = None
+    approved_at: Optional[datetime] = None
+    rejection_reason: Optional[str] = None
     phone_normalized: str = ""
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))

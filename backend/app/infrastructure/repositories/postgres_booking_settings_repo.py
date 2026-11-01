@@ -6,21 +6,31 @@ from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.models.booking_settings import (
+    AppointmentCategory,
     BookingSettings,
+    CancellationRequest,
     ClinicClosure,
+    DoctorScheduleOverride,
     ProviderAvailability,
     ProviderTimeOff,
+    RescheduleRequest,
     ServiceProviderLink,
+    TeamMemberClinic,
     WorkingHours,
 )
 from app.domain.repositories.booking_settings_repo import BookingSettingsRepository
 from app.infrastructure.database.orm_models import (
+    AppointmentCategoryORM,
+    CancellationRequestORM,
     ClinicBookingSettingsORM,
     ClinicClosureORM,
     ClinicWorkingHoursORM,
+    DoctorScheduleOverrideORM,
     ProviderAvailabilityORM,
     ProviderTimeOffORM,
+    RescheduleRequestORM,
     ServiceProviderORM,
+    TeamMemberClinicORM,
 )
 
 
@@ -178,6 +188,8 @@ class PostgresBookingSettingsRepository(BookingSettingsRepository):
                 open_time=o.open_time,
                 close_time=o.close_time,
                 is_closed=o.is_closed,
+                is_24_hours=getattr(o, "is_24_hours", False) or False,
+                periods_json=getattr(o, "periods_json", None),
                 clinic_id=o.clinic_id,
                 created_at=o.created_at,
                 updated_at=o.updated_at,
@@ -201,6 +213,8 @@ class PostgresBookingSettingsRepository(BookingSettingsRepository):
             orm.open_time = h.open_time
             orm.close_time = h.close_time
             orm.is_closed = h.is_closed
+            orm.is_24_hours = getattr(h, "is_24_hours", False) or False
+            orm.periods_json = getattr(h, "periods_json", None)
             orm.updated_at = datetime.now(timezone.utc)
             await self.session.flush()
             updated_list.append(
@@ -210,6 +224,8 @@ class PostgresBookingSettingsRepository(BookingSettingsRepository):
                     open_time=orm.open_time,
                     close_time=orm.close_time,
                     is_closed=orm.is_closed,
+                    is_24_hours=getattr(orm, "is_24_hours", False) or False,
+                    periods_json=getattr(orm, "periods_json", None),
                     clinic_id=orm.clinic_id,
                     created_at=orm.created_at,
                     updated_at=orm.updated_at,
@@ -477,3 +493,341 @@ class PostgresBookingSettingsRepository(BookingSettingsRepository):
             )
         await self.session.flush()
 
+
+    async def list_doctor_overrides(
+        self,
+        team_member_id: Optional[UUID] = None,
+        clinic_id: Optional[UUID] = None,
+        include_draft: bool = True,
+    ) -> List[DoctorScheduleOverride]:
+        stmt = select(DoctorScheduleOverrideORM)
+        if team_member_id:
+            stmt = stmt.where(DoctorScheduleOverrideORM.team_member_id == team_member_id)
+        if clinic_id:
+            stmt = stmt.where(or_(DoctorScheduleOverrideORM.clinic_id.is_(None), DoctorScheduleOverrideORM.clinic_id == clinic_id))
+        if not include_draft:
+            stmt = stmt.where(DoctorScheduleOverrideORM.is_draft.is_(False))
+        stmt = stmt.order_by(DoctorScheduleOverrideORM.override_date.asc())
+        res = await self.session.execute(stmt)
+        orms = res.scalars().all()
+        return [
+            DoctorScheduleOverride(
+                id=o.id,
+                team_member_id=o.team_member_id,
+                clinic_id=o.clinic_id,
+                override_date=o.override_date,
+                override_type=o.override_type,
+                is_draft=o.is_draft,
+                shifts_json=o.shifts_json,
+                breaks_json=o.breaks_json,
+                reason=o.reason,
+                published_at=o.published_at,
+                created_at=o.created_at,
+                updated_at=o.updated_at,
+            )
+            for o in orms
+        ]
+
+    async def save_doctor_override(self, override: DoctorScheduleOverride) -> DoctorScheduleOverride:
+        stmt = select(DoctorScheduleOverrideORM).where(DoctorScheduleOverrideORM.id == override.id)
+        res = await self.session.execute(stmt)
+        o = res.scalar_one_or_none()
+        if not o:
+            o = DoctorScheduleOverrideORM(
+                id=override.id,
+                team_member_id=override.team_member_id,
+                created_at=datetime.now(timezone.utc),
+            )
+            self.session.add(o)
+
+        o.clinic_id = override.clinic_id
+        o.override_date = override.override_date
+        o.override_type = override.override_type
+        o.is_draft = override.is_draft
+        o.shifts_json = override.shifts_json
+        o.breaks_json = override.breaks_json
+        o.reason = override.reason
+        o.published_at = override.published_at
+        o.updated_at = datetime.now(timezone.utc)
+        await self.session.flush()
+        return DoctorScheduleOverride(
+            id=o.id,
+            team_member_id=o.team_member_id,
+            clinic_id=o.clinic_id,
+            override_date=o.override_date,
+            override_type=o.override_type,
+            is_draft=o.is_draft,
+            shifts_json=o.shifts_json,
+            breaks_json=o.breaks_json,
+            reason=o.reason,
+            published_at=o.published_at,
+            created_at=o.created_at,
+            updated_at=o.updated_at,
+        )
+
+    async def delete_doctor_override(self, override_id: UUID) -> bool:
+        stmt = delete(DoctorScheduleOverrideORM).where(DoctorScheduleOverrideORM.id == override_id)
+        res = await self.session.execute(stmt)
+        await self.session.flush()
+        return res.rowcount > 0
+
+    async def list_doctor_branches(
+        self,
+        team_member_id: Optional[UUID] = None,
+        clinic_id: Optional[UUID] = None,
+    ) -> List[TeamMemberClinic]:
+        stmt = select(TeamMemberClinicORM)
+        if team_member_id:
+            stmt = stmt.where(TeamMemberClinicORM.team_member_id == team_member_id)
+        if clinic_id:
+            stmt = stmt.where(TeamMemberClinicORM.clinic_id == clinic_id)
+        res = await self.session.execute(stmt)
+        orms = res.scalars().all()
+        return [
+            TeamMemberClinic(
+                id=o.id,
+                team_member_id=o.team_member_id,
+                clinic_id=o.clinic_id,
+                is_active=o.is_active,
+                is_primary=o.is_primary,
+                created_at=o.created_at,
+                updated_at=o.updated_at,
+            )
+            for o in orms
+        ]
+
+    async def set_doctor_branches(
+        self,
+        team_member_id: UUID,
+        clinic_ids: List[UUID],
+        primary_clinic_id: Optional[UUID] = None,
+    ) -> None:
+        del_stmt = delete(TeamMemberClinicORM).where(TeamMemberClinicORM.team_member_id == team_member_id)
+        await self.session.execute(del_stmt)
+        for cid in clinic_ids:
+            self.session.add(
+                TeamMemberClinicORM(
+                    team_member_id=team_member_id,
+                    clinic_id=cid,
+                    is_active=True,
+                    is_primary=(cid == primary_clinic_id),
+                    created_at=datetime.now(timezone.utc),
+                    updated_at=datetime.now(timezone.utc),
+                )
+            )
+        await self.session.flush()
+
+    async def list_appointment_categories(self, include_inactive: bool = False) -> List[AppointmentCategory]:
+        stmt = select(AppointmentCategoryORM)
+        if not include_inactive:
+            stmt = stmt.where(AppointmentCategoryORM.is_active.is_(True))
+        stmt = stmt.order_by(AppointmentCategoryORM.name.asc())
+        res = await self.session.execute(stmt)
+        orms = res.scalars().all()
+        return [
+            AppointmentCategory(
+                id=o.id,
+                name=o.name,
+                code=o.code,
+                description=o.description,
+                requires_approval=o.requires_approval,
+                is_active=o.is_active,
+                created_at=o.created_at,
+                updated_at=o.updated_at,
+            )
+            for o in orms
+        ]
+
+    async def get_appointment_category(self, category_id: UUID) -> Optional[AppointmentCategory]:
+        o = await self.session.get(AppointmentCategoryORM, category_id)
+        if not o:
+            return None
+        return AppointmentCategory(
+            id=o.id,
+            name=o.name,
+            code=o.code,
+            description=o.description,
+            requires_approval=o.requires_approval,
+            is_active=o.is_active,
+            created_at=o.created_at,
+            updated_at=o.updated_at,
+        )
+
+    async def save_appointment_category(self, category: AppointmentCategory) -> AppointmentCategory:
+        stmt = select(AppointmentCategoryORM).where(AppointmentCategoryORM.id == category.id)
+        res = await self.session.execute(stmt)
+        o = res.scalar_one_or_none()
+        if not o:
+            o = AppointmentCategoryORM(
+                id=category.id,
+                created_at=datetime.now(timezone.utc),
+            )
+            self.session.add(o)
+
+        o.name = category.name
+        o.code = category.code
+        o.description = category.description
+        o.requires_approval = category.requires_approval
+        o.is_active = category.is_active
+        o.updated_at = datetime.now(timezone.utc)
+        await self.session.flush()
+        return AppointmentCategory(
+            id=o.id,
+            name=o.name,
+            code=o.code,
+            description=o.description,
+            requires_approval=o.requires_approval,
+            is_active=o.is_active,
+            created_at=o.created_at,
+            updated_at=o.updated_at,
+        )
+
+    async def delete_appointment_category(self, category_id: UUID) -> bool:
+        stmt = delete(AppointmentCategoryORM).where(AppointmentCategoryORM.id == category_id)
+        res = await self.session.execute(stmt)
+        await self.session.flush()
+        return res.rowcount > 0
+
+    async def create_reschedule_request(self, req: RescheduleRequest) -> RescheduleRequest:
+        o = RescheduleRequestORM(
+            id=req.id,
+            booking_id=req.booking_id,
+            requested_date=req.requested_date,
+            requested_time=req.requested_time,
+            status=req.status,
+            reason=req.reason,
+            staff_notes=req.staff_notes,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+        )
+        self.session.add(o)
+        await self.session.flush()
+        return req
+
+    async def list_reschedule_requests(self, booking_id: Optional[UUID] = None, status: Optional[str] = None) -> List[RescheduleRequest]:
+        stmt = select(RescheduleRequestORM)
+        if booking_id:
+            stmt = stmt.where(RescheduleRequestORM.booking_id == booking_id)
+        if status:
+            stmt = stmt.where(RescheduleRequestORM.status == status)
+        stmt = stmt.order_by(RescheduleRequestORM.created_at.desc())
+        res = await self.session.execute(stmt)
+        orms = res.scalars().all()
+        return [
+            RescheduleRequest(
+                id=o.id,
+                booking_id=o.booking_id,
+                requested_date=o.requested_date,
+                requested_time=o.requested_time,
+                status=o.status,
+                reason=o.reason,
+                staff_notes=o.staff_notes,
+                reviewed_by_user_id=o.reviewed_by_user_id,
+                reviewed_at=o.reviewed_at,
+                created_at=o.created_at,
+                updated_at=o.updated_at,
+            )
+            for o in orms
+        ]
+
+    async def get_reschedule_request(self, request_id: UUID) -> Optional[RescheduleRequest]:
+        o = await self.session.get(RescheduleRequestORM, request_id)
+        if not o:
+            return None
+        return RescheduleRequest(
+            id=o.id,
+            booking_id=o.booking_id,
+            requested_date=o.requested_date,
+            requested_time=o.requested_time,
+            status=o.status,
+            reason=o.reason,
+            staff_notes=o.staff_notes,
+            reviewed_by_user_id=o.reviewed_by_user_id,
+            reviewed_at=o.reviewed_at,
+            created_at=o.created_at,
+            updated_at=o.updated_at,
+        )
+
+    async def update_reschedule_request(self, req: RescheduleRequest) -> RescheduleRequest:
+        o = await self.session.get(RescheduleRequestORM, req.id)
+        if not o:
+            raise ValueError("Reschedule request not found")
+        o.status = req.status
+        o.staff_notes = req.staff_notes
+        o.reviewed_by_user_id = req.reviewed_by_user_id
+        o.reviewed_at = req.reviewed_at
+        o.updated_at = datetime.now(timezone.utc)
+        await self.session.flush()
+        return req
+
+    async def create_cancellation_request(self, req: CancellationRequest) -> CancellationRequest:
+        o = CancellationRequestORM(
+            id=req.id,
+            booking_id=req.booking_id,
+            reason=req.reason,
+            status=req.status,
+            hours_before_appointment=req.hours_before_appointment,
+            is_auto_accepted=req.is_auto_accepted,
+            staff_notes=req.staff_notes,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+        )
+        self.session.add(o)
+        await self.session.flush()
+        return req
+
+    async def list_cancellation_requests(self, booking_id: Optional[UUID] = None, status: Optional[str] = None) -> List[CancellationRequest]:
+        stmt = select(CancellationRequestORM)
+        if booking_id:
+            stmt = stmt.where(CancellationRequestORM.booking_id == booking_id)
+        if status:
+            stmt = stmt.where(CancellationRequestORM.status == status)
+        stmt = stmt.order_by(CancellationRequestORM.created_at.desc())
+        res = await self.session.execute(stmt)
+        orms = res.scalars().all()
+        return [
+            CancellationRequest(
+                id=o.id,
+                booking_id=o.booking_id,
+                reason=o.reason,
+                status=o.status,
+                hours_before_appointment=o.hours_before_appointment,
+                is_auto_accepted=o.is_auto_accepted,
+                staff_notes=o.staff_notes,
+                reviewed_by_user_id=o.reviewed_by_user_id,
+                reviewed_at=o.reviewed_at,
+                created_at=o.created_at,
+                updated_at=o.updated_at,
+            )
+            for o in orms
+        ]
+
+    async def get_cancellation_request(self, request_id: UUID) -> Optional[CancellationRequest]:
+        o = await self.session.get(CancellationRequestORM, request_id)
+        if not o:
+            return None
+        return CancellationRequest(
+            id=o.id,
+            booking_id=o.booking_id,
+            reason=o.reason,
+            status=o.status,
+            hours_before_appointment=o.hours_before_appointment,
+            is_auto_accepted=o.is_auto_accepted,
+            staff_notes=o.staff_notes,
+            reviewed_by_user_id=o.reviewed_by_user_id,
+            reviewed_at=o.reviewed_at,
+            created_at=o.created_at,
+            updated_at=o.updated_at,
+        )
+
+    async def update_cancellation_request(self, req: CancellationRequest) -> CancellationRequest:
+        o = await self.session.get(CancellationRequestORM, req.id)
+        if not o:
+            raise ValueError("Cancellation request not found")
+        o.status = req.status
+        o.staff_notes = req.staff_notes
+        o.reviewed_by_user_id = req.reviewed_by_user_id
+        o.reviewed_at = req.reviewed_at
+        o.updated_at = datetime.now(timezone.utc)
+        await self.session.flush()
+        return req

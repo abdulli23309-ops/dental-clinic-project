@@ -3,6 +3,7 @@ import { Fraunces, Manrope } from "next/font/google";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { PublicContentProvider } from "@/components/providers/public-content-provider";
+import { LightboxProvider } from "@/components/providers/lightbox-provider";
 import { Toaster } from "sonner";
 import { getSiteContent } from "@/lib/api";
 import "./globals.css";
@@ -112,8 +113,10 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <PublicContentProvider>
-              {children}
-              <Toaster />
+              <LightboxProvider>
+                {children}
+                <Toaster />
+              </LightboxProvider>
             </PublicContentProvider>
           </AuthProvider>
         </ThemeProvider>

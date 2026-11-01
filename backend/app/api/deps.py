@@ -583,6 +583,7 @@ def get_lead_status_service(
 
 
 # Pre-configured role dependencies
+require_platform_owner = require_role("Platform Owner", "platform_owner", "Super Admin")
 require_admin = require_role("admin", "Platform Owner", "Super Admin")
 require_receptionist = require_role("receptionist", "Receptionist", "admin", "Admin", "Super Admin", "Clinic Branch Manager")
 require_doctor = require_role("doctor", "Doctor", "admin", "Admin", "Super Admin")

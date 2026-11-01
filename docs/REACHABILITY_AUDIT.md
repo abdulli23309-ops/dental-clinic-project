@@ -7,13 +7,13 @@ Role allow-lists are extracted directly from `require_role()` closure cells and 
 
 | Metric | Count |
 | :--- | :---: |
-| **Total backend routes** | 226 |
-| **READ routes** | 102 |
-| **WRITE routes** | 124 |
-| **Public routes (no auth dependency)** | 23 |
+| **Total backend routes** | 271 |
+| **READ routes** | 118 |
+| **WRITE routes** | 153 |
+| **Public routes (no auth dependency)** | 29 |
 | **Authenticated but no role gate** | 3 |
-| **Total Frontend Pages** | 44 |
-| **Admin Sidebar Navigation Links** | 16 |
+| **Total Frontend Pages** | 47 |
+| **Admin Sidebar Navigation Links** | 17 |
 | **Reception Sidebar Navigation Links** | 16 |
 | **Doctor Sidebar Navigation Links** | 4 |
 
@@ -28,6 +28,8 @@ Role allow-lists are extracted directly from `require_role()` closure cells and 
 | `GET` | `/health` | READ | liveness/readiness probe |
 | `GET` | `/public/announcements` | READ | public website content |
 | `GET` | `/public/availability` | READ | public website content |
+| `GET` | `/public/blogs` | READ | public website content |
+| `GET` | `/public/blogs/{slug}` | READ | public website content |
 | `GET` | `/public/booking-schedule` | READ | public website content |
 | `GET` | `/public/booking-status` | READ | public website content |
 | `GET` | `/public/booking/clinics` | READ | public website content |
@@ -37,11 +39,15 @@ Role allow-lists are extracted directly from `require_role()` closure cells and 
 | `GET` | `/public/clinics` | READ | public website content |
 | `GET` | `/public/content` | READ | public website content |
 | `GET` | `/public/faq` | READ | public website content |
+| `GET` | `/public/gallery` | READ | public website content |
 | `POST` | `/public/leads` | WRITE | public website content |
 | `PATCH` | `/public/leads/{capture_token}` | WRITE | public website content |
 | `GET` | `/public/locations` | READ | public website content |
 | `GET` | `/public/organization` | READ | public website content |
+| `GET` | `/public/reviews` | READ | public website content |
+| `GET` | `/public/roles` | READ | public website content |
 | `GET` | `/public/services` | READ | public website content |
+| `GET` | `/public/social-links` | READ | public website content |
 | `GET` | `/public/team` | READ | public website content |
 | `GET` | `/public/working-hours` | READ | public website content |
 
@@ -70,11 +76,14 @@ Role allow-lists are extracted directly from `require_role()` closure cells and 
 | `/admin/messaging` | `frontend/src/app/admin/messaging/page.tsx` | Administrator | Admin Sidebar | Static / Server Component | **REACHABLE** |
 | `/admin/note-templates` | `frontend/src/app/admin/note-templates/page.tsx` | Administrator | Admin Sidebar | Static / Server Component | **REACHABLE** |
 | `/admin/reports` | `frontend/src/app/admin/reports/page.tsx` | Administrator | Admin Sidebar | Static / Server Component | **REACHABLE** |
+| `/admin/roles` | `frontend/src/app/admin/roles/page.tsx` | Administrator | Admin Sidebar | Static / Server Component | **REACHABLE** |
 | `/admin/services` | `frontend/src/app/admin/services/page.tsx` | Administrator | Admin Sidebar | Static / Server Component | **REACHABLE** |
 | `/admin/settings` | `frontend/src/app/admin/settings/page.tsx` | Administrator | Admin Sidebar | Static / Server Component | **REACHABLE** |
 | `/admin/team` | `frontend/src/app/admin/team/page.tsx` | Administrator | Admin Sidebar | Static / Server Component | **REACHABLE** |
 | `/admin/users` | `frontend/src/app/admin/users/page.tsx` | Administrator | Admin Sidebar | Static / Server Component | **REACHABLE** |
 | `/admin/website` | `frontend/src/app/admin/website/page.tsx` | Administrator | Admin Sidebar | Static / Server Component | **REACHABLE** |
+| `/blog` | `frontend/src/app/blog/page.tsx` | Public | Public Navigation | Static / Server Component | **REACHABLE** |
+| `/blog/[slug]` | `frontend/src/app/blog/[slug]/page.tsx` | Public | Public Navigation | Static / Server Component | **REACHABLE** |
 | `/book` | `frontend/src/app/book/page.tsx` | Public | Site Header / Footer | Static / Server Component | **REACHABLE** |
 | `/doctor` | `frontend/src/app/doctor/page.tsx` | Doctor | Doctor Sidebar | Static / Server Component | **REACHABLE** |
 | `/doctor/patients` | `frontend/src/app/doctor/patients/page.tsx` | Doctor | Doctor Sidebar | Static / Server Component | **REACHABLE** |
@@ -115,6 +124,7 @@ Role allow-lists are extracted directly from `require_role()` closure cells and 
 - **Clinics & Branches**: `/admin/locations` (Validated &rarr; Reachable)
 - **Services & Fees**: `/admin/services` (Validated &rarr; Reachable)
 - **Team Members**: `/admin/team` (Validated &rarr; Reachable)
+- **Roles**: `/admin/roles` (Validated &rarr; Reachable)
 - **Staff Accounts**: `/admin/users` (Validated &rarr; Reachable)
 - **Announcements**: `/admin/announcements` (Validated &rarr; Reachable)
 - **Website CMS**: `/admin/website` (Validated &rarr; Reachable)
@@ -156,6 +166,10 @@ Role allow-lists are extracted directly from `require_role()` closure cells and 
 | `PUT` | `/admin/announcements/{announcement_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_ANNOUNCEMENT_SERVICE | WRITE | admin, platform owner, super admin |
 | `GET` | `/admin/audit` | ROLE_CHECKER[admin, platform owner, super admin] + GET_ACTIVITY_LOG_REPOSITORY | READ | admin, platform owner, super admin |
 | `GET` | `/admin/audit/export` | ROLE_CHECKER[admin, platform owner, super admin] + GET_ACTIVITY_LOG_REPOSITORY + AUTH_ONLY | READ | admin, platform owner, super admin |
+| `GET` | `/admin/blogs` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BLOG_POST_SERVICE | READ | admin, platform owner, super admin |
+| `POST` | `/admin/blogs` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BLOG_POST_SERVICE | WRITE | admin, platform owner, super admin |
+| `DELETE` | `/admin/blogs/{post_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BLOG_POST_SERVICE | WRITE | admin, platform owner, super admin |
+| `PUT` | `/admin/blogs/{post_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BLOG_POST_SERVICE | WRITE | admin, platform owner, super admin |
 | `GET` | `/admin/booking/affected-bookings` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BOOKING_SETTINGS_SERVICE | READ | admin, platform owner, super admin |
 | `GET` | `/admin/booking/bookability-check` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BOOKING_ELIGIBILITY_SERVICE + GET_DB_SESSION | READ | admin, platform owner, super admin |
 | `GET` | `/admin/booking/closures` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BOOKING_SETTINGS_SERVICE | READ | admin, platform owner, super admin |
@@ -178,6 +192,22 @@ Role allow-lists are extracted directly from `require_role()` closure cells and 
 | `GET` | `/admin/booking/staff-users` | ROLE_CHECKER[admin, platform owner, super admin] + GET_DB_SESSION | READ | admin, platform owner, super admin |
 | `GET` | `/admin/booking/working-hours` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BOOKING_SETTINGS_SERVICE | READ | admin, platform owner, super admin |
 | `PUT` | `/admin/booking/working-hours` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BOOKING_SETTINGS_SERVICE | WRITE | admin, platform owner, super admin |
+| `GET` | `/admin/cms/blogs` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BLOG_POST_SERVICE | READ | admin, platform owner, super admin |
+| `POST` | `/admin/cms/blogs` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BLOG_POST_SERVICE | WRITE | admin, platform owner, super admin |
+| `DELETE` | `/admin/cms/blogs/{post_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BLOG_POST_SERVICE | WRITE | admin, platform owner, super admin |
+| `PUT` | `/admin/cms/blogs/{post_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_BLOG_POST_SERVICE | WRITE | admin, platform owner, super admin |
+| `GET` | `/admin/cms/gallery` | ROLE_CHECKER[admin, platform owner, super admin] + GET_GALLERY_SERVICE | READ | admin, platform owner, super admin |
+| `POST` | `/admin/cms/gallery` | ROLE_CHECKER[admin, platform owner, super admin] + GET_GALLERY_SERVICE | WRITE | admin, platform owner, super admin |
+| `DELETE` | `/admin/cms/gallery/{image_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_GALLERY_SERVICE | WRITE | admin, platform owner, super admin |
+| `PUT` | `/admin/cms/gallery/{image_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_GALLERY_SERVICE | WRITE | admin, platform owner, super admin |
+| `GET` | `/admin/cms/reviews` | ROLE_CHECKER[admin, platform owner, super admin] + GET_REVIEW_SERVICE | READ | admin, platform owner, super admin |
+| `POST` | `/admin/cms/reviews` | ROLE_CHECKER[admin, platform owner, super admin] + GET_REVIEW_SERVICE | WRITE | admin, platform owner, super admin |
+| `DELETE` | `/admin/cms/reviews/{review_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_REVIEW_SERVICE | WRITE | admin, platform owner, super admin |
+| `PUT` | `/admin/cms/reviews/{review_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_REVIEW_SERVICE | WRITE | admin, platform owner, super admin |
+| `GET` | `/admin/cms/social-links` | ROLE_CHECKER[admin, platform owner, super admin] + GET_SOCIAL_LINK_SERVICE | READ | admin, platform owner, super admin |
+| `POST` | `/admin/cms/social-links` | ROLE_CHECKER[admin, platform owner, super admin] + GET_SOCIAL_LINK_SERVICE | WRITE | admin, platform owner, super admin |
+| `DELETE` | `/admin/cms/social-links/{link_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_SOCIAL_LINK_SERVICE | WRITE | admin, platform owner, super admin |
+| `PUT` | `/admin/cms/social-links/{link_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_SOCIAL_LINK_SERVICE | WRITE | admin, platform owner, super admin |
 | `GET` | `/admin/cms/{section}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_CMS_SERVICE | READ | admin, platform owner, super admin |
 | `PUT` | `/admin/cms/{section}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_CMS_SERVICE | WRITE | admin, platform owner, super admin |
 | `GET` | `/admin/faq` | ROLE_CHECKER[admin, platform owner, super admin] + GET_CMS_SERVICE | READ | admin, platform owner, super admin |
@@ -185,6 +215,10 @@ Role allow-lists are extracted directly from `require_role()` closure cells and 
 | `PATCH` | `/admin/faq/reorder` | ROLE_CHECKER[admin, platform owner, super admin] + GET_CMS_SERVICE | WRITE | admin, platform owner, super admin |
 | `PUT` | `/admin/faq/{faq_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_CMS_SERVICE | WRITE | admin, platform owner, super admin |
 | `PATCH` | `/admin/faq/{faq_id}/status` | ROLE_CHECKER[admin, platform owner, super admin] + GET_CMS_SERVICE | WRITE | admin, platform owner, super admin |
+| `GET` | `/admin/gallery` | ROLE_CHECKER[admin, platform owner, super admin] + GET_GALLERY_SERVICE | READ | admin, platform owner, super admin |
+| `POST` | `/admin/gallery` | ROLE_CHECKER[admin, platform owner, super admin] + GET_GALLERY_SERVICE | WRITE | admin, platform owner, super admin |
+| `DELETE` | `/admin/gallery/{image_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_GALLERY_SERVICE | WRITE | admin, platform owner, super admin |
+| `PUT` | `/admin/gallery/{image_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_GALLERY_SERVICE | WRITE | admin, platform owner, super admin |
 | `GET` | `/admin/integrations` | ROLE_CHECKER[admin, platform owner, super admin] + GET_INTEGRATION_CLIENT_SERVICE | READ | admin, platform owner, super admin |
 | `POST` | `/admin/integrations` | ROLE_CHECKER[admin, platform owner, super admin] + GET_INTEGRATION_CLIENT_SERVICE + AUTH_ONLY | WRITE | admin, platform owner, super admin |
 | `POST` | `/admin/integrations/{client_id}/revoke` | ROLE_CHECKER[admin, platform owner, super admin] + GET_INTEGRATION_CLIENT_SERVICE | WRITE | admin, platform owner, super admin |
@@ -192,6 +226,7 @@ Role allow-lists are extracted directly from `require_role()` closure cells and 
 | `POST` | `/admin/integrations/{client_id}/toggle-active` | ROLE_CHECKER[admin, platform owner, super admin] + GET_INTEGRATION_CLIENT_SERVICE | WRITE | admin, platform owner, super admin |
 | `GET` | `/admin/locations` | ROLE_CHECKER[admin, platform owner, super admin] + GET_ORGANIZATION_SERVICE | READ | admin, platform owner, super admin |
 | `POST` | `/admin/locations` | ROLE_CHECKER[admin, platform owner, super admin] + GET_ORGANIZATION_SERVICE | WRITE | admin, platform owner, super admin |
+| `DELETE` | `/admin/locations/{location_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_ORGANIZATION_SERVICE | WRITE | admin, platform owner, super admin |
 | `PUT` | `/admin/locations/{location_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_ORGANIZATION_SERVICE | WRITE | admin, platform owner, super admin |
 | `PATCH` | `/admin/locations/{location_id}/status` | ROLE_CHECKER[admin, platform owner, super admin] + GET_ORGANIZATION_SERVICE | WRITE | admin, platform owner, super admin |
 | `POST` | `/admin/media/upload` | ROLE_CHECKER[admin, platform owner, super admin] + GET_STORAGE_SERVICE | WRITE | admin, platform owner, super admin |
@@ -203,8 +238,10 @@ Role allow-lists are extracted directly from `require_role()` closure cells and 
 | `POST` | `/admin/messaging/test` | ROLE_CHECKER[admin, platform owner, super admin] + GET_RECEPTION_SERVICE | WRITE | admin, platform owner, super admin |
 | `POST` | `/admin/note-templates` | ROLE_CHECKER[admin, doctor] + AUTH_ONLY + GET_DB_SESSION | WRITE | admin, doctor |
 | `PUT` | `/admin/note-templates/{template_id}` | ROLE_CHECKER[admin, doctor] + AUTH_ONLY + GET_DB_SESSION | WRITE | admin, doctor |
+| `DELETE` | `/admin/organization` | ROLE_CHECKER[admin, platform owner, super admin] + GET_ORGANIZATION_SERVICE | WRITE | admin, platform owner, super admin |
 | `GET` | `/admin/organization` | ROLE_CHECKER[admin, platform owner, super admin] + GET_ORGANIZATION_SERVICE | READ | admin, platform owner, super admin |
 | `PUT` | `/admin/organization` | ROLE_CHECKER[admin, platform owner, super admin] + GET_ORGANIZATION_SERVICE | WRITE | admin, platform owner, super admin |
+| `GET` | `/admin/organization/setup-status` | ROLE_CHECKER[admin, platform owner, super admin] + GET_ORGANIZATION_SERVICE | READ | admin, platform owner, super admin |
 | `GET` | `/admin/reports/appointments` | ROLE_CHECKER[admin, platform owner, super admin] + GET_DB_SESSION | READ | admin, platform owner, super admin |
 | `GET` | `/admin/reports/cancellations-no-shows` | ROLE_CHECKER[admin, platform owner, super admin] + GET_DB_SESSION | READ | admin, platform owner, super admin |
 | `GET` | `/admin/reports/export/appointments` | ROLE_CHECKER[admin, platform owner, super admin] + GET_DB_SESSION + GET_ACTIVITY_LOG_REPOSITORY + AUTH_ONLY | READ | admin, platform owner, super admin |
@@ -215,6 +252,14 @@ Role allow-lists are extracted directly from `require_role()` closure cells and 
 | `GET` | `/admin/reports/lead-funnel` | ROLE_CHECKER[admin, platform owner, super admin] + GET_DB_SESSION | READ | admin, platform owner, super admin |
 | `GET` | `/admin/reports/operational-timing` | ROLE_CHECKER[admin, platform owner, super admin] + GET_DB_SESSION | READ | admin, platform owner, super admin |
 | `GET` | `/admin/reports/recall-compliance` | ROLE_CHECKER[admin, platform owner, super admin] + GET_DB_SESSION | READ | admin, platform owner, super admin |
+| `GET` | `/admin/reviews` | ROLE_CHECKER[admin, platform owner, super admin] + GET_REVIEW_SERVICE | READ | admin, platform owner, super admin |
+| `POST` | `/admin/reviews` | ROLE_CHECKER[admin, platform owner, super admin] + GET_REVIEW_SERVICE | WRITE | admin, platform owner, super admin |
+| `DELETE` | `/admin/reviews/{review_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_REVIEW_SERVICE | WRITE | admin, platform owner, super admin |
+| `PUT` | `/admin/reviews/{review_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_REVIEW_SERVICE | WRITE | admin, platform owner, super admin |
+| `GET` | `/admin/roles` | ROLE_CHECKER[admin, platform owner, super admin] + GET_ROLE_SERVICE | READ | admin, platform owner, super admin |
+| `POST` | `/admin/roles` | ROLE_CHECKER[admin, platform owner, super admin] + GET_ROLE_SERVICE | WRITE | admin, platform owner, super admin |
+| `DELETE` | `/admin/roles/{role_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_ROLE_SERVICE | WRITE | admin, platform owner, super admin |
+| `PATCH` | `/admin/roles/{role_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_ROLE_SERVICE | WRITE | admin, platform owner, super admin |
 | `GET` | `/admin/services` | ROLE_CHECKER[admin, platform owner, super admin] + GET_SERVICE_SERVICE | READ | admin, platform owner, super admin |
 | `POST` | `/admin/services` | ROLE_CHECKER[admin, platform owner, super admin] + GET_SERVICE_SERVICE | WRITE | admin, platform owner, super admin |
 | `GET` | `/admin/services/clinic-matrix` | ROLE_CHECKER[admin, platform owner, super admin] + GET_SERVICE_SERVICE + GET_DB_SESSION | READ | admin, platform owner, super admin |
@@ -224,11 +269,15 @@ Role allow-lists are extracted directly from `require_role()` closure cells and 
 | `PUT` | `/admin/services/{service_id}/clinics` | ROLE_CHECKER[admin, platform owner, super admin] + GET_SERVICE_SERVICE | WRITE | admin, platform owner, super admin |
 | `PUT` | `/admin/services/{service_id}/providers` | ROLE_CHECKER[admin, platform owner, super admin] + GET_SERVICE_SERVICE | WRITE | admin, platform owner, super admin |
 | `PATCH` | `/admin/services/{service_id}/status` | ROLE_CHECKER[admin, platform owner, super admin] + GET_SERVICE_SERVICE | WRITE | admin, platform owner, super admin |
+| `GET` | `/admin/social-links` | ROLE_CHECKER[admin, platform owner, super admin] + GET_SOCIAL_LINK_SERVICE | READ | admin, platform owner, super admin |
+| `POST` | `/admin/social-links` | ROLE_CHECKER[admin, platform owner, super admin] + GET_SOCIAL_LINK_SERVICE | WRITE | admin, platform owner, super admin |
+| `DELETE` | `/admin/social-links/{link_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_SOCIAL_LINK_SERVICE | WRITE | admin, platform owner, super admin |
+| `PUT` | `/admin/social-links/{link_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_SOCIAL_LINK_SERVICE | WRITE | admin, platform owner, super admin |
 | `GET` | `/admin/team` | ROLE_CHECKER[admin, platform owner, super admin] + GET_TEAM_SERVICE | READ | admin, platform owner, super admin |
-| `POST` | `/admin/team` | ROLE_CHECKER[admin, platform owner, super admin] + GET_TEAM_SERVICE | WRITE | admin, platform owner, super admin |
+| `POST` | `/admin/team` | ROLE_CHECKER[admin, platform owner, super admin] + GET_TEAM_SERVICE + GET_ROLE_SERVICE | WRITE | admin, platform owner, super admin |
 | `PATCH` | `/admin/team/reorder` | ROLE_CHECKER[admin, platform owner, super admin] + GET_TEAM_SERVICE | WRITE | admin, platform owner, super admin |
 | `GET` | `/admin/team/{member_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_TEAM_SERVICE | READ | admin, platform owner, super admin |
-| `PUT` | `/admin/team/{member_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_TEAM_SERVICE | WRITE | admin, platform owner, super admin |
+| `PUT` | `/admin/team/{member_id}` | ROLE_CHECKER[admin, platform owner, super admin] + GET_TEAM_SERVICE + GET_ROLE_SERVICE | WRITE | admin, platform owner, super admin |
 | `PATCH` | `/admin/team/{member_id}/status` | ROLE_CHECKER[admin, platform owner, super admin] + GET_TEAM_SERVICE | WRITE | admin, platform owner, super admin |
 | `GET` | `/admin/users` | ROLE_CHECKER[admin, platform owner, super admin] + GET_USER_REPOSITORY | READ | admin, platform owner, super admin |
 | `POST` | `/admin/users` | ROLE_CHECKER[admin, platform owner, super admin] + GET_USER_REPOSITORY + GET_ACTIVITY_LOG_REPOSITORY | WRITE | admin, platform owner, super admin |
@@ -316,6 +365,8 @@ Role allow-lists are extracted directly from `require_role()` closure cells and 
 | `POST` | `/integration/messages` | INTEGRATION_SCOPE[messages:write] + GET_DB_SESSION | WRITE | integration:messages:write |
 | `GET` | `/public/announcements` | GET_ANNOUNCEMENT_SERVICE | READ | (public) |
 | `GET` | `/public/availability` | GET_AVAILABILITY_SERVICE | READ | (public) |
+| `GET` | `/public/blogs` | GET_BLOG_POST_SERVICE | READ | (public) |
+| `GET` | `/public/blogs/{slug}` | GET_BLOG_POST_SERVICE | READ | (public) |
 | `GET` | `/public/booking-schedule` | GET_BOOKING_SETTINGS_SERVICE | READ | (public) |
 | `GET` | `/public/booking-status` | GET_BOOKING_SETTINGS_SERVICE | READ | (public) |
 | `GET` | `/public/booking/clinics` | GET_BOOKING_ELIGIBILITY_SERVICE | READ | (public) |
@@ -325,11 +376,15 @@ Role allow-lists are extracted directly from `require_role()` closure cells and 
 | `GET` | `/public/clinics` | GET_ORGANIZATION_SERVICE | READ | (public) |
 | `GET` | `/public/content` | GET_CMS_SERVICE | READ | (public) |
 | `GET` | `/public/faq` | GET_CMS_SERVICE | READ | (public) |
+| `GET` | `/public/gallery` | GET_GALLERY_SERVICE | READ | (public) |
 | `POST` | `/public/leads` | GET_LEAD_REPOSITORY + GET_LEAD_EVENT_REPOSITORY + GET_BOOKING_FLOW_SETTINGS_REPOSITORY | WRITE | (public) |
 | `PATCH` | `/public/leads/{capture_token}` | GET_LEAD_REPOSITORY + GET_LEAD_EVENT_REPOSITORY | WRITE | (public) |
 | `GET` | `/public/locations` | GET_ORGANIZATION_SERVICE | READ | (public) |
 | `GET` | `/public/organization` | GET_ORGANIZATION_SERVICE | READ | (public) |
+| `GET` | `/public/reviews` | GET_REVIEW_SERVICE | READ | (public) |
+| `GET` | `/public/roles` | GET_ROLE_SERVICE | READ | (public) |
 | `GET` | `/public/services` | GET_SERVICE_SERVICE | READ | (public) |
+| `GET` | `/public/social-links` | GET_SOCIAL_LINK_SERVICE | READ | (public) |
 | `GET` | `/public/team` | GET_TEAM_SERVICE | READ | (public) |
 | `GET` | `/public/working-hours` | GET_BOOKING_SETTINGS_SERVICE | READ | (public) |
 | `GET` | `/reception/appointments` | ROLE_CHECKER[admin, clinic branch manager, receptionist, super admin] + GET_RECEPTION_SERVICE + GET_LEAD_STATUS_SERVICE | READ | admin, clinic branch manager, receptionist, super admin |

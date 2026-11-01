@@ -327,7 +327,7 @@ export function WhyChooseUs() {
                   variant="primary"
                   size="lg"
                   disabled={loading}
-                  className="w-full rounded-xl py-3 text-sm font-semibold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 mt-2"
+                  className="w-full rounded-full py-3.5 text-sm font-semibold flex items-center justify-center gap-2 mt-2"
                 >
                   {loading ? (
                     <>
@@ -337,7 +337,7 @@ export function WhyChooseUs() {
                   ) : (
                     <>
                       <span>Continue to Booking</span>
-                      <ArrowRight className="h-4 w-4" />
+                      <ArrowRight className="h-4 w-4 rtl:rotate-180" />
                     </>
                   )}
                 </Button>

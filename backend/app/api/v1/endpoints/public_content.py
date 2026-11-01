@@ -588,7 +588,7 @@ async def get_public_booking_doctors(
     request: Request,
     serviceId: str = Query(..., description="Selected service ID or slug"),
     clinicId: UUID = Query(..., description="Target clinic location ID"),
-    days: Optional[int] = Query(None, ge=1, le=14, description="Horizon window in days (max 14)"),
+    days: Optional[int] = Query(None, ge=1, le=15, description="Horizon window in days (max 15)"),
     eligibility_service: BookingEligibilityService = Depends(get_booking_eligibility_service),
 ) -> List[PublicBookingDoctorItemDto]:
     """
@@ -758,3 +758,81 @@ async def get_public_roles(
     """Returns active roles for public / dropdown consumption."""
     return await role_service.list_roles(include_inactive=False)
 
+
+# ---------------------------------------------------------------------------
+# Patient Rescheduling and Cancellation Requests
+# ---------------------------------------------------------------------------
+
+from app.api.deps import get_reception_service
+from app.application.services.reception_service import ReceptionService
+
+from pydantic import BaseModel
+
+class PublicRescheduleRequest(BaseModel):
+    confirmationId: str
+    requestedDate: date
+    requestedTime: str
+    reason: Optional[str] = None
+
+
+class PublicCancelRequest(BaseModel):
+    confirmationId: str
+    reason: Optional[str] = None
+
+
+@router.post(
+    "/booking/reschedule-request",
+    summary="Patient-facing rescheduling request",
+)
+@limiter.limit(settings.PUBLIC_BOOKING_RATE_LIMIT)
+async def submit_public_reschedule_request(
+    request: Request,
+    payload: PublicRescheduleRequest,
+    reception_service: ReceptionService = Depends(get_reception_service),
+):
+    from sqlalchemy import select
+    from app.infrastructure.database.orm_models import BookingORM
+    session = getattr(reception_service.booking_repo, "_session", None)
+    if not session:
+        raise HTTPException(status_code=500, detail="Database session unavailable")
+
+    stmt = select(BookingORM).where(BookingORM.confirmation_id == payload.confirmationId.strip())
+    res = await session.execute(stmt)
+    booking = res.scalar_one_or_none()
+    if not booking:
+        raise HTTPException(status_code=404, detail="Appointment confirmation ID not found.")
+
+    return await reception_service.create_reschedule_request(
+        booking_id=booking.id,
+        requested_date=payload.requestedDate,
+        requested_time=payload.requestedTime,
+        reason=payload.reason,
+    )
+
+
+@router.post(
+    "/booking/cancel-request",
+    summary="Patient-facing cancellation request (>24h auto-accept, <=24h review)",
+)
+@limiter.limit(settings.PUBLIC_BOOKING_RATE_LIMIT)
+async def submit_public_cancel_request(
+    request: Request,
+    payload: PublicCancelRequest,
+    reception_service: ReceptionService = Depends(get_reception_service),
+):
+    from sqlalchemy import select
+    from app.infrastructure.database.orm_models import BookingORM
+    session = getattr(reception_service.booking_repo, "_session", None)
+    if not session:
+        raise HTTPException(status_code=500, detail="Database session unavailable")
+
+    stmt = select(BookingORM).where(BookingORM.confirmation_id == payload.confirmationId.strip())
+    res = await session.execute(stmt)
+    booking = res.scalar_one_or_none()
+    if not booking:
+        raise HTTPException(status_code=404, detail="Appointment confirmation ID not found.")
+
+    return await reception_service.request_cancellation(
+        booking_id=booking.id,
+        reason=payload.reason,
+    )

@@ -407,10 +407,10 @@ async def test_auto_confirm_scenarios(setup_test_org, client_with_db, test_sessi
     )
     assert r_a.status_code == 201
     bk_a = await booking_repo.get_by_confirmation_id(r_a.json()["confirmationId"])
-    assert bk_a.status == "confirmed"
+    assert bk_a.status == "requested"
     assert bk_a.team_member_id == doc1.id
 
-    # (b) Only ONE eligible doctor exists (Doc1 for svc_b) and no doctor was specified -> Auto-selected & 'confirmed'
+    # (b) Only ONE eligible doctor exists (Doc1 for svc_b) and no doctor was specified -> Auto-selected & 'requested'
     r_b = await client_with_db.post(
         "/api/v1/appointments",
         json={
@@ -424,7 +424,7 @@ async def test_auto_confirm_scenarios(setup_test_org, client_with_db, test_sessi
     )
     assert r_b.status_code == 201
     bk_b = await booking_repo.get_by_confirmation_id(r_b.json()["confirmationId"])
-    assert bk_b.status == "confirmed"
+    assert bk_b.status == "requested"
     assert bk_b.team_member_id == doc1.id, "Single eligible doctor should be auto-selected"
 
     # (c) No doctor is chosen and multiple eligible doctors exist (svc_a has Doc1 and Doc2) -> Status: 'requested'

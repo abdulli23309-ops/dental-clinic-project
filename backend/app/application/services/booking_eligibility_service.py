@@ -214,7 +214,7 @@ class BookingEligibilityService:
             )
 
         flow_settings = await self.booking_flow_settings_repo.get_settings()
-        horizon = min(max(1, horizon_days or flow_settings.days_shown or 7), 14)
+        horizon = min(max(1, horizon_days or flow_settings.days_shown or 15), 15)
         today_local = datetime.now(self.tz).date()
 
         # 1. Determine candidate clinics offering the service actively
@@ -472,7 +472,7 @@ class BookingEligibilityService:
             return []
 
         flow_settings = await self.booking_flow_settings_repo.get_settings()
-        n_days = min(max(1, days or flow_settings.days_shown or 7), 14)
+        n_days = min(max(1, days or flow_settings.days_shown or 15), 15)
         today_local = datetime.now(self.tz).date()
 
         # Check clinic offers service

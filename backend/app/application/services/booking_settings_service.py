@@ -8,14 +8,29 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.dtos.booking_settings_dto import (
     AffectedBookingDto,
+    AppointmentCategoryCreateRequest,
+    AppointmentCategoryDto,
     BookingSettingsResponse,
     ClinicClosureDto,
+    DoctorBranchAssignmentDto,
+    DoctorBranchAssignmentRequest,
+    DoctorScheduleOverrideCreateRequest,
+    DoctorScheduleOverrideDto,
+    DoctorServiceAssignmentDto,
+    DoctorServiceAssignmentRequest,
     ProviderAvailabilityCreateRequest,
     ProviderAvailabilityDto,
     ProviderTimeOffCreateRequest,
     ProviderTimeOffDto,
+    PublishScheduleResponse,
     PublicBookingStatusResponse,
     WorkingHoursDto,
+)
+from app.domain.models.booking_settings import (
+    AppointmentCategory,
+    DoctorScheduleOverride,
+    ServiceProviderLink,
+    TeamMemberClinic,
 )
 from app.domain.models.booking_settings import (
     BookingSettings,
@@ -27,7 +42,7 @@ from app.domain.models.booking_settings import (
 from app.domain.repositories.booking_repo import BookingRepository
 from app.domain.repositories.booking_settings_repo import BookingSettingsRepository
 from app.domain.repositories.organization_repo import OrganizationRepository
-from app.infrastructure.database.orm_models import AnnouncementORM, BookingORM, ClinicORM, TaskORM
+from app.infrastructure.database.orm_models import AnnouncementORM, AppointmentCategoryORM, BookingORM, ClinicORM, DoctorScheduleOverrideORM, ProviderAvailabilityORM, ServiceORM, ServiceProviderORM, TaskORM, TeamMemberClinicORM, TeamMemberORM
 from app.infrastructure.repositories.postgres_activity_repo import (
     PostgresActivityLogRepository,
     record_activity,
@@ -612,14 +627,44 @@ class BookingSettingsService:
             for h in current
         ]
 
+        from app.infrastructure.database.orm_models import ClinicWorkingHoursORM
         modified: List[WorkingHours] = []
         for u in updates:
             hid = u["id"]
-            if hid in current_map:
-                wh = current_map[hid]
+            wh = current_map.get(hid)
+            if not wh:
+                session = getattr(self.repository, "session", None)
+                if session:
+                    res = await session.execute(select(ClinicWorkingHoursORM).where(ClinicWorkingHoursORM.id == hid))
+                    orm = res.scalar_one_or_none()
+                    if orm:
+                        wh = WorkingHours(
+                            id=orm.id,
+                            day_of_week=orm.day_of_week,
+                            open_time=orm.open_time,
+                            close_time=orm.close_time,
+                            is_closed=orm.is_closed,
+                            is_24_hours=getattr(orm, "is_24_hours", False) or False,
+                            periods_json=getattr(orm, "periods_json", None),
+                            clinic_id=orm.clinic_id,
+                        )
+                    else:
+                        wh = WorkingHours(
+                            id=hid,
+                            day_of_week=u.get("dayOfWeek", 0),
+                            open_time=u.get("openTime"),
+                            close_time=u.get("closeTime"),
+                            is_closed=bool(u.get("isClosed", False)),
+                            is_24_hours=bool(u.get("is24Hours", False)),
+                            periods_json=u.get("periodsJson"),
+                            clinic_id=u.get("clinicId"),
+                        )
+            if wh:
                 wh.open_time = u.get("openTime")
                 wh.close_time = u.get("closeTime")
                 wh.is_closed = bool(u.get("isClosed", False))
+                wh.is_24_hours = bool(u.get("is24Hours", False))
+                wh.periods_json = u.get("periodsJson")
                 modified.append(wh)
 
         saved = await self.repository.update_working_hours(modified)
@@ -896,3 +941,437 @@ class BookingSettingsService:
             )
         return deleted
 
+
+    # ---------------------------------------------------------------------------
+    # Doctor Multi-Branch and Service Assignments
+    # ---------------------------------------------------------------------------
+
+    async def list_doctor_branches(
+        self,
+        team_member_id: Optional[UUID] = None,
+        clinic_id: Optional[UUID] = None,
+    ) -> List[DoctorBranchAssignmentDto]:
+        branches = await self.repository.list_doctor_branches(team_member_id=team_member_id, clinic_id=clinic_id)
+        # Fetch clinic names
+        clinic_names = {}
+        c_res = await self.session.execute(select(ClinicORM.id, ClinicORM.name))
+        for cid, cname in c_res.all():
+            clinic_names[cid] = cname
+
+        return [
+            DoctorBranchAssignmentDto(
+                id=b.id,
+                teamMemberId=b.team_member_id,
+                clinicId=b.clinic_id,
+                clinicName=clinic_names.get(b.clinic_id, "Branch"),
+                isActive=b.is_active,
+                isPrimary=b.is_primary,
+                createdAt=b.created_at,
+            )
+            for b in branches
+        ]
+
+    async def set_doctor_branches(
+        self,
+        req: DoctorBranchAssignmentRequest,
+        user_id: Optional[UUID] = None,
+    ) -> List[DoctorBranchAssignmentDto]:
+        await self.repository.set_doctor_branches(
+            team_member_id=req.teamMemberId,
+            clinic_ids=req.clinicIds,
+            primary_clinic_id=req.primaryClinicId,
+        )
+        await record_activity(
+            self.activity_repo,
+            action="set_doctor_branches",
+            entity_type="team_member_clinics",
+            entity_id=str(req.teamMemberId),
+            user_id=user_id,
+            details={"clinic_ids": [str(c) for c in req.clinicIds], "primary": str(req.primaryClinicId) if req.primaryClinicId else None},
+        )
+        return await self.list_doctor_branches(team_member_id=req.teamMemberId)
+
+    async def list_doctor_services(
+        self,
+        team_member_id: Optional[UUID] = None,
+        clinic_id: Optional[UUID] = None,
+    ) -> List[DoctorServiceAssignmentDto]:
+        stmt = select(ServiceProviderORM)
+        if team_member_id:
+            stmt = stmt.where(ServiceProviderORM.team_member_id == team_member_id)
+        if clinic_id:
+            stmt = stmt.where(or_(ServiceProviderORM.clinic_id.is_(None), ServiceProviderORM.clinic_id == clinic_id))
+        res = await self.session.execute(stmt)
+        sp_records = res.scalars().all()
+
+        services = {s.id: s.title for s in (await self.session.execute(select(ServiceORM.id, ServiceORM.title))).all()}
+        doctors = {d.id: d.display_name for d in (await self.session.execute(select(TeamMemberORM.id, TeamMemberORM.display_name))).all()}
+        clinics = {c.id: c.name for c in (await self.session.execute(select(ClinicORM.id, ClinicORM.name))).all()}
+
+        return [
+            DoctorServiceAssignmentDto(
+                id=sp.id,
+                serviceId=sp.service_id,
+                serviceTitle=services.get(sp.service_id, "Service"),
+                teamMemberId=sp.team_member_id,
+                doctorName=doctors.get(sp.team_member_id, "Doctor"),
+                clinicId=sp.clinic_id,
+                clinicName=clinics.get(sp.clinic_id) if sp.clinic_id else "All Branches",
+                customDurationMinutes=sp.custom_duration_minutes,
+                bufferMinutes=sp.buffer_minutes,
+                isActive=sp.is_active,
+            )
+            for sp in sp_records
+        ]
+
+    async def save_doctor_service(
+        self,
+        req: DoctorServiceAssignmentRequest,
+        user_id: Optional[UUID] = None,
+    ) -> DoctorServiceAssignmentDto:
+        stmt = select(ServiceProviderORM).where(
+            ServiceProviderORM.service_id == req.serviceId,
+            ServiceProviderORM.team_member_id == req.teamMemberId,
+            ServiceProviderORM.clinic_id == req.clinicId,
+        )
+        res = await self.session.execute(stmt)
+        sp = res.scalar_one_or_none()
+        if not sp:
+            sp = ServiceProviderORM(
+                id=uuid4(),
+                service_id=req.serviceId,
+                team_member_id=req.teamMemberId,
+                clinic_id=req.clinicId,
+                custom_duration_minutes=req.customDurationMinutes,
+                buffer_minutes=req.bufferMinutes,
+                is_active=req.isActive,
+                created_at=datetime.now(timezone.utc),
+            )
+            self.session.add(sp)
+        else:
+            sp.custom_duration_minutes = req.customDurationMinutes
+            sp.buffer_minutes = req.bufferMinutes
+            sp.is_active = req.isActive
+            sp.updated_at = datetime.now(timezone.utc)
+
+        await self.session.flush()
+
+        svc = await self.session.get(ServiceORM, req.serviceId)
+        doc = await self.session.get(TeamMemberORM, req.teamMemberId)
+        cln = await self.session.get(ClinicORM, req.clinicId) if req.clinicId else None
+
+        await record_activity(
+            self.activity_repo,
+            action="save_doctor_service",
+            entity_type="service_providers",
+            entity_id=str(sp.id),
+            user_id=user_id,
+            details={
+                "service_id": str(req.serviceId),
+                "team_member_id": str(req.teamMemberId),
+                "clinic_id": str(req.clinicId) if req.clinicId else None,
+                "custom_duration_minutes": req.customDurationMinutes,
+                "buffer_minutes": req.bufferMinutes,
+            },
+        )
+
+        return DoctorServiceAssignmentDto(
+            id=sp.id,
+            serviceId=sp.service_id,
+            serviceTitle=svc.title if svc else "Service",
+            teamMemberId=sp.team_member_id,
+            doctorName=doc.display_name if doc else "Doctor",
+            clinicId=sp.clinic_id,
+            clinicName=cln.name if cln else "All Branches",
+            customDurationMinutes=sp.custom_duration_minutes,
+            bufferMinutes=sp.buffer_minutes,
+            isActive=sp.is_active,
+        )
+
+    # ---------------------------------------------------------------------------
+    # Doctor Schedule Overrides
+    # ---------------------------------------------------------------------------
+
+    async def list_doctor_overrides(
+        self,
+        team_member_id: Optional[UUID] = None,
+        clinic_id: Optional[UUID] = None,
+    ) -> List[DoctorScheduleOverrideDto]:
+        overrides = await self.repository.list_doctor_overrides(team_member_id=team_member_id, clinic_id=clinic_id, include_draft=True)
+        doctors = {d.id: d.display_name for d in (await self.session.execute(select(TeamMemberORM.id, TeamMemberORM.display_name))).all()}
+        clinics = {c.id: c.name for c in (await self.session.execute(select(ClinicORM.id, ClinicORM.name))).all()}
+
+        return [
+            DoctorScheduleOverrideDto(
+                id=o.id,
+                teamMemberId=o.team_member_id,
+                doctorName=doctors.get(o.team_member_id, "Doctor"),
+                clinicId=o.clinic_id,
+                clinicName=clinics.get(o.clinic_id) if o.clinic_id else "All Branches",
+                overrideDate=o.override_date,
+                overrideType=o.override_type,
+                isDraft=o.is_draft,
+                shiftsJson=o.shifts_json,
+                breaksJson=o.breaks_json,
+                reason=o.reason,
+                publishedAt=o.published_at,
+            )
+            for o in overrides
+        ]
+
+    async def save_doctor_override(
+        self,
+        req: DoctorScheduleOverrideCreateRequest,
+        user_id: Optional[UUID] = None,
+    ) -> DoctorScheduleOverrideDto:
+        override = DoctorScheduleOverride(
+            id=uuid4(),
+            team_member_id=req.teamMemberId,
+            clinic_id=req.clinicId,
+            override_date=req.overrideDate,
+            override_type=req.overrideType,
+            is_draft=req.isDraft,
+            shifts_json=req.shiftsJson,
+            breaks_json=req.breaksJson,
+            reason=req.reason,
+            published_at=None if req.isDraft else datetime.now(timezone.utc),
+        )
+        saved = await self.repository.save_doctor_override(override)
+        await record_activity(
+            self.activity_repo,
+            action="save_doctor_override",
+            entity_type="doctor_schedule_overrides",
+            entity_id=str(saved.id),
+            user_id=user_id,
+            details={
+                "team_member_id": str(saved.team_member_id),
+                "date": saved.override_date.isoformat(),
+                "type": saved.override_type,
+                "is_draft": saved.is_draft,
+            },
+        )
+        doc = await self.session.get(TeamMemberORM, saved.team_member_id)
+        cln = await self.session.get(ClinicORM, saved.clinic_id) if saved.clinic_id else None
+        return DoctorScheduleOverrideDto(
+            id=saved.id,
+            teamMemberId=saved.team_member_id,
+            doctorName=doc.display_name if doc else "Doctor",
+            clinicId=saved.clinic_id,
+            clinicName=cln.name if cln else "All Branches",
+            overrideDate=saved.override_date,
+            overrideType=saved.override_type,
+            isDraft=saved.is_draft,
+            shiftsJson=saved.shifts_json,
+            breaksJson=saved.breaks_json,
+            reason=saved.reason,
+            publishedAt=saved.published_at,
+        )
+
+    async def delete_doctor_override(
+        self,
+        override_id: UUID,
+        user_id: Optional[UUID] = None,
+    ) -> bool:
+        deleted = await self.repository.delete_doctor_override(override_id)
+        if deleted:
+            await record_activity(
+                self.activity_repo,
+                action="delete_doctor_override",
+                entity_type="doctor_schedule_overrides",
+                entity_id=str(override_id),
+                user_id=user_id,
+            )
+        return deleted
+
+    # ---------------------------------------------------------------------------
+    # Schedule Conflict Detection & Publication
+    # ---------------------------------------------------------------------------
+
+    async def get_schedule_conflicts(
+        self,
+        team_member_id: Optional[UUID] = None,
+        clinic_id: Optional[UUID] = None,
+    ) -> List[AffectedBookingDto]:
+        """
+        Detects bookings that would be affected by publishing draft schedules or draft overrides.
+        Checks future non-cancelled bookings.
+        """
+        today = date.today()
+        stmt = (
+            select(BookingORM)
+            .where(
+                BookingORM.preferred_date >= today,
+                BookingORM.status.not_in(["cancelled", "no_show"]),
+            )
+        )
+        if team_member_id:
+            stmt = stmt.where(BookingORM.team_member_id == team_member_id)
+        if clinic_id:
+            stmt = stmt.where(BookingORM.clinic_id == clinic_id)
+
+        res = await self.session.execute(stmt)
+        bookings = res.scalars().all()
+
+        conflicts = []
+        # Check draft overrides
+        draft_overrides = await self.repository.list_doctor_overrides(
+            team_member_id=team_member_id, clinic_id=clinic_id, include_draft=True
+        )
+        draft_unavail = {o.override_date: o for o in draft_overrides if o.is_draft and o.override_type == "unavailable"}
+
+        for b in bookings:
+            if b.preferred_date in draft_unavail:
+                conflicts.append(
+                    AffectedBookingDto(
+                        id=b.id,
+                        confirmationId=b.confirmation_id,
+                        patientFullName=b.patient_full_name,
+                        patientPhone=b.patient_phone,
+                        patientEmail=b.patient_email,
+                        preferredDate=b.preferred_date,
+                        preferredTime=b.preferred_time,
+                        serviceId=b.service_id,
+                        status=b.status,
+                    )
+                )
+
+        return conflicts
+
+    async def publish_schedule(
+        self,
+        team_member_id: Optional[UUID] = None,
+        clinic_id: Optional[UUID] = None,
+        user_id: Optional[UUID] = None,
+    ) -> PublishScheduleResponse:
+        """
+        Publishes draft recurring availability and draft date overrides.
+        Identifies affected appointments and returns conflict warnings.
+        NEVER silently deletes, cancels or moves existing appointments.
+        """
+        now_utc = datetime.now(timezone.utc)
+        conflicts = await self.get_schedule_conflicts(team_member_id=team_member_id, clinic_id=clinic_id)
+
+        # 1. Publish draft recurring availability
+        pa_stmt = select(ProviderAvailabilityORM).where(ProviderAvailabilityORM.is_draft.is_(True))
+        if team_member_id:
+            pa_stmt = pa_stmt.where(ProviderAvailabilityORM.team_member_id == team_member_id)
+        if clinic_id:
+            pa_stmt = pa_stmt.where(ProviderAvailabilityORM.clinic_id == clinic_id)
+        pa_res = await self.session.execute(pa_stmt)
+        draft_pa = pa_res.scalars().all()
+        for p in draft_pa:
+            p.is_draft = False
+            p.published_at = now_utc
+            p.updated_at = now_utc
+
+        # 2. Publish draft overrides
+        ovr_stmt = select(DoctorScheduleOverrideORM).where(DoctorScheduleOverrideORM.is_draft.is_(True))
+        if team_member_id:
+            ovr_stmt = ovr_stmt.where(DoctorScheduleOverrideORM.team_member_id == team_member_id)
+        if clinic_id:
+            ovr_stmt = ovr_stmt.where(DoctorScheduleOverrideORM.clinic_id == clinic_id)
+        ovr_res = await self.session.execute(ovr_stmt)
+        draft_ovr = ovr_res.scalars().all()
+        for o in draft_ovr:
+            o.is_draft = False
+            o.published_at = now_utc
+            o.updated_at = now_utc
+
+        await self.session.flush()
+
+        warning = None
+        if conflicts:
+            warning = f"Notice: {len(conflicts)} scheduled appointment(s) coincide with newly published unavailable periods. Please review affected appointments in the Receptionist workspace."
+
+        await record_activity(
+            self.activity_repo,
+            action="publish_doctor_schedule",
+            entity_type="doctor_schedule",
+            entity_id=str(team_member_id or clinic_id or "all"),
+            user_id=user_id,
+            details={
+                "published_availability": len(draft_pa),
+                "published_overrides": len(draft_ovr),
+                "conflicts_count": len(conflicts),
+            },
+        )
+
+        return PublishScheduleResponse(
+            publishedAvailabilityCount=len(draft_pa),
+            publishedOverridesCount=len(draft_ovr),
+            affectedBookingsCount=len(conflicts),
+            affectedBookings=conflicts,
+            warningMessage=warning,
+        )
+
+    # ---------------------------------------------------------------------------
+    # Special Appointment Categories
+    # ---------------------------------------------------------------------------
+
+    async def list_appointment_categories(self, include_inactive: bool = False) -> List[AppointmentCategoryDto]:
+        cats = await self.repository.list_appointment_categories(include_inactive=include_inactive)
+        return [
+            AppointmentCategoryDto(
+                id=c.id,
+                name=c.name,
+                code=c.code,
+                description=c.description,
+                requiresApproval=c.requires_approval,
+                isActive=c.is_active,
+                createdAt=c.created_at,
+            )
+            for c in cats
+        ]
+
+    async def save_appointment_category(
+        self,
+        req: AppointmentCategoryCreateRequest,
+        category_id: Optional[UUID] = None,
+        user_id: Optional[UUID] = None,
+    ) -> AppointmentCategoryDto:
+        cat = AppointmentCategory(
+            id=category_id or uuid4(),
+            name=req.name.strip(),
+            code=req.code.strip().lower(),
+            description=req.description,
+            requires_approval=req.requiresApproval,
+            is_active=req.isActive,
+        )
+        saved = await self.repository.save_appointment_category(cat)
+        await record_activity(
+            self.activity_repo,
+            action="save_appointment_category",
+            entity_type="appointment_categories",
+            entity_id=str(saved.id),
+            user_id=user_id,
+            details={
+                "name": saved.name,
+                "code": saved.code,
+                "requires_approval": saved.requires_approval,
+            },
+        )
+        return AppointmentCategoryDto(
+            id=saved.id,
+            name=saved.name,
+            code=saved.code,
+            description=saved.description,
+            requiresApproval=saved.requires_approval,
+            isActive=saved.is_active,
+            createdAt=saved.created_at,
+        )
+
+    async def delete_appointment_category(
+        self,
+        category_id: UUID,
+        user_id: Optional[UUID] = None,
+    ) -> bool:
+        deleted = await self.repository.delete_appointment_category(category_id)
+        if deleted:
+            await record_activity(
+                self.activity_repo,
+                action="delete_appointment_category",
+                entity_type="appointment_categories",
+                entity_id=str(category_id),
+                user_id=user_id,
+            )
+        return deleted

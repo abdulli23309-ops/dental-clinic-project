@@ -15,6 +15,16 @@ from app.api.deps import (
     require_admin,
 )
 from app.application.dtos.booking_settings_dto import (
+    AppointmentCategoryCreateRequest,
+    AppointmentCategoryDto,
+    DoctorBranchAssignmentDto,
+    DoctorBranchAssignmentRequest,
+    DoctorScheduleOverrideCreateRequest,
+    DoctorScheduleOverrideDto,
+    DoctorServiceAssignmentDto,
+    DoctorServiceAssignmentRequest,
+    PublishScheduleRequest,
+    PublishScheduleResponse,
     AffectedBookingDto,
     BookabilityCheckItem,
     BookabilityCheckResponse,
@@ -497,3 +507,141 @@ async def check_catalog_bookability(
     )
 
 
+
+# ---------------------------------------------------------------------------
+# Doctor Multi-Branch and Service Assignments Endpoints
+# ---------------------------------------------------------------------------
+
+@router.get("/doctor-branches", response_model=List[DoctorBranchAssignmentDto])
+async def list_doctor_branches(
+    teamMemberId: Optional[UUID] = Query(None),
+    clinicId: Optional[UUID] = Query(None),
+    service: BookingSettingsService = Depends(get_booking_settings_service),
+) -> List[DoctorBranchAssignmentDto]:
+    """Retrieves doctor branch assignments."""
+    return await service.list_doctor_branches(team_member_id=teamMemberId, clinic_id=clinicId)
+
+
+@router.post("/doctor-branches", response_model=List[DoctorBranchAssignmentDto])
+async def set_doctor_branches(
+    req: DoctorBranchAssignmentRequest,
+    current_user: User = Depends(require_admin),
+    service: BookingSettingsService = Depends(get_booking_settings_service),
+) -> List[DoctorBranchAssignmentDto]:
+    """Assigns a doctor to one or multiple clinic branches."""
+    return await service.set_doctor_branches(req=req, user_id=current_user.id)
+
+
+@router.get("/doctor-services", response_model=List[DoctorServiceAssignmentDto])
+async def list_doctor_services(
+    teamMemberId: Optional[UUID] = Query(None),
+    clinicId: Optional[UUID] = Query(None),
+    service: BookingSettingsService = Depends(get_booking_settings_service),
+) -> List[DoctorServiceAssignmentDto]:
+    """Retrieves doctor-service assignments with branch, custom duration and buffer overrides."""
+    return await service.list_doctor_services(team_member_id=teamMemberId, clinic_id=clinicId)
+
+
+@router.post("/doctor-services", response_model=DoctorServiceAssignmentDto)
+async def save_doctor_service(
+    req: DoctorServiceAssignmentRequest,
+    current_user: User = Depends(require_admin),
+    service: BookingSettingsService = Depends(get_booking_settings_service),
+) -> DoctorServiceAssignmentDto:
+    """Configures doctor service assignment with branch-specific duration overrides and buffers."""
+    return await service.save_doctor_service(req=req, user_id=current_user.id)
+
+
+# ---------------------------------------------------------------------------
+# Doctor Schedule Overrides Endpoints
+# ---------------------------------------------------------------------------
+
+@router.get("/doctor-overrides", response_model=List[DoctorScheduleOverrideDto])
+async def list_doctor_overrides(
+    teamMemberId: Optional[UUID] = Query(None),
+    clinicId: Optional[UUID] = Query(None),
+    service: BookingSettingsService = Depends(get_booking_settings_service),
+) -> List[DoctorScheduleOverrideDto]:
+    """Retrieves date-specific schedule overrides (unavailable, extra working days, modified hours)."""
+    return await service.list_doctor_overrides(team_member_id=teamMemberId, clinic_id=clinicId)
+
+
+@router.post("/doctor-overrides", response_model=DoctorScheduleOverrideDto)
+async def save_doctor_override(
+    req: DoctorScheduleOverrideCreateRequest,
+    current_user: User = Depends(require_admin),
+    service: BookingSettingsService = Depends(get_booking_settings_service),
+) -> DoctorScheduleOverrideDto:
+    """Creates or updates a date-specific schedule override."""
+    return await service.save_doctor_override(req=req, user_id=current_user.id)
+
+
+@router.delete("/doctor-overrides/{override_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_doctor_override(
+    override_id: UUID,
+    current_user: User = Depends(require_admin),
+    service: BookingSettingsService = Depends(get_booking_settings_service),
+) -> None:
+    """Deletes a date-specific schedule override."""
+    await service.delete_doctor_override(override_id=override_id, user_id=current_user.id)
+
+
+# ---------------------------------------------------------------------------
+# Schedule Conflict Warnings & Publish Endpoints
+# ---------------------------------------------------------------------------
+
+@router.get("/schedule-conflicts", response_model=List[AffectedBookingDto])
+async def get_schedule_conflicts(
+    teamMemberId: Optional[UUID] = Query(None),
+    clinicId: Optional[UUID] = Query(None),
+    service: BookingSettingsService = Depends(get_booking_settings_service),
+) -> List[AffectedBookingDto]:
+    """Identifies existing bookings that would conflict with unpublished draft changes."""
+    return await service.get_schedule_conflicts(team_member_id=teamMemberId, clinic_id=clinicId)
+
+
+@router.post("/publish-schedule", response_model=PublishScheduleResponse)
+async def publish_schedule(
+    req: PublishScheduleRequest,
+    current_user: User = Depends(require_admin),
+    service: BookingSettingsService = Depends(get_booking_settings_service),
+) -> PublishScheduleResponse:
+    """Publishes draft schedules immediately and returns any conflict warnings for scheduled appointments."""
+    return await service.publish_schedule(
+        team_member_id=req.teamMemberId,
+        clinic_id=req.clinicId,
+        user_id=current_user.id,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Special Appointment Categories Endpoints
+# ---------------------------------------------------------------------------
+
+@router.get("/categories", response_model=List[AppointmentCategoryDto])
+async def list_appointment_categories(
+    includeInactive: bool = Query(False),
+    service: BookingSettingsService = Depends(get_booking_settings_service),
+) -> List[AppointmentCategoryDto]:
+    """Lists special appointment categories and their approval requirements."""
+    return await service.list_appointment_categories(include_inactive=includeInactive)
+
+
+@router.post("/categories", response_model=AppointmentCategoryDto)
+async def save_appointment_category(
+    req: AppointmentCategoryCreateRequest,
+    current_user: User = Depends(require_admin),
+    service: BookingSettingsService = Depends(get_booking_settings_service),
+) -> AppointmentCategoryDto:
+    """Creates or updates a special appointment category with approval settings."""
+    return await service.save_appointment_category(req=req, user_id=current_user.id)
+
+
+@router.delete("/categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_appointment_category(
+    category_id: UUID,
+    current_user: User = Depends(require_admin),
+    service: BookingSettingsService = Depends(get_booking_settings_service),
+) -> None:
+    """Deletes an appointment category."""
+    await service.delete_appointment_category(category_id=category_id, user_id=current_user.id)

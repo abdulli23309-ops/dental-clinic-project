@@ -50,7 +50,7 @@ export function FloatingAction() {
 
         <Link
           href="/book"
-          className="flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-medium text-white transition-colors hover:brightness-110 shadow-xs"
+          className="flex items-center gap-1.5 rounded-full btn-premium-emerald px-3.5 py-2 text-xs font-semibold text-white"
         >
           <Calendar className="h-3.5 w-3.5" />
           <span>{copy.book}</span>

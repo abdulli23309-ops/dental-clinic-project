@@ -73,9 +73,16 @@ router = APIRouter(
 )
 
 
+ADMIN_ROLES = {"admin", "platform owner", "super admin"}
+
+
 def _get_clinic_scope(current_user: User, explicit_clinic_id: Optional[UUID] = None) -> Optional[UUID]:
     """Enforces clinic scoping based on user's authorized clinic."""
-    # If the user has a clinic_id assigned, strictly constrain queries to their clinic
+    user_role = (current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)).lower()
+    # Practice-wide administrative roles have multi-branch oversight; respect explicit clinic filter if passed
+    if user_role in ADMIN_ROLES:
+        return explicit_clinic_id
+    # Branch staff strictly constrained to their assigned clinic
     if current_user.clinic_id:
         return current_user.clinic_id
     return explicit_clinic_id
@@ -1634,3 +1641,151 @@ async def call_desk_record_outcome(
     """
     return await call_desk_service.record_outcome(req=req, user_id=current_user.id)
 
+
+# ---------------------------------------------------------------------------
+# Approvals, Rescheduling, Cancellation, and Notification Tasks Endpoints
+# ---------------------------------------------------------------------------
+
+@router.get("/approvals", response_model=List[Dict[str, Any]])
+async def list_pending_approvals(
+    clinicId: Optional[UUID] = Query(None),
+    reception_service: ReceptionService = Depends(get_reception_service),
+) -> List[Dict[str, Any]]:
+    """Lists pending bookings requiring receptionist approval."""
+    return await reception_service.list_pending_approvals(clinic_id=clinicId)
+
+
+@router.post("/approvals/{booking_id}/approve", response_model=BookingResponseDto)
+async def approve_booking(
+    booking_id: UUID,
+    current_user: User = Depends(require_receptionist),
+    reception_service: ReceptionService = Depends(get_reception_service),
+) -> BookingResponseDto:
+    """Approves a pending booking, marks confirmed, and triggers patient notification."""
+    booking = await reception_service.approve_booking(booking_id=booking_id, user_id=current_user.id)
+    return BookingResponseDto(
+        id=booking.id,
+        confirmationId=booking.confirmation_id,
+        patientFullName=booking.patient_full_name,
+        patientPhone=booking.patient_phone,
+        patientEmail=booking.patient_email,
+        preferredDate=booking.preferred_date,
+        preferredTime=booking.preferred_time,
+        status=booking.status,
+        serviceId=booking.service_id,
+        teamMemberId=booking.team_member_id,
+        clinicId=booking.clinic_id,
+        notes=booking.notes,
+        createdAt=booking.created_at,
+        updatedAt=booking.updated_at,
+    )
+
+
+from pydantic import BaseModel
+
+class RejectBookingRequest(BaseModel):
+    reason: str
+
+
+@router.post("/approvals/{booking_id}/reject", response_model=BookingResponseDto)
+async def reject_booking(
+    booking_id: UUID,
+    req: RejectBookingRequest,
+    current_user: User = Depends(require_receptionist),
+    reception_service: ReceptionService = Depends(get_reception_service),
+) -> BookingResponseDto:
+    """Rejects a pending booking with reason."""
+    booking = await reception_service.reject_booking(booking_id=booking_id, reason=req.reason, user_id=current_user.id)
+    return BookingResponseDto(
+        id=booking.id,
+        confirmationId=booking.confirmation_id,
+        patientFullName=booking.patient_full_name,
+        patientPhone=booking.patient_phone,
+        patientEmail=booking.patient_email,
+        preferredDate=booking.preferred_date,
+        preferredTime=booking.preferred_time,
+        status=booking.status,
+        serviceId=booking.service_id,
+        teamMemberId=booking.team_member_id,
+        clinicId=booking.clinic_id,
+        notes=booking.notes,
+        createdAt=booking.created_at,
+        updatedAt=booking.updated_at,
+    )
+
+
+@router.get("/reschedule-requests", response_model=List[Dict[str, Any]])
+async def list_reschedule_requests(
+    status: Optional[str] = Query("pending"),
+    reception_service: ReceptionService = Depends(get_reception_service),
+) -> List[Dict[str, Any]]:
+    """Lists patient rescheduling requests awaiting review."""
+    return await reception_service.list_reschedule_requests(status=status)
+
+
+@router.post("/reschedule-requests/{request_id}/approve")
+async def approve_reschedule_request(
+    request_id: UUID,
+    current_user: User = Depends(require_receptionist),
+    reception_service: ReceptionService = Depends(get_reception_service),
+) -> Dict[str, Any]:
+    """Approves a rescheduling request with atomic slot revalidation and patient notification."""
+    return await reception_service.approve_reschedule_request(request_id=request_id, user_id=current_user.id)
+
+
+class RejectRescheduleRequest(BaseModel):
+    staffNotes: Optional[str] = None
+
+
+@router.post("/reschedule-requests/{request_id}/reject")
+async def reject_reschedule_request(
+    request_id: UUID,
+    req: RejectRescheduleRequest,
+    current_user: User = Depends(require_receptionist),
+    reception_service: ReceptionService = Depends(get_reception_service),
+) -> Dict[str, Any]:
+    """Rejects a rescheduling request and retains original booking."""
+    return await reception_service.reject_reschedule_request(request_id=request_id, staff_notes=req.staffNotes, user_id=current_user.id)
+
+
+@router.get("/cancellation-requests", response_model=List[Dict[str, Any]])
+async def list_cancellation_requests(
+    status: Optional[str] = Query("pending"),
+    reception_service: ReceptionService = Depends(get_reception_service),
+) -> List[Dict[str, Any]]:
+    """Lists cancellation requests requiring review (<24h)."""
+    return await reception_service.list_cancellation_requests(status=status)
+
+
+@router.post("/cancellation-requests/{request_id}/approve")
+async def approve_cancellation_request(
+    request_id: UUID,
+    current_user: User = Depends(require_receptionist),
+    reception_service: ReceptionService = Depends(get_reception_service),
+) -> Dict[str, Any]:
+    """Approves a cancellation request."""
+    return await reception_service.approve_cancellation_request(request_id=request_id, user_id=current_user.id)
+
+
+class RejectCancellationRequest(BaseModel):
+    staffNotes: Optional[str] = None
+
+
+@router.post("/cancellation-requests/{request_id}/reject")
+async def reject_cancellation_request(
+    request_id: UUID,
+    req: RejectCancellationRequest,
+    current_user: User = Depends(require_receptionist),
+    reception_service: ReceptionService = Depends(get_reception_service),
+) -> Dict[str, Any]:
+    """Rejects a cancellation request."""
+    return await reception_service.reject_cancellation_request(request_id=request_id, staff_notes=req.staffNotes, user_id=current_user.id)
+
+
+@router.get("/notification-failures", response_model=List[Dict[str, Any]])
+async def list_notification_failures(
+    clinicId: Optional[UUID] = Query(None),
+    reception_service: ReceptionService = Depends(get_reception_service),
+) -> List[Dict[str, Any]]:
+    """Lists follow-up tasks generated by failed WhatsApp and SMS notifications."""
+    return await reception_service.list_failed_notification_tasks(clinic_id=clinicId)

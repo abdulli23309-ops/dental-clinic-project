@@ -3,8 +3,20 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.api.deps import get_organization_service, require_admin, require_platform_owner
+from app.api.deps import (
+    get_organization_service,
+    get_cms_service,
+    require_admin,
+    require_platform_owner,
+    get_clinic_service_repository,
+    get_service_service,
+)
+from app.application.services.cms_service import CmsService
+from app.domain.repositories.clinic_service_repo import ClinicServiceRepository
+from app.application.services.service_service import ServiceService
 from app.application.dtos.organization_dto import (
+    LocationServiceItemDto,
+    LocationServicesUpdateRequest,
     LocationCreateRequest,
     LocationResponse,
     LocationUpdateRequest,
@@ -21,6 +33,7 @@ router = APIRouter(prefix="/admin", tags=["Admin Organization"], dependencies=[D
 @router.get("/organization", response_model=OrganizationResponse)
 async def get_organization(
     org_service: OrganizationService = Depends(get_organization_service),
+    cms_service: CmsService = Depends(get_cms_service),
 ) -> OrganizationResponse:
     """Retrieves top-level practice details. 404 if no organization configured."""
     org = await org_service.get_organization()
@@ -29,15 +42,27 @@ async def get_organization(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No organization configured. Create the organization profile first.",
         )
+    cms_general = {}
+    try:
+        cms_general = await cms_service.get_section("general")
+    except Exception:
+        pass
+    logo_url = org.logo_url or (cms_general.get("logoUrl") if cms_general else None)
+    short_brand_name = (
+        (cms_general.get("shortBrandName") if cms_general else None)
+        or org.display_name
+        or org.name
+    )
     return OrganizationResponse(
         id=org.id,
         name=org.name,
         displayName=org.display_name,
-        tagline=org.tagline,
+        shortBrandName=short_brand_name,
+        tagline=org.tagline or (cms_general.get("tagline") if cms_general else None),
         description=org.description,
-        logoUrl=org.logo_url,
-        contactEmail=org.contact_email,
-        contactPhone=org.contact_phone,
+        logoUrl=logo_url,
+        contactEmail=org.contact_email or (cms_general.get("email") if cms_general else None),
+        contactPhone=org.contact_phone or (cms_general.get("phone") if cms_general else None),
         websiteUrl=org.website_url,
         primaryColor=org.primary_color,
         secondaryColor=org.secondary_color,
@@ -54,18 +79,42 @@ async def get_organization(
 async def update_organization(
     req: OrganizationUpdateRequest,
     org_service: OrganizationService = Depends(get_organization_service),
+    cms_service: CmsService = Depends(get_cms_service),
 ) -> OrganizationResponse:
     """Updates practice details."""
+    if req.shortBrandName is not None or req.logoUrl is not None:
+        try:
+            cms_general = await cms_service.get_section("general")
+            if req.shortBrandName is not None:
+                cms_general["shortBrandName"] = req.shortBrandName.strip() or None
+            if req.logoUrl is not None:
+                cms_general["logoUrl"] = req.logoUrl.strip() or None
+            await cms_service.update_section("general", cms_general)
+        except Exception:
+            pass
+
     org = await org_service.update_organization(req)
+    cms_general = {}
+    try:
+        cms_general = await cms_service.get_section("general")
+    except Exception:
+        pass
+    logo_url = org.logo_url or (cms_general.get("logoUrl") if cms_general else None)
+    short_brand_name = (
+        (cms_general.get("shortBrandName") if cms_general else None)
+        or org.display_name
+        or org.name
+    )
     return OrganizationResponse(
         id=org.id,
         name=org.name,
         displayName=org.display_name,
-        tagline=org.tagline,
+        shortBrandName=short_brand_name,
+        tagline=org.tagline or (cms_general.get("tagline") if cms_general else None),
         description=org.description,
-        logoUrl=org.logo_url,
-        contactEmail=org.contact_email,
-        contactPhone=org.contact_phone,
+        logoUrl=logo_url,
+        contactEmail=org.contact_email or (cms_general.get("email") if cms_general else None),
+        contactPhone=org.contact_phone or (cms_general.get("phone") if cms_general else None),
         websiteUrl=org.website_url,
         primaryColor=org.primary_color,
         secondaryColor=org.secondary_color,
@@ -253,3 +302,58 @@ async def organization_setup_status(
     """Reports whether the organization has been configured."""
     org = await org_service.get_organization()
     return {"isConfigured": org is not None, "organization": org}
+
+
+@router.get("/locations/{location_id}/services", response_model=List[LocationServiceItemDto])
+async def get_location_services(
+    location_id: UUID,
+    org_service: OrganizationService = Depends(get_organization_service),
+    service_service: ServiceService = Depends(get_service_service),
+    clinic_service_repo: ClinicServiceRepository = Depends(get_clinic_service_repository),
+) -> List[LocationServiceItemDto]:
+    """Retrieves all catalog services with isOffered flag for this specific location."""
+    await org_service.get_location(location_id)
+    all_services = await service_service.list_services(include_inactive=False, public_only=False)
+    offered_links = await clinic_service_repo.list_by_clinic(location_id)
+    offered_set = {link.service_id for link in offered_links}
+
+    return [
+        LocationServiceItemDto(
+            id=s.id,
+            title=s.title,
+            slug=s.slug,
+            category=s.category,
+            duration=s.duration,
+            cashPrice=s.cash_price,
+            isOffered=s.id in offered_set,
+        )
+        for s in all_services
+    ]
+
+
+@router.put("/locations/{location_id}/services", response_model=List[LocationServiceItemDto])
+async def update_location_services(
+    location_id: UUID,
+    req: LocationServicesUpdateRequest,
+    org_service: OrganizationService = Depends(get_organization_service),
+    service_service: ServiceService = Depends(get_service_service),
+    clinic_service_repo: ClinicServiceRepository = Depends(get_clinic_service_repository),
+) -> List[LocationServiceItemDto]:
+    """Updates which catalog services are enabled at this branch."""
+    await org_service.get_location(location_id)
+    await clinic_service_repo.set_clinic_services(clinic_id=location_id, service_ids=req.serviceIds)
+    all_services = await service_service.list_services(include_inactive=False, public_only=False)
+    req_set = set(req.serviceIds)
+
+    return [
+        LocationServiceItemDto(
+            id=s.id,
+            title=s.title,
+            slug=s.slug,
+            category=s.category,
+            duration=s.duration,
+            cashPrice=s.cash_price,
+            isOffered=s.id in req_set,
+        )
+        for s in all_services
+    ]

@@ -141,13 +141,23 @@ class AuthService:
                 replacement_token = await self.refresh_token_repo.get_by_id(stored_token.replaced_by)
                 user = await self.user_repo.get_by_id(stored_token.user_id)
                 session = await self.session_repo.get_by_id(stored_token.session_id) if stored_token.session_id else None
-                if user and user.is_active and (session is None or session.is_active):
+                # A concurrent replay is only tolerated when the session is still active so we can
+                # bind a fresh access token to it. Otherwise treat it as a replay attack.
+                if (
+                    replacement_token
+                    and user
+                    and user.is_active
+                    and session is not None
+                    and session.is_active
+                ):
                     access_token = create_access_token(
                         subject=str(user.id),
                         role=user.role.value,
-                        session_id=str(session.id) if session else None,
+                        session_id=str(session.id),
                     )
-                    # Return new access token without re-rotating or revoking
+                    # Return the same refresh token value within the grace window so a legitimate
+                    # concurrent request is not logged out; the token remains revoked and the next
+                    # refresh outside this window will require re-authentication.
                     return access_token, raw_refresh_token, user, False
 
             # Genuine replay / reuse attack: revoke all user sessions defensively
@@ -185,6 +195,11 @@ class AuthService:
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Authentication session has been revoked or expired.",
                 )
+        if session is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="No active session found for refresh token.",
+            )
 
         # Check if 35-minute rotation threshold has been reached
         created_at = stored_token.created_at
@@ -197,7 +212,7 @@ class AuthService:
             access_token = create_access_token(
                 subject=str(user.id),
                 role=user.role.value,
-                session_id=str(session.id) if session else None,
+                session_id=str(session.id),
             )
             return access_token, raw_refresh_token, user, False
 
@@ -221,7 +236,7 @@ class AuthService:
         new_access_token = create_access_token(
             subject=str(user.id),
             role=user.role.value,
-            session_id=str(session.id) if session else None,
+            session_id=str(session.id),
         )
 
         return new_access_token, new_raw_token, user, True

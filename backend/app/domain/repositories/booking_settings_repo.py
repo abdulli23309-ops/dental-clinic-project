@@ -84,7 +84,7 @@ class BookingSettingsRepository(ABC):
         pass
 
     @abstractmethod
-    async def list_service_providers(self, service_id: Optional[UUID] = None, team_member_id: Optional[UUID] = None) -> List[ServiceProviderLink]:
+    async def list_service_providers(self, service_id: Optional[UUID] = None, team_member_id: Optional[UUID] = None, clinic_id: Optional[UUID] = None) -> List[ServiceProviderLink]:
         pass
 
     @abstractmethod

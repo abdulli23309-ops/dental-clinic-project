@@ -16,11 +16,13 @@ from app.api.deps import (
     get_lead_repository,
     get_patient_repository,
     get_booking_settings_repository,
+    get_service_repository,
 )
 from app.application.services.availability_service import AvailabilityService
 from app.domain.models.appointment import Appointment
 from app.domain.models.booking_flow import BookingFlowSettings
 from app.domain.models.booking_settings import BookingSettings, WorkingHours
+from app.domain.models.service import Service
 from app.domain.repositories.appointment_repo import AppointmentRepository
 from app.domain.repositories.booking_flow_settings_repo import BookingFlowSettingsRepository
 from app.domain.repositories.booking_repo import BookingRepository
@@ -28,6 +30,7 @@ from app.domain.repositories.lead_event_repo import LeadEventRepository
 from app.domain.repositories.lead_repo import LeadRepository
 from app.domain.repositories.patient_repo import PatientRepository
 from app.domain.repositories.booking_settings_repo import BookingSettingsRepository
+from app.domain.repositories.service_repo import ServiceRepository
 from app.main import app
 
 
@@ -68,6 +71,31 @@ def mock_appointment_repo():
     mock_lead_event_repo = AsyncMock(spec=LeadEventRepository)
     mock_eligibility_service = AsyncMock()
 
+    # Catalogue repository mock: return a valid bookable service for known slugs,
+    # None for unknown ones, so endpoint service validation is exercised deterministically.
+    mock_service = Service(
+        id=uuid4(),
+        slug="cleanings-exams",
+        category="preventive",
+        title="Cleanings & Exams",
+        short_desc="Routine cleaning and exam",
+        cash_price="$150",
+        duration="60 min",
+        is_active=True,
+        is_public=True,
+        bookable_online=True,
+    )
+
+    def _get_by_slug(slug):
+        return mock_service if slug in ("cleanings-exams", "root-canals") else None
+
+    def _get_by_id(svc_id):
+        return mock_service if svc_id == mock_service.id else None
+
+    mock_service_repo = AsyncMock(spec=ServiceRepository)
+    mock_service_repo.get_by_slug.side_effect = _get_by_slug
+    mock_service_repo.get_by_id.side_effect = _get_by_id
+
     app.dependency_overrides[get_appointment_repository] = lambda: mock_repo
     app.dependency_overrides[get_booking_repository] = lambda: mock_booking_repo
     app.dependency_overrides[get_patient_repository] = lambda: mock_patient_repo
@@ -77,6 +105,7 @@ def mock_appointment_repo():
     app.dependency_overrides[get_lead_repository] = lambda: mock_lead_repo
     app.dependency_overrides[get_lead_event_repository] = lambda: mock_lead_event_repo
     app.dependency_overrides[get_booking_eligibility_service] = lambda: mock_eligibility_service
+    app.dependency_overrides[get_service_repository] = lambda: mock_service_repo
     yield mock_repo
     app.dependency_overrides.clear()
 
@@ -126,7 +155,8 @@ async def test_validation_invalid_service(async_client, mock_appointment_repo):
         "email": "jane@example.com",
     }
     response = await async_client.post("/api/v1/appointments", json=payload)
-    assert response.status_code == 422
+    assert response.status_code == 409
+    assert "service" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio

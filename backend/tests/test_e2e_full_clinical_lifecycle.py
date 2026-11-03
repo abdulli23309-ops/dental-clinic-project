@@ -64,6 +64,21 @@ async def test_complete_12_step_clinical_lifecycle(client_with_db, test_session)
         cash_price="280.00",
         duration="60m",
     ))
+    await test_session.commit()
+
+    # Seed the service the public booking form requests so DB-backed catalogue validation passes.
+    booking_service = await service_repo.save(Service(
+        slug="cleanings-exams",
+        category="preventive",
+        title="Cleanings & Comprehensive Exam",
+        short_desc="Routine cleaning and exam",
+        cash_price="from 140",
+        duration="45 to 60 min",
+        is_active=True,
+        is_public=True,
+        bookable_online=True,
+    ))
+    await test_session.commit()
 
     # Create Receptionist user
     receptionist_user = await user_repo.save(User(

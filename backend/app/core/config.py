@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     """
     ENVIRONMENT: str = "development"
     DEBUG: bool = False
-    APP_NAME: str = "Marlow Dental API"
+    APP_NAME: str = "Hira Dental Clinic API"
     API_V1_PREFIX: str = "/api/v1"
 
     @field_validator("DEBUG", mode="before")
@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7  # 7 days
     REFRESH_TOKEN_ROTATE_AFTER_MINUTES: int = 35  # 35 minutes rotation window
     REFRESH_COOKIE_NAME: str = "marlow_refresh_token"
-    COOKIE_SECURE: bool = False
+    COOKIE_SECURE: bool = True
     COOKIE_SAMESITE: str = "lax"
     COOKIE_DOMAIN: Optional[str] = None
     LOGIN_RATE_LIMIT: str = "5/minute"
@@ -81,6 +81,17 @@ class Settings(BaseSettings):
             ):
                 raise ValueError(
                     "Production startup refused: JWT_SECRET_KEY is unset or using the default development secret."
+                )
+            # Production cookies must only be sent over HTTPS and must not be accessible to
+            # client-side script. A non-secure cookie in production would expose the refresh
+            # token (and thus the session) to interception.
+            if not self.COOKIE_SECURE:
+                raise ValueError(
+                    "Production startup refused: COOKIE_SECURE must be true in production."
+                )
+            if self.COOKIE_SAMESITE.lower() not in ("lax", "strict", "none"):
+                raise ValueError(
+                    "Production startup refused: COOKIE_SAMESITE must be lax, strict, or none."
                 )
         return self
 

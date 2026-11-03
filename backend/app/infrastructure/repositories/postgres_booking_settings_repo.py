@@ -462,12 +462,20 @@ class PostgresBookingSettingsRepository(BookingSettingsRepository):
         self,
         service_id: Optional[UUID] = None,
         team_member_id: Optional[UUID] = None,
+        clinic_id: Optional[UUID] = None,
     ) -> List[ServiceProviderLink]:
-        stmt = select(ServiceProviderORM)
+        stmt = select(ServiceProviderORM).where(ServiceProviderORM.is_active.is_(True))
         if service_id:
             stmt = stmt.where(ServiceProviderORM.service_id == service_id)
         if team_member_id:
             stmt = stmt.where(ServiceProviderORM.team_member_id == team_member_id)
+        if clinic_id:
+            stmt = stmt.where(
+                or_(
+                    ServiceProviderORM.clinic_id == clinic_id,
+                    ServiceProviderORM.clinic_id.is_(None),
+                )
+            )
         res = await self.session.execute(stmt)
         orms = res.scalars().all()
         return [
@@ -475,6 +483,10 @@ class PostgresBookingSettingsRepository(BookingSettingsRepository):
                 id=o.id,
                 service_id=o.service_id,
                 team_member_id=o.team_member_id,
+                clinic_id=o.clinic_id,
+                custom_duration_minutes=o.custom_duration_minutes,
+                buffer_minutes=o.buffer_minutes,
+                is_active=o.is_active,
                 created_at=o.created_at,
             )
             for o in orms

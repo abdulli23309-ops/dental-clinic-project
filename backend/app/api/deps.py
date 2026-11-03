@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Callable, Optional
 from uuid import UUID
 
@@ -265,6 +266,7 @@ def get_appointment_service(
     lead_event_repo: LeadEventRepository = Depends(get_lead_event_repository),
     booking_flow_settings_repo: BookingFlowSettingsRepository = Depends(get_booking_flow_settings_repository),
     eligibility_service: BookingEligibilityService = Depends(get_booking_eligibility_service),
+    service_repo: ServiceRepository = Depends(get_service_repository),
     session: AsyncSession = Depends(get_db_session),
 ) -> AppointmentService:
     return AppointmentService(
@@ -278,6 +280,7 @@ def get_appointment_service(
         lead_event_repo=lead_event_repo,
         booking_flow_settings_repo=booking_flow_settings_repo,
         eligibility_service=eligibility_service,
+        service_repo=service_repo,
     )
 
 
@@ -500,25 +503,25 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Server-side session verification for 7-day token security & instant revocation
+    # Every access token MUST be bound to a concrete server-side session. Tokens
+    # issued without a sid claim are rejected rather than trusted blindly.
     sid_str = payload.get("sid")
-    if sid_str:
-        try:
-            sid = UUID(sid_str)
-            active_session = await session_repo.get_by_id(sid)
-            if not active_session or not active_session.is_active:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Session has been revoked or expired.",
-                    headers={"WWW-Authenticate": "Bearer"},
-                )
-        except (ValueError, TypeError):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Malformed session ID in token.",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+    if not sid_str:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Access token is not bound to a session.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    try:
+        sid = UUID(str(sid_str).strip())
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Malformed session ID in token.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
+    # Resolve the token subject before checking session ownership.
     user_id_str = payload.get("sub")
     if not user_id_str:
         raise HTTPException(
@@ -526,7 +529,6 @@ async def get_current_user(
             detail="Malformed access token payload.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
     try:
         user_id = UUID(user_id_str)
     except (ValueError, TypeError):
@@ -541,6 +543,32 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User account is inactive or not found.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Server-side session verification: the session must exist, be active,
+    # not have expired, and belong to the authenticated user. This binds the
+    # token to a specific session and enables instant revocation.
+    active_session = await session_repo.get_by_id(sid)
+    if not active_session or not active_session.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session has been revoked or is not active.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    if active_session.user_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session does not belong to the authenticated user.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    expires_at = active_session.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at <= datetime.now(timezone.utc):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session has expired.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 

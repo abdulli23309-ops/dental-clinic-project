@@ -48,6 +48,21 @@ async def test_scripted_visit_full_lifecycle_e2e(
     saved_service = await service_repo.save(test_service)
     await test_session.commit()
 
+    # Seed the service the public booking form requests so DB-backed catalogue validation passes.
+    booking_service = Service(
+        title="Cleanings & Comprehensive Exam",
+        slug="cleanings-exams",
+        category="preventive",
+        short_desc="Routine cleaning and exam",
+        cash_price="$150",
+        duration="45 to 60 min",
+        is_active=True,
+        is_public=True,
+        bookable_online=True,
+    )
+    await service_repo.save(booking_service)
+    await test_session.commit()
+
     today = date.today() if date.today().weekday() != 6 else date.today() + timedelta(days=1)
 
     # --- Step 1: Online appointment request ---

@@ -176,7 +176,7 @@ def format_reminder_message(
     patient_first_name: str,
     appointment_date: str,
     appointment_time: str,
-    clinic_name: str = "Marlow Dental Clinic",
+    clinic_name: str = "Hira Dental Clinic",
     clinic_phone: str = "+92 300 1234567",
 ) -> str:
     msg = template
@@ -1833,7 +1833,7 @@ class ReceptionService:
     ) -> Dict[str, Any]:
         default_tpl = (
             "Dear {patient_name}, this is a reminder for your dental appointment on "
-            "{appointment_date} at {appointment_time} with {clinician_name} at Marlow Dental. "
+            "{appointment_date} at {appointment_time} with {clinician_name} at Hira Dental Clinic. "
             "Please reply to confirm or call {clinic_phone} if you need to reschedule."
         )
         template = default_tpl
@@ -2013,7 +2013,7 @@ class ReceptionService:
             patient_first_name=first_name,
             appointment_date=booking.preferred_date.isoformat(),
             appointment_time=booking.preferred_time,
-            clinic_name="Marlow Dental Clinic",
+            clinic_name="Hira Dental Clinic",
             clinic_phone="+92 300 1234567",
         )
 

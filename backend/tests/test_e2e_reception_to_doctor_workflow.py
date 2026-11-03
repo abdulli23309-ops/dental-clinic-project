@@ -4,11 +4,13 @@ from uuid import uuid4
 
 from app.core.security import hash_password
 from app.domain.models.booking_crm import Booking, Patient, Task
+from app.domain.models.service import Service
 from app.domain.models.team_member import TeamMember
 from app.domain.models.user import User, UserRole
 from app.infrastructure.repositories.postgres_booking_repo import PostgresBookingRepository
 from app.infrastructure.repositories.postgres_booking_settings_repo import PostgresBookingSettingsRepository
 from app.infrastructure.repositories.postgres_patient_repo import PostgresPatientRepository
+from app.infrastructure.repositories.postgres_service_repo import PostgresServiceRepository
 from app.infrastructure.repositories.postgres_task_repo import PostgresTaskRepository
 from app.infrastructure.repositories.postgres_team_repo import PostgresTeamMemberRepository
 from app.infrastructure.repositories.postgres_user_repo import PostgresUserRepository
@@ -97,6 +99,21 @@ async def test_full_receptionist_to_doctor_lifecycle(client_with_db, test_sessio
         today_wh.close_time = "18:00"
         await booking_settings_repo.update_working_hours([today_wh])
 
+    await test_session.commit()
+
+    # Seed the service the public booking form requests so DB-backed catalogue validation passes.
+    service_repo = PostgresServiceRepository(test_session)
+    await service_repo.save(Service(
+        slug="cleanings-exams",
+        category="preventive",
+        title="Cleanings & Comprehensive Exam",
+        short_desc="Routine cleaning and exam",
+        cash_price="from 140",
+        duration="45 to 60 min",
+        is_active=True,
+        is_public=True,
+        bookable_online=True,
+    ))
     await test_session.commit()
 
     # Log in Receptionist

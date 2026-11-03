@@ -22,6 +22,7 @@ from app.domain.repositories.booking_settings_repo import BookingSettingsReposit
 from app.domain.repositories.lead_event_repo import LeadEventRepository
 from app.domain.repositories.lead_repo import LeadRepository
 from app.domain.repositories.patient_repo import PatientRepository
+from app.domain.repositories.service_repo import ServiceRepository
 from app.application.services.reception_service import _acquire_schedule_lock
 from app.application.services.availability_service import AvailabilityService
 
@@ -47,6 +48,7 @@ class AppointmentService:
         lead_event_repo: Optional[LeadEventRepository] = None,
         booking_flow_settings_repo: Optional[BookingFlowSettingsRepository] = None,
         eligibility_service: Optional[object] = None,
+        service_repo: Optional[ServiceRepository] = None,
     ) -> None:
         """Stores repositories for appointments, canonical bookings, patient charts, and clinic availability rules."""
         self._repository = repository
@@ -59,6 +61,7 @@ class AppointmentService:
         self._lead_event_repo = lead_event_repo
         self._booking_flow_settings_repo = booking_flow_settings_repo
         self._eligibility_service = eligibility_service
+        self._service_repo = service_repo
 
     @staticmethod
     def generate_confirmation_id() -> str:
@@ -114,6 +117,28 @@ class AppointmentService:
                         status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
                         detail=f"Clinic is closed on {parsed_date.isoformat()}{closure_reason}.",
                     )
+
+        # Validate requested service against the persisted catalogue (DB-backed, no static allow-list).
+        # Only enforced when the catalogue repository is wired; unit tests that mock only the
+        # appointment repository are unaffected.
+        if self._service_repo is not None:
+            service = await self._service_repo.get_by_slug(request.serviceId)
+            if service is None:
+                try:
+                    service_uuid = UUID(request.serviceId)
+                    service = await self._service_repo.get_by_id(service_uuid)
+                except ValueError:
+                    service = None
+            if service is None:
+                raise HTTPException(
+                    status_code=http_status.HTTP_409_CONFLICT,
+                    detail="The requested service is not available.",
+                )
+            if not service.is_active or not service.is_public or not service.bookable_online:
+                raise HTTPException(
+                    status_code=http_status.HTTP_409_CONFLICT,
+                    detail="The requested service is not currently bookable.",
+                )
 
         # Enforce advisory lock and availability validation
         async with _acquire_schedule_lock(self._booking_repo, None, parsed_date):

@@ -7,8 +7,17 @@
   --font-sans: var(--font-secondary, var(--font-manrope)), system-ui, sans-serif;
 
   --color-primary: var(--color-primary);
+  --color-primary-foreground: var(--primary-foreground, #FFFFFF);
   --color-secondary: var(--color-secondary);
   --color-bg-base: var(--color-bg-base);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
 
   --color-bone: var(--color-bone);
   --color-cream: var(--color-cream);
@@ -27,6 +36,8 @@
 :root {
   --background: #FFFFFF;
   --foreground: #111827;
+  --primary: #1F3D34;
+  --primary-foreground: #FFFFFF;
   --card: #FFFFFF;
   --card-foreground: #111827;
   --border: #E5E7EB;
@@ -66,6 +77,8 @@
 .dark {
   --background: #0a0a0c;
   --foreground: #F9FAFB;
+  --primary: #2B5749;
+  --primary-foreground: #FFFFFF;
   --card: #121316;
   --card-foreground: #FFFFFF;
   --border: rgba(255, 255, 255, 0.1);
@@ -103,8 +116,8 @@
     text-rendering: optimizeLegibility;
     scroll-behavior: smooth;
     transition: background-color 350ms cubic-bezier(0.4, 0, 0.2, 1),
-                color 350ms cubic-bezier(0.4, 0, 0.2, 1),
-                border-color 350ms cubic-bezier(0.4, 0, 0.2, 1);
+      color 350ms cubic-bezier(0.4, 0, 0.2, 1),
+      border-color 350ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   body {
@@ -114,7 +127,7 @@
     font-feature-settings: "ss01", "cv11";
     min-height: 100vh;
     transition: background-color 350ms cubic-bezier(0.4, 0, 0.2, 1),
-                color 350ms cubic-bezier(0.4, 0, 0.2, 1);
+      color 350ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   ::selection {
@@ -122,7 +135,12 @@
     color: #FAF7F2;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: var(--font-display);
     font-weight: 400;
     letter-spacing: -0.02em;
@@ -139,6 +157,7 @@
   .font-display {
     font-family: var(--font-primary, var(--font-fraunces)), Georgia, serif;
   }
+
   .font-sans,
   .font-body {
     font-family: var(--font-secondary, var(--font-manrope)), system-ui, sans-serif;
@@ -150,11 +169,17 @@
     max-width: 82rem;
     padding-inline: 1.25rem;
   }
+
   @media (min-width: 640px) {
-    .container-x { padding-inline: 2rem; }
+    .container-x {
+      padding-inline: 2rem;
+    }
   }
+
   @media (min-width: 1024px) {
-    .container-x { padding-inline: 3rem; }
+    .container-x {
+      padding-inline: 3rem;
+    }
   }
 
   /* Fluid typography utilities */
@@ -179,10 +204,21 @@
     color: var(--color-clay);
   }
 
-  .shadow-subtle { box-shadow: var(--shadow-subtle); }
-  .shadow-card { box-shadow: var(--shadow-card); }
-  .shadow-elevated { box-shadow: var(--shadow-elevated); }
-  .shadow-modal { box-shadow: var(--shadow-modal); }
+  .shadow-subtle {
+    box-shadow: var(--shadow-subtle);
+  }
+
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+
+  .shadow-elevated {
+    box-shadow: var(--shadow-elevated);
+  }
+
+  .shadow-modal {
+    box-shadow: var(--shadow-modal);
+  }
 
   /* Skip to content link for keyboard navigation */
   .skip-to-content {
@@ -199,14 +235,20 @@
     box-shadow: var(--shadow-elevated);
     transition: top 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
+
   .skip-to-content:focus {
     top: 1.5rem;
   }
 
   /* Marquee ticker animation */
   @keyframes marquee {
-    0% { transform: translateX(0%); }
-    100% { transform: translateX(-50%); }
+    0% {
+      transform: translateX(0%);
+    }
+
+    100% {
+      transform: translateX(-50%);
+    }
   }
 
   .animate-marquee {
@@ -215,22 +257,45 @@
     animation: marquee 35s linear infinite;
   }
 
-  /* Shimmer skeleton sweep animation */
+  /* Shimmer Keyframes for Global Skeletons */
   @keyframes shimmer {
-    100% {
-      transform: translateX(100%);
+    0% {
+      background-position: 200% 0;
     }
+
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  @keyframes shimmer-sweep {
+    0% {
+      background-position: 200% 0;
+    }
+
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  .animate-shimmer {
+    background-size: 200% 100% !important;
+    animation: shimmer 1.2s linear infinite !important;
   }
 
   /* Hide scrollbar for clean horizontal scroll containers */
   .hide-scrollbar,
   .scrollbar-none {
-    -ms-overflow-style: none;  /* IE/Edge */
-    scrollbar-width: none;     /* Firefox */
+    -ms-overflow-style: none;
+    /* IE/Edge */
+    scrollbar-width: none;
+    /* Firefox */
   }
+
   .hide-scrollbar::-webkit-scrollbar,
   .scrollbar-none::-webkit-scrollbar {
-    display: none;             /* Chrome/Safari/Opera */
+    display: none;
+    /* Chrome/Safari/Opera */
   }
 
   /* Thin scrollbar variant (used on team carousel) */
@@ -238,12 +303,15 @@
     scrollbar-width: thin;
     scrollbar-color: var(--color-line) transparent;
   }
+
   .scrollbar-thin::-webkit-scrollbar {
     height: 4px;
   }
+
   .scrollbar-thin::-webkit-scrollbar-track {
     background: transparent;
   }
+
   .scrollbar-thin::-webkit-scrollbar-thumb {
     background-color: var(--color-line);
     border-radius: 9999px;
@@ -401,7 +469,10 @@ main[class*="bg-"] {
 
 /* Reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
-  *, ::before, ::after {
+
+  *,
+  ::before,
+  ::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

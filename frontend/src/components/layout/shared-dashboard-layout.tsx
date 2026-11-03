@@ -16,6 +16,7 @@ import {
 
 import { useAuth } from "@/components/providers/auth-provider";
 import { usePublicContent } from "@/components/providers/public-content-provider";
+import { useClinicBranding } from "@/components/ui/clinic-logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   canAccessWorkspace,
@@ -76,8 +77,8 @@ export function SharedDashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { user, isLoading, logout } = useAuth();
-  const { organization } = usePublicContent();
-  const orgName = organization?.displayName || organization?.name || "Dental Clinic";
+  const { logoUrl, fullBrandName, shortBrandName } = useClinicBranding();
+  const orgName = fullBrandName;
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const shouldReduceMotion = useReducedMotion();
@@ -133,23 +134,29 @@ export function SharedDashboardLayout({
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 flex flex-col md:flex-row">
       {/* Mobile Top App Bar */}
       <div className="md:hidden sticky top-0 z-40 flex items-center justify-between border-b border-gray-200 dark:border-gray-800 bg-white/95 dark:bg-gray-950/95 px-4 py-3 backdrop-blur-md">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 min-w-0">
           <button
             onClick={() => setMobileOpen(true)}
-            className="p-1.5 rounded-xl border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+            className="p-1.5 rounded-xl border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer shrink-0"
             aria-label="Open navigation sidebar"
           >
             <Menu className="h-5 w-5" />
           </button>
-          <span className="font-display font-semibold text-gray-900 dark:text-gray-100 text-base tracking-tight">
-            {orgName}
+          {logoUrl && (
+            <div className="h-7 w-7 rounded-lg overflow-hidden bg-white dark:bg-gray-800 p-0.5 border border-gray-200 dark:border-gray-700 shrink-0 flex items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={logoUrl} alt="" className="h-full w-full object-contain" />
+            </div>
+          )}
+          <span className="font-display font-semibold text-gray-900 dark:text-gray-100 text-sm tracking-tight truncate max-w-[150px] xs:max-w-none">
+            {shortBrandName}
           </span>
-          <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-mono uppercase font-bold text-primary">
+          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-mono uppercase font-bold text-primary shrink-0">
             {badgeLabel || roleTitle}
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <ThemeToggle />
           <button
             onClick={() => logout()}
@@ -182,41 +189,39 @@ export function SharedDashboardLayout({
             isCollapsed ? "justify-center" : "justify-between"
           }`}
         >
-          <div className="flex items-center gap-3 overflow-hidden">
-            <button
-              onClick={() => setIsCollapsed(!isCollapsed)}
-              className="h-11 w-11 shrink-0 rounded-2xl bg-primary text-white flex items-center justify-center font-display font-bold text-lg shadow-md transition-all hover:scale-105 relative group cursor-pointer"
-              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              <span
-                className={`transition-opacity duration-200 ${
-                  isCollapsed ? "opacity-0" : "group-hover:opacity-0"
-                }`}
+          <div className="flex items-center gap-3 overflow-hidden min-w-0">
+            {/* Real Uploaded Clinic Logo Anchor */}
+            <div className="shrink-0">
+              <Link
+                href={basePath || links[0]?.href || "/"}
+                className="h-11 w-11 rounded-2xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700/80 p-1 flex items-center justify-center shadow-xs overflow-hidden transition-all hover:scale-105 cursor-pointer block"
+                title={fullBrandName}
               >
-                {orgName.charAt(0)}
-              </span>
-              <div
-                className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 ${
-                  isCollapsed ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                }`}
-              >
-                {isCollapsed ? (
-                  <ChevronRight className="h-5 w-5" />
+                {logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={logoUrl}
+                    alt={fullBrandName}
+                    className="h-full w-full object-contain"
+                  />
                 ) : (
-                  <ChevronLeft className="h-5 w-5" />
+                  <span className="font-display font-bold text-lg text-primary">
+                    {shortBrandName.charAt(0)}
+                  </span>
                 )}
-              </div>
-            </button>
+              </Link>
+            </div>
+
             <Link
               href={basePath || links[0]?.href || "/"}
               className={`truncate transition-opacity duration-300 ${
-                isCollapsed ? "hidden opacity-0" : "opacity-100 flex flex-col"
+                isCollapsed ? "hidden opacity-0" : "opacity-100 flex flex-col min-w-0"
               }`}
             >
-              <span className="font-display text-sm font-bold text-gray-900 dark:text-gray-100 block leading-tight tracking-tight hover:text-primary transition-colors">
-                {orgName}
+              <span className="font-display text-sm font-bold text-gray-900 dark:text-gray-100 block leading-tight tracking-tight hover:text-primary transition-colors truncate">
+                {shortBrandName}
               </span>
-              <span className="text-[10px] font-mono text-gray-500 dark:text-gray-400 block uppercase tracking-wider">
+              <span className="text-[10px] font-mono text-gray-500 dark:text-gray-400 block uppercase tracking-wider truncate">
                 {roleTitle}
               </span>
             </Link>
@@ -307,7 +312,7 @@ export function SharedDashboardLayout({
               }`}
             >
               <div className="h-9 w-9 shrink-0 rounded-full bg-primary/10 text-primary grid place-items-center text-xs font-bold font-mono">
-                {user.fullName ? user.fullName.slice(0, 2).toUpperCase() : "MD"}
+                {user.fullName ? user.fullName.slice(0, 2).toUpperCase() : "HD"}
               </div>
               <div
                 className={`truncate flex-1 min-w-0 transition-opacity duration-300 ${

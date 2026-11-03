@@ -1,5 +1,8 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
+import { motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -11,9 +14,11 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   children: React.ReactNode;
 }
 
+const MotionLink = motion.create(Link);
+
 /**
  * Renders an interactive button or navigational link styled with the clinic's signature pill shape.
- * It supports multiple visual styles (primary / premium emerald 4-shadow, secondary, outline, ghost) and handles loading states.
+ * It supports multiple visual styles and Framer Motion sink & spring gesture on press (whileTap={{ scale: 0.95 }}).
  */
 export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonProps>(
   (
@@ -30,9 +35,13 @@ export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, Bu
     },
     ref
   ) => {
+    const shouldReduceMotion = useReducedMotion();
+    const isPrimaryAction = variant === "primary" || variant === "premium";
+    const tapAnimation = !shouldReduceMotion && isPrimaryAction ? { scale: 0.95 } : undefined;
+
     // Pill shape is an intentional editorial design choice for Marlow Dental
     const baseStyles =
-      "inline-flex items-center justify-center font-medium tracking-wide select-none cursor-pointer rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50";
+      "inline-flex items-center justify-center font-medium tracking-wide select-none cursor-pointer rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 transition-colors duration-150";
 
     const variantStyles = {
       primary:
@@ -94,39 +103,45 @@ export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, Bu
     if (href) {
       if (external) {
         return (
-          <a
+          <motion.a
             href={href}
             target="_blank"
             rel="noopener noreferrer"
             className={combinedClassName}
+            whileTap={tapAnimation}
+            transition={{ type: "spring", stiffness: 500, damping: 25 }}
             ref={ref as React.Ref<HTMLAnchorElement>}
             {...(props as any)}
           >
             {content}
-          </a>
+          </motion.a>
         );
       }
       return (
-        <Link
+        <MotionLink
           href={href}
           className={combinedClassName}
+          whileTap={tapAnimation}
+          transition={{ type: "spring", stiffness: 500, damping: 25 }}
           ref={ref as React.Ref<HTMLAnchorElement>}
           {...(props as any)}
         >
           {content}
-        </Link>
+        </MotionLink>
       );
     }
 
     return (
-      <button
+      <motion.button
         ref={ref as React.Ref<HTMLButtonElement>}
         className={combinedClassName}
         disabled={disabled || isLoading}
-        {...props}
+        whileTap={disabled || isLoading ? undefined : tapAnimation}
+        transition={{ type: "spring", stiffness: 500, damping: 25 }}
+        {...(props as any)}
       >
         {content}
-      </button>
+      </motion.button>
     );
   }
 );

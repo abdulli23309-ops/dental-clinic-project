@@ -71,7 +71,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Root layout component that wraps every page of the Marlow Dental website.
+ * Root layout component that wraps every page of the Hira Dental Clinic website.
  * It configures custom typography fonts and sets up theme support.
  * JSON-LD structured data is rendered by the JsonLd component from API data.
  */

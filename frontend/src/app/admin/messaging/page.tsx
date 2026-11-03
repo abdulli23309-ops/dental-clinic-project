@@ -19,6 +19,7 @@ import {
 
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/pagination";
 import { Card } from "@/components/ui/card";
 import { TextField } from "@/components/ui/text-field";
 import { AnimatedPage } from "@/components/ui/animated-page";
@@ -94,6 +95,28 @@ export default function AdminMessagingPage() {
   const [logs, setLogs] = useState<MessageLogItem[]>([]);
   const [logsTotal, setLogsTotal] = useState<number>(0);
   const [isLoadingLogs, setIsLoadingLogs] = useState<boolean>(false);
+  const [logsPage, setLogsPage] = useState<number>(1);
+  const [logsPageSize, setLogsPageSize] = useState<number>(12);
+
+  const fetchLogs = async (p = logsPage, size = logsPageSize) => {
+    setIsLoadingLogs(true);
+    try {
+      const offset = (p - 1) * size;
+      const l = await getMessageLogs(size, offset, accessToken);
+      setLogs(l.items);
+      setLogsTotal(l.total);
+    } catch {
+      // ignore
+    } finally {
+      setIsLoadingLogs(false);
+    }
+  };
+
+  useEffect(() => {
+    if (accessToken) {
+      fetchLogs(logsPage, logsPageSize);
+    }
+  }, [logsPage, logsPageSize, accessToken]);
 
   const fetchSettingsAndLogs = async () => {
     setIsLoading(true);
@@ -110,10 +133,7 @@ export default function AdminMessagingPage() {
       setReminder24hEnabled(s.reminder24hEnabled ?? true);
       setReminder2hEnabled(s.reminder2hEnabled ?? true);
 
-      setIsLoadingLogs(true);
-      const l = await getMessageLogs(50, 0, accessToken);
-      setLogs(l.items);
-      setLogsTotal(l.total);
+      await fetchLogs(logsPage, logsPageSize);
     } catch (err: unknown) {
       setSaveError(err instanceof Error ? err.message : "Failed to load messaging configuration.");
     } finally {
@@ -181,9 +201,7 @@ export default function AdminMessagingPage() {
         accessToken
       );
       setTestResult(res);
-      const l = await getMessageLogs(50, 0, accessToken);
-      setLogs(l.items);
-      setLogsTotal(l.total);
+      await fetchLogs(logsPage, logsPageSize);
     } catch (err: unknown) {
       setTestError(err instanceof Error ? err.message : "Failed to send test message.");
     } finally {
@@ -198,9 +216,7 @@ export default function AdminMessagingPage() {
       const res = await runReminderScheduler(schedulerDate, forceQuietHours, accessToken);
       setDispatchResult(res.message);
       // Refresh message logs
-      const l = await getMessageLogs(50, 0, accessToken);
-      setLogs(l.items);
-      setLogsTotal(l.total);
+      await fetchLogs(logsPage, logsPageSize);
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Failed to execute scheduler.");
     } finally {
@@ -764,6 +780,22 @@ export default function AdminMessagingPage() {
                 ))}
               </motion.tbody>
             </table>
+          </div>
+        )}
+        {logsTotal > 0 && (
+          <div className="border-t border-line px-4 pt-2">
+            <Pagination
+              currentPage={logsPage}
+              totalItems={logsTotal}
+              pageSize={logsPageSize}
+              pageSizeOptions={[12, 24, 48]}
+              onPageChange={setLogsPage}
+              onPageSizeChange={(newSize) => {
+                setLogsPageSize(newSize);
+                setLogsPage(1);
+              }}
+              itemName="Message Logs"
+            />
           </div>
         )}
       </Card>

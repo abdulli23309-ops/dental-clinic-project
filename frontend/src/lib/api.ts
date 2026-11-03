@@ -208,6 +208,7 @@ export interface Organization {
   id: string;
   name: string;
   displayName: string;
+  shortBrandName?: string | null;
   tagline?: string | null;
   description?: string | null;
   logoUrl?: string | null;
@@ -823,7 +824,7 @@ export async function login(payload: { email: string; password: string }): Promi
     try {
       const err = await res.json();
       if (err.detail) msg = err.detail;
-    } catch {}
+    } catch { }
     throw new Error(msg);
   }
 
@@ -860,7 +861,7 @@ export async function logout(): Promise<void> {
       method: "POST",
       credentials: "include",
     });
-  } catch {}
+  } catch { }
 }
 
 export async function getMe(accessToken?: string): Promise<User> {
@@ -1171,11 +1172,52 @@ export async function adminToggleTeamMemberStatus(id: string, isActive: boolean,
   return res.json();
 }
 
+export interface PaginatedRolesResponse {
+  items: RoleItem[];
+  total: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
+}
+
 // Roles
-export async function adminGetRoles(token?: string): Promise<RoleItem[]> {
-  const res = await authorizedFetch(`/api/v1/admin/roles`, {}, token);
+export async function adminGetRoles(
+  token?: string,
+  params?: { page?: number; per_page?: number; search?: string }
+): Promise<RoleItem[]> {
+  const query = new URLSearchParams();
+  if (params?.page) query.set("page", String(params.page));
+  if (params?.per_page) query.set("per_page", String(params.per_page));
+  if (params?.search) query.set("search", params.search);
+  const qs = query.toString() ? `?${query.toString()}` : "";
+  const res = await authorizedFetch(`/api/v1/admin/roles${qs}`, {}, token);
   if (!res.ok) throw new Error("Failed to load roles.");
   return res.json();
+}
+
+export async function adminGetRolesPaginated(
+  token?: string,
+  page: number = 1,
+  per_page: number = 12,
+  search?: string
+): Promise<PaginatedRolesResponse> {
+  const query = new URLSearchParams();
+  query.set("page", String(page));
+  query.set("per_page", String(per_page));
+  if (search && search.trim()) query.set("search", search.trim());
+  const res = await authorizedFetch(`/api/v1/admin/roles?${query.toString()}`, {}, token);
+  if (!res.ok) throw new Error("Failed to load roles.");
+  const data = await res.json();
+  if (Array.isArray(data)) {
+    return {
+      items: data,
+      total: data.length,
+      page: 1,
+      per_page: data.length,
+      total_pages: 1,
+    };
+  }
+  return data;
 }
 
 export async function adminCreateRole(
@@ -1313,6 +1355,24 @@ export async function adminUploadMedia(file: File, token?: string): Promise<{ ur
 }
 
 // Public Organization & Theming
+export interface UserPreview {
+  found: boolean;
+  displayName?: string | null;
+  role?: string | null;
+  professionalTitle?: string | null;
+  photoUrl?: string | null;
+}
+
+export const fetchUserPreview = async (email: string): Promise<UserPreview | null> => {
+  if (!email || !email.trim()) return null;
+  const response = await fetch(`/api/users/preview?email=${encodeURIComponent(email.trim())}`);
+  if (!response.ok) {
+    if (response.status === 404) return null;
+    throw new Error("Failed to fetch user preview");
+  }
+  return response.json();
+};
+
 export async function fetchPublicOrganization(): Promise<Organization | null> {
   try {
     const res = await fetch(`${API_BASE}/api/v1/public/organization`, {
@@ -1714,7 +1774,7 @@ export async function adminGetWorkingHours(token?: string | null): Promise<Worki
 }
 
 export async function adminUpdateWorkingHours(
-  updates: Array<{ dayOfWeek: number; openTime?: string | null; closeTime?: string | null; isClosed: boolean }>,
+  updates: Array<{ id?: string; clinicId?: string | null; dayOfWeek: number; openTime?: string | null; closeTime?: string | null; isClosed: boolean; is24Hours?: boolean; periodsJson?: string | null }>,
   token?: string | null
 ): Promise<WorkingHoursItem[]> {
   const res = await authorizedFetch(
@@ -2553,10 +2613,10 @@ async function apiError(res: Response, fallback: string): Promise<never> {
     typeof err.detail === "string"
       ? err.detail
       : Array.isArray(err.detail)
-      ? err.detail
+        ? err.detail
           .map((d: { msg?: string; loc?: string[] }) => `${d.loc?.join(".")}: ${d.msg}`)
           .join("; ")
-      : fallback;
+        : fallback;
   throw new Error(detail || fallback);
 }
 
@@ -6560,4 +6620,57 @@ export async function saveAppointmentCategory(
   );
   if (!res.ok) await apiError(res, "Failed to save appointment category.");
   return res.json();
+}
+
+
+export interface LocationServiceItem {
+  id: string;
+  title: string;
+  slug: string;
+  category: string;
+  duration?: string | null;
+  cashPrice?: string | null;
+  isOffered: boolean;
+  bufferMinutes?: number | null;
+}
+
+export async function adminGetLocationServices(
+  locationId: string,
+  token?: string | null
+): Promise<LocationServiceItem[]> {
+  const res = await authorizedFetch(`/api/v1/admin/locations/${locationId}/services`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to load location services.");
+  return res.json();
+}
+
+export async function adminUpdateLocationServices(
+  locationId: string,
+  serviceIds: string[],
+  token?: string | null
+): Promise<LocationServiceItem[]> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/locations/${locationId}/services`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ serviceIds }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to update location services.");
+  return res.json();
+}
+
+export async function deleteDoctorServiceAssignment(
+  assignmentId: string,
+  token?: string | null
+): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/booking/doctor-services/${assignmentId}`,
+    {
+      method: "DELETE",
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to delete doctor service assignment.");
 }

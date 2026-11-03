@@ -681,7 +681,7 @@ export default function AdminWebsitePage() {
                   value={generalData.shortBrandName || ""}
                   maxLength={24}
                   onChange={(e) => setGeneralData({ ...generalData, shortBrandName: e.target.value.slice(0, 24) })}
-                  placeholder="e.g. Marlow Dental"
+                  placeholder="e.g. Hira Dental Clinic"
                 />
                 <TextField
                   id="general-tagline"

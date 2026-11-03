@@ -138,3 +138,4 @@ Tested and verified via `backend/tests/test_booking_eligibility_negative.py` (9/
 - **No destructive git commands:** No force pushes, no resets, no clean commands.
 - **No destructive database operations:** No `DROP TABLE`, `TRUNCATE`, or `DELETE` executed against live environments.
 - **Pull Request submitted without auto-merge:** Ready for teammate review and approval.
+

@@ -87,6 +87,15 @@ class PostgresTeamMemberRepository(TeamMemberRepository):
         orm = await self._session.get(TeamMemberORM, member_id)
         return self._to_domain(orm) if orm else None
 
+    async def get_by_id_and_clinic(self, member_id: UUID, clinic_id: UUID) -> Optional[TeamMember]:
+        stmt = select(TeamMemberORM).where(
+            TeamMemberORM.id == member_id,
+            TeamMemberORM.clinic_id == clinic_id,
+        )
+        result = await self._session.execute(stmt)
+        orm = result.scalar_one_or_none()
+        return self._to_domain(orm) if orm else None
+
     async def save(self, member: TeamMember) -> TeamMember:
         existing = await self._session.get(TeamMemberORM, member.id)
         if existing:

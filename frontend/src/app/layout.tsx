@@ -3,6 +3,7 @@ import { Fraunces, Manrope } from "next/font/google";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { PublicContentProvider } from "@/components/providers/public-content-provider";
+import { LightboxProvider } from "@/components/providers/lightbox-provider";
 import { Toaster } from "sonner";
 import { getSiteContent } from "@/lib/api";
 import "./globals.css";
@@ -70,7 +71,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Root layout component that wraps every page of the Marlow Dental website.
+ * Root layout component that wraps every page of the Hira Dental Clinic website.
  * It configures custom typography fonts and sets up theme support.
  * JSON-LD structured data is rendered by the JsonLd component from API data.
  */
@@ -112,8 +113,10 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <PublicContentProvider>
-              {children}
-              <Toaster />
+              <LightboxProvider>
+                {children}
+                <Toaster />
+              </LightboxProvider>
             </PublicContentProvider>
           </AuthProvider>
         </ThemeProvider>

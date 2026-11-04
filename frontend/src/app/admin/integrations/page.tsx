@@ -18,6 +18,7 @@ import {
 
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/pagination";
 import { Card } from "@/components/ui/card";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -53,6 +54,8 @@ export default function AdminIntegrationsPage() {
 
   const [clients, setClients] = useState<AdminIntegrationClient[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(6);
   const [error, setError] = useState<string | null>(null);
 
   // New Client Modal State
@@ -197,6 +200,13 @@ export default function AdminIntegrationsPage() {
     }
   }
 
+  const totalPages = Math.max(1, Math.ceil(clients.length / pageSize));
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [totalPages, page]);
+
+  const paginatedClients = clients.slice((page - 1) * pageSize, page * pageSize);
+
   return (
   <AnimatedPage>
     <div className="space-y-6 max-w-6xl">
@@ -292,7 +302,7 @@ export default function AdminIntegrationsPage() {
                 animate="visible"
                 className="divide-y divide-line/60"
               >
-                {clients.map((c) => {
+                {paginatedClients.map((c) => {
                   const isBusy = actionClientId === c.id;
                   return (
                     <motion.tr
@@ -393,6 +403,22 @@ export default function AdminIntegrationsPage() {
                 })}
               </motion.tbody>
             </table>
+          </div>
+        )}
+        {!isLoading && clients.length > 0 && (
+          <div className="border-t border-line px-4">
+            <Pagination
+              currentPage={page}
+              totalItems={clients.length}
+              pageSize={pageSize}
+              pageSizeOptions={[6, 12, 24]}
+              onPageChange={setPage}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
+              itemName="API Clients"
+            />
           </div>
         )}
       </Card>

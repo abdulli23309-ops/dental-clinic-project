@@ -101,6 +101,12 @@
   - Verified backend test suite with 32 passing automated tests (100% pass rate).
   - Verified frontend production build with 21 static and dynamic routes compiled without errors.
 
+- [x] **Phase 14: Signature Public Homepage Interactive Upgrades (October 2026)**
+  - Implemented tactile 4-shadow "Lit from Above" Emerald button system (`.btn-premium-emerald`) and secondary variant across all primary CTAs, submit buttons, and active filter tabs.
+  - Refined "Treatments We Offer" (`treatments.tsx`) with smooth horizontal scrolling carousel cards, eager image loading to eliminate transition flash, and tactile 4-shadow booking CTAs.
+  - Upgraded "Our Team" (`our-team.tsx`) to hardware-accelerated pure-CSS 3D cylindrical ring and stage arc carousel (`perspective: 1600px`, dynamic stage arc geometry for counts under 8 to prevent 90-degree edge-on occlusion, custom studio focal framing per doctor, eager image loading, drag gesture, keyboard controls, Urdu RTL inversion, and mobile touch fallback).
+  - Maintained complete zero-em-dash copy rule, zero WebGL constraints, and `prefers-reduced-motion` accessibility standards.
+
 ## Deferred Capabilities (Explicitly Not Built)
 
 - [ ] **Phase 13 Addendum: Public Progressive Booking Flow (October 2026)**

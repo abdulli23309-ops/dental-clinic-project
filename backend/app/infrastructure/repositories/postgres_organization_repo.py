@@ -142,10 +142,64 @@ class PostgresLocationRepository(LocationRepository):
             stmt = stmt.where(LocationORM.is_active.is_(True))
         stmt = stmt.order_by(LocationORM.display_order.asc(), LocationORM.name.asc())
         result = await self._session.execute(stmt)
-        return [self._to_domain(orm) for orm in result.scalars().all()]
+        locations = [self._to_domain(orm) for orm in result.scalars().all()]
+        existing_ids = {loc.id for loc in locations}
+
+        from app.infrastructure.database.orm_models import ClinicORM
+        c_stmt = select(ClinicORM)
+        if not include_inactive:
+            c_stmt = c_stmt.where(ClinicORM.is_active.is_(True))
+        c_result = await self._session.execute(c_stmt)
+        for c in c_result.scalars().all():
+            if c.id not in existing_ids and not c.name.startswith("Main Lahore Clinic"):
+                locations.append(Location(
+                    id=c.id,
+                    organization_id=c.organization_id,
+                    name=c.name,
+                    address_line1=c.address_line1,
+                    address_line2=c.address_line2,
+                    city=c.city,
+                    state=c.state,
+                    postal_code=c.postal_code,
+                    country=c.country,
+                    phone=c.phone,
+                    email=c.email,
+                    hours_info=None,
+                    image_url=None,
+                    is_primary=False,
+                    is_active=c.is_active,
+                    display_order=99,
+                    created_at=c.created_at,
+                    updated_at=c.updated_at,
+                ))
+        return locations
 
     async def get_by_id(self, location_id: UUID) -> Optional[Location]:
         orm = await self._session.get(LocationORM, location_id)
+        if not orm:
+            from app.infrastructure.database.orm_models import ClinicORM
+            clinic = await self._session.get(ClinicORM, location_id)
+            if clinic:
+                return Location(
+                    id=clinic.id,
+                    organization_id=clinic.organization_id,
+                    name=clinic.name,
+                    address_line1=clinic.address_line1,
+                    address_line2=clinic.address_line2,
+                    city=clinic.city,
+                    state=clinic.state,
+                    postal_code=clinic.postal_code,
+                    country=clinic.country,
+                    phone=clinic.phone,
+                    email=clinic.email,
+                    hours_info=None,
+                    image_url=None,
+                    is_primary=False,
+                    is_active=clinic.is_active,
+                    display_order=99,
+                    created_at=clinic.created_at,
+                    updated_at=clinic.updated_at,
+                )
         return self._to_domain(orm) if orm else None
 
     async def save(self, location: Location) -> Location:

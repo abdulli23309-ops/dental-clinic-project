@@ -1,17 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { motion } from "motion/react";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { GalleryImageItem, publicGetGallery, resolveMediaUrl } from "@/lib/api";
 import { usePublicContent } from "@/components/providers/public-content-provider";
+import { ExpandableImage } from "@/components/ui/expandable-image";
 
 export function Gallery() {
   const { copy, locale } = usePublicContent();
   const [photos, setPhotos] = useState<GalleryImageItem[]>([]);
   const [hasLoaded, setHasLoaded] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -57,8 +56,6 @@ export function Gallery() {
   }
 
   const firstPhoto = photos[0];
-  const sidePhotos = photos.slice(1, 4);
-  const extraPhotos = photos.slice(4);
 
   return (
     <section
@@ -77,7 +74,7 @@ export function Gallery() {
           </p>
         </div>
 
-        {/* Dynamic Gallery Grid */}
+        {/* Masonry Gallery Layout with Shared-Element Lightbox Transitions */}
         {photos.length === 1 ? (
           <div className="max-w-4xl mx-auto">
             <motion.div
@@ -85,175 +82,70 @@ export function Gallery() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.2 }}
               transition={{ duration: 0.5 }}
-              onClick={() => setSelectedImage(resolveMediaUrl(firstPhoto.imageUrl) || firstPhoto.imageUrl)}
-              className="relative min-h-[380px] sm:min-h-[480px] rounded-3xl overflow-hidden shadow-lg border border-gray-200/80 dark:border-gray-800/80 group bg-gray-100 dark:bg-gray-800 cursor-pointer"
             >
-              <Image
+              <ExpandableImage
                 src={resolveMediaUrl(firstPhoto.imageUrl) || firstPhoto.imageUrl}
                 alt={getLocalizedCaption(firstPhoto.caption) || copy.insideOurClinic}
-                fill
-                unoptimized
-                sizes="100vw"
-                className="object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/15 to-transparent pointer-events-none" />
-              {firstPhoto.caption && (
-                <div className="absolute bottom-6 left-6 right-6 flex items-center justify-between text-white">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider bg-white/20 backdrop-blur-md px-2.5 py-1 rounded-full mb-2 inline-block">
-                      {copy.clinicalSuite}
-                    </span>
-                    <h3 className="font-display text-lg sm:text-xl font-bold leading-tight">
-                      {getLocalizedCaption(firstPhoto.caption)}
-                    </h3>
+                caption={getLocalizedCaption(firstPhoto.caption)}
+                layoutId={`gallery-single-${firstPhoto.id || firstPhoto.imageUrl}`}
+                className="rounded-3xl overflow-hidden shadow-lg border border-gray-200/80 dark:border-gray-800/80 group bg-gray-100 dark:bg-gray-800"
+                imgClassName="w-full h-auto block transition-transform duration-700 ease-out group-hover:scale-[1.03]"
+              >
+                <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-black/85 via-black/40 to-transparent pointer-events-none" />
+                {firstPhoto.caption && (
+                  <div className="absolute inset-x-0 bottom-0 p-6 flex items-end justify-between text-white pointer-events-none">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider bg-white/20 backdrop-blur-md px-2.5 py-1 rounded-full mb-2 inline-block">
+                        {copy.clinicalSuite}
+                      </span>
+                      <h3 className="font-display text-lg sm:text-xl font-bold leading-tight drop-shadow-sm">
+                        {getLocalizedCaption(firstPhoto.caption)}
+                      </h3>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </ExpandableImage>
             </motion.div>
           </div>
         ) : (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch">
-              {/* Main Feature Image (Left, 7 Columns) */}
+          <div className="columns-1 md:columns-2 gap-6 [column-fill:_balance]">
+            {photos.map((photo, i) => (
               <motion.div
+                key={photo.id || photo.imageUrl}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.2 }}
-                transition={{ duration: 0.5 }}
-                onClick={() => setSelectedImage(resolveMediaUrl(firstPhoto.imageUrl) || firstPhoto.imageUrl)}
-                className={`${
-                  sidePhotos.length === 0 ? "md:col-span-12" : "md:col-span-7"
-                } relative min-h-[340px] sm:min-h-[440px] rounded-3xl overflow-hidden shadow-lg border border-gray-200/80 dark:border-gray-800/80 group bg-gray-100 dark:bg-gray-800 cursor-pointer`}
+                viewport={{ once: true, amount: 0.15 }}
+                transition={{ duration: 0.5, delay: Math.min(i * 0.08, 0.4) }}
+                className="break-inside-avoid mb-6"
               >
-                <Image
-                  src={resolveMediaUrl(firstPhoto.imageUrl) || firstPhoto.imageUrl}
-                  alt={getLocalizedCaption(firstPhoto.caption) || copy.insideOurClinic}
-                  fill
-                  unoptimized
-                  sizes="(max-width: 768px) 100vw, 60vw"
-                  className="object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/15 to-transparent pointer-events-none" />
-                <div className="absolute bottom-6 left-6 right-6 flex items-center justify-between text-white">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider bg-white/20 backdrop-blur-md px-2.5 py-1 rounded-full mb-2 inline-block">
-                      {copy.clinicalSuite}
-                    </span>
-                    {firstPhoto.caption && (
-                      <h3 className="font-display text-lg sm:text-xl font-bold leading-tight">
-                        {getLocalizedCaption(firstPhoto.caption)}
-                      </h3>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-
-              {/* Right Column Grid (5 Columns with up to 3 Cards) */}
-              {sidePhotos.length > 0 && (
-                <div
-                  className={`md:col-span-5 grid grid-cols-1 ${
-                    sidePhotos.length === 1 ? "" : "sm:grid-cols-2 md:grid-cols-1"
-                  } gap-6`}
+                <ExpandableImage
+                  src={resolveMediaUrl(photo.imageUrl) || photo.imageUrl}
+                  alt={getLocalizedCaption(photo.caption) || copy.insideOurClinic}
+                  caption={getLocalizedCaption(photo.caption)}
+                  layoutId={`gallery-${photo.id || photo.imageUrl}`}
+                  className="rounded-3xl overflow-hidden shadow-md hover:shadow-xl transition-shadow border border-gray-200/80 dark:border-gray-800/80 group bg-gray-100 dark:bg-gray-800"
+                  imgClassName="w-full h-auto block transition-transform duration-700 ease-out group-hover:scale-[1.03]"
                 >
-                  {sidePhotos.map((photo, i) => (
-                    <motion.div
-                      key={photo.id || photo.imageUrl}
-                      initial={{ opacity: 0, y: 20 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true, amount: 0.2 }}
-                      transition={{ duration: 0.5, delay: (i + 1) * 0.1 }}
-                      onClick={() => setSelectedImage(resolveMediaUrl(photo.imageUrl) || photo.imageUrl)}
-                      className="relative min-h-[190px] sm:min-h-[200px] rounded-3xl overflow-hidden shadow-md border border-gray-200/80 dark:border-gray-800/80 group bg-gray-100 dark:bg-gray-800 cursor-pointer"
-                    >
-                      <Image
-                        src={resolveMediaUrl(photo.imageUrl) || photo.imageUrl}
-                        alt={getLocalizedCaption(photo.caption) || copy.insideOurClinic}
-                        fill
-                        unoptimized
-                        sizes="(max-width: 768px) 100vw, 40vw"
-                        className="object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
-                      <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-white">
-                        <div>
-                          <span className="text-[9px] font-bold uppercase tracking-wider bg-white/20 backdrop-blur-md px-2 py-0.5 rounded-full mb-1 inline-block">
-                            {copy.clinicAtmosphere}
-                          </span>
-                          {photo.caption && (
-                            <h4 className="font-display text-sm font-semibold leading-tight">
-                              {getLocalizedCaption(photo.caption)}
-                            </h4>
-                          )}
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Extra photos if more than 4 images */}
-            {extraPhotos.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 pt-4">
-                {extraPhotos.map((photo, i) => (
-                  <motion.div
-                    key={photo.id || photo.imageUrl}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, amount: 0.2 }}
-                    transition={{ duration: 0.5, delay: (i + 1) * 0.08 }}
-                    onClick={() => setSelectedImage(resolveMediaUrl(photo.imageUrl) || photo.imageUrl)}
-                    className="relative min-h-[220px] rounded-3xl overflow-hidden shadow-md border border-gray-200/80 dark:border-gray-800/80 group bg-gray-100 dark:bg-gray-800 cursor-pointer"
-                  >
-                    <Image
-                      src={resolveMediaUrl(photo.imageUrl) || photo.imageUrl}
-                      alt={getLocalizedCaption(photo.caption) || copy.insideOurClinic}
-                      fill
-                      unoptimized
-                      sizes="(max-width: 768px) 100vw, 33vw"
-                      className="object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
-                    <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-white">
-                      <div>
-                        {photo.caption && (
-                          <h4 className="font-display text-sm font-semibold leading-tight">
-                            {getLocalizedCaption(photo.caption)}
-                          </h4>
-                        )}
-                      </div>
+                  {/* Anchored bottom text overlay with subtle gradient */}
+                  <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-black/85 via-black/40 to-transparent pointer-events-none" />
+                  <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6 flex items-end justify-between text-white pointer-events-none">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider bg-white/20 backdrop-blur-md px-2.5 py-1 rounded-full mb-2 inline-block">
+                        {i === 0 ? copy.clinicalSuite : copy.clinicAtmosphere}
+                      </span>
+                      {photo.caption && (
+                        <h3 className="font-display text-base sm:text-lg font-bold leading-tight drop-shadow-sm">
+                          {getLocalizedCaption(photo.caption)}
+                        </h3>
+                      )}
                     </div>
-                  </motion.div>
-                ))}
-              </div>
-            )}
+                  </div>
+                </ExpandableImage>
+              </motion.div>
+            ))}
           </div>
         )}
       </div>
-
-      {/* Full-screen Lightbox Overlay */}
-      {selectedImage && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          onClick={() => setSelectedImage(null)}
-          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 cursor-pointer backdrop-blur-sm animate-in fade-in duration-200"
-        >
-          <button
-            type="button"
-            onClick={() => setSelectedImage(null)}
-            className="absolute top-6 right-6 text-white text-xl font-bold bg-white/10 hover:bg-white/25 rounded-full h-11 w-11 flex items-center justify-center transition-colors cursor-pointer z-10"
-            aria-label={copy.closeImagePreview}
-          >
-            ✕
-          </button>
-          <img
-            src={selectedImage}
-            alt={copy.expandedClinicView}
-            className="max-w-[92vw] max-h-[88vh] object-contain rounded-2xl shadow-2xl"
-          />
-        </div>
-      )}
     </section>
   );
 }

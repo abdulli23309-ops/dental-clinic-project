@@ -82,18 +82,23 @@ async def setup_pg_concurrency_data(pg_session_factory):
         await session.flush()
 
         # 2. Clinic
-        clinic = ClinicORM(
-            id=uuid4(),
-            organization_id=org.id,
-            name="Main Lahore Clinic",
-            address_line1="Plaza 45, Phase 5 DHA",
-            city="Lahore",
-            state="Punjab",
-            postal_code="54000",
-            phone="04235891234",
-            is_active=True,
+        c_res = await session.execute(
+            select(ClinicORM).where(ClinicORM.name == "Main Lahore Clinic")
         )
-        session.add(clinic)
+        clinic = c_res.scalars().first()
+        if not clinic:
+            clinic = ClinicORM(
+                id=uuid4(),
+                organization_id=org.id,
+                name="Main Lahore Clinic",
+                address_line1="Plaza 45, Phase 5 DHA",
+                city="Lahore",
+                state="Punjab",
+                postal_code="54000",
+                phone="04235891234",
+                is_active=True,
+            )
+            session.add(clinic)
 
         # 3. Booking flow settings
         flow_settings = BookingFlowSettingsORM(

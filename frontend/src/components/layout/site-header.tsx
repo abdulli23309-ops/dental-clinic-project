@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Search, Menu, RefreshCw, Calendar, ChevronDown } from "lucide-react";
+import { Search, RefreshCw, Calendar, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { SearchDialog } from "@/components/ui/search-dialog";
 import { MobileMenu } from "@/components/layout/mobile-menu";
+import { AnimatedHamburger } from "@/components/ui/animated-hamburger";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 import { getServices, ServiceItem, resolveMediaUrl } from "@/lib/api";
 
@@ -100,12 +101,15 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
 
   return (
     <>
-      <a href="#main-content" className="skip-to-content">
-        Skip to main content
-      </a>
+      <nav aria-label="Skip links">
+        <a href="#main-content" className="skip-to-content">
+          Skip to main content
+        </a>
+      </nav>
 
       <header
-        className={`sticky top-0 z-50 border-b transition-all duration-300 ${
+        role="banner"
+        className={`sticky top-0 z-50 border-b w-full transition-all duration-300 ${
           isScrolled
             ? "border-gray-200/80 dark:border-gray-800/80 bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl shadow-sm py-2.5"
             : "border-transparent bg-white/40 dark:bg-gray-950/40 backdrop-blur-sm py-4"
@@ -114,21 +118,23 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
         <div className="container-x max-w-7xl mx-auto px-4 sm:px-6 lg:px-6 xl:px-8 flex items-center justify-between gap-3 xl:gap-6 flex-nowrap">
           <Link
             href="/"
-            className="group flex items-center gap-2.5 transition-transform active:scale-[0.98] shrink-0 whitespace-nowrap"
+            className="group flex items-center gap-2 transition-transform active:scale-[0.98] shrink min-w-0"
             aria-label={brandName ? `${brandName} Homepage` : "Homepage"}
           >
             {logoUrl && !logoError ? (
               <img
                 src={logoUrl}
-                alt={brandName || "Clinic Logo"}
+                alt=""
                 onError={() => setLogoError(true)}
-                className="h-10 w-auto object-contain dark:brightness-0 dark:invert"
+                className="h-9 sm:h-10 w-auto object-contain dark:brightness-0 dark:invert shrink-0"
+                width="40"
+                height="40"
               />
             ) : (
-              <span className="grid h-10 w-10 place-items-center rounded-full bg-primary text-white shadow-subtle group-hover:brightness-90 transition-all shrink-0">
+              <span className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-full bg-primary text-white shadow-subtle group-hover:brightness-90 transition-all shrink-0">
                 <svg
                   viewBox="0 0 24 24"
-                  className="h-5 w-5"
+                  className="h-4.5 w-4.5 sm:h-5 sm:w-5"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="1.8"
@@ -138,7 +144,7 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
               </span>
             )}
             {brandName ? (
-              <span className="font-display text-[17px] sm:text-[18px] tracking-tight text-gray-900 dark:text-white leading-none whitespace-nowrap">
+              <span className="font-display text-[15px] sm:text-[18px] tracking-tight text-gray-900 dark:text-white leading-none truncate max-w-[120px] xs:max-w-none">
                 {brandName}
               </span>
             ) : null}
@@ -251,11 +257,11 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
                 </nav>
               )}
 
-              <div className="flex items-center gap-1.5 sm:gap-2 xl:gap-2.5 shrink-0 flex-nowrap">
+              <div className="flex items-center gap-1 min-w-0">
                 {!isMinimal && (
                   <button
                     onClick={() => setSearchOpen(true)}
-                    className="flex items-center justify-center h-9 w-9 xl:w-auto xl:h-auto xl:px-3 xl:py-1.5 rounded-full border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-900 text-xs text-gray-600 dark:text-gray-300 transition-colors hover:border-primary/40 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-800 cursor-pointer shrink-0 whitespace-nowrap"
+                    className="hidden sm:flex items-center justify-center h-9 w-9 xl:w-auto xl:h-auto xl:px-3 xl:py-1.5 rounded-full border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-900 text-xs text-gray-600 dark:text-gray-300 transition-colors hover:border-primary/40 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-800 cursor-pointer shrink-0 whitespace-nowrap"
                     aria-label="Open search dialog"
                   >
                     <Search className="h-3.5 w-3.5 shrink-0" />
@@ -266,10 +272,10 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
                   </button>
                 )}
 
-                {/* Language Switcher */}
+                {/* Language Switcher: hidden on mobile (< 640px), available in mobile menu */}
                 <button
                   onClick={() => setLocale(locale === "en" ? "ur" : "en")}
-                  className="rounded-full border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-900 px-2.5 py-1 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:border-primary/40 hover:text-primary transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+                  className="hidden sm:inline-flex rounded-full border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-900 px-2.5 py-1 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:border-primary/40 hover:text-primary transition-colors cursor-pointer shrink-0 whitespace-nowrap"
                   aria-label="Toggle language"
                 >
                   {locale === "en" ? "اردو" : "EN"}
@@ -282,20 +288,20 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
                   href="/book"
                   variant="primary"
                   size="sm"
-                  className="rounded-full shadow-subtle px-3.5 py-1.5 text-xs font-semibold shrink-0 whitespace-nowrap"
+                  aria-label={copy.book}
+                  className="rounded-full px-3 text-sm sm:px-4 sm:text-xs py-1.5 font-semibold shrink whitespace-nowrap"
                 >
-                  <Calendar className="h-3.5 w-3.5 mr-1 shrink-0" />
-                  <span className="whitespace-nowrap">{copy.book}</span>
+                  <Calendar className="h-3.5 w-3.5 sm:mr-1 shrink-0" />
+                  <span className="hidden xs:inline whitespace-nowrap">{copy.book}</span>
                 </Button>
 
                 {!isMinimal && (
-                  <button
-                    onClick={() => setMobileMenuOpen(true)}
-                    className="grid h-9 w-9 place-items-center rounded-full border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white lg:hidden cursor-pointer shrink-0"
-                    aria-label="Open mobile navigation"
-                  >
-                    <Menu className="h-4.5 w-4.5" />
-                  </button>
+                  <AnimatedHamburger
+                    isOpen={mobileMenuOpen}
+                    onClick={() => setMobileMenuOpen((prev) => !prev)}
+                    className="lg:hidden"
+                    aria-label="Toggle navigation menu"
+                  />
                 )}
               </div>
             </>

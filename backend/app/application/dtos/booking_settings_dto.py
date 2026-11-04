@@ -19,13 +19,19 @@ class WorkingHoursDto(BaseModel):
     openTime: Optional[str] = None
     closeTime: Optional[str] = None
     isClosed: bool
+    is24Hours: bool = False
+    periodsJson: Optional[str] = None
 
 
 class WorkingHoursUpdateRequest(BaseModel):
     id: UUID
+    clinicId: Optional[UUID] = None
+    dayOfWeek: Optional[int] = None
     openTime: Optional[str] = None
     closeTime: Optional[str] = None
     isClosed: bool
+    is24Hours: Optional[bool] = False
+    periodsJson: Optional[str] = None
 
 
 class ClinicClosureDto(BaseModel):
@@ -130,6 +136,8 @@ class ProviderAvailabilityDto(BaseModel):
     breakStartTime: Optional[str] = None
     breakEndTime: Optional[str] = None
     isActive: bool
+    isDraft: bool = False
+    breaksJson: Optional[str] = None
 
 
 class ProviderAvailabilityCreateRequest(BaseModel):
@@ -141,6 +149,8 @@ class ProviderAvailabilityCreateRequest(BaseModel):
     breakStartTime: Optional[str] = None
     breakEndTime: Optional[str] = None
     isActive: bool = True
+    isDraft: bool = False
+    breaksJson: Optional[str] = None
 
 
 class ProviderTimeOffDto(BaseModel):
@@ -253,3 +263,160 @@ class BookabilityCheckResponse(BaseModel):
 
 
 
+
+
+# --- Doctor Multi-Branch and Service Assignments DTOs ---
+
+class DoctorBranchAssignmentDto(BaseModel):
+    id: UUID
+    teamMemberId: UUID
+    clinicId: UUID
+    clinicName: str
+    isActive: bool
+    isPrimary: bool
+    createdAt: Optional[datetime] = None
+
+
+class DoctorBranchAssignmentRequest(BaseModel):
+    teamMemberId: UUID
+    clinicIds: List[UUID]
+    primaryClinicId: Optional[UUID] = None
+
+
+class DoctorServiceAssignmentDto(BaseModel):
+    id: UUID
+    serviceId: UUID
+    serviceTitle: str
+    teamMemberId: UUID
+    doctorName: str
+    clinicId: Optional[UUID] = None
+    clinicName: Optional[str] = None
+    customDurationMinutes: Optional[int] = None
+    bufferMinutes: Optional[int] = None
+    isActive: bool
+
+
+class DoctorServiceAssignmentRequest(BaseModel):
+    serviceId: UUID
+    teamMemberId: UUID
+    clinicId: Optional[UUID] = None
+    customDurationMinutes: Optional[int] = None
+    bufferMinutes: Optional[int] = None
+    isActive: bool = True
+
+
+# --- Doctor Schedule Overrides & Draft/Publish DTOs ---
+
+class DoctorScheduleOverrideDto(BaseModel):
+    id: UUID
+    teamMemberId: UUID
+    doctorName: Optional[str] = None
+    clinicId: Optional[UUID] = None
+    clinicName: Optional[str] = None
+    overrideDate: date
+    overrideType: str  # "unavailable" | "working" | "modified"
+    isDraft: bool
+    shiftsJson: Optional[str] = None
+    breaksJson: Optional[str] = None
+    reason: Optional[str] = None
+    publishedAt: Optional[datetime] = None
+
+
+class DoctorScheduleOverrideCreateRequest(BaseModel):
+    teamMemberId: UUID
+    overrideDate: date
+    overrideType: str = "unavailable"  # "unavailable" | "working" | "modified"
+    clinicId: Optional[UUID] = None
+    isDraft: bool = False
+    shiftsJson: Optional[str] = None
+    breaksJson: Optional[str] = None
+    reason: Optional[str] = None
+
+
+class PublishScheduleRequest(BaseModel):
+    teamMemberId: Optional[UUID] = None
+    clinicId: Optional[UUID] = None
+
+
+class PublishScheduleResponse(BaseModel):
+    publishedAvailabilityCount: int
+    publishedOverridesCount: int
+    affectedBookingsCount: int
+    affectedBookings: List[AffectedBookingDto]
+    warningMessage: Optional[str] = None
+
+
+# --- Special Appointment Categories DTOs ---
+
+class AppointmentCategoryDto(BaseModel):
+    id: UUID
+    name: str
+    code: str
+    description: Optional[str] = None
+    requiresApproval: bool
+    isActive: bool
+    createdAt: Optional[datetime] = None
+
+
+class AppointmentCategoryCreateRequest(BaseModel):
+    name: str
+    code: str
+    description: Optional[str] = None
+    requiresApproval: bool = False
+    isActive: bool = True
+
+
+# --- Reschedule & Cancellation Request DTOs ---
+
+class RescheduleRequestDto(BaseModel):
+    id: UUID
+    bookingId: UUID
+    confirmationId: str
+    patientFullName: str
+    patientPhone: str
+    serviceTitle: Optional[str] = None
+    currentDate: date
+    currentTime: str
+    requestedDate: date
+    requestedTime: str
+    status: str  # "pending" | "approved" | "rejected"
+    reason: Optional[str] = None
+    staffNotes: Optional[str] = None
+    createdAt: datetime
+
+
+class RescheduleRequestCreateRequest(BaseModel):
+    bookingId: UUID
+    requestedDate: date
+    requestedTime: str
+    reason: Optional[str] = None
+
+
+class RescheduleReviewRequest(BaseModel):
+    staffNotes: Optional[str] = None
+
+
+class CancellationRequestDto(BaseModel):
+    id: UUID
+    bookingId: UUID
+    confirmationId: str
+    patientFullName: str
+    patientPhone: str
+    serviceTitle: Optional[str] = None
+    appointmentDate: date
+    appointmentTime: str
+    hoursBeforeAppointment: Optional[float] = None
+    isAutoAccepted: bool
+    status: str  # "pending" | "approved" | "rejected"
+    reason: Optional[str] = None
+    staffNotes: Optional[str] = None
+    createdAt: datetime
+
+
+class CancellationRequestCreateRequest(BaseModel):
+    bookingId: UUID
+    reason: Optional[str] = None
+
+
+class CancellationReviewRequest(BaseModel):
+    staffNotes: Optional[str] = None

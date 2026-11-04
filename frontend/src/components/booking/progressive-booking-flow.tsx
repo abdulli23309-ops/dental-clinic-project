@@ -42,6 +42,7 @@ import {
   getPublicBookingServices,
   publicLeadCapture,
   publicLeadUpdate,
+  resolveMediaUrl,
   submitBookingRequest,
 } from "@/lib/api";
 
@@ -145,6 +146,7 @@ export function ProgressiveBookingFlow() {
   const [doctorsLoading, setDoctorsLoading] = useState<boolean>(false);
   const [doctorsError, setDoctorsError] = useState<string | null>(null);
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>("");
+  const [doctorImageErrors, setDoctorImageErrors] = useState<Record<string, boolean>>({});
 
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedTime, setSelectedTime] = useState<string>("");
@@ -515,7 +517,7 @@ export function ProgressiveBookingFlow() {
           </div>
 
           <div className="space-y-2">
-            <span className="text-xs font-mono font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+            <span className="text-xs font-mono font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
               {progressiveBookingCopy.confirmation.eyebrow}
             </span>
             <h2 className="font-display text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white">
@@ -640,7 +642,7 @@ export function ProgressiveBookingFlow() {
                         className={`mt-1.5 text-[11px] font-medium tracking-tight ${
                           isCurrent
                             ? "text-gray-900 dark:text-white"
-                            : "text-gray-400 dark:text-gray-500"
+                            : "text-gray-600 dark:text-gray-400"
                         }`}
                       >
                         {label}
@@ -666,13 +668,13 @@ export function ProgressiveBookingFlow() {
               >
                 <Card shadow="card" className="p-6 sm:p-8 md:p-10 space-y-8" animate={false}>
                   <div className="space-y-1 pb-4 border-b border-gray-100 dark:border-gray-800">
-                    <span className="text-xs font-mono font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                    <span className="text-xs font-mono font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
                       {progressiveBookingCopy.contact.pageLabel}
                     </span>
                     <h2 className="font-display text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">
                       {progressiveBookingCopy.contact.heading}
                     </h2>
-                    <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                       {progressiveBookingCopy.contact.subheading}
                     </p>
                   </div>
@@ -815,7 +817,7 @@ export function ProgressiveBookingFlow() {
               >
                 <Card shadow="card" className="p-6 sm:p-8 space-y-6" animate={false}>
                   <div className="space-y-1">
-                    <span className="text-xs font-mono font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                    <span className="text-xs font-mono font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
                       {progressiveBookingCopy.waterfall.pageLabel}
                     </span>
                     <h2
@@ -838,31 +840,54 @@ export function ProgressiveBookingFlow() {
                       {progressiveBookingCopy.waterfall.treatmentHeading}
                     </h3>
 
+                    {/* Loading State Skeleton */}
                     {servicesLoading && (
                       <div
                         data-testid="services-loading"
-                        className="flex items-center justify-center gap-2 p-8 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-950/40"
+                        className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                        aria-busy="true"
+                        aria-label={progressiveBookingCopy.waterfall.loadingTreatments}
                       >
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          {progressiveBookingCopy.waterfall.loadingTreatments}
-                        </span>
+                        {[1, 2, 3, 4].map((i) => (
+                          <div
+                            key={i}
+                            className="p-5 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white/60 dark:bg-gray-900/40 animate-pulse space-y-3"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="space-y-1.5 w-3/4">
+                                <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-2/3" />
+                                <div className="h-3 bg-gray-100 dark:bg-gray-800/60 rounded w-1/3" />
+                              </div>
+                              <div className="h-5 w-5 rounded-full bg-gray-200 dark:bg-gray-800 shrink-0" />
+                            </div>
+                            <div className="space-y-1">
+                              <div className="h-3 bg-gray-100 dark:bg-gray-800/60 rounded w-full" />
+                              <div className="h-3 bg-gray-100 dark:bg-gray-800/60 rounded w-4/5" />
+                            </div>
+                            <div className="flex justify-between pt-2 border-t border-gray-100 dark:border-gray-800">
+                              <div className="h-3 bg-gray-200 dark:bg-gray-800 rounded w-16" />
+                              <div className="h-3 bg-gray-200 dark:bg-gray-800 rounded w-14" />
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
 
+                    {/* Error State with Retry */}
                     {servicesError && (
                       <div
                         data-testid="services-error"
                         role="alert"
-                        className="rounded-2xl border border-rose-200 bg-rose-50 dark:bg-rose-950/30 p-4 text-xs text-rose-700 dark:text-rose-300 flex items-center justify-between gap-3"
+                        className="rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/70 dark:bg-rose-950/30 p-5 text-xs text-rose-800 dark:text-rose-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm"
                       >
-                        <span className="flex items-center gap-2">
-                          <AlertCircle className="h-4 w-4 shrink-0" />
-                          {servicesError}
+                        <span className="flex items-center gap-2.5">
+                          <AlertCircle className="h-5 w-5 shrink-0 text-rose-600 dark:text-rose-400" />
+                          <span>{servicesError}</span>
                         </span>
                         <Button
                           variant="outline"
                           size="sm"
+                          className="shrink-0 self-start sm:self-auto border-rose-300 dark:border-rose-800 hover:bg-rose-100/50 dark:hover:bg-rose-900/40"
                           onClick={() => {
                             setServicesLoading(true);
                             getPublicBookingServices()
@@ -879,11 +904,54 @@ export function ProgressiveBookingFlow() {
                       </div>
                     )}
 
-                    {!servicesLoading && !servicesError && (
+                    {/* Empty State Fallback */}
+                    {!servicesLoading && !servicesError && services.length === 0 && (
+                      <div
+                        data-testid="services-empty"
+                        className="rounded-2xl border border-amber-200/80 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/20 p-6 text-center space-y-3"
+                      >
+                        <AlertCircle className="h-6 w-6 text-amber-600 dark:text-amber-400 mx-auto" />
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                            No Online Treatments Currently Available
+                          </h4>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 max-w-md mx-auto">
+                            Online scheduling is temporarily updating our procedure catalog. Please check back shortly or call our reception desk directly for immediate assistance.
+                          </p>
+                        </div>
+                        <div className="pt-2 flex items-center justify-center gap-3">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setServicesLoading(true);
+                              getPublicBookingServices()
+                                .then((items) => {
+                                  setServices(items);
+                                  setServicesError(null);
+                                })
+                                .catch(() => setServicesError(progressiveBookingCopy.waterfall.errorTreatments))
+                                .finally(() => setServicesLoading(false));
+                            }}
+                          >
+                            Refresh Catalog
+                          </Button>
+                          <a
+                            href="tel:051-6102977"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition"
+                          >
+                            Call Reception (051-6102977)
+                          </a>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Treatments Selection Grid */}
+                    {!servicesLoading && !servicesError && services.length > 0 && (
                       <div
                         role="radiogroup"
                         aria-label={progressiveBookingCopy.waterfall.groupLabels.treatments}
-                        className="grid grid-cols-1 sm:grid-cols-2 gap-3"
+                        className="grid grid-cols-1 md:grid-cols-2 gap-4"
                       >
                         {services.map((svc) => {
                           const isSelected = selectedServiceId === svc.id;
@@ -910,11 +978,15 @@ export function ProgressiveBookingFlow() {
                                     {svc.category}
                                   </p>
                                 </div>
-                                {isSelected && (
-                                  <span className="h-5 w-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
-                                    <Check className="h-3 w-3" />
-                                  </span>
-                                )}
+                                <div className="shrink-0 pt-0.5">
+                                  {isSelected ? (
+                                    <span className="h-5 w-5 rounded-full bg-emerald-600 text-white flex items-center justify-center">
+                                      <Check className="h-3 w-3" />
+                                    </span>
+                                  ) : (
+                                    <span className="h-5 w-5 rounded-full border-2 border-gray-300 dark:border-gray-700 block" />
+                                  )}
+                                </div>
                               </div>
                               <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
                                 {svc.shortDesc}
@@ -1110,15 +1182,18 @@ export function ProgressiveBookingFlow() {
                           className="rounded-2xl border border-emerald-200 dark:border-emerald-800/80 bg-emerald-50/50 dark:bg-emerald-950/20 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4"
                         >
                           <div className="relative w-20 sm:w-24 aspect-4/5 rounded-xl overflow-hidden bg-stone-100 dark:bg-gray-800 shrink-0 shadow-xs">
-                            {doctors[0].photoUrl ? (
+                            {Boolean(doctors[0].photoUrl && !doctorImageErrors[doctors[0].id]) ? (
                               <img
-                                src={doctors[0].photoUrl}
+                                src={(resolveMediaUrl(doctors[0].photoUrl) || doctors[0].photoUrl) ?? undefined}
                                 alt={doctors[0].displayName}
                                 className="w-full h-full object-cover"
+                                onError={() => {
+                                  setDoctorImageErrors((prev) => ({ ...prev, [doctors[0].id]: true }));
+                                }}
                               />
                             ) : (
-                              <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-stone-100 to-stone-200 dark:from-gray-850 dark:to-gray-800 text-emerald-800 dark:text-emerald-300">
-                                <span className="font-display text-lg font-bold">
+                              <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-stone-100 to-stone-200 dark:from-gray-850 dark:to-gray-800 text-emerald-800 dark:text-emerald-300 select-none p-2 text-center">
+                                <span className="font-display text-lg font-bold tracking-wider">
                                   {getDoctorInitials(doctors[0].displayName)}
                                 </span>
                               </div>
@@ -1216,12 +1291,15 @@ export function ProgressiveBookingFlow() {
 
                                   {/* Photo with 4:5 aspect ratio & fallback avatar */}
                                   <div className="relative w-full aspect-4/5 rounded-xl overflow-hidden bg-stone-100 dark:bg-gray-800 mb-2 sm:mb-2.5 shrink-0 shadow-xs">
-                                    {doc.photoUrl ? (
+                                    {Boolean(doc.photoUrl && !doctorImageErrors[doc.id]) ? (
                                       <img
-                                        src={doc.photoUrl}
+                                        src={(resolveMediaUrl(doc.photoUrl) || doc.photoUrl) ?? undefined}
                                         alt={doc.displayName}
                                         loading="lazy"
                                         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                        onError={() => {
+                                          setDoctorImageErrors((prev) => ({ ...prev, [doc.id]: true }));
+                                        }}
                                       />
                                     ) : (
                                       <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-stone-100 via-stone-200/60 to-stone-100 dark:from-gray-850 dark:via-gray-800 dark:to-gray-850 text-emerald-800 dark:text-emerald-300 select-none p-2 text-center">
@@ -1459,7 +1537,7 @@ export function ProgressiveBookingFlow() {
               >
                 <Card shadow="card" className="p-6 sm:p-8 md:p-10 space-y-8" animate={false}>
                   <div className="space-y-1 pb-4 border-b border-gray-100 dark:border-gray-800">
-                    <span className="text-xs font-mono font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                    <span className="text-xs font-mono font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
                       {progressiveBookingCopy.review.pageLabel}
                     </span>
                     <h2 className="font-display text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">

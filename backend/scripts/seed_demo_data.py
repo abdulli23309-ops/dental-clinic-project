@@ -1,15 +1,20 @@
 """
-Seed demo data for Dr. Hira's Dental Care (DHDC).
-Populates 18 doctors, 4 branches, working hours, 4 gallery images, and 3 review samples.
-Idempotent and supports --dry-run and --database=NAME flags.
+Seed demo data for Dr. Hira's Dental Care / Hira Dental Clinic (DHDC).
+Populates 18 doctors, 4 branches, working hours, 6 services, branch offerings,
+doctor authorizations, provider availability, synthetic patients, demo bookings,
+CMS general branding, gallery images, and patient reviews.
+
+Deterministic, fully idempotent, and safe to execute repeatedly across teammate environments.
+Supports --dry-run and --database=NAME flags.
 """
 
 import argparse
 import asyncio
+import json
 import os
 import shutil
 import sys
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -21,15 +26,31 @@ from dotenv import load_dotenv
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.core.security import hash_password
 from app.infrastructure.database.orm_models import (
+    BookingFlowSettingsORM,
+    BookingORM,
+    ClinicBookingSettingsORM,
     ClinicORM,
+    ClinicServiceORM,
     ClinicWorkingHoursORM,
     GalleryImageORM,
+    LeadORM,
     LocationORM,
+    MessageORM,
     OrganizationORM,
+    PatientMedicalAlertORM,
+    PatientORM,
+    ProviderAvailabilityORM,
     ReviewORM,
     RoleORM,
+    ServiceORM,
+    ServiceProviderORM,
+    SiteSectionORM,
+    TaskORM,
+    TeamMemberClinicORM,
     TeamMemberORM,
+    UserORM,
 )
 
 # ---------------------------------------------------------------------------
@@ -134,7 +155,7 @@ DOCTORS = [
         "professional_title": "Founder & Lead Dentist",
         "role": "Dentist",
         "specialties_json": '["General Dentistry", "Restorative Care", "Cosmetic Dentistry", "Patient-Centric Treatment Planning"]',
-        "biography": "Dr. Hira Saleem is the founder and lead clinician at Dr. Hira's Dental Care. With extensive clinical experience in restorative and aesthetic dentistry, she established DHDC to bring modern, gentle, and transparent oral healthcare to patients across Pakistan. She specializes in minimally invasive treatments, smile rejuvenation, and anxious patient care.",
+        "biography": "Dr. Hira Saleem is the founder and lead clinician at Dr. Hira\'s Dental Care. With extensive clinical experience in restorative and aesthetic dentistry, she established DHDC to bring modern, gentle, and transparent oral healthcare to patients across Pakistan. She specializes in minimally invasive treatments, smile rejuvenation, and anxious patient care.",
         "photo_url": "/media/1c167b3d36eb47c8b0918aeb633af8a9.jpg",
         "education": "BDS, University of Health Sciences, Lahore",
         "credentials": "BDS, RDS",
@@ -199,320 +220,412 @@ DOCTORS = [
         "first_name": "Dr. Sarah",
         "last_name": "John",
         "display_name": "Dr. Sarah John",
-        "professional_title": "Orthodontist",
-        "role": "Orthodontist",
-        "specialties_json": '["Orthodontics", "Interceptive Care", "Smile Design"]',
-        "biography": "Dr. Sarah John coordinates orthodontic diagnostic simulations and digital clear aligner treatment plans.",
-        "photo_url": "/media/fa158e07a80d4ef3b7a2bd05b87aec5e.jpg",
-        "education": "BDS, Fatima Jinnah Dental College",
-        "credentials": "BDS, MOrth",
-        "license_number": "PMDC-55214-S",
+        "professional_title": "Restorative Specialist",
+        "role": "General Dentist",
+        "specialties_json": '["Restorative Dentistry", "Inlays & Onlays", "Biomimetic Fillings"]',
+        "biography": "Dr. Sarah John brings biomimetic dentistry principles to DHDC F-7, preserving healthy tooth structure through advanced adhesive restorations.",
+        "photo_url": "/media/7bf394e2da584d4fa71ae2a8b30ef2fb.jpg",
+        "education": "BDS, Dow University of Health Sciences",
+        "credentials": "BDS, Dip Restorative Dent",
+        "license_number": "PMDC-53401-J",
         "display_order": 5,
         "is_active": True,
     },
     {
-        "id": UUID("3cc8c0e3-2206-4e4f-9b4b-f731d2300758"),
+        "id": UUID("8e2023bf-32c0-4355-827c-3b2d1dca0435"),
         "location_id": UUID("96fffc52-d9c2-4115-af5d-13705c74e02a"),
-        "first_name": "Dr. Alejandro",
-        "last_name": "Morah",
-        "display_name": "Dr. Alejandro Morah",
-        "professional_title": "Oral Surgeon",
-        "role": "Oral Surgeon",
-        "specialties_json": '["Oral & Maxillofacial Surgery", "Wisdom Tooth Extractions", "Bone Grafting"]',
-        "biography": "Dr. Alejandro Morah provides complex surgical extractions, bone preservation, and pre-implant surgical therapy.",
-        "photo_url": "/media/65979e67075d4ed9bd3b6712f17a08e9.jpg",
-        "education": "DMD, Oral Surgery Residency",
-        "credentials": "DMD, FICOI",
-        "license_number": "PMDC-61879-M",
+        "first_name": "Dr. Emily",
+        "last_name": "White",
+        "display_name": "Dr. Emily White",
+        "professional_title": "Pediatric Dentist",
+        "role": "Pediatric Dentist",
+        "specialties_json": '["Pediatric Dentistry", "Child Dental Psychology", "Preventive Sealants", "Space Maintainers"]',
+        "biography": "Dr. Emily White creates a cheerful, fear-free environment for children. Certified in behavior guidance, she treats infants through teenagers.",
+        "photo_url": "/media/59231f24d7704b20967bf0f3b4dd6b8c.jpg",
+        "education": "BDS, University of Birmingham; MS Pediatric Dentistry",
+        "credentials": "BDS, MS (Pediatric Dent)",
+        "license_number": "PMDC-49820-W",
         "display_order": 6,
         "is_active": True,
     },
     {
-        "id": UUID("bc3395da-0209-4695-ab7f-cf513f00068c"),
+        "id": UUID("09d5c414-b143-469b-86ea-d961cf3a6ddc"),
         "location_id": UUID("96fffc52-d9c2-4115-af5d-13705c74e02a"),
-        "first_name": "Dr. Ahmed",
-        "last_name": "Raza",
-        "display_name": "Dr. Ahmed Raza",
-        "professional_title": "General Dentist",
-        "role": "General Dentist",
-        "specialties_json": '["Preventive Care", "Composite Fillings", "Teeth Whitening"]',
-        "biography": "Dr. Ahmed Raza has 8 years of experience in restorative and preventive oral health. He is known for gentle local anesthesia and thorough patient education.",
-        "photo_url": "/media/febb95fe14a945a1be248d2892208ac7.png",
-        "education": "BDS, Nishtar Medical University",
-        "credentials": "BDS",
-        "license_number": "PMDC-51203-A",
+        "first_name": "Dr. Michael",
+        "last_name": "Brown",
+        "display_name": "Dr. Michael Brown",
+        "professional_title": "Oral & Maxillofacial Surgeon",
+        "role": "Oral Surgeon",
+        "specialties_json": '["Oral Surgery", "Wisdom Teeth Extraction", "Bone Grafting", "Dental Implants"]',
+        "biography": "Dr. Michael Brown has completed over 3,000 surgical extractions and implant procedures with modern sedation and microsurgical protocols.",
+        "photo_url": "/media/eb74ebdf7a5f4c51aa6e2794bebe7847.jpg",
+        "education": "BDS, FCPS (Oral & Maxillofacial Surgery)",
+        "credentials": "BDS, FCPS",
+        "license_number": "PMDC-38419-B",
         "display_order": 7,
         "is_active": True,
     },
     {
-        "id": UUID("e0827328-6cac-4f80-a1a7-37d0ef7f035c"),
-        "location_id": UUID("64fa23e9-45b5-4fca-9758-d3d8ea6c08db"),
-        "first_name": "Dr. Amna",
-        "last_name": "Siddiqui",
-        "display_name": "Dr. Amna Siddiqui",
-        "professional_title": "Orthodontist",
-        "role": "Orthodontist",
-        "specialties_json": '["Orthodontics", "Clear Aligners", "Traditional Braces"]',
-        "biography": "Dr. Amna Siddiqui specializes in modern digital orthodontics, helping teens and adults achieve straight, healthy smiles with aligners.",
-        "photo_url": "/media/661efc9e2ef44f808f052b771e5aab55.png",
-        "education": "BDS, Dow University of Health Sciences + FCPS",
-        "credentials": "BDS, FCPS (Orthodontics)",
-        "license_number": "PMDC-62187-S",
+        "id": UUID("66657905-23c3-42e8-9aa9-e93540ebf59c"),
+        "location_id": UUID("ead5270f-608f-43ae-a721-1dbcd8c50f24"),
+        "first_name": "Dr. Jessica",
+        "last_name": "Green",
+        "display_name": "Dr. Jessica Green",
+        "professional_title": "Consultant Periodontist",
+        "role": "Periodontist",
+        "specialties_json": '["Periodontics", "Gum Grafting", "Laser Periodontal Therapy", "Regenerative Procedures"]',
+        "biography": "Dr. Jessica Green specializes in treating periodontal diseases and soft tissue aesthetic contouring using laser protocols.",
+        "photo_url": "/media/e5797f26fcba436eb4b1ca54b684cb32.jpg",
+        "education": "BDS, King's College London; MClinDent in Periodontology",
+        "credentials": "BDS, MClinDent (Periodontology)",
+        "license_number": "PMDC-55201-G",
         "display_order": 8,
         "is_active": True,
     },
     {
-        "id": UUID("a1f107ea-538c-47fc-b234-232732354e6d"),
-        "location_id": UUID("ead5270f-608f-43ae-a721-1dbcd8c50f24"),
-        "first_name": "Dr. Fatima",
-        "last_name": "Khan",
-        "display_name": "Dr. Fatima Khan",
-        "professional_title": "Pediatric Dentist",
-        "role": "Pediatric Dentist",
-        "specialties_json": '["Pediatric Dentistry", "Child Preventive Care", "Fluoride Therapy"]',
-        "biography": "Dr. Fatima Khan creates fun, welcoming, and fear-free dental visits for infants, toddlers, and young children.",
-        "photo_url": "/media/733ab56ed7a04f5ca5cdc1d2a8e85beb.png",
-        "education": "BDS, Khyber Medical University",
-        "credentials": "BDS, C-Pedo",
-        "license_number": "PMDC-71402-K",
+        "id": UUID("9ebf04f0-bc37-4d10-8b4e-4f0562e873a7"),
+        "location_id": UUID("96fffc52-d9c2-4115-af5d-13705c74e02a"),
+        "first_name": "Dr. David",
+        "last_name": "Black",
+        "display_name": "Dr. David Black",
+        "professional_title": "Endodontic Specialist",
+        "role": "Endodontist",
+        "specialties_json": '["Microscopic Endodontics", "Root Canal Retreatment", "Apicoectomy", "Dental Trauma"]',
+        "biography": "Dr. David Black utilizes high-magnification surgical operating microscopes for endodontic therapies, ensuring precision and tooth preservation.",
+        "photo_url": "/media/98b251fc599b4aa6b8f36c53e0ec536b.jpg",
+        "education": "BDS, Army Medical College; MSc Endodontics",
+        "credentials": "BDS, MSc (Endodontics)",
+        "license_number": "PMDC-43110-D",
         "display_order": 9,
         "is_active": True,
     },
     {
-        "id": UUID("a3483e28-2df2-4b5a-ad86-ac83b1988941"),
-        "location_id": UUID("7968ba25-db4a-4e11-8e57-af8507823e20"),
-        "first_name": "Dr. Sana",
-        "last_name": "Tariq",
-        "display_name": "Dr. Sana Tariq",
+        "id": UUID("40f2fef4-7db3-4414-8742-0f5ba6ea003d"),
+        "location_id": UUID("64fa23e9-45b5-4fca-9758-d3d8ea6c08db"),
+        "first_name": "Dr. Laura",
+        "last_name": "Wilson",
+        "display_name": "Dr. Laura Wilson",
         "professional_title": "Cosmetic Dentist",
         "role": "Cosmetic Dentist",
-        "specialties_json": '["Cosmetic Dentistry", "Veneers", "Smile Makeovers"]',
-        "biography": "Dr. Sana Tariq crafts natural porcelain veneers, composite bonding, and in-office smile makeovers.",
-        "photo_url": "/media/4bed73834ea54ddf8263682ec58f09a3.png",
-        "education": "BDS, Baqai Medical University",
-        "credentials": "BDS, AACD Member",
-        "license_number": "PMDC-68219-T",
+        "specialties_json": '["Cosmetic Dentistry", "Porcelain Veneers", "Smile Design", "Teeth Whitening"]',
+        "biography": "Dr. Laura Wilson is an aesthetic smile designer specializing in porcelain veneers, composite bonding, and comprehensive cosmetic smile transformations.",
+        "photo_url": "/media/0dcf3f8373ee4f9db21ebbbba09d437a.jpg",
+        "education": "BDS, University of Manchester; AACD Accredited Fellow",
+        "credentials": "BDS, Fellow AACD",
+        "license_number": "PMDC-57302-W",
         "display_order": 10,
         "is_active": True,
     },
     {
-        "id": UUID("3575b9d1-9b3d-4a50-8d85-d48718387979"),
-        "location_id": UUID("64fa23e9-45b5-4fca-9758-d3d8ea6c08db"),
-        "first_name": "Dr. Bilal",
-        "last_name": "Hussain",
-        "display_name": "Dr. Bilal Hussain",
-        "professional_title": "Oral Surgeon",
-        "role": "Oral Surgeon",
-        "specialties_json": '["Oral Surgery", "Wisdom Tooth Removal", "Implant Placement"]',
-        "biography": "Dr. Bilal Hussain brings 12 years of surgical proficiency to DHDC, focusing on safe third-molar extractions and bone preservation.",
-        "photo_url": "/media/cab50475196a4e19a5e6aeb2be4f0685.png",
-        "education": "BDS, Rawalpindi Medical College + FCPS (Oral Surgery)",
-        "credentials": "BDS, FCPS (Oral & Maxillofacial)",
-        "license_number": "PMDC-49182-H",
+        "id": UUID("2ffad580-b2ba-4299-8dbd-a0680eb5c3ca"),
+        "location_id": UUID("7968ba25-db4a-4e11-8e57-af8507823e20"),
+        "first_name": "Dr. James",
+        "last_name": "Taylor",
+        "display_name": "Dr. James Taylor",
+        "professional_title": "Senior Implantologist",
+        "role": "Implantologist",
+        "specialties_json": '["Implantology", "All-on-4 / All-on-6", "Sinus Elevation", "Immediate Loading"]',
+        "biography": "Dr. James Taylor leads the implant rehabilitation service at DHDC Karachi. He has placed over 2,500 dental implants using computer-guided 3D navigation.",
+        "photo_url": "/media/db43bcdd60cb46dcbb52f2f77e68fa79.jpg",
+        "education": "DDS, University of Melbourne; ICOI Diplomate",
+        "credentials": "DDS, Diplomate ICOI",
+        "license_number": "PMDC-61294-T",
         "display_order": 11,
         "is_active": True,
     },
     {
-        "id": UUID("bb9754f9-23f3-4a44-b8a0-7b43a0be379b"),
-        "location_id": UUID("96fffc52-d9c2-4115-af5d-13705c74e02a"),
-        "first_name": "Dr. Usman",
-        "last_name": "Ali",
-        "display_name": "Dr. Usman Ali",
-        "professional_title": "Periodontist",
-        "role": "Periodontist",
-        "specialties_json": '["Periodontics", "Gum Surgery", "Deep Cleaning", "Laser Therapy"]',
-        "biography": "Dr. Usman is our periodontist with 10 years of specialized experience in gum health, laser therapy, and dental implant maintenance.",
-        "photo_url": "/media/d2cde336f6bd4bbcaa7fa9610b9aee3c.jpg",
-        "education": "Quaid-e-Azam Dental College + FCPS (Periodontology)",
-        "credentials": "BDS, FCPS (Periodontology)",
-        "license_number": "PMDC-58932-A",
+        "id": UUID("407945d8-df3b-48aa-b6ce-eec3297a7e8f"),
+        "location_id": UUID("ead5270f-608f-43ae-a721-1dbcd8c50f24"),
+        "first_name": "Dr. Olivia",
+        "last_name": "Anderson",
+        "display_name": "Dr. Olivia Anderson",
+        "professional_title": "Consultant Prosthodontist",
+        "role": "Prosthodontist",
+        "specialties_json": '["Prosthodontics", "Full Mouth Rehabilitation", "CAD/CAM Zirconia", "TMD Therapy"]',
+        "biography": "Dr. Olivia Anderson focuses on full mouth occlusal reconstruction and complex fixed/removable prosthetics using digital CAD/CAM workflows.",
+        "photo_url": "/media/1a90c2a71bf545f1b1fa15fc57fa44d5.jpg",
+        "education": "BDS, Fatima Jinnah Medical University; FCPS Prosthodontics",
+        "credentials": "BDS, FCPS (Prosthodontics)",
+        "license_number": "PMDC-46781-A",
         "display_order": 12,
         "is_active": True,
     },
     {
-        "id": UUID("2d8f01b4-e2ad-4d3f-bc3b-f6020ffe98ed"),
-        "location_id": UUID("7968ba25-db4a-4e11-8e57-af8507823e20"),
-        "first_name": "Dr. Daniyal",
-        "last_name": "Abbas",
-        "display_name": "Dr. Daniyal Abbas",
-        "professional_title": "Implantologist",
-        "role": "Implantologist",
-        "specialties_json": '["Dental Implants", "Bone Grafting", "Full-Arch Restoration"]',
-        "biography": "Dr. Daniyal is our implantology specialist with 11 years of experience in guided surgery, 3D CBCT planning, and long-term full-arch rehabilitation.",
-        "photo_url": "/media/55641bc41c5849c7990af3eec8db4280.jpg",
-        "education": "Baqai Medical University + FCPS in Oral Implantology",
-        "credentials": "BDS, FCPS (Oral Implantology)",
-        "license_number": "PMDC-64891-A",
+        "id": UUID("a0ecab49-c1c5-433b-8531-294315fcb63b"),
+        "location_id": UUID("96fffc52-d9c2-4115-af5d-13705c74e02a"),
+        "first_name": "Dr. Daniel",
+        "last_name": "Thomas",
+        "display_name": "Dr. Daniel Thomas",
+        "professional_title": "Dental Hygienist & Prevention Lead",
+        "role": "Hygienist",
+        "specialties_json": '["Preventive Dentistry", "Ultrasonic Scaling", "Airflow Polishing", "Periodontal Maintenance"]',
+        "biography": "Dr. Daniel Thomas leads DHDC\'s preventive prophylaxis protocol, emphasizing patient education and biofilm management.",
+        "photo_url": "/media/8a1f6a5b67a149a4a7964b4c73400ea0.jpg",
+        "education": "BSc Dental Hygiene, Cardiff University",
+        "credentials": "BSc (Hons) Dental Hygiene",
+        "license_number": "PMDC-HYG-3102",
         "display_order": 13,
         "is_active": True,
     },
     {
-        "id": UUID("121a689b-885a-48b3-95b4-52a569bacee9"),
-        "location_id": UUID("ead5270f-608f-43ae-a721-1dbcd8c50f24"),
-        "first_name": "Dr. Hamza",
-        "last_name": "Sheikh",
-        "display_name": "Dr. Hamza Sheikh",
-        "professional_title": "Prosthodontist",
-        "role": "Prosthodontist",
-        "specialties_json": '["Crowns", "Bridges", "Dentures", "Full Mouth Rehabilitation"]',
-        "biography": "Dr. Hamza is a prosthodontist specializing in digitally designed ceramic crowns, fixed bridges, and comprehensive full-mouth restorations.",
-        "photo_url": "/media/2d1a9244830844e8b6826729e1b6db2d.png",
-        "education": "Punjab Medical College + MDS in Prosthodontics",
-        "credentials": "BDS, MDS (Prosthodontics)",
-        "license_number": "PMDC-63409-S",
+        "id": UUID("4ce90d2e-4b68-4509-8669-eecfc04d7e8b"),
+        "location_id": UUID("64fa23e9-45b5-4fca-9758-d3d8ea6c08db"),
+        "first_name": "Dr. Sophia",
+        "last_name": "Jackson",
+        "display_name": "Dr. Sophia Jackson",
+        "professional_title": "Pediatric Dental Associate",
+        "role": "Pediatric Dentist",
+        "specialties_json": '["Pediatric Dentistry", "Interceptive Orthodontics", "Nitrous Oxide Sedation"]',
+        "biography": "Dr. Sophia Jackson provides gentle dental care to pediatric patients, specializing in conscious sedation and interceptive orthodontics.",
+        "photo_url": "/media/ea400cbe9fbf4d48bf82260f85ce6b09.jpg",
+        "education": "BDS, Rawalpindi Medical University; Dip Paed Dent",
+        "credentials": "BDS, Dip Paed Dent",
+        "license_number": "PMDC-58491-J",
         "display_order": 14,
         "is_active": True,
     },
     {
-        "id": UUID("fc1628c1-d7d6-4ae8-adf6-8c550c21673e"),
-        "location_id": UUID("7968ba25-db4a-4e11-8e57-af8507823e20"),
-        "first_name": "Dr. Zain",
-        "last_name": "Malik",
-        "display_name": "Dr. Zain Malik",
-        "professional_title": "Endodontist",
-        "role": "Endodontist",
-        "specialties_json": '["Endodontics", "Root Canal Therapy", "Microsurgery"]',
-        "biography": "Dr. Zain is our endodontic specialist using rotary files and dental operating microscopes to provide pain-free single-visit root canals.",
-        "photo_url": "/media/248de043ded14857812660efdd5f354b.jpg",
-        "education": "Liaquat University of Medical & Health Sciences, Jamshoro",
-        "credentials": "BDS",
-        "license_number": "PMDC-74106-M",
+        "id": UUID("ea00445a-c603-4c91-9e8a-028a3f82eb7c"),
+        "location_id": UUID("ead5270f-608f-43ae-a721-1dbcd8c50f24"),
+        "first_name": "Dr. Matthew",
+        "last_name": "White",
+        "display_name": "Dr. Matthew White",
+        "professional_title": "Oral Surgeon",
+        "role": "Oral Surgeon",
+        "specialties_json": '["Oral Surgery", "Impacted Canine Exposure", "Pre-prosthetic Surgery", "Sedation Dentistry"]',
+        "biography": "Dr. Matthew White performs outpatient maxillofacial and dentoalveolar surgery with minimal discomfort and rapid recovery techniques.",
+        "photo_url": "/media/f7574719c8f041ff9ea9c3817105a308.jpg",
+        "education": "BDS, University of Glasgow; MFDS RCPS",
+        "credentials": "BDS, MFDS RCPS (Glasgow)",
+        "license_number": "PMDC-51203-W",
         "display_order": 15,
         "is_active": True,
     },
     {
-        "id": UUID("a743ad5b-75b2-43ff-b6e2-228edc4a619b"),
-        "location_id": UUID("64fa23e9-45b5-4fca-9758-d3d8ea6c08db"),
-        "first_name": "Dr. Faraz",
-        "last_name": "Ahmed",
-        "display_name": "Dr. Faraz Ahmed",
-        "professional_title": "General Dentist",
-        "role": "General Dentist",
-        "specialties_json": '["General Dentistry", "Preventive Care", "Emergency Dentistry"]',
-        "biography": "Dr. Faraz handles walk-in emergencies, urgent pain triage, and preventive checkups with a calm, comforting clinical approach.",
-        "photo_url": "/media/e6d46183c5c2431e8c1c8041f7b0e0ff.jpg",
-        "education": "Army Medical College, Rawalpindi",
-        "credentials": "BDS",
-        "license_number": "PMDC-77582-A",
+        "id": UUID("c413b5d3-82ef-4e3d-82d6-ee1129b1eb8b"),
+        "location_id": UUID("7968ba25-db4a-4e11-8e57-af8507823e20"),
+        "first_name": "Dr. Chloe",
+        "last_name": "Harris",
+        "display_name": "Dr. Chloe Harris",
+        "professional_title": "Cosmetic Dentist",
+        "role": "Cosmetic Dentist",
+        "specialties_json": '["Aesthetic Dentistry", "Composite Edge Bonding", "Internal Bleaching", "Laser Gingivoplasty"]',
+        "biography": "Dr. Chloe Harris is an advocate of non-destructive cosmetic smile enhancements including composite edge bonding and laser gum contouring.",
+        "photo_url": "/media/0dcf3f8373ee4f9db21ebbbba09d437a.jpg",
+        "education": "BDS, Trinity College Dublin",
+        "credentials": "BDS (NUI)",
+        "license_number": "PMDC-59012-H",
         "display_order": 16,
         "is_active": True,
     },
     {
-        "id": UUID("9d842c21-5c1a-480e-ba25-4b92f6d0b447"),
+        "id": UUID("a8fc647f-f7d4-42b7-a37a-42981ce818c3"),
         "location_id": UUID("96fffc52-d9c2-4115-af5d-13705c74e02a"),
-        "first_name": "Dr. Saad",
-        "last_name": "Iqbal",
-        "display_name": "Dr. Saad Iqbal",
-        "professional_title": "Cosmetic Dentist",
-        "role": "Cosmetic Dentist",
-        "specialties_json": '["Cosmetic Dentistry", "Composite Bonding", "Smile Design"]',
-        "biography": "Dr. Saad is focused on micro-dentistry, tooth color matching, and conservative cosmetic bonding for chipped or discolored teeth.",
-        "photo_url": "/media/286ac9e85dd04672902e6265b29b7b98.jpg",
-        "education": "Sharif Medical & Dental College, Lahore",
-        "credentials": "BDS",
-        "license_number": "PMDC-80367-I",
+        "first_name": "Dr. Alexander",
+        "last_name": "Martin",
+        "display_name": "Dr. Alexander Martin",
+        "professional_title": "Periodontal Surgeon",
+        "role": "Periodontist",
+        "specialties_json": '["Periodontal Surgery", "Peri-implantitis Management", "Guided Tissue Regeneration"]',
+        "biography": "Dr. Alexander Martin focuses on complex periodontal reconstructive surgeries and treating advanced peri-implant diseases.",
+        "photo_url": "/media/4d3d37ec71394a50b8655e81d77d7045.jpg",
+        "education": "BDS, University of Sheffield; MClinDent Periodontology",
+        "credentials": "BDS, MClinDent",
+        "license_number": "PMDC-47890-M",
         "display_order": 17,
         "is_active": True,
     },
     {
-        "id": UUID("b12d9242-b56c-4331-adfe-3e16a8e6674d"),
+        "id": UUID("c53c4424-6f8d-4a11-b062-8179fb3d395a"),
         "location_id": UUID("ead5270f-608f-43ae-a721-1dbcd8c50f24"),
-        "first_name": "Dr. Hamid",
-        "last_name": "Khan",
-        "display_name": "Dr. Hamid Khan",
-        "professional_title": "Orthodontist",
-        "role": "Orthodontist",
-        "specialties_json": '["Orthodontics", "Self-Ligating Braces", "Lingual Braces"]',
-        "biography": "Dr. Hamid specializes in self-ligating braces and complex bite correction with over 8 years of dedicated orthodontic practice.",
-        "photo_url": "/media/b3b4d4c0a05c42d4bd594625996c0f4f.jpg",
-        "education": "Khyber Medical University, Peshawar + MDS in Orthodontics",
-        "credentials": "BDS, MDS (Orthodontics)",
-        "license_number": "PMDC-59218-K",
+        "first_name": "Dr. Mia",
+        "last_name": "Thompson",
+        "display_name": "Dr. Mia Thompson",
+        "professional_title": "Endodontic Specialist",
+        "role": "Endodontist",
+        "specialties_json": '["Endodontics", "Complex Anatomy Navigation", "Calcified Canals", "Endodontic Microsurgery"]',
+        "biography": "Dr. Mia Thompson brings meticulous microsurgical expertise to the Lahore branch, successfully treating calcified canals and failed endodontic cases.",
+        "photo_url": "/media/3fe0ee611a5b48e3a2ae37a2886f4a81.jpg",
+        "education": "BDS, de\'Montmorency College of Dentistry; FCPS Endodontics",
+        "credentials": "BDS, FCPS",
+        "license_number": "PMDC-54129-T",
         "display_order": 18,
         "is_active": True,
     },
 ]
 
-GALLERY = [
+INITIAL_SERVICES = [
     {
-        "id": UUID("c2637e68-23dd-485d-9b08-86eff7658309"),
-        "image_url": "/images/gallery-1.jpg",
-        "caption": "Sterile Surgical Suite",
+        "slug": "cleanings-exams",
+        "category": "preventive",
+        "title": "Cleanings & Comprehensive Exam",
+        "short_desc": "Complete oral health evaluation, low-radiation digital bitewing X-rays, ultrasonic scaling, polish, and thorough doctor consultation.",
+        "full_desc": "We thoroughly assess periodontal health, soft tissues, and tooth enamel. You see the digital X-rays directly on the chairside display with Dr. Hira explaining every observation before any decision.",
+        "duration": "45 to 60 min",
+        "cash_price": "from 140",
+        "code": "CDT D0150 / D1110",
+        "insurance_note": None,
+        "recommended_interval": "Every 6 months",
         "display_order": 0,
-        "is_active": True,
+        "is_highlighted": True,
     },
     {
-        "id": UUID("322638e1-1da5-4ca3-9940-f0f44ca52135"),
-        "image_url": "/images/gallery-2.jpg",
-        "caption": "Diagnostic & Preventive Station",
+        "slug": "fillings-crowns",
+        "category": "restorative",
+        "title": "Tooth-Colored Fillings & Crowns",
+        "short_desc": "Composite resin restorations matched to your tooth shade, and custom-milled ceramic crowns restoring natural chewing bite.",
+        "full_desc": "We use biocompatible composite resins precisely color-matched to your tooth shade. For fractured or weakened molars, custom ceramic crowns restore natural chewing anatomy without dark metal margins.",
+        "duration": "60 to 90 min",
+        "cash_price": "from 210",
+        "code": "CDT D2391 / D2740",
+        "insurance_note": None,
+        "recommended_interval": "As needed after diagnostic scan",
+        "display_order": 1,
+        "is_highlighted": True,
+    },
+    {
+        "slug": "root-canals",
+        "category": "restorative",
+        "title": "Gentle Endodontics (Root Canals)",
+        "short_desc": "Rotary canal instrumentation performed with local anesthesia to eliminate acute nerve pain.",
+        "full_desc": "Modern root canals relieve pain rather than causing it. Our doctors handle root canal therapy in a quiet environment with profound anesthesia so you feel only light vibration.",
+        "duration": "75 to 90 min",
+        "cash_price": "from 680",
+        "code": "CDT D3330",
+        "insurance_note": None,
+        "recommended_interval": "Emergency or pulpitis diagnosis",
+        "display_order": 2,
+        "is_highlighted": False,
+    },
+    {
+        "slug": "invisalign",
+        "category": "cosmetic",
+        "title": "Invisalign Clear Aligners",
+        "short_desc": "Digital 3D optical scans, custom clear trays, and progressive bite alignment without metal brackets or wires.",
+        "full_desc": "Clear aligner therapy addresses crowded teeth, gaps, and traumatic occlusion. We only recommend aligners when they genuinely improve your functional bite and periodontal hygiene.",
+        "duration": "6 to 15 months",
+        "cash_price": "from 3400",
+        "code": "CDT D8090",
+        "insurance_note": None,
+        "recommended_interval": "Consultation required",
+        "display_order": 3,
+        "is_highlighted": False,
+    },
+    {
+        "slug": "whitening",
+        "category": "cosmetic",
+        "title": "Professional Enamel Whitening",
+        "short_desc": "Custom-fitted laboratory trays or in-office carbamide peroxide whitening with gingival protection.",
+        "full_desc": "Custom vacuum-formed trays ensure professional whitening gel stays in direct contact with enamel without irritating delicate gingival tissue. Honest shade assessment beforehand.",
+        "duration": "1 visit or 2 weeks",
+        "cash_price": "from 280",
+        "code": "CDT D9972",
+        "insurance_note": None,
+        "recommended_interval": "Annual refresh or pre-event",
+        "display_order": 4,
+        "is_highlighted": False,
+    },
+    {
+        "slug": "emergency",
+        "category": "emergency",
+        "title": "Same-Day Emergency Triage",
+        "short_desc": "Sudden toothache, broken restoration, chipped tooth, or facial swelling. Reserved triage blocks available daily.",
+        "full_desc": "We reserve emergency triage blocks in our daily schedule. Call before 11:00 AM on weekdays to be seen the same day for targeted diagnosis, pain relief, and stabilization.",
+        "duration": "30 to 45 min",
+        "cash_price": "from 95",
+        "code": "CDT D0140 / D9110",
+        "insurance_note": None,
+        "recommended_interval": "Call immediately upon symptoms",
+        "display_order": 5,
+        "is_highlighted": False,
+    },
+]
+
+GALLERY = [
+    {
+        "id": UUID("f1a0e38a-3677-449e-b873-195c65a0b5a1"),
+        "caption": "State-of-the-art dental chair with integrated digital imaging and overhead surgical lighting",
+        "image_url": "/images/dental_operatory.png",
         "display_order": 1,
         "is_active": True,
     },
     {
-        "id": UUID("99fea054-723e-44be-8b16-dd1bf54bedaa"),
-        "image_url": "/images/gallery-3.jpg",
-        "caption": "Endodontic Microsurgery Suite",
+        "id": UUID("f2b1f49b-4788-55af-c984-2a6d76b1c6b2"),
+        "caption": "High-resolution display showing digital X-rays and 3D intraoral scans for patient consultation",
+        "image_url": "/images/chairside_display.png",
         "display_order": 2,
         "is_active": True,
     },
     {
-        "id": UUID("050644c6-2333-4365-a4dc-a8a0cc307f52"),
-        "image_url": "/images/gallery-4.jpg",
-        "caption": "Patient Comfort & Smile Lounge",
+        "id": UUID("f3c2a5ac-5899-66ba-da95-3b7e87c2d7c3"),
+        "caption": "Comfortable, private consultation space for unhurried treatment discussions and digital smile design",
+        "image_url": "/images/consultation_suite.png",
         "display_order": 3,
+        "is_active": True,
+    },
+    {
+        "id": UUID("f4d3b6bd-69aa-77cb-eb06-4c8f98d3e8d4"),
+        "caption": "Hospital-grade autoclaves and ultrasonic instruments exceeding all international sterilization protocols",
+        "image_url": "/images/sterilization_bay.png",
+        "display_order": 4,
         "is_active": True,
     },
 ]
 
 REVIEWS = [
     {
-        "id": UUID("8a1e2f3d-4c5b-6a78-9012-3456789abcde"),
-        "author_name": "Ayesha R.",
+        "id": UUID("e1a0b1c2-1111-4444-8888-000000000001"),
+        "author_name": "Amina Tariq",
         "rating": 5,
-        "review_text": "Dr. Hira and her clinical team provided exceptional care during my root canal treatment. Completely pain-free, modern sterile operatory, and wonderful bedside manner.",
-        "review_date": date(2026, 3, 15),
-        "source_label": "Google Review",
-        "display_order": 0,
-        "is_published": True,
-    },
-    {
-        "id": UUID("9b2f3a4e-5d6c-7b89-0123-456789abcdef"),
-        "author_name": "Usman K.",
-        "rating": 5,
-        "review_text": "Outstanding dental implant experience. The diagnostic imaging and clear explanation before the procedure gave me full confidence. Highly recommended facility in Soan Garden.",
-        "review_date": date(2026, 4, 2),
+        "review_text": "Dr. Hira and her entire team made my dental visit so calm and painless. From the initial 3D scan to the gentle filling procedure, I felt completely respected and informed. Truly the best dental experience in Islamabad!",
+        "review_date": date(2025, 11, 14),
         "source_label": "Google Review",
         "display_order": 1,
         "is_published": True,
     },
     {
-        "id": UUID("ac3a4b5f-6e7d-8c90-1234-56789abcdef0"),
-        "author_name": "Fatima S.",
+        "id": UUID("e2a0b1c2-2222-4444-8888-000000000002"),
+        "author_name": "Bilal Ahmed Khan",
         "rating": 5,
-        "review_text": "The entire team is polite, punctual, and remarkably gentle. My children actually look forward to their dental checkups now. Truly a five-star dental practice!",
-        "review_date": date(2026, 5, 18),
-        "source_label": "Google Review",
+        "review_text": "Had an acute toothache over the weekend and DHDC accommodated me via emergency triage within hours. The transparency around cost and treatment steps gave me immense peace of mind.",
+        "review_date": date(2025, 12, 2),
+        "source_label": "Verified Patient",
         "display_order": 2,
+        "is_published": True,
+    },
+    {
+        "id": UUID("e3a0b1c2-3333-4444-8888-000000000003"),
+        "author_name": "Zainab Malik",
+        "rating": 5,
+        "review_text": "Completed my Invisalign treatment across 10 months with Dr. Carlos Novakowski. My smile has never looked better, and every branch visit in F-7 was on schedule and seamless.",
+        "review_date": date(2026, 1, 18),
+        "source_label": "Google Review",
+        "display_order": 3,
         "is_published": True,
     },
 ]
 
 # ---------------------------------------------------------------------------
-# File Synchronization Helper
+# Media Asset Sync Logic
 # ---------------------------------------------------------------------------
 
-def sync_assets(dry_run: bool = False):
+def sync_all_assets(dry_run: bool = False):
     """
-    Copies photos from source folders to backend/uploads/ and frontend/public/images/.
+    Ensure all tracked seed media files in backend/seed_data/uploads are synchronized
+    into backend/uploads and frontend/public/images so all avatars, logos, and gallery
+    images resolve immediately without any broken image links.
     """
     repo_root = BACKEND_DIR.parent
-    photos_src_dirs = [
-        repo_root / "_scratch" / "photos_src" / "uploads_backup",
-        repo_root / "_scratch" / "photos_src",
-        BACKEND_DIR / "uploads",
-    ]
+    seed_uploads_dir = BACKEND_DIR / "seed_data" / "uploads"
     uploads_target = BACKEND_DIR / "uploads"
     frontend_images_target = repo_root / "frontend" / "public" / "images"
+
+    fallback_src_dirs = [
+        seed_uploads_dir,
+        repo_root / "_scratch" / "photos_src" / "uploads_backup",
+        repo_root / "_scratch" / "photos_src",
+        uploads_target,
+    ]
 
     if not dry_run:
         uploads_target.mkdir(parents=True, exist_ok=True)
@@ -521,46 +634,58 @@ def sync_assets(dry_run: bool = False):
     copied_uploads = 0
     copied_frontend = 0
 
-    # Ensure upload images exist
+    # 1. Sync seed_data/uploads into backend/uploads
+    if seed_uploads_dir.exists():
+        for src in seed_uploads_dir.glob("*"):
+            if src.is_file():
+                dest = uploads_target / src.name
+                if not dest.exists():
+                    if not dry_run:
+                        shutil.copy2(src, dest)
+                    copied_uploads += 1
+
+    # 2. Sync doctor photos into backend/uploads if missing
     for doc in DOCTORS:
         fname = doc["photo_url"].replace("/media/", "")
-        target_path = uploads_target / fname
-        if not target_path.exists():
-            for src_dir in photos_src_dirs:
+        dest = uploads_target / fname
+        if not dest.exists():
+            for src_dir in fallback_src_dirs:
                 src_file = src_dir / fname
                 if src_file.exists():
                     if not dry_run:
-                        shutil.copy2(src_file, target_path)
+                        shutil.copy2(src_file, dest)
                     copied_uploads += 1
                     break
 
-    for loc in BRANCHES:
-        if loc.get("image_url"):
-            fname = loc["image_url"].replace("/media/", "")
-            target_path = uploads_target / fname
-            if not target_path.exists():
-                for src_dir in photos_src_dirs:
+    # 3. Sync branch images into backend/uploads if missing
+    for b in BRANCHES:
+        if b.get("image_url"):
+            fname = b["image_url"].replace("/media/", "")
+            dest = uploads_target / fname
+            if not dest.exists():
+                for src_dir in fallback_src_dirs:
                     src_file = src_dir / fname
                     if src_file.exists():
                         if not dry_run:
-                            shutil.copy2(src_file, target_path)
+                            shutil.copy2(src_file, dest)
                         copied_uploads += 1
                         break
 
-    # Ensure frontend public images exist
+    # 4. Sync gallery images into frontend/public/images
     for gal in GALLERY:
         fname = gal["image_url"].replace("/images/", "")
-        target_path = frontend_images_target / fname
-        if not target_path.exists():
-            for src_dir in photos_src_dirs:
+        dest = frontend_images_target / fname
+        if not dest.exists():
+            for src_dir in fallback_src_dirs:
                 src_file = src_dir / fname
                 if src_file.exists():
                     if not dry_run:
-                        shutil.copy2(src_file, target_path)
+                        shutil.copy2(src_file, dest)
                     copied_frontend += 1
                     break
 
-    print(f"Asset check: {copied_uploads} uploads and {copied_frontend} public images verified/synced.")
+    total_uploads = len(list(uploads_target.glob("*"))) if uploads_target.exists() else 0
+    print(f"[ASSETS] Verified seed media: +{copied_uploads} uploads copied (+{copied_frontend} public images). Total in uploads/: {total_uploads}")
 
 
 # ---------------------------------------------------------------------------
@@ -579,7 +704,7 @@ async def seed_database(database_name: str | None = None, dry_run: bool = False)
         db_url = base_url
 
     print(f"Connecting to database: {current_db} ({'DRY RUN' if dry_run else 'LIVE'})...")
-    sync_assets(dry_run=dry_run)
+    sync_all_assets(dry_run=dry_run)
 
     engine = create_async_engine(db_url, echo=False)
     session_factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
@@ -591,12 +716,15 @@ async def seed_database(database_name: str | None = None, dry_run: bool = False)
         if not org:
             org = OrganizationORM(
                 id=UUID("979fed75-864a-44d8-b868-592ddf9cb862"),
-                name="Dr. Hira's Dental Care",
-                display_name="Dr. Hira's Dental Care",
+                name="Hira Dental Clinic",
+                display_name="Hira Dental Clinic",
                 tagline="Precision & Compassion in Modern Dentistry",
                 description="Comprehensive multi-specialty dental practice providing gentle, world-class dental care across Islamabad, Lahore, and Karachi.",
-                contact_email="info@drhirasdentalcare.com",
-                contact_phone="+92 051-6102977",
+                logo_url="/media/8d90adff4feb4e8db41f532aa3d630f1.png",
+                contact_email="care@hiradental.com",
+                contact_phone="051-6102977",
+                primary_color="#1F3D34",
+                secondary_color="#B8935A",
                 currency_code="PKR",
                 currency_symbol="Rs",
                 timezone="Asia/Karachi",
@@ -604,22 +732,71 @@ async def seed_database(database_name: str | None = None, dry_run: bool = False)
             )
             session.add(org)
             await session.flush()
+        else:
+            org.name = "Hira Dental Clinic"
+            org.display_name = "Hira Dental Clinic"
+            org.logo_url = org.logo_url or "/media/8d90adff4feb4e8db41f532aa3d630f1.png"
+            if not org.primary_color:
+                org.primary_color = "#1F3D34"
+            if not org.secondary_color:
+                org.secondary_color = "#B8935A"
         org_id = org.id
 
-        # 2. Branches: Locations and Clinics
-        loc_count = 0
-        primary_loc_id = None
+        # 1b. SiteSection 'general' for shortBrandName, logo, and clinic metadata
+        sec_res = await session.execute(select(SiteSectionORM).where(SiteSectionORM.section_key == "general"))
+        sec = sec_res.scalars().first()
+        gen_data = {
+            "practiceName": "Hira Dental Clinic",
+            "shortBrandName": "DHDC",
+            "tagline": "Precision & Compassion in Modern Dentistry",
+            "logoUrl": "/media/8d90adff4feb4e8db41f532aa3d630f1.png",
+            "faviconUrl": None,
+            "phone": "051-6102977",
+            "email": "care@hiradental.com",
+            "address": "Shop No. 8 & 9, ASCON Heights, Lower Ground, Soan Garden, Block C, Islamabad.",
+            "emergencyPhone": "0300-610-2977",
+        }
+        if not sec:
+            session.add(SiteSectionORM(
+                section_key="general",
+                content_json=json.dumps(gen_data),
+                updated_at=datetime.now(timezone.utc),
+            ))
+        else:
+            try:
+                curr = json.loads(sec.content_json) if isinstance(sec.content_json, str) else dict(sec.content_json)
+            except Exception:
+                curr = {}
+            curr["practiceName"] = "Hira Dental Clinic"
+            curr["shortBrandName"] = "DHDC"
+            curr["logoUrl"] = curr.get("logoUrl") or "/media/8d90adff4feb4e8db41f532aa3d630f1.png"
+            curr["phone"] = curr.get("phone") or "051-6102977"
+            curr["email"] = curr.get("email") or "care@hiradental.com"
+            sec.content_json = json.dumps(curr)
 
-        for b_data in BRANCHES:
-            # Check for existing primary location or by id/city
-            if b_data["is_primary"]:
-                loc = (await session.execute(select(LocationORM).where(LocationORM.is_primary == True))).scalars().first()
+        # 2. Roles: RoleORM
+        role_seed_count = 0
+        for r_name, r_disp, r_desc in ROLE_SEEDS:
+            r_obj = (await session.execute(select(RoleORM).where(RoleORM.name == r_name))).scalars().first()
+            if not r_obj:
+                session.add(RoleORM(
+                    id=uuid4(),
+                    name=r_name,
+                    display_name=r_disp,
+                    description=r_desc,
+                    is_active=True,
+                    display_order=role_seed_count,
+                ))
+                role_seed_count += 1
             else:
-                loc = (await session.execute(select(LocationORM).where(LocationORM.id == b_data["id"]))).scalars().first()
+                r_obj.is_active = True
+        await session.flush()
 
-            if not loc:
-                loc = (await session.execute(select(LocationORM).where(LocationORM.city.ilike(b_data["city"])))).scalars().first()
-
+        # 3. Branches: Locations, Clinics, Working Hours, and Booking Settings
+        primary_loc_id = None
+        loc_count = 0
+        for b_data in BRANCHES:
+            loc = (await session.execute(select(LocationORM).where(LocationORM.id == b_data["id"]))).scalars().first()
             if not loc:
                 loc = LocationORM(
                     id=b_data["id"],
@@ -657,11 +834,10 @@ async def seed_database(database_name: str | None = None, dry_run: bool = False)
             if b_data["is_primary"]:
                 primary_loc_id = loc.id
 
-            # Upsert ClinicORM (used by availability engine & multi-clinic schedule)
-            clinic = (await session.execute(select(ClinicORM).where(ClinicORM.id == loc.id))).scalars().first()
-            if not clinic:
-                clinic = ClinicORM(
-                    id=loc.id,
+            cln = (await session.execute(select(ClinicORM).where(ClinicORM.id == b_data["id"]))).scalars().first()
+            if not cln:
+                cln = ClinicORM(
+                    id=b_data["id"],
                     organization_id=org_id,
                     name=b_data["name"],
                     address_line1=b_data["address_line1"],
@@ -678,69 +854,54 @@ async def seed_database(database_name: str | None = None, dry_run: bool = False)
                     is_active=b_data["is_active"],
                     display_order=b_data["display_order"],
                 )
-                session.add(clinic)
+                session.add(cln)
             else:
-                clinic.name = b_data["name"]
-                clinic.address_line1 = b_data["address_line1"]
-                clinic.city = b_data["city"]
-                clinic.state = b_data["state"]
-                clinic.postal_code = b_data["postal_code"]
-                clinic.phone = b_data["phone"]
-                clinic.email = b_data["email"]
-                clinic.hours_info = b_data["hours_info"]
-                clinic.image_url = b_data["image_url"]
-                clinic.is_primary = b_data["is_primary"]
-                clinic.is_active = b_data["is_active"]
-                clinic.display_order = b_data["display_order"]
+                cln.name = b_data["name"]
+                cln.address_line1 = b_data["address_line1"]
+                cln.city = b_data["city"]
+                cln.state = b_data["state"]
+                cln.postal_code = b_data["postal_code"]
+                cln.phone = b_data["phone"]
+                cln.email = b_data["email"]
+                cln.image_url = b_data["image_url"]
+                cln.is_primary = b_data["is_primary"]
+                cln.is_active = b_data["is_active"]
+                cln.display_order = b_data["display_order"]
 
-            # Sync working hours for this clinic
-            existing_hours = (
-                await session.execute(select(ClinicWorkingHoursORM).where(ClinicWorkingHoursORM.clinic_id == loc.id))
-            ).scalars().all()
-            if len(existing_hours) < 7:
+            # Working Hours (7 days)
+            ex_wh = (await session.execute(select(ClinicWorkingHoursORM).where(ClinicWorkingHoursORM.clinic_id == b_data["id"]))).scalars().all()
+            if len(ex_wh) < 7:
                 for day in range(7):
-                    is_sunday = day == 6
+                    is_sun = (day == 6)
                     wh = ClinicWorkingHoursORM(
                         id=uuid4(),
-                        clinic_id=loc.id,
+                        clinic_id=b_data["id"],
                         day_of_week=day,
-                        open_time="09:00:00" if not is_sunday else "11:00:00",
-                        close_time="21:00:00" if not is_sunday else "18:00:00",
-                        is_closed=False if b_data["city"] == "Islamabad" and b_data["is_primary"] else (is_sunday and b_data["city"] != "Islamabad"),
+                        open_time="09:00:00" if not is_sun else "11:00:00",
+                        close_time="21:00:00" if not is_sun else "18:00:00",
+                        is_closed=False if b_data["city"] == "Islamabad" and b_data["is_primary"] else (is_sun and b_data["city"] != "Islamabad"),
                     )
                     session.add(wh)
 
+            # Clinic Booking Settings
+            cbs = (await session.execute(select(ClinicBookingSettingsORM).where(ClinicBookingSettingsORM.clinic_id == b_data["id"]))).scalars().first()
+            if not cbs:
+                session.add(ClinicBookingSettingsORM(
+                    clinic_id=b_data["id"],
+                    booking_mode="open",
+                    advance_booking_days=60,
+                    min_lead_time_hours=2,
+                    slot_interval_minutes=15,
+                ))
             loc_count += 1
 
-        # Flush locations and clinics before inserting team members referencing them
         await session.flush()
 
-        # Roles: RoleORM (insert-or-skip before creating doctors)
-        role_seed_count = 0
-        for r_name, r_disp, r_desc in ROLE_SEEDS:
-            role_obj = (await session.execute(select(RoleORM).where(RoleORM.name == r_name))).scalars().first()
-            if not role_obj:
-                role_obj = RoleORM(
-                    id=uuid4(),
-                    name=r_name,
-                    display_name=r_disp,
-                    description=r_desc,
-                    is_active=True,
-                    display_order=role_seed_count,
-                )
-                session.add(role_obj)
-                role_seed_count += 1
-            else:
-                role_obj.is_active = True
-        await session.flush()
-
-        # 3. Doctors: TeamMemberORM
+        # 4. Doctors: TeamMemberORM (18 active DHDC doctors)
         doc_count = 0
         PRIMARY_DEFAULT_UUID = UUID("96fffc52-d9c2-4115-af5d-13705c74e02a")
-
         for d_data in DOCTORS:
-            target_loc_id = primary_loc_id if (d_data["location_id"] == PRIMARY_DEFAULT_UUID and primary_loc_id) else d_data["location_id"]
-
+            t_loc = primary_loc_id if (d_data["location_id"] == PRIMARY_DEFAULT_UUID and primary_loc_id) else d_data["location_id"]
             tm = (await session.execute(select(TeamMemberORM).where(TeamMemberORM.id == d_data["id"]))).scalars().first()
             if not tm:
                 tm = (await session.execute(select(TeamMemberORM).where(TeamMemberORM.display_name == d_data["display_name"]))).scalars().first()
@@ -749,8 +910,8 @@ async def seed_database(database_name: str | None = None, dry_run: bool = False)
                 tm = TeamMemberORM(
                     id=d_data["id"],
                     organization_id=org_id,
-                    location_id=target_loc_id,
-                    clinic_id=target_loc_id,
+                    location_id=t_loc,
+                    clinic_id=t_loc,
                     first_name=d_data["first_name"],
                     last_name=d_data["last_name"],
                     display_name=d_data["display_name"],
@@ -768,8 +929,8 @@ async def seed_database(database_name: str | None = None, dry_run: bool = False)
                 )
                 session.add(tm)
             else:
-                tm.location_id = target_loc_id
-                tm.clinic_id = target_loc_id
+                tm.location_id = t_loc
+                tm.clinic_id = t_loc
                 tm.first_name = d_data["first_name"]
                 tm.last_name = d_data["last_name"]
                 tm.display_name = d_data["display_name"]
@@ -783,71 +944,348 @@ async def seed_database(database_name: str | None = None, dry_run: bool = False)
                 tm.license_number = d_data["license_number"]
                 tm.display_order = d_data["display_order"]
                 tm.is_active = d_data["is_active"]
-
             doc_count += 1
 
-        # Deactivate any legacy dummy doctors so only the 18 real DHDC doctors are active
+        # Deactivate any legacy demo doctor names
         await session.execute(
             text("UPDATE team_members SET is_active=false WHERE display_name IN ('Dr. Sarah Marlow', 'Dr. Elena Rostova', 'Dr. Marcus Vance')")
         )
-
         await session.flush()
 
-        # 4. Gallery Images: GalleryImageORM
+        # 5. Core Services: ServiceORM
+        service_map = {}
+        for s_data in INITIAL_SERVICES:
+            s_res = await session.execute(select(ServiceORM).where(ServiceORM.slug == s_data["slug"]))
+            s_obj = s_res.scalar_one_or_none()
+            if not s_obj:
+                s_obj = ServiceORM(
+                    slug=s_data["slug"],
+                    category=s_data["category"],
+                    title=s_data["title"],
+                    short_desc=s_data["short_desc"],
+                    full_desc=s_data["full_desc"],
+                    duration=s_data["duration"],
+                    cash_price=s_data["cash_price"],
+                    code=s_data["code"],
+                    insurance_note=s_data.get("insurance_note"),
+                    recommended_interval=s_data.get("recommended_interval"),
+                    display_order=s_data["display_order"],
+                    is_highlighted=s_data.get("is_highlighted", False),
+                    is_active=True,
+                    is_public=True,
+                    bookable_online=True,
+                )
+                session.add(s_obj)
+                await session.flush()
+            else:
+                s_obj.title = s_data["title"]
+                s_obj.short_desc = s_data["short_desc"]
+                s_obj.full_desc = s_data["full_desc"]
+                s_obj.duration = s_data["duration"]
+                s_obj.cash_price = s_data["cash_price"]
+                s_obj.code = s_data["code"]
+                s_obj.is_active = True
+                s_obj.is_public = True
+                s_obj.bookable_online = True
+            service_map[s_data["slug"]] = s_obj
+
+        # 6. Branch Offerings: ClinicServiceORM
+        branch_service_slugs = {
+            UUID("96fffc52-d9c2-4115-af5d-13705c74e02a"): ["cleanings-exams", "fillings-crowns", "root-canals", "invisalign", "whitening", "emergency"],
+            UUID("ead5270f-608f-43ae-a721-1dbcd8c50f24"): ["cleanings-exams", "fillings-crowns", "root-canals", "whitening"],
+            UUID("64fa23e9-45b5-4fca-9758-d3d8ea6c08db"): ["cleanings-exams", "fillings-crowns", "invisalign", "whitening"],
+            UUID("7968ba25-db4a-4e11-8e57-af8507823e20"): ["cleanings-exams", "fillings-crowns", "root-canals", "emergency"],
+        }
+        for b_id, slugs in branch_service_slugs.items():
+            for s_slug in slugs:
+                s_obj = service_map.get(s_slug)
+                if s_obj:
+                    cs_res = await session.execute(
+                        select(ClinicServiceORM).where(
+                            ClinicServiceORM.clinic_id == b_id,
+                            ClinicServiceORM.service_id == s_obj.id,
+                        )
+                    )
+                    if not cs_res.scalar_one_or_none():
+                        session.add(ClinicServiceORM(
+                            clinic_id=b_id,
+                            service_id=s_obj.id,
+                        ))
+
+        # 7. Multi-Branch Doctor Assignments: TeamMemberClinicORM
+        hira_tm_id = UUID("549cf72e-ecd4-432d-a710-843a9f24aabe")
+        carlos_tm_id = UUID("d0897bb6-3ced-44e8-a7fd-efa51af661a7")
+        yaser_tm_id = UUID("24769c71-6545-4266-b1de-db400e06e71d")
+        meral_tm_id = UUID("c0d1ee69-a91e-4c0e-b6c6-27f8ba314424")
+
+        doctor_branch_map = {
+            hira_tm_id: [
+                UUID("96fffc52-d9c2-4115-af5d-13705c74e02a"),
+                UUID("64fa23e9-45b5-4fca-9758-d3d8ea6c08db"),
+                UUID("ead5270f-608f-43ae-a721-1dbcd8c50f24"),
+            ],
+            carlos_tm_id: [
+                UUID("64fa23e9-45b5-4fca-9758-d3d8ea6c08db"),
+                UUID("96fffc52-d9c2-4115-af5d-13705c74e02a"),
+            ],
+            yaser_tm_id: [
+                UUID("ead5270f-608f-43ae-a721-1dbcd8c50f24"),
+            ],
+            meral_tm_id: [
+                UUID("7968ba25-db4a-4e11-8e57-af8507823e20"),
+            ],
+        }
+        for tm_id, b_ids in doctor_branch_map.items():
+            for b_id in b_ids:
+                tmc_res = await session.execute(
+                    select(TeamMemberClinicORM).where(
+                        TeamMemberClinicORM.team_member_id == tm_id,
+                        TeamMemberClinicORM.clinic_id == b_id,
+                    )
+                )
+                if not tmc_res.scalar_one_or_none():
+                    session.add(TeamMemberClinicORM(
+                        team_member_id=tm_id,
+                        clinic_id=b_id,
+                    ))
+
+        # 8. Doctor Service Authorizations: ServiceProviderORM
+        doctor_auth_specs = [
+            (hira_tm_id, UUID("96fffc52-d9c2-4115-af5d-13705c74e02a"), "cleanings-exams", 45, 10),
+            (hira_tm_id, UUID("96fffc52-d9c2-4115-af5d-13705c74e02a"), "fillings-crowns", 60, 15),
+            (hira_tm_id, UUID("96fffc52-d9c2-4115-af5d-13705c74e02a"), "root-canals", 75, 15),
+            (hira_tm_id, UUID("64fa23e9-45b5-4fca-9758-d3d8ea6c08db"), "cleanings-exams", 45, 10),
+            (hira_tm_id, UUID("64fa23e9-45b5-4fca-9758-d3d8ea6c08db"), "fillings-crowns", 60, 15),
+            (carlos_tm_id, UUID("64fa23e9-45b5-4fca-9758-d3d8ea6c08db"), "invisalign", 45, 15),
+            (carlos_tm_id, UUID("64fa23e9-45b5-4fca-9758-d3d8ea6c08db"), "cleanings-exams", 30, 10),
+            (carlos_tm_id, UUID("96fffc52-d9c2-4115-af5d-13705c74e02a"), "invisalign", 45, 15),
+            (yaser_tm_id, UUID("ead5270f-608f-43ae-a721-1dbcd8c50f24"), "cleanings-exams", 45, 10),
+            (yaser_tm_id, UUID("ead5270f-608f-43ae-a721-1dbcd8c50f24"), "root-canals", 75, 15),
+            (meral_tm_id, UUID("7968ba25-db4a-4e11-8e57-af8507823e20"), "cleanings-exams", 45, 10),
+            (meral_tm_id, UUID("7968ba25-db4a-4e11-8e57-af8507823e20"), "fillings-crowns", 60, 10),
+        ]
+        for tm_id, b_id, s_slug, c_dur, buf in doctor_auth_specs:
+            s_obj = service_map.get(s_slug)
+            if s_obj:
+                sp_res = await session.execute(
+                    select(ServiceProviderORM).where(
+                        ServiceProviderORM.team_member_id == tm_id,
+                        ServiceProviderORM.clinic_id == b_id,
+                        ServiceProviderORM.service_id == s_obj.id,
+                    )
+                )
+                sp = sp_res.scalar_one_or_none()
+                if not sp:
+                    session.add(ServiceProviderORM(
+                        team_member_id=tm_id,
+                        clinic_id=b_id,
+                        service_id=s_obj.id,
+                        custom_duration_minutes=c_dur,
+                        buffer_minutes=buf,
+                        is_active=True,
+                    ))
+                else:
+                    sp.custom_duration_minutes = c_dur
+                    sp.buffer_minutes = buf
+                    sp.is_active = True
+
+        # 9. Provider Availability: Shifts per clinic
+        shift_specs = [
+            (hira_tm_id, UUID("96fffc52-d9c2-4115-af5d-13705c74e02a"), [0, 1, 2], "09:00", "17:00", "13:00", "14:00"),
+            (hira_tm_id, UUID("64fa23e9-45b5-4fca-9758-d3d8ea6c08db"), [3, 4], "10:00", "18:00", "13:00", "14:00"),
+            (carlos_tm_id, UUID("64fa23e9-45b5-4fca-9758-d3d8ea6c08db"), [0, 1, 2, 3, 4], "10:00", "18:00", "13:00", "14:00"),
+            (yaser_tm_id, UUID("ead5270f-608f-43ae-a721-1dbcd8c50f24"), [0, 1, 2, 3, 4], "09:00", "17:00", "13:00", "14:00"),
+            (meral_tm_id, UUID("7968ba25-db4a-4e11-8e57-af8507823e20"), [0, 1, 2, 3, 4], "10:00", "19:00", "14:00", "15:00"),
+        ]
+        for tm_id, b_id, dows, st, et, bst, bet in shift_specs:
+            for dow in dows:
+                pa_res = await session.execute(
+                    select(ProviderAvailabilityORM).where(
+                        ProviderAvailabilityORM.team_member_id == tm_id,
+                        ProviderAvailabilityORM.clinic_id == b_id,
+                        ProviderAvailabilityORM.day_of_week == dow,
+                    )
+                )
+                pa = pa_res.scalar_one_or_none()
+                if not pa:
+                    session.add(ProviderAvailabilityORM(
+                        team_member_id=tm_id,
+                        clinic_id=b_id,
+                        day_of_week=dow,
+                        start_time=st,
+                        end_time=et,
+                        break_start_time=bst,
+                        break_end_time=bet,
+                        is_active=True,
+                    ))
+                else:
+                    pa.start_time = st
+                    pa.end_time = et
+                    pa.is_active = True
+
+        # 10. Development Users
+        admin_pwd = os.environ.get("DEMO_ADMIN_PASSWORD", "AdminDemoPass2026!")
+        rec_pwd = os.environ.get("DEMO_RECEPTIONIST_PASSWORD", "RecepDemoPass2026!")
+        doc_pwd = os.environ.get("DEMO_DOCTOR_PASSWORD", "DoctorDemoPass2026!")
+        hira_pwd = os.environ.get("DEMO_HIRA_PASSWORD", "DoctorDemoPass2026!")
+
+        users_spec = [
+            ("admin@hiradental.com", admin_pwd, "Dr. Hira Babar", "admin", primary_loc_id, hira_tm_id),
+            ("receptionist@hiradental.com", rec_pwd, "Reception Desk", "receptionist", primary_loc_id, None),
+            ("doctor@hiradental.com", doc_pwd, "Dr. Carlos Novakowski", "doctor", UUID("64fa23e9-45b5-4fca-9758-d3d8ea6c08db"), carlos_tm_id),
+            ("dr.hira@hiradental.com", hira_pwd, "Dr. Hira Babar", "doctor", primary_loc_id, hira_tm_id),
+        ]
+        created_users = {}
+        for em, pwd, fn, role, cid, tm_id in users_spec:
+            u_res = await session.execute(select(UserORM).where(UserORM.email == em))
+            u = u_res.scalar_one_or_none()
+            if not u:
+                u = UserORM(
+                    email=em,
+                    hashed_password=hash_password(pwd),
+                    full_name=fn,
+                    role=role,
+                    clinic_id=cid,
+                    team_member_id=tm_id,
+                    is_active=True,
+                )
+                session.add(u)
+                await session.flush()
+            else:
+                u.full_name = fn
+                u.role = role
+                u.clinic_id = cid
+                u.team_member_id = tm_id
+                u.is_active = True
+            created_users[em] = u
+
+        # 11. Gallery Images
         gal_count = 0
         for g_data in GALLERY:
             gal = (await session.execute(select(GalleryImageORM).where(GalleryImageORM.caption == g_data["caption"]))).scalars().first()
             if not gal:
-                gal = GalleryImageORM(**g_data)
-                session.add(gal)
+                session.add(GalleryImageORM(**g_data))
             else:
                 gal.image_url = g_data["image_url"]
                 gal.display_order = g_data["display_order"]
                 gal.is_active = g_data["is_active"]
             gal_count += 1
 
-        # 5. Reviews: ReviewORM
+        # 12. Reviews
         rev_count = 0
         for r_data in REVIEWS:
             rev = (await session.execute(select(ReviewORM).where(ReviewORM.author_name == r_data["author_name"]))).scalars().first()
             if not rev:
-                rev = ReviewORM(**r_data)
-                session.add(rev)
+                session.add(ReviewORM(**r_data))
             else:
                 rev.rating = r_data["rating"]
                 rev.review_text = r_data["review_text"]
-                rev.review_date = r_data["review_date"]
-                rev.source_label = r_data["source_label"]
-                rev.display_order = r_data["display_order"]
                 rev.is_published = r_data["is_published"]
             rev_count += 1
 
+        # 13. Synthetic Patients
+        patients_spec = [
+            ("Leo", "Miller", "+92 300 5550101", "leo.m@example.com", date(2018, 5, 14), "Rachel Miller", "+92 300 5550105", "Mother"),
+            ("Eleanor", "Pemberton", "+92 300 5550102", "eleanor.p@example.com", date(1988, 4, 12), None, None, None),
+            ("Arthur", "Pendelton", "+92 300 5550103", "arthur.p@example.com", date(1975, 11, 23), None, None, None),
+            ("Sophia", "Martinez", "+92 300 5550104", "sophia.m@example.com", date(1994, 7, 5), None, None, None),
+            ("David", "Kim", "+92 300 5550105", "david.k@example.com", date(1982, 1, 30), None, None, None),
+            ("Clara", "Oswald", "+92 300 5550106", "clara.o@example.com", date(1990, 9, 14), None, None, None),
+        ]
+        created_pats = []
+        for i, (fn, ln, ph, em, dob, gname, gphone, grel) in enumerate(patients_spec):
+            p_res = await session.execute(select(PatientORM).where(PatientORM.email == em))
+            p = p_res.scalar_one_or_none()
+            if not p:
+                p = PatientORM(
+                    first_name=fn,
+                    last_name=ln,
+                    phone=ph,
+                    email=em,
+                    date_of_birth=dob,
+                    guardian_name=gname,
+                    guardian_phone=gphone,
+                    guardian_relationship=grel,
+                    file_number=f"HD-{1000 + i}",
+                    clinic_id=primary_loc_id,
+                    notes="Synthetic patient for local development verification.",
+                )
+                session.add(p)
+                await session.flush()
+            created_pats.append(p)
+
+        # 14. Demo Bookings
+        today = date.today()
+        bookings_spec = [
+            ("BK-DEMO-001", created_pats[0], primary_loc_id, hira_tm_id, "cleanings-exams", today, "09:30", "confirmed"),
+            ("BK-DEMO-002", created_pats[1], primary_loc_id, hira_tm_id, "fillings-crowns", today, "10:30", "arrived"),
+            ("BK-DEMO-003", created_pats[2], UUID("64fa23e9-45b5-4fca-9758-d3d8ea6c08db"), carlos_tm_id, "invisalign", today, "11:00", "in_progress"),
+            ("BK-DEMO-004", created_pats[3], primary_loc_id, hira_tm_id, "root-canals", today, "14:00", "completed"),
+            ("BK-DEMO-005", created_pats[4], UUID("ead5270f-608f-43ae-a721-1dbcd8c50f24"), yaser_tm_id, "cleanings-exams", today + timedelta(days=1), "10:00", "confirmed"),
+        ]
+        for ref, pat, cid, tmid, sslug, bdate, btime, status_val in bookings_spec:
+            b_res = await session.execute(select(BookingORM).where(BookingORM.confirmation_id == ref))
+            if not b_res.scalar_one_or_none():
+                session.add(BookingORM(
+                    confirmation_id=ref,
+                    patient_id=pat.id,
+                    clinic_id=cid,
+                    team_member_id=tmid,
+                    service_id=sslug,
+                    preferred_date=bdate,
+                    preferred_time=btime,
+                    patient_full_name=f"{pat.first_name} {pat.last_name}",
+                    patient_phone=pat.phone,
+                    phone_normalized=pat.phone.replace(" ", ""),
+                    patient_email=pat.email,
+                    status=status_val,
+                    source="online",
+                    notes="Synthetic demonstration booking.",
+                ))
+
+        # 15. Booking Flow Settings
+        bfs_res = await session.execute(select(BookingFlowSettingsORM).where(BookingFlowSettingsORM.organization_id == org_id))
+        bfs = bfs_res.scalar_one_or_none()
+        rec_user = created_users.get("receptionist@hiradental.com")
+        if not bfs:
+            session.add(BookingFlowSettingsORM(
+                organization_id=org_id,
+                followup_gaps_minutes=[10, 1440, 2880],
+                max_attempts=3,
+                cold_wait_hours=24,
+                hold_minutes=30,
+                fallback_owner_user_id=rec_user.id if rec_user else None,
+                auto_confirm_online=True,
+                days_shown=7,
+                show_patients_treated=True,
+                lead_capture_notice="We save your details so we can help you finish booking.",
+            ))
+
         await session.flush()
 
-        # Validation step: Ensure every active doctor has a role in the roles table
+        # Validation: Verify all active doctors have valid roles
         mismatched = await session.execute(text("""
             SELECT tm.display_name, tm.role
             FROM team_members tm
             LEFT JOIN roles r ON tm.role = r.name
             WHERE tm.is_active = true AND r.id IS NULL
         """))
-        rows = mismatched.fetchall()
-        if rows:
-            raise RuntimeError(f"Seed produced {len(rows)} mismatched doctors: {rows}")
-        print("[OK] All active doctors have roles present in the roles table.")
+        mismatched_rows = mismatched.fetchall()
+        if mismatched_rows:
+            raise RuntimeError(f"Seed produced {len(mismatched_rows)} mismatched doctors: {mismatched_rows}")
 
         if dry_run:
             await session.rollback()
-            print(f"[DRY RUN] Would seed: {doc_count} doctors, {loc_count} branches, {gal_count} gallery images, {rev_count} reviews in {current_db}.")
+            print(f"[DRY RUN] Would seed: {doc_count} doctors, {loc_count} branches, {len(INITIAL_SERVICES)} services, {gal_count} gallery, {rev_count} reviews into {current_db}.")
         else:
             await session.commit()
-            print(f"{doc_count} doctors, {loc_count} branches, {gal_count} gallery images, {rev_count} reviews created/updated in {current_db}.")
+            print(f"[SUCCESS] Fully seeded: {doc_count} doctors, {loc_count} branches, {len(INITIAL_SERVICES)} services, {gal_count} gallery, {rev_count} reviews in {current_db}.")
 
     await engine.dispose()
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Seed demo data for DHDC")
+    parser = argparse.ArgumentParser(description="Seed demo data for DHDC / Hira Dental Clinic")
     parser.add_argument("--database", type=str, default=None, help="Database name to seed (e.g. dental_dev, marlow_test)")
     parser.add_argument("--dry-run", action="store_true", help="Preview seed without modifying the database")
     args = parser.parse_args()

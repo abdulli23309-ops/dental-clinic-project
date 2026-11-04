@@ -25,6 +25,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/pagination";
 import { Card } from "@/components/ui/card";
 import { TextField } from "@/components/ui/text-field";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -107,6 +108,8 @@ export default function AdminBookingPage() {
 
   // Closures State
   const [closures, setClosures] = useState<ClinicClosureItem[]>([]);
+  const [closurePage, setClosurePage] = useState(1);
+  const [closurePageSize, setClosurePageSize] = useState(6);
   const [closureModalOpen, setClosureModalOpen] = useState(false);
   const [editingClosure, setEditingClosure] = useState<ClinicClosureItem | null>(null);
   const [closureStart, setClosureStart] = useState("");
@@ -187,7 +190,7 @@ export default function AdminBookingPage() {
       setPaymentsEnabled(settingsData.paymentsEnabled ?? true);
       setReminderTemplate(
         settingsData.reminderTemplate ||
-          "Dear {patient_name}, this is a reminder for your dental appointment on {appointment_date} at {appointment_time} with {clinician_name} at Marlow Dental. Please reply to confirm or call us if you need to reschedule."
+          "Dear {patient_name}, this is a reminder for your dental appointment on {appointment_date} at {appointment_time} with {clinician_name} at Hira Dental Clinic. Please reply to confirm or call us if you need to reschedule."
       );
 
       const activeDoctors = membersData.filter((m) => m.isActive);
@@ -442,6 +445,9 @@ export default function AdminBookingPage() {
     if (!confirm("Are you sure you want to remove this planned closure?")) return;
     try {
       await adminDeleteClosure(id, accessToken);
+      if (paginatedClosures.length === 1 && closurePage > 1) {
+        setClosurePage((p) => p - 1);
+      }
       setClosures((prev) => prev.filter((c) => c.id !== id));
       setSuccessMsg("Planned closure removed.");
     } catch (err: any) {
@@ -649,17 +655,33 @@ export default function AdminBookingPage() {
 
   const currentMode = settings?.bookingMode || "open";
 
+  const totalClosurePages = Math.max(1, Math.ceil(closures.length / closurePageSize));
+  useEffect(() => {
+    if (closurePage > totalClosurePages) setClosurePage(totalClosurePages);
+  }, [totalClosurePages, closurePage]);
+
+  const paginatedClosures = closures.slice(
+    (closurePage - 1) * closurePageSize,
+    closurePage * closurePageSize
+  );
+
   return (
   <AnimatedPage>
     <div className="space-y-8 pb-16">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs font-semibold uppercase tracking-wider text-forest bg-forest/10 dark:bg-forest/20 px-2.5 py-0.5 rounded-full">
+              Operations & Policies
+            </span>
+            <span className="text-xs text-gray-500">WHEN & HOW care is booked</span>
+          </div>
           <h1 className="text-2xl font-display font-semibold text-gray-900 dark:text-white">
-            Booking &amp; Operating Hours
+            Booking Policies & Operations
           </h1>
           <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Single source of truth for public scheduling availability, emergency pause controls, and clinician schedules.
+            Emergency booking mode controls, booking horizon rules, diagnostic bookability matrix, and abandoned lead desk.
           </p>
         </div>
         <Button
@@ -671,6 +693,49 @@ export default function AdminBookingPage() {
           <RefreshCw className="h-3.5 w-3.5" />
           <span>Refresh</span>
         </Button>
+      </div>
+
+      {/* Decoupled Information Architecture Callout */}
+      <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm text-gray-600 dark:text-gray-300">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-primary/10 text-primary mt-0.5">
+              <Settings className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900 dark:text-white">Hira Dental Clinic Information Architecture</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                • <strong>Booking & Scheduling</strong> controls emergency modes, rules, and bookability diagnostics.
+                <br />
+                • To configure <strong>WHAT</strong> is offered (procedures & baseline fees), visit{" "}
+                <a href="/admin/services" className="text-forest hover:underline font-medium">Services Catalog</a>.
+                <br />
+                • To configure <strong>WHERE</strong> services are offered, visit{" "}
+                <a href="/admin/locations" className="text-forest hover:underline font-medium">Locations</a>.
+                <br />
+                • To assign <strong>WHO</strong> performs services and custom durations, visit{" "}
+                <a href="/admin/team" className="text-forest hover:underline font-medium">Team Management</a>.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <a href="/admin/services">
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+                Services
+              </Button>
+            </a>
+            <a href="/admin/locations">
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+                Locations
+              </Button>
+            </a>
+            <a href="/admin/team">
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+                Teams
+              </Button>
+            </a>
+          </div>
+        </div>
       </div>
 
       {/* Global Alerts */}
@@ -969,7 +1034,7 @@ export default function AdminBookingPage() {
                 </p>
               ) : (
                 <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {closures.map((c) => (
+                  {paginatedClosures.map((c) => (
                     <div
                       key={c.id}
                       className="py-3 flex items-center justify-between gap-4 text-xs"
@@ -1010,6 +1075,22 @@ export default function AdminBookingPage() {
                 </div>
               )}
             </div>
+            {closures.length > 0 && (
+              <div className="border-t border-line mt-4 pt-2">
+                <Pagination
+                  currentPage={closurePage}
+                  totalItems={closures.length}
+                  pageSize={closurePageSize}
+                  pageSizeOptions={[6, 12, 24]}
+                  onPageChange={setClosurePage}
+                  onPageSizeChange={(newSize) => {
+                    setClosurePageSize(newSize);
+                    setClosurePage(1);
+                  }}
+                  itemName="Closures"
+                />
+              </div>
+            )}
           </Card>
         </div>
       )}
@@ -1284,7 +1365,7 @@ export default function AdminBookingPage() {
                   value={reminderTemplate}
                   onChange={(e) => setReminderTemplate(e.target.value)}
                   className="w-full rounded-xl border border-line bg-bone px-3 py-2 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-forest"
-                  placeholder="Dear {patient_name}, this is a reminder for your dental appointment on {appointment_date} at {appointment_time} with {clinician_name} at Marlow Dental."
+                  placeholder="Dear {patient_name}, this is a reminder for your dental appointment on {appointment_date} at {appointment_time} with {clinician_name} at Hira Dental Clinic."
                 />
                 <p className="text-[11px] text-gray-500 mt-1">
                   Available placeholders: <code className="bg-bone px-1 py-0.5 rounded border border-line">{"{patient_name}"}</code>,{" "}

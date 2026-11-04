@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import {
   motion,
   useReducedMotion,
@@ -14,16 +12,13 @@ import {
   ArrowRight,
   Phone,
   CheckCircle2,
-  Star,
-  ChevronLeft,
-  ChevronRight,
   Sparkles,
   ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
 import { usePublicContent } from "@/components/providers/public-content-provider";
-import { getPublicReviews, getServices, Review, ServiceItem, resolveMediaUrl } from "@/lib/api";
+import { resolveMediaUrl } from "@/lib/api";
 
 function renderTwoToneHeadline(heading: string, highlightWord?: string) {
   if (highlightWord && highlightWord.trim()) {
@@ -97,59 +92,9 @@ export function Hero() {
     mouseY.set(0);
   };
 
-  const { content, primaryLocation, organization, copy, locale } = usePublicContent();
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [currentReviewIdx, setCurrentReviewIdx] = useState(0);
-  const [services, setServices] = useState<ServiceItem[]>([]);
+  const { content, primaryLocation, organization, copy, locale, isLoading } = usePublicContent();
 
   const isUrdu = locale === "ur";
-  const defaultHeading = copy.heroHeadingUr || "Not all heroes wear capes. Some wear gloves.";
-  const defaultDescription =
-    copy.heroDescriptionUr ||
-    "We fix problems. You keep smiling. From routine checkups to complex root canals, trust our expert team in Islamabad for a fresh, confident smile.";
-
-  const heading = isUrdu
-    ? copy.heroHeadingUr
-    : (content.homepage?.heroHeading?.trim() || defaultHeading);
-  const description = isUrdu
-    ? copy.heroDescriptionUr
-    : (content.homepage?.heroDescription?.trim() || defaultDescription);
-  const eyebrow = content.homepage?.heroEyebrow?.trim();
-  const highlightWord = isUrdu
-    ? "کچھ دستانے پہنتے ہیں"
-    : (content.homepage?.heroHighlightWord?.trim() || "Some wear gloves.");
-  const startingFee = content.homepage?.startingFee?.trim();
-  const heroSealText = ((content.homepage as any)?.heroSealText || "").trim();
-
-  // Load reviews and active services for testimonial card & pills
-  useEffect(() => {
-    let mounted = true;
-    getPublicReviews()
-      .then((data) => {
-        if (mounted && Array.isArray(data)) {
-          setReviews(data.filter((r) => r.isPublished !== false));
-        }
-      })
-      .catch(() => {});
-
-    getServices()
-      .then((data) => {
-        if (mounted && Array.isArray(data)) {
-          setServices(data.filter((s) => s.isActive !== false).slice(0, 5));
-        }
-      })
-      .catch(() => {});
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  // Section with no data is not rendered at all
-  if (!heading && !description) {
-    return null;
-  }
-
   const practiceName =
     content.general?.practiceName ||
     organization?.displayName ||
@@ -158,31 +103,25 @@ export function Hero() {
   const phone = content.general?.phone || primaryLocation?.phone || "";
   const cleanPhone = phone.replace(/[^0-9+]/g, "");
 
-  const urduDefaultTicks = [
-    "سیم ڈے ایمرجنسی کیئر",
-    "درد سے پاک جدید اینستھیزیا",
-    "شفاف فیس، کوئی پوشیدہ اخراجات نہیں",
-  ];
+  const heading = content.homepage?.heroHeading?.trim() || practiceName;
+  const description =
+    content.homepage?.heroDescription?.trim() ||
+    organization?.description ||
+    organization?.tagline ||
+    "";
+  const eyebrow = content.homepage?.heroEyebrow?.trim() || (content.homepage?.heroHeading ? practiceName : "");
+  const highlightWord = content.homepage?.heroHighlightWord?.trim() || "";
+  const startingFee = content.homepage?.startingFee?.trim() || "";
+  const heroSealText = ((content.homepage as any)?.heroSealText || "").trim();
 
-  const heroTicks = isUrdu
-    ? urduDefaultTicks
-    : content.homepage?.heroBadges?.length
+  // Section with no data is not rendered once loading is complete
+  if (!isLoading && !heading && !description) {
+    return null;
+  }
+
+  const heroTicks = content.homepage?.heroBadges?.length
     ? content.homepage.heroBadges
     : content.homepage?.heroTicks?.map((t) => t.label) || [];
-
-  const currentReview = reviews.length > 0 ? reviews[currentReviewIdx] : null;
-
-  const nextReview = () => {
-    if (reviews.length > 1) {
-      setCurrentReviewIdx((prev) => (prev + 1) % reviews.length);
-    }
-  };
-
-  const prevReview = () => {
-    if (reviews.length > 1) {
-      setCurrentReviewIdx((prev) => (prev - 1 + reviews.length) % reviews.length);
-    }
-  };
 
   return (
     <section className="relative overflow-hidden pt-12 pb-20 md:pt-16 md:pb-28 lg:pt-20 lg:pb-32 bg-[radial-gradient(ellipse_75%_50%_at_50%_-5%,rgba(var(--color-primary-rgb,16,125,82),0.08),transparent)] dark:bg-[radial-gradient(ellipse_75%_50%_at_50%_-5%,rgba(var(--color-primary-rgb,16,125,82),0.14),transparent)]">
@@ -191,14 +130,11 @@ export function Hero() {
           {/* Left Column: Two-Tone Copy, Badges, CTAs, Trust Ticks */}
           <div className="lg:col-span-7 space-y-6 text-start">
             {/* Practice / Eyebrow Badge */}
-            {(eyebrow || practiceName) && (
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.35 }}
+            {(eyebrow || practiceName) ? (
+              <div
                 className="inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 px-3.5 py-1 text-xs text-gray-700 dark:text-gray-300 backdrop-blur-md shadow-xs"
               >
-                <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                <span className="h-2 w-2 rounded-full bg-primary" />
                 {eyebrow && (
                   <span className="font-semibold text-primary uppercase tracking-wider text-[11px]">
                     {eyebrow}
@@ -208,45 +144,36 @@ export function Hero() {
                   <span className="text-gray-300 dark:text-gray-700">|</span>
                 )}
                 {practiceName && <span className="font-medium">{practiceName}</span>}
-              </motion.div>
-            )}
+              </div>
+            ) : null}
 
             {/* Two-Tone Headline */}
-            {heading && (
-              <motion.h1
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.45, delay: 0.05 }}
+            {heading ? (
+              <h1
                 className="font-display text-4xl sm:text-5xl lg:text-6xl tracking-tight text-gray-950 dark:text-white leading-[1.12] font-bold"
               >
                 {renderTwoToneHeadline(heading, highlightWord)}
-              </motion.h1>
-            )}
+              </h1>
+            ) : null}
 
             {/* Sub-headline description */}
-            {description && (
-              <motion.p
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.45, delay: 0.12 }}
+            {description ? (
+              <p
                 className="max-w-xl text-base sm:text-lg leading-relaxed text-gray-600 dark:text-gray-300"
               >
                 {description}
-              </motion.p>
-            )}
+              </p>
+            ) : null}
 
             {/* CTAs and Starting Fee Badge */}
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45, delay: 0.2 }}
-              className="pt-2 flex flex-wrap items-center gap-3.5 justify-start"
+            <div
+              className="pt-2 flex flex-wrap items-center gap-3.5 justify-start min-h-[48px]"
             >
               <Button
                 href={content.homepage?.heroCtaLink || "/book"}
                 variant="primary"
                 size="lg"
-                className="rounded-full px-6 shadow-md hover:shadow-lg transition-all flex items-center gap-2"
+                className="rounded-full px-7 flex items-center gap-2"
               >
                 <span>{isUrdu ? copy.bookAppointment : (content.homepage?.heroCtaText || copy.bookAppointment)}</span>
                 <ArrowRight className="h-4 w-4 rtl:rotate-180" />
@@ -256,9 +183,9 @@ export function Hero() {
                 <div className="flex items-center gap-1.5">
                   <Button
                     href={`tel:${cleanPhone}`}
-                    variant="outline"
+                    variant="secondary"
                     size="lg"
-                    className="rounded-full px-5 bg-white/70 dark:bg-gray-900/70 backdrop-blur-sm flex items-center gap-2"
+                    className="rounded-full px-5 flex items-center gap-2"
                   >
                     <Phone className="h-4 w-4 text-primary shrink-0" />
                     <span>
@@ -270,45 +197,19 @@ export function Hero() {
               ) : null}
 
               {startingFee && (
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 dark:bg-primary/20 border border-primary/20 px-3 py-1.5 text-xs font-semibold text-primary">
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 dark:bg-emerald-400/15 border border-emerald-600/25 px-3.5 py-1.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300 shadow-xs">
                   <Sparkles className="h-3.5 w-3.5" />
                   <span>
                     {copy.treatmentsFrom} {startingFee}
                   </span>
                 </div>
               )}
-            </motion.div>
+            </div>
 
-            {/* Active Service Pills */}
-            {services.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.45, delay: 0.28 }}
-                className="pt-2 flex flex-wrap items-center gap-2"
-                aria-label={copy.popular}
-              >
-                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mr-1 rtl:ml-1 rtl:mr-0">
-                  {copy.popular}
-                </span>
-                {services.map((svc) => (
-                  <Link
-                    key={svc.id}
-                    href="/#treatments"
-                    className="rounded-full border border-gray-200 dark:border-gray-800 bg-gray-50/80 dark:bg-gray-900/80 px-3 py-1 text-xs text-gray-700 dark:text-gray-300 hover:border-primary/50 hover:text-primary transition-colors"
-                  >
-                    {svc.title}
-                  </Link>
-                ))}
-              </motion.div>
-            )}
 
             {/* Trust Ticks */}
             {heroTicks.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.45, delay: 0.35 }}
+              <div
                 className="pt-6 border-t border-gray-200/80 dark:border-gray-800/80 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-gray-600 dark:text-gray-300"
               >
                 {heroTicks.map((tick, idx) => (
@@ -317,7 +218,7 @@ export function Hero() {
                     <span>{tick}</span>
                   </div>
                 ))}
-              </motion.div>
+              </div>
             )}
           </div>
 
@@ -333,7 +234,7 @@ export function Hero() {
             <div
               onPointerMove={handlePointerMove}
               onPointerLeave={handlePointerLeave}
-              className="relative w-full max-w-[420px] aspect-[4/5] rounded-t-[200px] rounded-b-3xl overflow-hidden shadow-2xl border-4 border-white dark:border-gray-800 bg-gray-100 dark:bg-gray-800 group"
+              className="relative w-full max-w-[420px] min-h-[420px] aspect-[4/5] rounded-t-[200px] rounded-b-3xl overflow-hidden shadow-2xl border-4 border-white dark:border-gray-800 bg-gray-100 dark:bg-gray-800 group"
             >
               <Image
                 src={
@@ -342,10 +243,13 @@ export function Hero() {
                     : "/images/benyamin.jpg"
                 }
                 alt="Modern state-of-the-art clinic treatment suite"
-                fill
-                priority
-                sizes="(max-width: 768px) 100vw, 420px"
-                className="object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
+                priority={true}
+                fetchPriority="high"
+                quality={70}
+                width={420}
+                height={525}
+                sizes="(max-width: 640px) 380px, (max-width: 1024px) 50vw, 420px"
+                className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent pointer-events-none" />
 
@@ -407,7 +311,6 @@ export function Hero() {
                   <Image
                     src="/images/tooth-hero.png"
                     alt="Professional anatomical tooth model illustrating dental care quality"
-                    priority
                     width={220}
                     height={220}
                     className="w-full h-full object-contain select-none pointer-events-none"

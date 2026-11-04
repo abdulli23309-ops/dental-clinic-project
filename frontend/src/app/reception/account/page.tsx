@@ -118,7 +118,7 @@ export default function ReceptionAccountPage() {
           <div className="space-y-2 text-xs divide-y divide-gray-100 dark:divide-gray-800">
             <div className="pt-2 flex justify-between">
               <span className="text-gray-500">Practice</span>
-              <span className="font-semibold text-gray-900 dark:text-white">Marlow Dental Main</span>
+              <span className="font-semibold text-gray-900 dark:text-white">Hira Dental Clinic Main</span>
             </div>
 
             <div className="pt-2 flex justify-between">

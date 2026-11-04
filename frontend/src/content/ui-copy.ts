@@ -25,8 +25,6 @@ export interface UiCopyDictionary {
   explore: string;
   location: string;
   clinicHours: string;
-  heroHeadingUr: string;
-  heroDescriptionUr: string;
   onlineReservation: string;
   enterBookingDetails: string;
   fullName: string;
@@ -119,9 +117,6 @@ export const UI_COPY: Record<SupportedLocale, UiCopyDictionary> = {
     explore: "Explore",
     location: "Location",
     clinicHours: "Clinic Hours",
-    heroHeadingUr: "Not all heroes wear capes. Some wear gloves.",
-    heroDescriptionUr:
-      "We fix problems. You keep smiling. From routine checkups to complex root canals, trust our expert team in Islamabad for a fresh, confident smile.",
     onlineReservation: "Online Reservation",
     enterBookingDetails: "Enter your details to reserve your preferred consultation time.",
     fullName: "Full Name",
@@ -228,9 +223,6 @@ export const UI_COPY: Record<SupportedLocale, UiCopyDictionary> = {
     explore: "مزید دیکھیں",
     location: "پتہ",
     clinicHours: "اوقات کار",
-    heroHeadingUr: "ہر ہیرو کیپ نہیں پہنتا۔ کچھ دستانے پہنتے ہیں۔",
-    heroDescriptionUr:
-      "ہم آپ کی پریشانی دور کرتے ہیں اور مسکراہٹ برقرار رکھتے ہیں۔ معمول کے معائنے سے لے کر روٹ کینال تک، اسلام آباد میں ماہر ٹیم پر اعتماد کریں۔",
     onlineReservation: "آن لائن بکنگ",
     enterBookingDetails: "اپنی ترجیحی اپائنٹمنٹ کے لیے تفصیلات درج کریں۔",
     fullName: "پورا نام",

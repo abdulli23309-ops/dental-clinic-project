@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getServices, resolveMediaUrl, ServiceItem } from "@/lib/api";
-import { motion } from "motion/react";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 
 type CategoryFilter = "all" | string;
@@ -29,7 +28,9 @@ export function Treatments() {
     if (!scrollContainerRef.current) return;
     const container = scrollContainerRef.current;
     const firstCard = container.querySelector<HTMLElement>(":scope > div");
-    const cardWidth = firstCard ? firstCard.getBoundingClientRect().width + 24 : container.clientWidth * 0.85;
+    const cardWidth = firstCard
+      ? firstCard.getBoundingClientRect().width + 24
+      : container.clientWidth * 0.85;
     container.scrollBy({
       left: direction === "left" ? -cardWidth : cardWidth,
       behavior: "smooth",
@@ -78,7 +79,7 @@ export function Treatments() {
   return (
     <section
       id="treatments"
-      className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 py-20 md:py-28 overflow-hidden"
+      className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 py-20 md:py-28 overflow-hidden select-none"
     >
       {/* Anchor alias for backwards compatibility */}
       <span id="services" className="sr-only" />
@@ -105,22 +106,15 @@ export function Treatments() {
               role="tab"
               aria-selected={activeTab === "all"}
               onClick={() => setActiveTab("all")}
-              className={`relative rounded-full px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 select-none ${
+              className={`rounded-full px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 ${
                 activeTab === "all"
-                  ? "text-white shadow-subtle font-semibold"
+                  ? "btn-premium-emerald text-white font-semibold"
                   : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700"
               }`}
             >
-              {activeTab === "all" && (
-                <motion.div
-                  layoutId="publicTreatmentsTabIndicator"
-                  className="absolute inset-0 rounded-full bg-primary"
-                  transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                />
-              )}
-              <span className="relative z-10">{copy.allTreatments}</span>
+              <span>{copy.allTreatments}</span>
               <span
-                className={`relative z-10 text-[11px] rounded-full px-2 py-0.2 ${
+                className={`text-[11px] rounded-full px-2 py-0.2 ${
                   activeTab === "all"
                     ? "bg-white/20 text-white"
                     : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
@@ -140,22 +134,15 @@ export function Treatments() {
                   role="tab"
                   aria-selected={isActive}
                   onClick={() => setActiveTab(cat)}
-                  className={`relative rounded-full px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 select-none capitalize ${
+                  className={`rounded-full px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 capitalize ${
                     isActive
-                      ? "text-white shadow-subtle font-semibold"
+                      ? "btn-premium-emerald text-white font-semibold"
                       : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700"
                   }`}
                 >
-                  {isActive && (
-                    <motion.div
-                      layoutId="publicTreatmentsTabIndicator"
-                      className="absolute inset-0 rounded-full bg-primary"
-                      transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                    />
-                  )}
-                  <span className="relative z-10">{cat}</span>
+                  <span>{cat}</span>
                   <span
-                    className={`relative z-10 text-[11px] rounded-full px-2 py-0.2 ${
+                    className={`text-[11px] rounded-full px-2 py-0.2 ${
                       isActive
                         ? "bg-white/20 text-white"
                         : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
@@ -175,7 +162,7 @@ export function Treatments() {
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <Skeleton
                 key={i}
-                className="min-w-[85%] md:min-w-[45%] lg:min-w-[31%] shrink-0 snap-start h-80 rounded-xl border border-gray-200 dark:border-gray-800"
+                className="min-w-[85%] md:min-w-[45%] lg:min-w-[31%] shrink-0 snap-start h-80 rounded-2xl border border-gray-200 dark:border-gray-800"
               />
             ))}
           </div>
@@ -209,17 +196,17 @@ export function Treatments() {
               {filtered.map((service) => (
                 <div
                   key={service.id}
-                  className="w-[85%] md:w-[45%] lg:w-[31%] min-w-[85%] md:min-w-[45%] lg:min-w-[31%] shrink-0 snap-start bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden shadow-xs p-4 sm:p-5 flex flex-col justify-between space-y-4 hover:border-primary/40 transition-all self-stretch group"
+                  className="w-[85%] md:w-[45%] lg:w-[31%] min-w-[85%] md:min-w-[45%] lg:min-w-[31%] shrink-0 snap-start bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden shadow-xs p-4 sm:p-5 flex flex-col justify-between space-y-4 hover:border-emerald-600/40 hover:shadow-md transition-all self-stretch group"
                 >
                   <div className="space-y-3">
-                    {/* Treatment Card Photo or Soft Tinted Fallback */}
-                    <div className="w-full aspect-[4/3] relative overflow-hidden rounded-lg bg-[#FAF9F5] dark:bg-gray-800/60">
+                    {/* Treatment Card Photo */}
+                    <div className="w-full aspect-[4/3] relative overflow-hidden rounded-xl bg-[#FAF9F5] dark:bg-gray-800/60 shadow-inner">
                       {service.imageUrl ? (
                         <Image
                           src={resolveMediaUrl(service.imageUrl) || service.imageUrl}
                           alt={service.title}
                           fill
-                          unoptimized
+                          sizes="(max-width: 768px) 85vw, (max-width: 1024px) 45vw, 31vw"
                           className="object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
                         />
                       ) : (
@@ -233,7 +220,7 @@ export function Treatments() {
                     </div>
 
                     <div className="flex items-center justify-between text-xs pt-1">
-                      <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-semibold text-primary uppercase tracking-wider">
+                      <span className="rounded-full bg-emerald-500/10 dark:bg-emerald-400/15 border border-emerald-600/20 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
                         {service.category}
                       </span>
                       {service.duration && (
@@ -244,9 +231,9 @@ export function Treatments() {
                       )}
                     </div>
 
-                    <h4 className="font-display text-base font-semibold text-gray-900 dark:text-white leading-snug">
+                    <h3 className="font-display text-base font-semibold text-gray-900 dark:text-white leading-snug">
                       {service.title}
-                    </h4>
+                    </h3>
 
                     {service.shortDesc && (
                       <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400 line-clamp-3">
@@ -258,7 +245,7 @@ export function Treatments() {
                   <div className="pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-2 mt-auto">
                     {service.cashPrice ? (
                       <div className="flex flex-col">
-                        <span className="text-[10px] text-gray-500 uppercase tracking-wider">{copy.feeFrom}</span>
+                        <span className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">{copy.feeFrom}</span>
                         <span className="font-mono text-xs font-bold text-gray-900 dark:text-white">
                           {service.cashPrice}
                         </span>
@@ -269,9 +256,9 @@ export function Treatments() {
 
                     <Button
                       href={`/book?service=${encodeURIComponent(service.id)}`}
-                      variant="outline"
+                      variant="primary"
                       size="sm"
-                      className="rounded-full px-3 text-xs"
+                      className="rounded-full px-4 text-xs font-semibold"
                     >
                       <span>{copy.book}</span>
                     </Button>
@@ -282,10 +269,10 @@ export function Treatments() {
           </div>
         )}
 
-        {/* Optional Signature Checkup Banner */}
-        <div className="rounded-3xl border border-primary/20 bg-gradient-to-r from-primary/5 via-primary/10 to-transparent p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        {/* Signature Checkup Banner */}
+        <div className="rounded-3xl border border-emerald-600/20 bg-gradient-to-r from-emerald-900/10 via-emerald-800/5 to-transparent p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-xl">
-            <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
+            <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
               <ShieldCheck className="h-4 w-4" />
               <span>{copy.signatureExam}</span>
             </div>
@@ -301,7 +288,7 @@ export function Treatments() {
             href="/book"
             variant="primary"
             size="lg"
-            className="rounded-full px-6 shadow-md whitespace-nowrap flex items-center gap-2"
+            className="rounded-full px-7 whitespace-nowrap flex items-center gap-2 shrink-0 font-semibold"
           >
             <span>{copy.bookInitialExam}</span>
             <ArrowRight className="h-4 w-4 rtl:rotate-180" />

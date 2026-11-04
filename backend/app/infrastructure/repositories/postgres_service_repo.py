@@ -87,6 +87,15 @@ class PostgresServiceRepository(ServiceRepository):
         orm = result.scalar_one_or_none()
         return self._to_domain(orm) if orm else None
 
+    async def get_by_id_and_clinic(self, service_id: UUID, clinic_id: UUID) -> Optional[Service]:
+        stmt = select(ServiceORM).where(
+            ServiceORM.id == service_id,
+            ServiceORM.clinic_id == clinic_id,
+        )
+        result = await self._session.execute(stmt)
+        orm = result.scalar_one_or_none()
+        return self._to_domain(orm) if orm else None
+
     async def save(self, service: Service) -> Service:
         existing = await self._session.get(ServiceORM, service.id)
         if existing:

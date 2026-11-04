@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/pagination";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/components/providers/auth-provider";
 import { AnimatedPage } from "@/components/ui/animated-page";
@@ -476,49 +477,19 @@ export default function AdminAuditPage() {
         </div>
 
         {/* Pagination Toolbar */}
-        <div className="p-3 bg-surface border-t border-line flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-ink-soft">
-          <div className="flex items-center gap-2">
-            <span>Rows per page:</span>
-            <select
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value));
-                setPage(1);
-              }}
-              className="px-2 py-1 rounded border border-line bg-card text-ink focus:outline-none"
-            >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <span>
-              Page {page} of {totalPages}
-            </span>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1 || loading}
-                className="h-7 px-2 text-xs"
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages || loading}
-                className="h-7 px-2 text-xs"
-              >
-                Next
-              </Button>
-            </div>
-          </div>
+        <div className="border-t border-line px-4">
+          <Pagination
+            currentPage={page}
+            totalItems={total}
+            pageSize={pageSize}
+            pageSizeOptions={[10, 25, 50, 100]}
+            onPageChange={setPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setPage(1);
+            }}
+            itemName="Audit Logs"
+          />
         </div>
       </Card>
 

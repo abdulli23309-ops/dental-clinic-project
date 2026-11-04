@@ -35,23 +35,12 @@ export function AnnouncementMarquee() {
     .filter((a) => a.isActive)
     .sort((a, b) => a.displayOrder - b.displayOrder);
 
-  // If user dismissed it, render nothing
-  if (dismissed) {
+  // If user dismissed it or there are no active announcements, render nothing
+  if (dismissed || activeAnnouncements.length === 0) {
     return null;
   }
 
-  // Default clinic announcements shown when none are configured in database
-  const defaultItems = [
-    "Welcome to Dr. Hira's Dental Care",
-    "Open Mon–Sat: 11:00 AM – 8:00 PM",
-    "Hospital-Grade Sterilization & Painless Dentistry",
-    "Book Online Today",
-  ];
-
-  const items =
-    activeAnnouncements.length > 0
-      ? activeAnnouncements.map((a) => a.content)
-      : defaultItems;
+  const items = activeAnnouncements.map((a) => a.content);
 
   // Duplicate list to form a seamless infinite loop
   const tickerItems = [...items, ...items];
@@ -60,9 +49,9 @@ export function AnnouncementMarquee() {
     <div
       role="region"
       aria-label="Practice Announcements"
-      className="relative z-30 w-full overflow-hidden bg-white/95 dark:bg-black/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 py-2 text-xs select-none pr-10"
+      className="relative z-30 w-full max-w-full overflow-hidden bg-white/95 dark:bg-black/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 py-2 text-xs select-none pr-10"
     >
-      <div className="flex w-full overflow-hidden">
+      <div className="w-full max-w-full overflow-hidden">
         <motion.div
           className="flex shrink-0 items-center gap-12 whitespace-nowrap"
           animate={{ x: ["0%", "-50%"] }}

@@ -1,9 +1,12 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
+import { motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "outline" | "ghost";
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "premium" | "tactile-secondary";
   size?: "sm" | "md" | "lg";
   isLoading?: boolean;
   href?: string;
@@ -11,9 +14,11 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   children: React.ReactNode;
 }
 
+const MotionLink = motion.create(Link);
+
 /**
  * Renders an interactive button or navigational link styled with the clinic's signature pill shape.
- * It supports multiple visual styles (primary, secondary, outline, ghost) and handles loading states.
+ * It supports multiple visual styles and Framer Motion sink & spring gesture on press (whileTap={{ scale: 0.95 }}).
  */
 export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonProps>(
   (
@@ -30,19 +35,27 @@ export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, Bu
     },
     ref
   ) => {
+    const shouldReduceMotion = useReducedMotion();
+    const isPrimaryAction = variant === "primary" || variant === "premium";
+    const tapAnimation = !shouldReduceMotion && isPrimaryAction ? { scale: 0.95 } : undefined;
+
     // Pill shape is an intentional editorial design choice for Marlow Dental
     const baseStyles =
-      "inline-flex items-center justify-center font-medium tracking-wide transition-all duration-200 select-none cursor-pointer rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50";
+      "inline-flex items-center justify-center font-medium tracking-wide select-none cursor-pointer rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 transition-colors duration-150";
 
     const variantStyles = {
       primary:
-        "bg-primary text-white border border-transparent shadow-subtle hover:brightness-105 hover:-translate-y-0.5 hover:shadow-card active:translate-y-0 active:scale-[0.98] focus-visible:ring-primary",
+        "btn-premium-emerald focus-visible:ring-emerald-700",
+      premium:
+        "btn-premium-emerald focus-visible:ring-emerald-700",
       secondary:
-        "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 hover:-translate-y-0.5 hover:shadow-subtle active:translate-y-0 active:scale-[0.98] focus-visible:ring-primary",
+        "btn-tactile-secondary focus-visible:ring-gray-400",
+      "tactile-secondary":
+        "btn-tactile-secondary focus-visible:ring-gray-400",
       outline:
-        "bg-transparent text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 hover:border-primary hover:text-primary dark:hover:border-primary dark:hover:text-primary hover:-translate-y-0.5 hover:shadow-subtle active:translate-y-0 active:scale-[0.98] focus-visible:ring-primary",
+        "bg-transparent text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 hover:border-primary hover:text-primary dark:hover:border-primary dark:hover:text-primary hover:-translate-y-0.5 hover:shadow-subtle active:translate-y-0 active:scale-[0.98] focus-visible:ring-primary transition-all duration-200",
       ghost:
-        "bg-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-[0.98] focus-visible:ring-primary",
+        "bg-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-[0.98] focus-visible:ring-primary transition-all duration-200",
     };
 
     const sizeStyles = {
@@ -90,37 +103,45 @@ export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, Bu
     if (href) {
       if (external) {
         return (
-          <a
+          <motion.a
             href={href}
             target="_blank"
             rel="noopener noreferrer"
             className={combinedClassName}
+            whileTap={tapAnimation}
+            transition={{ type: "spring", stiffness: 500, damping: 25 }}
             ref={ref as React.Ref<HTMLAnchorElement>}
+            {...(props as any)}
           >
             {content}
-          </a>
+          </motion.a>
         );
       }
       return (
-        <Link
+        <MotionLink
           href={href}
           className={combinedClassName}
+          whileTap={tapAnimation}
+          transition={{ type: "spring", stiffness: 500, damping: 25 }}
           ref={ref as React.Ref<HTMLAnchorElement>}
+          {...(props as any)}
         >
           {content}
-        </Link>
+        </MotionLink>
       );
     }
 
     return (
-      <button
+      <motion.button
         ref={ref as React.Ref<HTMLButtonElement>}
         className={combinedClassName}
         disabled={disabled || isLoading}
-        {...props}
+        whileTap={disabled || isLoading ? undefined : tapAnimation}
+        transition={{ type: "spring", stiffness: 500, damping: 25 }}
+        {...(props as any)}
       >
         {content}
-      </button>
+      </motion.button>
     );
   }
 );

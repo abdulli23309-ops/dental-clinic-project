@@ -46,6 +46,11 @@ class PostgresBookingRepository(BookingRepository):
             cancelled_by_user_id=entity.cancelled_by_user_id,
             reminded_at=entity.reminded_at,
             reminded_by_user_id=entity.reminded_by_user_id,
+            category_id=entity.category_id,
+            approval_required=entity.approval_required,
+            approved_by_user_id=entity.approved_by_user_id,
+            approved_at=entity.approved_at,
+            rejection_reason=entity.rejection_reason,
             created_at=entity.created_at,
             updated_at=entity.updated_at,
         )
@@ -81,6 +86,11 @@ class PostgresBookingRepository(BookingRepository):
             cancelled_by_user_id=orm.cancelled_by_user_id,
             reminded_at=orm.reminded_at,
             reminded_by_user_id=orm.reminded_by_user_id,
+            category_id=getattr(orm, "category_id", None),
+            approval_required=getattr(orm, "approval_required", False) or False,
+            approved_by_user_id=getattr(orm, "approved_by_user_id", None),
+            approved_at=getattr(orm, "approved_at", None),
+            rejection_reason=getattr(orm, "rejection_reason", None),
             created_at=orm.created_at,
             updated_at=orm.updated_at,
         )
@@ -117,6 +127,11 @@ class PostgresBookingRepository(BookingRepository):
             existing.cancelled_by_user_id = booking.cancelled_by_user_id
             existing.reminded_at = booking.reminded_at
             existing.reminded_by_user_id = booking.reminded_by_user_id
+            existing.category_id = booking.category_id
+            existing.approval_required = booking.approval_required
+            existing.approved_by_user_id = booking.approved_by_user_id
+            existing.approved_at = booking.approved_at
+            existing.rejection_reason = booking.rejection_reason
             await self._session.flush()
             await self._session.refresh(existing)
             return self._to_domain(existing)

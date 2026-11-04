@@ -28,6 +28,7 @@ import { AnimatedView } from "@/components/ui/animated-view";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useDirectory } from "@/lib/directory";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { Pagination } from "@/components/ui/pagination";
 import {
   isExpected,
   isWaiting,
@@ -47,6 +48,14 @@ export default function ReceptionAppointmentsPage() {
   const [search, setSearch] = useState("");
   const [waitlistModalBookingId, setWaitlistModalBookingId] = useState<string | null>(null);
   const [selectedPaymentBooking, setSelectedPaymentBooking] = useState<{ id: string; patientName: string } | null>(null);
+
+  // Pagination state (Blueprint Phase 4)
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab, search]);
 
   const loadBookings = async () => {
     setIsLoading(true);
@@ -204,7 +213,7 @@ export default function ReceptionAppointmentsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {bookings.map((b) => (
+                {(bookings.slice((page - 1) * pageSize, page * pageSize)).map((b) => (
                   <tr key={b.id} className="hover:bg-gray-50/80 dark:hover:bg-gray-800/40">
                     <td className="px-5 py-4 font-mono">
                       <span className="font-semibold text-gray-900 dark:text-white">{b.bookingDate}</span>{" "}
@@ -339,6 +348,18 @@ export default function ReceptionAppointmentsPage() {
             </table>
           </div>
         )}
+
+        {/* Pagination Controls */}
+        <Pagination
+          currentPage={page}
+          totalItems={bookings.length}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          pageSizeOptions={[10, 25, 50]}
+          itemName="Appointments"
+          className="border-t border-gray-100 dark:border-gray-800 px-4 py-3 bg-gray-50/50 dark:bg-gray-950/50"
+        />
       </div>
       </AnimatedView>
 

@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/pagination";
 import { Card } from "@/components/ui/card";
 import { TextField } from "@/components/ui/text-field";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -31,6 +32,8 @@ export default function AdminAnnouncementsPage() {
   const { accessToken } = useAuth();
   const [items, setItems] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(6);
   const [error, setError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Announcement | null>(null);
@@ -139,11 +142,21 @@ export default function AdminAnnouncementsPage() {
 
     try {
       await adminDeleteAnnouncement(id, accessToken);
+      if (paginatedItems.length === 1 && page > 1) {
+        setPage((p) => p - 1);
+      }
       await loadAnnouncements();
     } catch (err: any) {
       alert("Failed to delete announcement: " + err.message);
     }
   };
+
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [totalPages, page]);
+
+  const paginatedItems = items.slice((page - 1) * pageSize, page * pageSize);
 
   return (
   <AnimatedPage>
@@ -194,7 +207,7 @@ export default function AdminAnnouncementsPage() {
           </div>
         ) : (
           <StaggerList className="divide-y divide-line/60">
-            {items.map((item, idx) => (
+            {paginatedItems.map((item, idx) => (
               <StaggerItem key={item.id} index={idx}>
                 <div
                   className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-sand/30 transition-colors"
@@ -251,6 +264,20 @@ export default function AdminAnnouncementsPage() {
             ))}
           </StaggerList>
         )}
+        <div className="border-t border-line px-4">
+          <Pagination
+            currentPage={page}
+            totalItems={items.length}
+            pageSize={pageSize}
+            pageSizeOptions={[6, 12, 24]}
+            onPageChange={setPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setPage(1);
+            }}
+            itemName="Announcements"
+          />
+        </div>
       </Card>
 
       {/* Add / Edit Modal */}

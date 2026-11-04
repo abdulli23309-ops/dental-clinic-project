@@ -114,7 +114,7 @@ export function LocationsTiming() {
               onClick={() => setSelectedCity("all")}
               className={`rounded-full px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
                 selectedCity === "all"
-                  ? "bg-primary text-white shadow-subtle font-semibold"
+                  ? "btn-premium-emerald font-semibold text-white"
                   : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700"
               }`}
             >
@@ -133,7 +133,7 @@ export function LocationsTiming() {
                   onClick={() => setSelectedCity(city)}
                   className={`rounded-full px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
                     isSelected
-                      ? "bg-primary text-white shadow-subtle font-semibold"
+                      ? "btn-premium-emerald font-semibold text-white"
                       : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700"
                   }`}
                 >

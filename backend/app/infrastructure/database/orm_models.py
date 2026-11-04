@@ -2,7 +2,7 @@ from datetime import date, datetime
 from typing import Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, JSON, String, Text, UniqueConstraint, Uuid, false, func, text, true
+from sqlalchemy import Boolean, Float, CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, JSON, String, Text, UniqueConstraint, Uuid, false, func, text, true
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -961,6 +961,12 @@ class ServiceORM(Base):
         nullable=False,
         default=True,
     )
+    category_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("appointment_categories.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     is_public: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
@@ -1246,6 +1252,30 @@ class BookingORM(Base):
         server_default="reception",
     )
     notes: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    category_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("appointment_categories.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    approval_required: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+    approved_by_user_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    approved_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    rejection_reason: Mapped[Optional[str]] = mapped_column(
         Text,
         nullable=True,
     )
@@ -1638,6 +1668,19 @@ class FaqItemORM(Base):
         Boolean,
         nullable=False,
         default=True,
+    )
+    is_draft: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+    breaks_json: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    published_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -2293,6 +2336,15 @@ class ClinicWorkingHoursORM(Base):
         nullable=False,
         default=False,
     )
+    is_24_hours: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+    periods_json: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -2398,6 +2450,21 @@ class ClinicBookingSettingsORM(Base):
         nullable=False,
         default=True,
         server_default=true(),
+    )
+    cancellation_auto_cutoff_hours: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=24,
+    )
+    booking_horizon_days: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=15,
+    )
+    inter_branch_travel_buffer_minutes: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=30,
     )
     quiet_hours_enabled: Mapped[bool] = mapped_column(
         Boolean,
@@ -2534,6 +2601,19 @@ class ProviderAvailabilityORM(Base):
         nullable=False,
         default=True,
     )
+    is_draft: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+    breaks_json: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    published_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -2616,6 +2696,31 @@ class ServiceProviderORM(Base):
         ForeignKey("team_members.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
+    )
+    clinic_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("clinics.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    custom_duration_minutes: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+    buffer_minutes: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        server_default=func.now(),
+        onupdate=func.now(),
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -3426,3 +3531,288 @@ class GalleryImageORM(Base):
         server_default=func.now(),
     )
 
+
+
+class TeamMemberClinicORM(Base):
+    """
+    Associates clinicians to one or multiple clinic branches.
+    Canonical doctor multi-branch assignment table.
+    """
+    __tablename__ = "team_member_clinics"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    team_member_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("team_members.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    clinic_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("clinics.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+    is_primary: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class DoctorScheduleOverrideORM(Base):
+    """
+    Date-specific working hours or unavailable overrides for clinicians.
+    """
+    __tablename__ = "doctor_schedule_overrides"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    team_member_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("team_members.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    clinic_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("clinics.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    override_date: Mapped[date] = mapped_column(
+        Date,
+        nullable=False,
+        index=True,
+    )
+    override_type: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="unavailable",
+    )
+    is_draft: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+    shifts_json: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    breaks_json: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    reason: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    published_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class AppointmentCategoryORM(Base):
+    """
+    Special appointment categories with approval settings (e.g. Implant Consultation vs Routine Cleaning).
+    """
+    __tablename__ = "appointment_categories"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    name: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+    )
+    code: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    description: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    requires_approval: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class RescheduleRequestORM(Base):
+    """
+    Patient-facing rescheduling requests requiring reception review and slot revalidation.
+    """
+    __tablename__ = "reschedule_requests"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    booking_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("bookings.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    requested_date: Mapped[date] = mapped_column(
+        Date,
+        nullable=False,
+    )
+    requested_time: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+    )
+    status: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="pending",
+        index=True,
+    )
+    reason: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    staff_notes: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    reviewed_by_user_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class CancellationRequestORM(Base):
+    """
+    Cancellation requests requiring reception review for appointments within cutoff window.
+    """
+    __tablename__ = "cancellation_requests"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    booking_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("bookings.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    reason: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    status: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="pending",
+        index=True,
+    )
+    hours_before_appointment: Mapped[Optional[float]] = mapped_column(
+        Float,
+        nullable=True,
+    )
+    is_auto_accepted: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+    staff_notes: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    reviewed_by_user_id: Mapped[Optional[UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )

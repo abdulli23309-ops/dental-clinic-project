@@ -1,3 +1,4 @@
+from app.domain.models.booking_settings import RescheduleRequest, CancellationRequest
 import asyncio
 from contextlib import asynccontextmanager
 import hashlib
@@ -8,7 +9,7 @@ import secrets
 import string
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import HTTPException, status as http_status
 from sqlalchemy import text
@@ -175,7 +176,7 @@ def format_reminder_message(
     patient_first_name: str,
     appointment_date: str,
     appointment_time: str,
-    clinic_name: str = "Marlow Dental Clinic",
+    clinic_name: str = "Hira Dental Clinic",
     clinic_phone: str = "+92 300 1234567",
 ) -> str:
     msg = template
@@ -537,9 +538,12 @@ class ReceptionService:
                     "availableActions": ["snooze", "create_task"],
                 })
 
-        # Category 5: Past appointments never resolved
+        # Category 5: Past appointments never resolved within the last 48 hours
+        # Items older than 48 hours are automatically pruned/filtered out from active queue
+        past_unresolved_cutoff = today_from - timedelta(days=2)
         past_bookings, _ = await self.booking_repo.list_bookings(
             clinic_id=clinic_id,
+            date_from=past_unresolved_cutoff,
             date_to=yesterday,
             status_in=["requested", "confirmed", "arrived", "in_progress"],
             limit=100,
@@ -1829,7 +1833,7 @@ class ReceptionService:
     ) -> Dict[str, Any]:
         default_tpl = (
             "Dear {patient_name}, this is a reminder for your dental appointment on "
-            "{appointment_date} at {appointment_time} with {clinician_name} at Marlow Dental. "
+            "{appointment_date} at {appointment_time} with {clinician_name} at Hira Dental Clinic. "
             "Please reply to confirm or call {clinic_phone} if you need to reschedule."
         )
         template = default_tpl
@@ -2009,7 +2013,7 @@ class ReceptionService:
             patient_first_name=first_name,
             appointment_date=booking.preferred_date.isoformat(),
             appointment_time=booking.preferred_time,
-            clinic_name="Marlow Dental Clinic",
+            clinic_name="Hira Dental Clinic",
             clinic_phone="+92 300 1234567",
         )
 
@@ -2967,3 +2971,525 @@ class ReceptionService:
         }
 
 
+
+    # ---------------------------------------------------------------------------
+    # Booking Approvals (New Patient & Special Category Workflows)
+    # ---------------------------------------------------------------------------
+
+    async def list_pending_approvals(self, clinic_id: Optional[UUID] = None) -> List[Dict[str, Any]]:
+        """Lists bookings that require receptionist approval (status == 'requested')."""
+        bookings, _ = await self.booking_repo.list_bookings(
+            clinic_id=clinic_id,
+            status="requested",
+            limit=100,
+        )
+        results = []
+        for b in bookings:
+            results.append({
+                "id": b.id,
+                "confirmationId": b.confirmation_id,
+                "patientFullName": b.patient_full_name,
+                "patientPhone": b.patient_phone,
+                "patientEmail": b.patient_email,
+                "preferredDate": b.preferred_date,
+                "preferredTime": b.preferred_time,
+                "serviceId": b.service_id,
+                "teamMemberId": b.team_member_id,
+                "clinicId": b.clinic_id,
+                "approvalRequired": getattr(b, "approval_required", True),
+                "notes": b.notes,
+                "createdAt": b.created_at,
+            })
+        return results
+
+    async def approve_booking(self, booking_id: UUID, user_id: UUID) -> Booking:
+        """Approves a pending booking, marks confirmed, and triggers notifications."""
+        booking = await self.booking_repo.get_by_id(booking_id)
+        if not booking:
+            raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="Booking not found")
+
+        booking.status = "confirmed"
+        if hasattr(booking, "approved_by_user_id"):
+            booking.approved_by_user_id = user_id
+        if hasattr(booking, "approved_at"):
+            booking.approved_at = datetime.now(timezone.utc)
+
+        saved = await self.booking_repo.save(booking)
+
+        # Trigger notification
+        session = getattr(self.booking_repo, "_session", None)
+        if session:
+            try:
+                from app.application.services.notification_pipeline_service import NotificationPipelineService
+                pipeline = NotificationPipelineService(session)
+                await pipeline.notify_booking_event(
+                    booking_id=saved.id,
+                    event_type="booking_confirmed",
+                    patient_name=saved.patient_full_name,
+                    patient_phone=saved.patient_phone,
+                    details={
+                        "confirmation_id": saved.confirmation_id,
+                        "date": saved.preferred_date.isoformat(),
+                        "time": saved.preferred_time,
+                        "service_title": str(saved.service_id or "Dental Visit"),
+                    },
+                    clinic_id=saved.clinic_id,
+                    patient_id=saved.patient_id,
+                )
+            except Exception as notif_err:
+                pass
+
+        await record_activity(
+            self.activity_repo,
+            action="approve_booking",
+            entity_type="booking",
+            entity_id=str(saved.id),
+            user_id=user_id,
+            details={"confirmation_id": saved.confirmation_id, "status": "confirmed"},
+        )
+        return saved
+
+    async def reject_booking(self, booking_id: UUID, reason: str, user_id: UUID) -> Booking:
+        """Rejects a pending booking with reason and audits outcome."""
+        booking = await self.booking_repo.get_by_id(booking_id)
+        if not booking:
+            raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="Booking not found")
+
+        booking.status = "cancelled"
+        if hasattr(booking, "rejection_reason"):
+            booking.rejection_reason = reason
+        booking.cancellation_reason = f"Rejected by reception: {reason}"
+        booking.cancelled_by_user_id = user_id
+
+        saved = await self.booking_repo.save(booking)
+
+        await record_activity(
+            self.activity_repo,
+            action="reject_booking",
+            entity_type="booking",
+            entity_id=str(saved.id),
+            user_id=user_id,
+            details={"confirmation_id": saved.confirmation_id, "reason": reason},
+        )
+        return saved
+
+    # ---------------------------------------------------------------------------
+    # Rescheduling Requests
+    # ---------------------------------------------------------------------------
+
+    async def create_reschedule_request(
+        self,
+        booking_id: UUID,
+        requested_date: date,
+        requested_time: str,
+        reason: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Patient requests a new appointment time while original remains active."""
+        booking = await self.booking_repo.get_by_id(booking_id)
+        if not booking:
+            raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="Booking not found")
+        if booking.status in ["cancelled", "completed"]:
+            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail="Cannot reschedule a cancelled or completed booking")
+
+        # Validate requested new time against current availability
+        session = getattr(self.booking_repo, "_session", None)
+        if session and self.booking_settings_repo:
+            try:
+                from app.application.services.availability_service import AvailabilityService
+                avail_svc = AvailabilityService(self.booking_settings_repo, session)
+                is_avail = await avail_svc.is_slot_available(
+                    target_date=requested_date,
+                    time_str=requested_time,
+                    service_id=booking.service_id,
+                    team_member_id=booking.team_member_id,
+                    clinic_id=booking.clinic_id,
+                )
+                if not is_avail:
+                    raise HTTPException(
+                        status_code=http_status.HTTP_409_CONFLICT,
+                        detail="The requested slot is no longer available. Please choose another date or time.",
+                    )
+            except HTTPException:
+                raise
+            except Exception:
+                pass
+
+        from app.domain.models.booking_settings import RescheduleRequest
+        req = RescheduleRequest(
+            id=uuid4(),
+            booking_id=booking_id,
+            requested_date=requested_date,
+            requested_time=requested_time,
+            status="pending",
+            reason=reason,
+        )
+        saved = await self.booking_settings_repo.create_reschedule_request(req)
+        return {
+            "success": True,
+            "requestId": str(saved.id),
+            "bookingId": str(booking_id),
+            "requestedDate": requested_date.isoformat(),
+            "requestedTime": requested_time,
+            "status": "pending",
+            "message": "Your reschedule request has been submitted for receptionist review. Your existing appointment remains confirmed.",
+        }
+
+    async def list_reschedule_requests(self, status: Optional[str] = "pending") -> List[Dict[str, Any]]:
+        """Lists rescheduling requests for reception review queue."""
+        requests = await self.booking_settings_repo.list_reschedule_requests(status=status)
+        results = []
+        for r in requests:
+            b = await self.booking_repo.get_by_id(r.booking_id)
+            results.append({
+                "id": r.id,
+                "bookingId": r.booking_id,
+                "confirmationId": b.confirmation_id if b else "N/A",
+                "patientFullName": b.patient_full_name if b else "Unknown",
+                "patientPhone": b.patient_phone if b else "",
+                "serviceTitle": str(b.service_id) if b else "",
+                "currentDate": b.preferred_date if b else None,
+                "currentTime": b.preferred_time if b else "",
+                "requestedDate": r.requested_date,
+                "requestedTime": r.requested_time,
+                "status": r.status,
+                "reason": r.reason,
+                "staffNotes": r.staff_notes,
+                "createdAt": r.created_at,
+            })
+        return results
+
+    async def approve_reschedule_request(self, request_id: UUID, user_id: UUID) -> Dict[str, Any]:
+        """Approves reschedule request, validates slot atomically, updates booking, and notifies patient."""
+        req = await self.booking_settings_repo.get_reschedule_request(request_id)
+        if not req:
+            raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="Reschedule request not found")
+        if req.status != "pending":
+            raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=f"Request is already {req.status}")
+
+        booking = await self.booking_repo.get_by_id(req.booking_id)
+        if not booking:
+            raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="Booking not found")
+
+        # Acquire lock on the requested date and revalidate slot availability
+        async with _acquire_schedule_lock(self.booking_repo, booking.team_member_id, req.requested_date):
+            session = getattr(self.booking_repo, "_session", None)
+            if session and self.booking_settings_repo:
+                from app.application.services.availability_service import AvailabilityService
+                avail_svc = AvailabilityService(self.booking_settings_repo, session)
+                is_avail = await avail_svc.is_slot_available(
+                    target_date=req.requested_date,
+                    time_str=req.requested_time,
+                    service_id=booking.service_id,
+                    team_member_id=booking.team_member_id,
+                    clinic_id=booking.clinic_id,
+                )
+                if not is_avail:
+                    raise HTTPException(
+                        status_code=http_status.HTTP_409_CONFLICT,
+                        detail="Conflict: The requested slot is no longer available at approval time. Please reject or choose another time.",
+                    )
+
+            # Update booking date & time safely
+            booking.preferred_date = req.requested_date
+            booking.preferred_time = req.requested_time
+            booking.status = "confirmed"
+            await self.booking_repo.save(booking)
+
+            # Mark request approved
+            req.status = "approved"
+            req.reviewed_by_user_id = user_id
+            req.reviewed_at = datetime.now(timezone.utc)
+            await self.booking_settings_repo.update_reschedule_request(req)
+
+            # Trigger notification
+            if session:
+                try:
+                    from app.application.services.notification_pipeline_service import NotificationPipelineService
+                    pipeline = NotificationPipelineService(session)
+                    await pipeline.notify_booking_event(
+                        booking_id=booking.id,
+                        event_type="booking_rescheduled",
+                        patient_name=booking.patient_full_name,
+                        patient_phone=booking.patient_phone,
+                        details={
+                            "confirmation_id": booking.confirmation_id,
+                            "date": req.requested_date.isoformat(),
+                            "time": req.requested_time,
+                            "service_title": str(booking.service_id or "Dental Visit"),
+                        },
+                        clinic_id=booking.clinic_id,
+                        patient_id=booking.patient_id,
+                    )
+                except Exception:
+                    pass
+
+            await record_activity(
+                self.activity_repo,
+                action="approve_reschedule_request",
+                entity_type="reschedule_request",
+                entity_id=str(req.id),
+                user_id=user_id,
+                details={
+                    "booking_id": str(booking.id),
+                    "new_date": req.requested_date.isoformat(),
+                    "new_time": req.requested_time,
+                },
+            )
+
+        return {"success": True, "status": "approved", "bookingId": str(booking.id)}
+
+    async def reject_reschedule_request(self, request_id: UUID, staff_notes: Optional[str], user_id: UUID) -> Dict[str, Any]:
+        """Rejects reschedule request and retains original booking."""
+        req = await self.booking_settings_repo.get_reschedule_request(request_id)
+        if not req:
+            raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="Reschedule request not found")
+
+        req.status = "rejected"
+        req.staff_notes = staff_notes
+        req.reviewed_by_user_id = user_id
+        req.reviewed_at = datetime.now(timezone.utc)
+        await self.booking_settings_repo.update_reschedule_request(req)
+
+        await record_activity(
+            self.activity_repo,
+            action="reject_reschedule_request",
+            entity_type="reschedule_request",
+            entity_id=str(req.id),
+            user_id=user_id,
+            details={"booking_id": str(req.booking_id), "staff_notes": staff_notes},
+        )
+        return {"success": True, "status": "rejected", "bookingId": str(req.booking_id)}
+
+    # ---------------------------------------------------------------------------
+    # Cancellation Workflow (>24h auto-accept, <=24h review queue)
+    # ---------------------------------------------------------------------------
+
+    async def request_cancellation(
+        self,
+        booking_id: UUID,
+        reason: Optional[str] = None,
+        user_id: Optional[UUID] = None,
+    ) -> Dict[str, Any]:
+        """
+        Processes cancellation request based on policy:
+        - > 24 hours before appointment: auto-accepted.
+        - <= 24 hours: submitted to receptionist review queue.
+        """
+        booking = await self.booking_repo.get_by_id(booking_id)
+        if not booking:
+            raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="Booking not found")
+        if booking.status == "cancelled":
+            return {"success": True, "autoAccepted": True, "message": "Appointment is already cancelled."}
+
+        # Calculate hours between now and appointment time in Pakistan timezone
+        try:
+            from zoneinfo import ZoneInfo
+            tz = ZoneInfo("Asia/Karachi")
+        except Exception:
+            tz = timezone(timedelta(hours=5))
+
+        now_local = datetime.now(tz)
+        from app.application.services.availability_service import parse_time_to_minutes
+        appt_mins = parse_time_to_minutes(booking.preferred_time) or (9 * 60)
+        appt_dt = datetime(
+            booking.preferred_date.year,
+            booking.preferred_date.month,
+            booking.preferred_date.day,
+            appt_mins // 60,
+            appt_mins % 60,
+            tzinfo=tz,
+        )
+        hours_until = (appt_dt - now_local).total_seconds() / 3600.0
+
+        cutoff = 24.0
+        if self.booking_settings_repo:
+            try:
+                settings = await self.booking_settings_repo.get_settings(clinic_id=booking.clinic_id)
+                cutoff = float(getattr(settings, "cancellation_auto_cutoff_hours", 24) or 24)
+            except Exception:
+                cutoff = 24.0
+
+        from app.domain.models.booking_settings import CancellationRequest
+        if hours_until > cutoff:
+            # Policy: Auto-accepted cancellation
+            booking.status = "cancelled"
+            booking.cancellation_reason = reason or "Patient cancelled >24h in advance"
+            booking.cancelled_by_user_id = user_id
+            await self.booking_repo.save(booking)
+
+            c_req = CancellationRequest(
+                id=uuid4(),
+                booking_id=booking_id,
+                reason=reason,
+                status="approved",
+                hours_before_appointment=hours_until,
+                is_auto_accepted=True,
+                reviewed_at=datetime.now(timezone.utc),
+            )
+            await self.booking_settings_repo.create_cancellation_request(c_req)
+
+            # Trigger cancellation notification
+            session = getattr(self.booking_repo, "_session", None)
+            if session:
+                try:
+                    from app.application.services.notification_pipeline_service import NotificationPipelineService
+                    pipeline = NotificationPipelineService(session)
+                    await pipeline.notify_booking_event(
+                        booking_id=booking.id,
+                        event_type="booking_cancelled",
+                        patient_name=booking.patient_full_name,
+                        patient_phone=booking.patient_phone,
+                        details={
+                            "confirmation_id": booking.confirmation_id,
+                            "date": booking.preferred_date.isoformat(),
+                            "time": booking.preferred_time,
+                            "reason": reason or "Cancelled per request",
+                        },
+                        clinic_id=booking.clinic_id,
+                        patient_id=booking.patient_id,
+                    )
+                except Exception:
+                    pass
+
+            await record_activity(
+                self.activity_repo,
+                action="auto_cancel_booking",
+                entity_type="booking",
+                entity_id=str(booking_id),
+                user_id=user_id,
+                details={"hours_before": hours_until, "reason": reason},
+            )
+            return {
+                "success": True,
+                "autoAccepted": True,
+                "message": "Appointment cancelled successfully.",
+                "bookingId": str(booking_id),
+            }
+        else:
+            # Policy: Within cutoff window -> queue for reception review
+            c_req = CancellationRequest(
+                id=uuid4(),
+                booking_id=booking_id,
+                reason=reason,
+                status="pending",
+                hours_before_appointment=hours_until,
+                is_auto_accepted=False,
+            )
+            saved = await self.booking_settings_repo.create_cancellation_request(c_req)
+
+            # Create high-priority follow up task for receptionist
+            task = Task(
+                clinic_id=booking.clinic_id,
+                patient_id=booking.patient_id,
+                booking_id=booking.id,
+                title=f"Cancellation Review: {booking.patient_full_name} ({booking.confirmation_id})",
+                description=f"Patient requested cancellation with only {hours_until:.1f} hours remaining. Reason: {reason or 'Not provided'}. Please review in Receptionist workspace.",
+                priority="high",
+                status="pending",
+            )
+            await self.task_repo.save(task)
+
+            return {
+                "success": True,
+                "autoAccepted": False,
+                "requestId": str(saved.id),
+                "message": "Your cancellation request has been submitted for receptionist review as your appointment is within 24 hours.",
+                "bookingId": str(booking_id),
+            }
+
+    async def list_cancellation_requests(self, status: Optional[str] = "pending") -> List[Dict[str, Any]]:
+        """Lists cancellation requests requiring review."""
+        requests = await self.booking_settings_repo.list_cancellation_requests(status=status)
+        results = []
+        for r in requests:
+            b = await self.booking_repo.get_by_id(r.booking_id)
+            results.append({
+                "id": r.id,
+                "bookingId": r.booking_id,
+                "confirmationId": b.confirmation_id if b else "N/A",
+                "patientFullName": b.patient_full_name if b else "Unknown",
+                "patientPhone": b.patient_phone if b else "",
+                "serviceTitle": str(b.service_id) if b else "",
+                "appointmentDate": b.preferred_date if b else None,
+                "appointmentTime": b.preferred_time if b else "",
+                "hoursBeforeAppointment": r.hours_before_appointment,
+                "isAutoAccepted": r.is_auto_accepted,
+                "status": r.status,
+                "reason": r.reason,
+                "staffNotes": r.staff_notes,
+                "createdAt": r.created_at,
+            })
+        return results
+
+    async def approve_cancellation_request(self, request_id: UUID, user_id: UUID) -> Dict[str, Any]:
+        """Receptionist approves cancellation request and marks booking cancelled."""
+        req = await self.booking_settings_repo.get_cancellation_request(request_id)
+        if not req:
+            raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="Cancellation request not found")
+
+        booking = await self.booking_repo.get_by_id(req.booking_id)
+        if booking:
+            booking.status = "cancelled"
+            booking.cancellation_reason = req.reason or "Cancelled by reception upon patient request"
+            booking.cancelled_by_user_id = user_id
+            await self.booking_repo.save(booking)
+
+        req.status = "approved"
+        req.reviewed_by_user_id = user_id
+        req.reviewed_at = datetime.now(timezone.utc)
+        await self.booking_settings_repo.update_cancellation_request(req)
+
+        await record_activity(
+            self.activity_repo,
+            action="approve_cancellation_request",
+            entity_type="cancellation_request",
+            entity_id=str(req.id),
+            user_id=user_id,
+            details={"booking_id": str(req.booking_id)},
+        )
+        return {"success": True, "status": "approved", "bookingId": str(req.booking_id)}
+
+    async def reject_cancellation_request(self, request_id: UUID, staff_notes: Optional[str], user_id: UUID) -> Dict[str, Any]:
+        """Receptionist rejects cancellation request and retains confirmed appointment."""
+        req = await self.booking_settings_repo.get_cancellation_request(request_id)
+        if not req:
+            raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="Cancellation request not found")
+
+        req.status = "rejected"
+        req.staff_notes = staff_notes
+        req.reviewed_by_user_id = user_id
+        req.reviewed_at = datetime.now(timezone.utc)
+        await self.booking_settings_repo.update_cancellation_request(req)
+
+        await record_activity(
+            self.activity_repo,
+            action="reject_cancellation_request",
+            entity_type="cancellation_request",
+            entity_id=str(req.id),
+            user_id=user_id,
+            details={"booking_id": str(req.booking_id), "staff_notes": staff_notes},
+        )
+        return {"success": True, "status": "rejected", "bookingId": str(req.booking_id)}
+
+    # ---------------------------------------------------------------------------
+    # Failed Notification Follow-Up Tasks
+    # ---------------------------------------------------------------------------
+
+    async def list_failed_notification_tasks(self, clinic_id: Optional[UUID] = None) -> List[Dict[str, Any]]:
+        """Lists receptionist follow-up tasks generated by failed WhatsApp and SMS notifications."""
+        tasks, _ = await self.task_repo.list_tasks(clinic_id=clinic_id, status="pending", limit=100)
+        failed_notifs = [t for t in tasks if t.title and t.title.startswith("Failed notification follow-up")]
+        results = []
+        for t in failed_notifs:
+            results.append({
+                "id": t.id,
+                "title": t.title,
+                "description": t.description,
+                "patientId": t.patient_id,
+                "bookingId": t.booking_id,
+                "priority": t.priority,
+                "status": t.status,
+                "dueDate": t.due_date,
+                "createdAt": t.created_at,
+            })
+        return results

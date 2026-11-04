@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "motion/react";
 import { ArrowRight, Calendar, BookOpen } from "lucide-react";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getPublicBlogs, BlogPost } from "@/lib/api";
+import { getPublicBlogs, BlogPost, resolveMediaUrl } from "@/lib/api";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 
 export function BlogsSection() {
@@ -87,11 +88,12 @@ export function BlogsSection() {
                   {/* Cover Image or Thematic Placeholder */}
                   <div className="relative w-full aspect-[16/10] overflow-hidden bg-gray-100 dark:bg-gray-800">
                     {post.coverImageUrl ? (
-                      <img
-                        src={post.coverImageUrl}
+                      <Image
+                        src={resolveMediaUrl(post.coverImageUrl) || post.coverImageUrl}
                         alt={post.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        loading="lazy"
+                        fill
+                        sizes="(max-width: 768px) 100vw, 33vw"
+                        className="object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                     ) : (
                       <div className="w-full h-full grid place-items-center bg-gradient-to-br from-primary/5 via-primary/10 to-amber-100/20 text-primary">

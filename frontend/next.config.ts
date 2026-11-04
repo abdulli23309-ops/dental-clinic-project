@@ -4,6 +4,8 @@ const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
   images: {
+    formats: ['image/avif', 'image/webp'],
+    dangerouslyAllowLocalIP: true,
     remotePatterns: [
       {
         protocol: "http",

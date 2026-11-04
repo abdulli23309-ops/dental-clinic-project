@@ -209,3 +209,4 @@ async def change_password(
     await auth_service.refresh_token_repo.revoke_all_for_user(current_user.id)
 
     return {"success": True, "message": "Password changed successfully."}
+

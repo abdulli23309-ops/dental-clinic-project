@@ -230,7 +230,7 @@ export default function ReceptionEndOfDayPage() {
             End-of-Day Review
           </h1>
           <p className="text-sm text-ink-soft mt-1">
-            Reconcile outstanding appointments. Marlow Dental policy strictly requires
+            Reconcile outstanding appointments. Hira Dental Clinic policy strictly requires
             manual staff resolution — appointments are never auto-completed.
           </p>
         </div>
@@ -668,7 +668,7 @@ export default function ReceptionEndOfDayPage() {
                     Cancellation Reason <span className="text-rose-500">*</span>
                   </label>
                   <p className="text-[11px] text-ink-soft">
-                    Marlow clinic policy mandates recording a reason for every cancellation.
+                    Clinic policy mandates recording a reason for every cancellation.
                   </p>
                   <div className="flex flex-wrap gap-1 mb-2">
                     {QUICK_CANCEL_REASONS.map((reason) => (

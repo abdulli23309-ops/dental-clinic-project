@@ -9,6 +9,7 @@ class OrganizationResponse(BaseModel):
     id: UUID
     name: str
     displayName: str
+    shortBrandName: Optional[str] = None
     tagline: Optional[str] = None
     description: Optional[str] = None
     logoUrl: Optional[str] = None
@@ -34,6 +35,7 @@ class OrganizationUpdateRequest(BaseModel):
     """Schema for updating organization details."""
     name: Optional[str] = None
     displayName: Optional[str] = None
+    shortBrandName: Optional[str] = None
     tagline: Optional[str] = None
     description: Optional[str] = None
     logoUrl: Optional[str] = None
@@ -122,3 +124,17 @@ class PaginatedLocationResponse(BaseModel):
     total: int
     page: int
     limit: int
+
+
+class LocationServiceItemDto(BaseModel):
+    id: UUID
+    title: str
+    slug: str
+    category: str
+    duration: Optional[str] = None
+    cashPrice: Optional[str] = None
+    isOffered: bool = False
+
+
+class LocationServicesUpdateRequest(BaseModel):
+    serviceIds: List[UUID]

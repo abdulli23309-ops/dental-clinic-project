@@ -955,7 +955,7 @@ async def test_booking_marks_lead_converted(
     booking = b_res.scalar_one()
     assert booking.lead_id == lead.id
     assert booking.source == "website"
-    assert booking.status == "confirmed"  # auto_confirm_online is True in seeded settings
+    assert booking.status == "requested"  # Online intake requests arrive as requested for reception triage
     assert booking.clinic_id == env["clinic_a_id"]
     assert booking.team_member_id == env["doc_tariq_id"]
 

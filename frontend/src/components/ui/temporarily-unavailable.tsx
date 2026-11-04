@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { getUiCopy, SupportedLocale } from "@/content/ui-copy";
 
 interface TemporarilyUnavailableProps {
-  onRetry: () => void;
+  onRetry?: () => void;
   locale?: SupportedLocale;
   isRetrying?: boolean;
 }
@@ -16,6 +16,9 @@ export function TemporarilyUnavailable({
   isRetrying = false,
 }: TemporarilyUnavailableProps) {
   const copy = getUiCopy(locale);
+  const handleRetry = onRetry || (() => {
+    if (typeof window !== "undefined") window.location.reload();
+  });
 
   return (
     <section
@@ -41,7 +44,7 @@ export function TemporarilyUnavailable({
           <Button
             variant="primary"
             size="md"
-            onClick={onRetry}
+            onClick={handleRetry}
             disabled={isRetrying}
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2"
           >

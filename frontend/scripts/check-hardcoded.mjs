@@ -38,13 +38,24 @@ const ALLOWED_MARLOW_IDENTIFIERS = [
   "marlow_audit_logs_",
 ];
 
-const CITY_NAMES = ["Chicago", "Lahore", "Karachi", "New York", "London", "Dubai"];
+const CITY_NAMES = ["Chicago", "Lahore", "Karachi", "New York", "London", "Dubai", "Islamabad"];
 
 // Phone patterns: (312) 555-0147, 312-555-0147, +92 300 1234567, etc.
 const PHONE_PATTERN = /\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/;
 
 const UNSLASH_PATTERN = /unsplash\.com/;
 const MARLOWDENTAL_COM_PATTERN = /marlowdental\.com/;
+
+// Specific hardcoded clinic patterns required by P0.2 audit
+const SPECIFIC_HARDCODED_PATTERNS = [
+  { pattern: /051-6102977/, description: "hardcoded clinic phone 051-6102977" },
+  { pattern: /info@drhira\.com/, description: "hardcoded clinic email info@drhira.com" },
+  { pattern: /Dr\.?\s*Hira/i, description: "hardcoded clinic brand 'Dr. Hira'" },
+  { pattern: /Rs\.?\s*\d{1,3},\d{3}/, description: "hardcoded rupee price" },
+  { pattern: /Not all heroes wear capes/i, description: "hardcoded hero headline claim" },
+  { pattern: /We fix problems/i, description: "hardcoded hero description claim" },
+  { pattern: /(?:\+?92|0092)[\s.-]?[0-9]{2,4}[\s.-]?[0-9]{6,8}/, description: "hardcoded phone number starting with +92" },
+];
 
 // Specific hardcoded clinic claims forbidden in public components
 const FORBIDDEN_CLAIMS = [
@@ -55,6 +66,8 @@ const FORBIDDEN_CLAIMS = [
   "unhurried clinical",
   "Same-week openings",
   "emergency slots before",
+  "Not all heroes wear capes",
+  "We fix problems",
 ];
 
 // Hex colour pattern (#RRGGBB or #RGB)
@@ -198,6 +211,17 @@ for (const file of files) {
       console.error(`FAIL: ${relativePath}:${lineNum} - hardcoded marlowdental.com URL`);
       console.error(`  ${line.trim()}`);
       failures++;
+    }
+
+    // Check specific hardcoded clinic patterns
+    for (const item of SPECIFIC_HARDCODED_PATTERNS) {
+      if (item.pattern.test(line)) {
+        if (!line.includes("e.g.") && !line.includes("placeholder") && !line.includes("example")) {
+          console.error(`FAIL: ${relativePath}:${lineNum} - ${item.description}`);
+          console.error(`  ${line.trim()}`);
+          failures++;
+        }
+      }
     }
 
     // Check forbidden clinic claim strings

@@ -246,6 +246,11 @@ export default function AdminWebsitePage() {
 
     try {
       await adminUpdateCmsSection(sectionKey, payload, accessToken);
+      // Revalidate server-rendered public cache
+      fetch('/api/revalidate', {
+        method: 'POST',
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+      }).catch(() => {});
       // Trigger client provider re-fetch and broadcast to other open tabs
       await refreshPublicContent();
 
@@ -676,7 +681,7 @@ export default function AdminWebsitePage() {
                   value={generalData.shortBrandName || ""}
                   maxLength={24}
                   onChange={(e) => setGeneralData({ ...generalData, shortBrandName: e.target.value.slice(0, 24) })}
-                  placeholder="e.g. Marlow Dental"
+                  placeholder="e.g. Hira Dental Clinic"
                 />
                 <TextField
                   id="general-tagline"

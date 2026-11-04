@@ -58,3 +58,9 @@ frontend/playwright-report/
 frontend/test-results/
 
 _scratch/
+ 
+frontend/scripts/verify_stage1_mobile.mjs
+*.zip
+*.sql
+*.dump
+*.tar.gz

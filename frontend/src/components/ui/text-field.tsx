@@ -116,7 +116,7 @@ export const TextField = React.forwardRef<
         </motion.div>
 
         {helpText && !error && (
-          <p id={helpId} className="text-[12px] text-gray-500 dark:text-gray-400">
+          <p id={helpId} className="text-[12px] text-gray-600 dark:text-gray-400">
             {helpText}
           </p>
         )}

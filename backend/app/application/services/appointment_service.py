@@ -2,6 +2,7 @@ import random
 import sys
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
+from uuid import UUID, uuid4
 from fastapi import HTTPException, status as http_status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,6 +22,7 @@ from app.domain.repositories.booking_settings_repo import BookingSettingsReposit
 from app.domain.repositories.lead_event_repo import LeadEventRepository
 from app.domain.repositories.lead_repo import LeadRepository
 from app.domain.repositories.patient_repo import PatientRepository
+from app.domain.repositories.service_repo import ServiceRepository
 from app.application.services.reception_service import _acquire_schedule_lock
 from app.application.services.availability_service import AvailabilityService
 
@@ -46,6 +48,7 @@ class AppointmentService:
         lead_event_repo: Optional[LeadEventRepository] = None,
         booking_flow_settings_repo: Optional[BookingFlowSettingsRepository] = None,
         eligibility_service: Optional[object] = None,
+        service_repo: Optional[ServiceRepository] = None,
     ) -> None:
         """Stores repositories for appointments, canonical bookings, patient charts, and clinic availability rules."""
         self._repository = repository
@@ -58,6 +61,7 @@ class AppointmentService:
         self._lead_event_repo = lead_event_repo
         self._booking_flow_settings_repo = booking_flow_settings_repo
         self._eligibility_service = eligibility_service
+        self._service_repo = service_repo
 
     @staticmethod
     def generate_confirmation_id() -> str:
@@ -114,6 +118,28 @@ class AppointmentService:
                         detail=f"Clinic is closed on {parsed_date.isoformat()}{closure_reason}.",
                     )
 
+        # Validate requested service against the persisted catalogue (DB-backed, no static allow-list).
+        # Only enforced when the catalogue repository is wired; unit tests that mock only the
+        # appointment repository are unaffected.
+        if self._service_repo is not None:
+            service = await self._service_repo.get_by_slug(request.serviceId)
+            if service is None:
+                try:
+                    service_uuid = UUID(request.serviceId)
+                    service = await self._service_repo.get_by_id(service_uuid)
+                except ValueError:
+                    service = None
+            if service is None:
+                raise HTTPException(
+                    status_code=http_status.HTTP_409_CONFLICT,
+                    detail="The requested service is not available.",
+                )
+            if not service.is_active or not service.is_public or not service.bookable_online:
+                raise HTTPException(
+                    status_code=http_status.HTTP_409_CONFLICT,
+                    detail="The requested service is not currently bookable.",
+                )
+
         # Enforce advisory lock and availability validation
         async with _acquire_schedule_lock(self._booking_repo, None, parsed_date):
             if self._availability_service is not None:
@@ -144,6 +170,7 @@ class AppointmentService:
                         await savepoint_ctx.__aenter__()
 
                     # Deduplicate or create patient record if patient repository is wired
+                    is_existing_patient = False
                     if self._patient_repo is not None:
                         names = request.fullName.strip().split()
                         first = names[0] if names else "Patient"
@@ -156,6 +183,7 @@ class AppointmentService:
                         )
                         if dups:
                             patient_id = dups[0].id
+                            is_existing_patient = True
                         else:
                             new_pat = Patient(
                                 first_name=first,
@@ -165,6 +193,7 @@ class AppointmentService:
                             )
                             saved_pat = await self._patient_repo.save(new_pat)
                             patient_id = saved_pat.id
+                            is_existing_patient = False
 
                     # Determine team_member_id (explicitly chosen or auto-selected if single eligible doctor)
                     team_member_id = request.teamMemberId
@@ -179,14 +208,49 @@ class AppointmentService:
                         except Exception:
                             pass
 
-                    # Determine online booking status (confirmed vs requested)
-                    # When a doctor is selected (or auto-selected), auto_confirm_online confirms it immediately.
-                    # Unassigned requests without a doctor require reception triage and remain 'requested'.
-                    booking_status = "requested"
-                    if team_member_id and self._booking_flow_settings_repo is not None:
-                        flow_settings = await self._booking_flow_settings_repo.get_settings()
-                        if flow_settings.auto_confirm_online:
-                            booking_status = "confirmed"
+                    # Category approval check & confirmation rules
+                    category_id = None
+                    requires_category_approval = False
+                    if db_session is not None and request.serviceId:
+                        try:
+                            from sqlalchemy import select, or_
+                            from app.infrastructure.database.orm_models import ServiceORM, AppointmentCategoryORM
+                            svc_uuid = None
+                            try:
+                                if isinstance(request.serviceId, UUID):
+                                    svc_uuid = request.serviceId
+                                else:
+                                    svc_uuid = UUID(str(request.serviceId).strip())
+                            except Exception:
+                                pass
+
+                            filters = [ServiceORM.slug == str(request.serviceId).strip().lower()]
+                            if svc_uuid is not None:
+                                filters.append(ServiceORM.id == svc_uuid)
+
+                            s_res = await db_session.execute(select(ServiceORM).where(or_(*filters)))
+                            svc_orm = s_res.scalars().first()
+                            if svc_orm:
+                                category_id = getattr(svc_orm, "category_id", None)
+                                if category_id:
+                                    cat_id_uuid = category_id if isinstance(category_id, UUID) else UUID(str(category_id))
+                                    cat_res = await db_session.execute(
+                                        select(AppointmentCategoryORM).where(AppointmentCategoryORM.id == cat_id_uuid)
+                                    )
+                                    cat_orm = cat_res.scalars().first()
+                                    if cat_orm and cat_orm.requires_approval:
+                                        requires_category_approval = True
+                        except Exception as e:
+                            logger.warning("Error checking service category approval: %s", type(e).__name__)
+
+                    # Existing patients with normal service -> instant confirmation
+                    # New patients or special categories requiring approval -> requested (requires receptionist review)
+                    if is_existing_patient and not requires_category_approval:
+                        booking_status = "confirmed"
+                        approval_required = False
+                    else:
+                        booking_status = "requested"
+                        approval_required = True
 
                     # Convert open lead if a leadToken was provided
                     lead_id = None
@@ -227,11 +291,35 @@ class AppointmentService:
                             lead_id=lead_id,
                             source="website",
                             status=booking_status,
+                            category_id=category_id,
+                            approval_required=approval_required,
                             notes=request.notes,
                             utm_source=request.utmSource,
                             utm_campaign=request.utmCampaign,
                         )
-                        await self._booking_repo.save(booking)
+                        saved_booking = await self._booking_repo.save(booking)
+
+                        if db_session is not None:
+                            try:
+                                from app.application.services.notification_pipeline_service import NotificationPipelineService
+                                pipeline = NotificationPipelineService(db_session)
+                                event = "booking_confirmed" if booking_status == "confirmed" else "booking_created"
+                                await pipeline.notify_booking_event(
+                                    booking_id=saved_booking.id,
+                                    event_type=event,
+                                    patient_name=request.fullName.strip(),
+                                    patient_phone=request.phone.strip(),
+                                    details={
+                                        "confirmation_id": confirmation_id,
+                                        "date": parsed_date.isoformat(),
+                                        "time": request.preferredTime,
+                                        "service_title": str(request.serviceId),
+                                    },
+                                    clinic_id=request.clinicId,
+                                    patient_id=patient_id,
+                                )
+                            except Exception as notif_err:
+                                logger.warning("Automated notification dispatch skipped/error: %s", type(notif_err).__name__)
 
                     appointment = Appointment(
                         confirmation_id=confirmation_id,

@@ -106,13 +106,13 @@ def make_log_path() -> Path:
     return LOG_DIR / f"staff_accounts_deleted_{stamp}.log"
 
 
-async def get_user_ids(session, emails: Iterable[str]) -> list[str]:
+async def get_user_ids(session, emails: Iterable[str]) -> List[str]:
     email_list = list(emails)
     rows = (await session.execute(text("SELECT id, email FROM users WHERE email = ANY(:emails) ORDER BY email"), {"emails": email_list})).fetchall()
     return [str(r[0]) for r in rows]
 
 
-async def table_count_by_user_refs(session, table: str, column_names: list[str], user_ids: list[str]) -> int:
+async def table_count_by_user_refs(session, table: str, column_names: List[str], user_ids: List[str]) -> int:
     if not user_ids:
         return 0
     clauses = [f"{column} = ANY(:ids)" for column in column_names]
@@ -120,7 +120,7 @@ async def table_count_by_user_refs(session, table: str, column_names: list[str],
     return int(await session.scalar(text(sql), {"ids": user_ids}) or 0)
 
 
-async def verify_initial_conditions() -> tuple[list[str], dict[str, int]]:
+async def verify_initial_conditions() -> Tuple[List[str], Dict[str, int]]:
     factory = get_session_factory()
     async with factory() as session:
         # Guard clauses: protected admin and retained doctors must not be targeted.
@@ -153,7 +153,7 @@ async def verify_initial_conditions() -> tuple[list[str], dict[str, int]]:
         return [str(r[0]) for r in rows], before_counts
 
 
-async def execute_deletion() -> dict[str, Any]:
+async def execute_deletion() -> Dict[str, Any]:
     factory = get_session_factory()
     async with factory() as session:
         async with session.begin():
@@ -207,7 +207,7 @@ async def execute_deletion() -> dict[str, Any]:
             }
 
 
-async def verify_post_delete(target_ids: list[str]) -> dict[str, Any]:
+async def verify_post_delete(target_ids: List[str]) -> Dict[str, Any]:
     factory = get_session_factory()
     async with factory() as session:
         remaining_users = (await session.execute(text("SELECT email FROM users ORDER BY email"))).scalars().all()
@@ -231,7 +231,7 @@ async def verify_post_delete(target_ids: list[str]) -> dict[str, Any]:
 
 async def main() -> None:
     log_path = make_log_path()
-    lines: list[str] = []
+    lines: List[str] = []
     try:
         target_ids, before_counts = await verify_initial_conditions()
         # The explicit target set should be all 58 requested rows and nothing else.

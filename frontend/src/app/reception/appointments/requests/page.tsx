@@ -64,7 +64,7 @@ export default function ReceptionRequestsPage() {
   const handleTriage = async (id: string, action: "confirm" | "decline") => {
     setActionLoadingId(id);
     try {
-      await triageReceptionRequest(id, action, undefined, accessToken);
+      await triageReceptionRequest(id, action === "decline" ? "decline" : "confirm", undefined, accessToken);
       await loadRequests();
       toast.success(action === "confirm" ? "Request confirmed." : "Request declined.");
     } catch (err: unknown) {

@@ -19,6 +19,7 @@ from app.application.dtos.medical_alert_dto import (
     MedicalAlertDto,
 )
 from app.application.services.medical_alert_service import MedicalAlertService
+from app.domain.models.booking_crm import Lead
 from app.application.dtos.reception_dto import (
     BookingCreateRequest,
     BookingRescheduleRequest,

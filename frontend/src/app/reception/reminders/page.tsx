@@ -26,6 +26,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import {
   getReceptionReminders,
   markAppointmentReminded,
@@ -97,6 +98,20 @@ export default function ReceptionRemindersPage() {
   const [editedMessages, setEditedMessages] = useState<Record<string, string>>({});
   const [expandedMessageId, setExpandedMessageId] = useState<string | null>(null);
 
+  // Destructive / high-impact confirmation dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    variant?: "danger" | "warning";
+    onConfirm: () => void | Promise<void>;
+  }>({
+    isOpen: false,
+    title: "",
+    description: "",
+    onConfirm: () => {},
+  });
+
   const fetchReminders = async (targetDate: string) => {
     setIsLoading(true);
     setError("");
@@ -145,28 +160,34 @@ export default function ReceptionRemindersPage() {
     }
   };
 
-  const handleToggleOptOut = async (patientId: string, currentOptOut: boolean, bookingId: string) => {
+  const handleToggleOptOut = (patientId: string, currentOptOut: boolean, bookingId: string) => {
     const nextOptOut = !currentOptOut;
-    const confirmMsg = nextOptOut
-      ? "Opt out this patient from automated reminders? Receptionists can still reach out manually."
-      : "Re-enable automated reminders for this patient?";
-    if (!window.confirm(confirmMsg)) return;
-
-    setActionLoadingId(bookingId);
-    try {
-      await togglePatientMessagingOptOut(patientId, nextOptOut, accessToken);
-      setItems((prev) =>
-        prev.map((it) =>
-          it.patientId === patientId
-            ? { ...it, optedOut: nextOptOut }
-            : it
-        )
-      );
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to update opt-out status.");
-    } finally {
-      setActionLoadingId(null);
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: nextOptOut ? "Opt Out Patient from Automated Reminders?" : "Re-Enable Automated Reminders?",
+      description: nextOptOut
+        ? "This patient will not receive automated WhatsApp/SMS booking notifications. Receptionists can still reach out manually."
+        : "Automated booking reminders and appointment confirmations will resume for this patient.",
+      variant: "warning",
+      onConfirm: async () => {
+        setActionLoadingId(bookingId);
+        try {
+          await togglePatientMessagingOptOut(patientId, nextOptOut, accessToken);
+          setItems((prev) =>
+            prev.map((it) =>
+              it.patientId === patientId
+                ? { ...it, optedOut: nextOptOut }
+                : it
+            )
+          );
+        } catch (err: unknown) {
+          alert(err instanceof Error ? err.message : "Failed to update opt-out status.");
+        } finally {
+          setActionLoadingId(null);
+          setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
   const handleRunScheduler = async (forceQuietHours: boolean = false) => {
@@ -590,6 +611,17 @@ export default function ReceptionRemindersPage() {
           })}
         </div>
       )}
+
+      {/* Confirmation Dialog for Destructive / High-impact Actions */}
+      <DestructiveConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        variant={confirmDialog.variant || "warning"}
+        confirmText="Confirm"
+        onConfirm={confirmDialog.onConfirm}
+        onClose={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+      />
     </div>
   </AnimatedPage>
   );

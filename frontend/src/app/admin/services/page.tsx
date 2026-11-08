@@ -1,16 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import Link from "next/link";
+import { motion, Reorder } from "motion/react";
 import {
+  ArrowDown,
+  ArrowUp,
   Building2,
   Check,
   Clock,
-  Edit,
+  Compass,
+  Edit2,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  Filter,
   Layers,
+  MapPin,
   Plus,
+  RefreshCw,
+  Search,
+  Sparkles,
   Stethoscope,
   Tag,
   Upload,
+  UserCheck,
   Users,
   X,
 } from "lucide-react";
@@ -18,25 +32,21 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { TextField } from "@/components/ui/text-field";
-import { AnimatedView } from "@/components/ui/animated-view";
-import { motion } from "motion/react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { SuccessAlert } from "@/components/ui/success-draw";
 import { useAuth } from "@/components/providers/auth-provider";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { Pagination } from "@/components/ui/pagination";
+import { EntityDetailsModal, SelectedEntity } from "@/components/modals/entity-details-modal";
+import { TeamMember, LocationItem, adminGetLocations, adminGetTeam } from "@/lib/api";
 import {
   adminCreateService,
-  adminGetClinicMatrix,
   adminGetServices,
   adminReorderServices,
   adminToggleServiceStatus,
   adminUpdateService,
-  adminUpdateServiceClinics,
-  adminUpdateServiceProviders,
   adminUploadMedia,
-  ClinicMatrixClinic,
-  ClinicMatrixService,
-  getTeamMembers,
   resolveMediaUrl,
-  TeamMember,
 } from "@/lib/api";
 
 const CATEGORIES = [
@@ -48,27 +58,48 @@ const CATEGORIES = [
 
 export default function AdminServicesPage() {
   const { accessToken } = useAuth();
-  const [activeTab, setActiveTab] = useState<"catalog" | "matrix">("catalog");
   const [services, setServices] = useState<any[]>([]);
-  const [matrixClinics, setMatrixClinics] = useState<ClinicMatrixClinic[]>([]);
-  const [matrixServices, setMatrixServices] = useState<ClinicMatrixService[]>([]);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Modal / Form state for Add/Edit Service
-  const [showModal, setShowModal] = useState(false);
+  // Unified Entity Details Modal state
+  const [selectedEntityModal, setSelectedEntityModal] = useState<SelectedEntity | null>(null);
+  const [allTeamMembers, setAllTeamMembers] = useState<TeamMember[]>([]);
+  const [allLocations, setAllLocations] = useState<LocationItem[]>([]);
+
+  // Search & Filter state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "archived">("all");
+
+  // Pagination state (Blueprint Phase 4)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(6);
+
+  // Reset pagination to page 1 on filter/search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory, statusFilter]);
+
+
+
+  // Drawer / Form state for Add/Edit Service
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-
-  // Doctor assignment modal
-  const [assignDoctorModal, setAssignDoctorModal] = useState<{
-    serviceId: string;
-    serviceTitle: string;
-    providerIds: string[];
-  } | null>(null);
-
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  // Drawer keyboard accessibility (Escape to close)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && drawerOpen) {
+        setDrawerOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [drawerOpen]);
 
   const [form, setForm] = useState({
     slug: "",
@@ -77,10 +108,10 @@ export default function AdminServicesPage() {
     shortDesc: "",
     fullDesc: "",
     cashPrice: "",
-    duration: "",
+    duration: "45 min",
     code: "",
     insuranceNote: "",
-    recommendedInterval: "",
+    recommendedInterval: "Every 6 months",
     recallIntervalDays: 180 as number | undefined,
     displayOrder: 0,
     isHighlighted: false,
@@ -88,23 +119,21 @@ export default function AdminServicesPage() {
     bookableOnline: true,
     bufferMinutes: 0,
     imageUrl: "",
-    providerIds: [] as string[],
-    clinicIds: [] as string[],
   });
 
   const loadData = async () => {
     if (!accessToken) return;
     setIsLoading(true);
+    setErrorMessage(null);
     try {
-      const [servicesData, matrixData, members] = await Promise.all([
+      const [servicesData, teamData, locData] = await Promise.all([
         adminGetServices(accessToken),
-        adminGetClinicMatrix(accessToken).catch(() => ({ clinics: [], services: [] })),
-        getTeamMembers().catch(() => []),
+        adminGetTeam(accessToken).catch(() => []),
+        adminGetLocations(accessToken).catch(() => []),
       ]);
       setServices(servicesData);
-      setMatrixClinics(matrixData.clinics || []);
-      setMatrixServices(matrixData.services || []);
-      setTeamMembers(members.filter((m) => m.isActive));
+      setAllTeamMembers(teamData);
+      setAllLocations(locData);
     } catch (err: any) {
       setErrorMessage(err.message || "Failed to load services data.");
     } finally {
@@ -118,7 +147,7 @@ export default function AdminServicesPage() {
     });
   }, [accessToken]);
 
-  const openAddModal = () => {
+  const openAddDrawer = () => {
     setEditingId(null);
     setForm({
       slug: "",
@@ -126,9 +155,9 @@ export default function AdminServicesPage() {
       title: "",
       shortDesc: "",
       fullDesc: "",
-      cashPrice: "",
+      cashPrice: "Rs. 3,500",
       duration: "45 min",
-      code: "SRV-01",
+      code: `SRV-${String(services.length + 1).padStart(2, "0")}`,
       insuranceNote: "",
       recommendedInterval: "Every 6 months",
       recallIntervalDays: 180,
@@ -138,22 +167,20 @@ export default function AdminServicesPage() {
       bookableOnline: true,
       bufferMinutes: 0,
       imageUrl: "",
-      providerIds: [],
-      clinicIds: matrixClinics.map((c) => c.id),
     });
-    setShowModal(true);
+    setDrawerOpen(true);
   };
 
-  const openEditModal = (service: any) => {
+  const openEditDrawer = (service: any) => {
     setEditingId(service.id);
     setForm({
-      slug: service.slug,
-      category: service.category,
-      title: service.title,
-      shortDesc: service.shortDesc,
+      slug: service.slug || "",
+      category: service.category || "preventive",
+      title: service.title || "",
+      shortDesc: service.shortDesc || "",
       fullDesc: service.fullDesc || "",
-      cashPrice: service.cashPrice,
-      duration: service.duration,
+      cashPrice: service.cashPrice || "",
+      duration: service.duration || "",
       code: service.code || "",
       insuranceNote: service.insuranceNote || "",
       recommendedInterval: service.recommendedInterval || "",
@@ -161,16 +188,30 @@ export default function AdminServicesPage() {
         service.recallIntervalDays !== undefined && service.recallIntervalDays !== null
           ? Number(service.recallIntervalDays)
           : undefined,
-      displayOrder: service.displayOrder,
-      isHighlighted: service.isHighlighted,
-      isPublic: service.isPublic,
+      displayOrder: service.displayOrder || 0,
+      isHighlighted: Boolean(service.isHighlighted),
+      isPublic: service.isPublic !== false,
       bookableOnline: service.bookableOnline !== false,
       bufferMinutes: service.bufferMinutes || 0,
       imageUrl: service.imageUrl || "",
-      providerIds: service.providerIds || [],
-      clinicIds: service.clinicIds || [],
     });
-    setShowModal(true);
+    setDrawerOpen(true);
+  };
+
+  const generateSlug = (title: string) => {
+    return title
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-");
+  };
+
+  const handleTitleChange = (val: string) => {
+    setForm((prev) => ({
+      ...prev,
+      title: val,
+      slug: !editingId ? generateSlug(val) : prev.slug,
+    }));
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -188,6 +229,7 @@ export default function AdminServicesPage() {
       const res = await adminUploadMedia(file, accessToken);
       setForm((prev) => ({ ...prev, imageUrl: res.url }));
       setSuccessMessage("Service image uploaded successfully.");
+      setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to upload image.";
       setErrorMessage(msg);
@@ -201,11 +243,17 @@ export default function AdminServicesPage() {
     if (!accessToken) return;
     setErrorMessage(null);
 
+    if (!form.title.trim() || !form.slug.trim() || !form.cashPrice.trim() || !form.duration.trim()) {
+      setErrorMessage("Title, slug, cash price, and duration are required.");
+      return;
+    }
+
+    setIsSaving(true);
     const payload = {
       slug: form.slug.trim().toLowerCase(),
       category: form.category,
       title: form.title.trim(),
-      shortDesc: form.shortDesc.trim(),
+      shortDesc: form.shortDesc.trim() || form.title.trim(),
       fullDesc: form.fullDesc.trim() || null,
       cashPrice: form.cashPrice.trim(),
       duration: form.duration.trim(),
@@ -219,28 +267,24 @@ export default function AdminServicesPage() {
       bookableOnline: Boolean(form.bookableOnline),
       bufferMinutes: Number(form.bufferMinutes) || 0,
       imageUrl: form.imageUrl.trim() || null,
-      providerIds: form.providerIds,
       isActive: true,
     };
 
     try {
       if (editingId) {
         await adminUpdateService(editingId, payload, accessToken);
-        if (form.clinicIds) {
-          await adminUpdateServiceClinics(editingId, form.clinicIds, accessToken);
-        }
-        setSuccessMessage("Service updated successfully.");
+        setSuccessMessage("Service catalog procedure updated successfully.");
       } else {
-        const created = await adminCreateService(payload, accessToken);
-        if (created?.id && form.clinicIds.length > 0) {
-          await adminUpdateServiceClinics(created.id, form.clinicIds, accessToken);
-        }
-        setSuccessMessage("New service added successfully.");
+        await adminCreateService(payload, accessToken);
+        setSuccessMessage("New service procedure added to catalog.");
       }
-      setShowModal(false);
+      setDrawerOpen(false);
+      setTimeout(() => setSuccessMessage(null), 3500);
       loadData();
     } catch (err: any) {
       setErrorMessage(err.message || "Failed to save service.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -248,7 +292,8 @@ export default function AdminServicesPage() {
     if (!accessToken) return;
     try {
       await adminToggleServiceStatus(id, !currentStatus, accessToken);
-      setSuccessMessage(`Service ${currentStatus ? "deactivated" : "reactivated"}.`);
+      setSuccessMessage(`Service ${currentStatus ? "archived" : "reactivated"} successfully.`);
+      setTimeout(() => setSuccessMessage(null), 3000);
       loadData();
     } catch (err: any) {
       setErrorMessage(err.message || "Failed to toggle status.");
@@ -258,890 +303,832 @@ export default function AdminServicesPage() {
   const handleMove = async (index: number, direction: -1 | 1) => {
     if (!accessToken) return;
     const target = index + direction;
-    if (target < 0 || target >= services.length) return;
+    if (target < 0 || target >= filteredServices.length) return;
     const ordered = [...services];
-    const [moved] = ordered.splice(index, 1);
-    ordered.splice(target, 0, moved);
+    const itemIndex = ordered.findIndex((s) => s.id === filteredServices[index].id);
+    const targetItemIndex = ordered.findIndex((s) => s.id === filteredServices[target].id);
+    if (itemIndex === -1 || targetItemIndex === -1) return;
+
+    const [moved] = ordered.splice(itemIndex, 1);
+    ordered.splice(targetItemIndex, 0, moved);
+
     try {
-      await adminReorderServices(ordered.map((s) => s.id), accessToken);
       setServices(ordered);
-      setSuccessMessage("Service display order saved.");
-      setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (err: any) {
-      setErrorMessage(err.message || "Failed to reorder services.");
-    }
-  };
-
-  // Matrix: Toggle clinic offer
-  const handleToggleClinic = async (serviceId: string, clinicId: string) => {
-    if (!accessToken) return;
-    const svc = matrixServices.find((s) => s.id === serviceId);
-    if (!svc) return;
-
-    const currentClinics = svc.clinicIds || [];
-    const updatedClinics = currentClinics.includes(clinicId)
-      ? currentClinics.filter((id) => id !== clinicId)
-      : [...currentClinics, clinicId];
-
-    // Optimistic update
-    setMatrixServices((prev) =>
-      prev.map((s) => (s.id === serviceId ? { ...s, clinicIds: updatedClinics } : s))
-    );
-    setServices((prev) =>
-      prev.map((s) => (s.id === serviceId ? { ...s, clinicIds: updatedClinics } : s))
-    );
-
-    try {
-      await adminUpdateServiceClinics(serviceId, updatedClinics, accessToken);
-      setSuccessMessage("Clinic offerings updated.");
+      await adminReorderServices(ordered.map((s) => s.id), accessToken);
+      setSuccessMessage("Service display order updated.");
       setTimeout(() => setSuccessMessage(null), 2500);
     } catch (err: any) {
-      setErrorMessage(err.message || "Failed to update clinic offering.");
+      setErrorMessage(err.message || "Failed to reorder services.");
       loadData();
     }
   };
 
-  // Matrix / Doctor Assignment: Save doctors for service
-  const handleSaveDoctorAssignment = async () => {
-    if (!accessToken || !assignDoctorModal) return;
-    const { serviceId, providerIds } = assignDoctorModal;
+  // Filtered Services List
+  const filteredServices = services.filter((s) => {
+    const matchesSearch =
+      searchQuery.trim() === "" ||
+      s.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.slug?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.shortDesc?.toLowerCase().includes(searchQuery.toLowerCase());
 
-    try {
-      await adminUpdateServiceProviders(serviceId, providerIds, accessToken);
-      setSuccessMessage(
-        providerIds.length === 0
-          ? "Doctor assignment reset: Every active doctor at this clinic performs this service."
-          : `Doctor assignment updated (${providerIds.length} doctor${providerIds.length > 1 ? "s" : ""} selected).`
-      );
-      setAssignDoctorModal(null);
-      loadData();
-    } catch (err: any) {
-      setErrorMessage(err.message || "Failed to update doctor assignments.");
-    }
-  };
+    const matchesCategory =
+      selectedCategory === "all" || s.category?.toLowerCase() === selectedCategory.toLowerCase();
+
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "active" && s.isActive !== false) ||
+      (statusFilter === "archived" && s.isActive === false);
+
+    return matchesSearch && matchesCategory && matchesStatus;
+  });
+
+  // Paginated slice for current page
+  const paginatedServices = filteredServices.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
-  <AnimatedPage>
-    <div className="space-y-6 max-w-6xl">
-      {/* Header Bar */}
-      <div className="border-b border-line pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <AnimatedPage className="space-y-8 p-6 max-w-7xl mx-auto">
+      {/* Top Banner / IA Breadcrumb */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-border/40 pb-6">
         <div>
-          <p className="eyebrow mb-1">Fee Transparency &amp; Procedures</p>
-          <h1 className="text-2xl sm:text-3xl font-display text-ink font-normal">
-            Services &amp; Pricing Catalog
-          </h1>
-          <p className="mt-1 text-xs sm:text-sm text-ink-soft">
-            Manage procedures, CDT billing codes, clinic offerings matrix, and doctor assignments.
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs font-semibold uppercase tracking-wider text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
+              Catalog Management
+            </span>
+            <span className="text-xs text-muted-foreground">WHAT we offer</span>
+          </div>
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Services Catalog</h1>
+          <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
+            Central repository of dental procedures, standard fees, durations, and website visibility.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <Button onClick={openAddModal} variant="primary" size="sm">
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            <span>Add Service</span>
+          <Button variant="outline" size="sm" onClick={loadData} disabled={isLoading} className="gap-2">
+            <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+          <Button onClick={openAddDrawer} className="gap-2 shadow-sm font-semibold">
+            <Plus className="w-4 h-4" />
+            Add New Service
           </Button>
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="flex border-b border-line gap-4 text-xs font-medium relative">
-        <button
-          type="button"
-          onClick={() => setActiveTab("catalog")}
-          className={`relative pb-2.5 px-1 transition-colors flex items-center gap-1.5 ${
-            activeTab === "catalog"
-              ? "text-forest font-semibold"
-              : "text-ink-soft hover:text-ink"
-          }`}
-        >
-          <Layers className="h-3.5 w-3.5" />
-          <span>Catalog &amp; Procedures</span>
-          {activeTab === "catalog" && (
-            <motion.div
-              layoutId="adminServicesTabIndicator"
-              className="absolute bottom-0 left-0 right-0 h-0.5 bg-forest"
-              transition={{ type: "spring", stiffness: 350, damping: 30 }}
-            />
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("matrix")}
-          className={`relative pb-2.5 px-1 transition-colors flex items-center gap-1.5 ${
-            activeTab === "matrix"
-              ? "text-forest font-semibold"
-              : "text-ink-soft hover:text-ink"
-          }`}
-        >
-          <Building2 className="h-3.5 w-3.5" />
-          <span>Clinic Services Matrix</span>
-          {activeTab === "matrix" && (
-            <motion.div
-              layoutId="adminServicesTabIndicator"
-              className="absolute bottom-0 left-0 right-0 h-0.5 bg-forest"
-              transition={{ type: "spring", stiffness: 350, damping: 30 }}
-            />
-          )}
-        </button>
+      {/* Cross-Domain Architecture Callout - Soft & Airy */}
+      <div className="rounded-2xl border border-emerald-100 dark:border-emerald-900/40 bg-gradient-to-r from-emerald-50/70 via-teal-50/30 to-slate-50/60 dark:from-emerald-950/20 dark:via-teal-950/10 dark:to-slate-900 p-5 shadow-xs transition-all">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="w-9 h-9 rounded-xl bg-emerald-600/10 dark:bg-emerald-400/10 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0 mt-0.5">
+              <Compass className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground text-sm">Decoupled Information Architecture</p>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
+                • <strong>Services</strong> defines procedure catalog, fees, and baseline duration.<br />
+                • To configure <strong>WHERE</strong> services are offered, visit{" "}
+                <Link href="/admin/locations" className="text-emerald-700 dark:text-emerald-400 hover:underline font-medium">
+                  Locations
+                </Link>.<br />
+                • To assign <strong>WHO</strong> performs each service with custom durations, visit{" "}
+                <Link href="/admin/team" className="text-emerald-700 dark:text-emerald-400 hover:underline font-medium">
+                  Team
+                </Link>.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-center">
+            <Link href="/admin/locations">
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs rounded-xl border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900 shadow-xs hover:bg-slate-50">
+                <Building2 className="w-3.5 h-3.5" />
+                Manage Locations
+              </Button>
+            </Link>
+            <Link href="/admin/team">
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs rounded-xl border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900 shadow-xs hover:bg-slate-50">
+                <Users className="w-3.5 h-3.5" />
+                Manage Team
+              </Button>
+            </Link>
+          </div>
+        </div>
       </div>
 
-      {/* Notifications */}
+      {/* Alerts */}
       {successMessage && (
-        <div
-          role="status"
-          className="rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-950/40 p-4 text-xs font-medium text-emerald-800 dark:text-emerald-300 flex items-center gap-2"
-        >
-          <Check className="h-4 w-4" />
-          <span>{successMessage}</span>
-        </div>
+        <SuccessAlert message={successMessage} onClose={() => setSuccessMessage(null)} />
       )}
-
       {errorMessage && (
-        <div
-          role="alert"
-          className="rounded-lg border border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/40 p-4 text-xs font-medium text-red-800 dark:text-red-300"
-        >
-          {errorMessage}
+        <div className="p-4 rounded-xl border border-rose-500/20 bg-rose-500/10 text-rose-800 dark:text-rose-300 text-sm flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-2">
+            <X className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+            <span>{errorMessage}</span>
+          </div>
+          <button onClick={() => setErrorMessage(null)} className="opacity-70 hover:opacity-100">
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
-      {isLoading ? (
-        <div className="py-12 flex justify-center items-center">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-forest border-t-transparent" />
+      {/* Filter and Search Bar */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          {/* Search Box */}
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search by procedure title, slug, or billing code..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 text-sm rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Status Filter */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground">Status:</span>
+            <div className="flex rounded-lg border border-border bg-muted/40 p-0.5 text-xs">
+              <button
+                onClick={() => setStatusFilter("all")}
+                className={`px-3 py-1.5 rounded-md font-medium transition-all ${statusFilter === "all" ? "bg-background shadow-xs text-foreground" : "text-muted-foreground hover:text-foreground"
+                  }`}
+              >
+                All ({services.length})
+              </button>
+              <button
+                onClick={() => setStatusFilter("active")}
+                className={`px-3 py-1.5 rounded-md font-medium transition-all ${statusFilter === "active" ? "bg-background shadow-xs text-foreground" : "text-muted-foreground hover:text-foreground"
+                  }`}
+              >
+                Active ({services.filter((s) => s.isActive !== false).length})
+              </button>
+              <button
+                onClick={() => setStatusFilter("archived")}
+                className={`px-3 py-1.5 rounded-md font-medium transition-all ${statusFilter === "archived" ? "bg-background shadow-xs text-foreground" : "text-muted-foreground hover:text-foreground"
+                  }`}
+              >
+                Archived ({services.filter((s) => s.isActive === false).length})
+              </button>
+            </div>
+          </div>
         </div>
-      ) : (
-        <AnimatedView viewKey={activeTab}>
-          {activeTab === "matrix" ? (
-            /* TAB 2: CLINIC SERVICES MATRIX */
-        <div className="space-y-4">
-          <Card surface="cream" shadow="subtle" className="p-4 sm:p-5" hoverLift={true} index={0}>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-line mb-4">
-              <div>
-                <h3 className="font-display text-base text-ink font-semibold flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-forest" />
-                  Clinic Offering &amp; Doctor Assignment Matrix
-                </h3>
-                <p className="text-xs text-ink-soft mt-0.5">
-                  Tick which clinics offer each service. Clinician assignments apply per service; when no doctors are chosen, all active doctors at that clinic are eligible.
-                </p>
-              </div>
-            </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-ink border-collapse">
-                <thead>
-                  <tr className="border-b border-line bg-sand/40">
-                    <th className="py-2.5 px-3 font-semibold text-ink">Service / Procedure</th>
-                    <th className="py-2.5 px-3 font-semibold text-ink">Category</th>
-                    {matrixClinics.map((clinic) => (
-                      <th
-                        key={clinic.id}
-                        className="py-2.5 px-3 font-semibold text-ink text-center min-w-[130px]"
-                      >
-                        <div className="flex flex-col items-center">
-                          <span className="font-semibold">{clinic.name}</span>
-                          {clinic.isPrimary && (
-                            <span className="text-[10px] text-forest font-mono">Primary</span>
-                          )}
-                        </div>
-                      </th>
-                    ))}
-                    <th className="py-2.5 px-3 font-semibold text-ink min-w-[240px]">
-                      Doctor Assignment
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line/60">
-                  {matrixServices.map((svc) => {
-                    const isAssignedEmpty = !svc.providerIds || svc.providerIds.length === 0;
-                    return (
-                      <tr key={svc.id} className="hover:bg-cream/60 transition-colors">
-                        <td className="py-3 px-3">
-                          <div className="font-medium text-ink">{svc.title}</div>
-                          <div className="text-[11px] font-mono text-ink-soft">
-                            slug: {svc.slug} {svc.code ? `• ${svc.code}` : ""}
-                          </div>
-                        </td>
-                        <td className="py-3 px-3">
-                          <span className="rounded-full bg-sand/60 px-2 py-0.5 text-[10.5px] font-semibold text-clay uppercase">
-                            {svc.category}
-                          </span>
-                        </td>
-                        {matrixClinics.map((clinic) => {
-                          const isOffered = (svc.clinicIds || []).includes(clinic.id);
-                          return (
-                            <td key={clinic.id} className="py-3 px-3 text-center">
-                              <label className="inline-flex items-center justify-center p-2 rounded cursor-pointer hover:bg-sand/30">
-                                <input
-                                  type="checkbox"
-                                  id={`clinic-service-${svc.id}-${clinic.id}`}
-                                  checked={isOffered}
-                                  onChange={() => handleToggleClinic(svc.id, clinic.id)}
-                                  className="h-4 w-4 rounded border-line text-forest focus:ring-forest cursor-pointer"
-                                />
-                                <span className="sr-only">
-                                  Offer {svc.title} at {clinic.name}
-                                </span>
-                              </label>
-                            </td>
-                          );
-                        })}
-                        <td className="py-3 px-3">
-                          <div className="space-y-1">
-                            {isAssignedEmpty ? (
-                              <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 dark:bg-emerald-950 px-2.5 py-0.5 text-[10.5px] font-semibold text-emerald-800 dark:text-emerald-300">
-                                <Check className="h-3 w-3" />
-                                <span>Every active doctor at this clinic</span>
-                              </div>
-                            ) : (
-                              <div className="flex flex-wrap items-center gap-1">
-                                <span className="rounded-full bg-purple-100 dark:bg-purple-950 px-2 py-0.5 text-[10.5px] font-semibold text-purple-800 dark:text-purple-300">
-                                  {svc.providerIds.length} Doctor{svc.providerIds.length > 1 ? "s" : ""}:
-                                </span>
-                                {svc.providerIds.map((pid) => {
-                                  const doc = teamMembers.find((m) => m.id === pid);
-                                  return (
-                                    <span
-                                      key={pid}
-                                      className="rounded bg-sand/60 px-1.5 py-0.5 text-[10px] text-ink font-mono"
-                                    >
-                                      {doc?.displayName || pid.slice(0, 8)}
-                                    </span>
-                                  );
-                                })}
-                              </div>
-                            )}
-
-                            <div>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setAssignDoctorModal({
-                                    serviceId: svc.id,
-                                    serviceTitle: svc.title,
-                                    providerIds: svc.providerIds || [],
-                                  })
-                                }
-                                className="text-[11px] text-forest underline hover:text-forest/80 font-medium"
-                              >
-                                {isAssignedEmpty ? "Choose specific doctors..." : "Edit doctor list"}
-                              </button>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </div>
-      ) : (
-        /* TAB 1: CATALOG & PROCEDURES */
-        <div className="grid grid-cols-1 gap-4">
-          {services.map((svc) => (
-            <Card
-              key={svc.id}
-              surface={svc.isActive ? "cream" : "bone"}
-              shadow="subtle"
-              className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-             hoverLift={true} index={1}>
-              <div className="flex items-start gap-4 flex-1">
-                {svc.imageUrl && (
-                  <div className="h-16 w-20 rounded-xl overflow-hidden border border-line bg-gray-100 shrink-0 hidden sm:block">
-                    <img
-                      src={resolveMediaUrl(svc.imageUrl) || svc.imageUrl}
-                      alt={svc.title}
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-                )}
-                <div className="space-y-1.5 flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  {svc.code && (
-                    <span className="font-mono text-[10.5px] uppercase tracking-wider text-forest dark:text-emerald-400 font-semibold">
-                      {svc.code}
-                    </span>
-                  )}
-                  <span className="rounded-full bg-sand/60 px-2.5 py-0.5 text-[10.5px] font-semibold text-clay uppercase">
-                    {svc.category}
-                  </span>
-                  {svc.isActive ? (
-                    <span className="rounded-full bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:text-emerald-300">
-                      Active
-                    </span>
-                  ) : (
-                    <span className="rounded-full bg-amber-100 dark:bg-amber-950 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-300">
-                      Deactivated
-                    </span>
-                  )}
-                  {svc.isHighlighted && (
-                    <span className="rounded-full bg-forest text-[#FAF7F2] px-2 py-0.5 text-[10px] font-medium">
-                      Featured
-                    </span>
-                  )}
-                  {svc.bookableOnline !== false ? (
-                    <span className="rounded-full bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:text-emerald-300">
-                      Online Bookable
-                    </span>
-                  ) : (
-                    <span className="rounded-full bg-gray-200 dark:bg-gray-800 px-2 py-0.5 text-[10px] font-semibold text-gray-700 dark:text-gray-300">
-                      Staff Scheduling Only
-                    </span>
-                  )}
-                  {svc.bufferMinutes > 0 && (
-                    <span className="rounded-full bg-blue-100 dark:bg-blue-950 px-2 py-0.5 text-[10px] font-semibold text-blue-800 dark:text-blue-300">
-                      +{svc.bufferMinutes}m buffer
-                    </span>
-                  )}
-                  {/* Doctor Assignment Pill */}
-                  {svc.providerIds && svc.providerIds.length > 0 ? (
-                    <span className="rounded-full bg-purple-100 dark:bg-purple-950 px-2 py-0.5 text-[10px] font-semibold text-purple-800 dark:text-purple-300">
-                      {svc.providerIds.length} Clinician{svc.providerIds.length > 1 ? "s" : ""}
-                    </span>
-                  ) : (
-                    <span className="rounded-full bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:text-emerald-300">
-                      Every Active Doctor (All at Clinic)
-                    </span>
-                  )}
-                  {/* Clinic links count */}
-                  {svc.clinicIds && svc.clinicIds.length > 0 && (
-                    <span className="rounded-full bg-teal-100 dark:bg-teal-950 px-2 py-0.5 text-[10px] font-semibold text-teal-800 dark:text-teal-300">
-                      {svc.clinicIds.length} Clinic{svc.clinicIds.length > 1 ? "s" : ""}
-                    </span>
-                  )}
-                </div>
-
-                <h3 className="font-display text-base text-ink font-semibold">{svc.title}</h3>
-
-                <p className="text-xs text-ink-soft leading-relaxed max-w-2xl">{svc.shortDesc}</p>
-
-                <div className="flex items-center gap-4 text-xs text-ink-soft pt-1 font-mono">
-                  <span className="flex items-center gap-1 font-semibold text-ink">
-                    <Tag className="h-3 w-3 text-forest" />
-                    {svc.cashPrice}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {svc.duration}
-                  </span>
-                  <span>slug: {svc.slug}</span>
-                </div>
-              </div>
-            </div>
-
-              {/* Actions */}
-              <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                <div className="flex flex-col gap-0.5 mr-1" role="group" aria-label="Reorder service">
-                  <button
-                    type="button"
-                    onClick={() => handleMove(services.indexOf(svc), -1)}
-                    disabled={services.indexOf(svc) === 0}
-                    aria-label={`Move ${svc.title} up`}
-                    className="h-5 w-6 rounded border border-line text-ink-soft hover:text-ink hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed text-[10px] leading-none"
-                  >
-                    ▲
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleMove(services.indexOf(svc), 1)}
-                    disabled={services.indexOf(svc) === services.length - 1}
-                    aria-label={`Move ${svc.title} down`}
-                    className="h-5 w-6 rounded border border-line text-ink-soft hover:text-ink hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed text-[10px] leading-none"
-                  >
-                    ▼
-                  </button>
-                </div>
-
-                <Button onClick={() => openEditModal(svc)} variant="secondary" size="sm">
-                  <Edit className="h-3.5 w-3.5 mr-1" />
-                  <span>Edit</span>
-                </Button>
-
-                <Button
-                  onClick={() => handleToggleStatus(svc.id, svc.isActive)}
-                  variant="secondary"
-                  size="sm"
-                >
-                  <span>{svc.isActive ? "Deactivate" : "Reactivate"}</span>
-                </Button>
-              </div>
-            </Card>
+        {/* Category Filter Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <button
+            onClick={() => setSelectedCategory("all")}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-medium shrink-0 transition-all ${selectedCategory === "all"
+                ? "bg-primary text-primary-foreground shadow-xs"
+                : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+          >
+            All Categories
+          </button>
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => setSelectedCategory(cat.id)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-medium shrink-0 transition-all ${selectedCategory === cat.id
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+            >
+              {cat.label}
+            </button>
           ))}
         </div>
-      )}
-    </AnimatedView>
-  )}
+      </div>
 
-      {/* Modal Dialog for Add / Edit */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="w-full max-w-xl max-h-[90vh] flex flex-col my-auto">
-            <Card surface="cream" shadow="elevated" className="max-h-[90vh] overflow-y-auto p-6 sm:p-8 space-y-5 relative" hoverLift={false} index={2}>
-              <div className="sticky top-0 z-20 bg-cream dark:bg-gray-900 -mt-6 sm:-mt-8 -mx-6 sm:-mx-8 px-6 sm:px-8 py-4 border-b border-line flex items-center justify-between shadow-xs">
-                <h3 className="font-display text-lg text-ink font-semibold">
-                  {editingId ? "Edit Service" : "Add Service"}
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="text-xs text-ink-soft hover:text-ink font-mono cursor-pointer px-2 py-1 rounded hover:bg-sand/40"
-                >
-                  ✕ Close
-                </button>
+      {/* Services List / Cards */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={`skel-service-${i}`}
+              className="p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-4"
+            >
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-5 w-24 rounded-full" />
+                <Skeleton className="h-4 w-16 rounded" />
               </div>
+              <div className="flex items-start gap-3">
+                <Skeleton className="w-12 h-12 rounded-xl shrink-0" />
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="h-5 w-3/4" />
+                  <Skeleton className="h-3.5 w-full" />
+                  <Skeleton className="h-3.5 w-2/3" />
+                </div>
+              </div>
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl grid grid-cols-2 gap-2">
+                <Skeleton className="h-7 w-full rounded-lg" />
+                <Skeleton className="h-7 w-full rounded-lg" />
+              </div>
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
+                <Skeleton className="h-4 w-28 rounded-full" />
+                <Skeleton className="h-4 w-20 rounded-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filteredServices.length === 0 ? (
+        <Card className="p-12 text-center border-dashed space-y-4">
+          <div className="w-12 h-12 rounded-full bg-muted/60 text-muted-foreground flex items-center justify-center mx-auto">
+            <Layers className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-foreground text-lg">No services found</h3>
+            <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">
+              {searchQuery || selectedCategory !== "all" || statusFilter !== "all"
+                ? "No procedures match the current filters. Try resetting search or category."
+                : "The service catalog is empty. Click below to add your first clinical procedure."}
+            </p>
+          </div>
+          <Button onClick={openAddDrawer} size="sm" className="gap-2">
+            <Plus className="w-4 h-4" /> Add Service
+          </Button>
+        </Card>
+      ) : (
+        <div className="space-y-6">
+          <Reorder.Group
+            axis="y"
+            values={services}
+            onReorder={async (newOrder) => {
+              setServices(newOrder);
+              try {
+                await adminReorderServices(newOrder.map((s) => s.id), accessToken || undefined);
+                setSuccessMessage("Service display order updated.");
+              } catch (err: unknown) {
+                setErrorMessage(err instanceof Error ? err.message : "Failed to reorder services.");
+              }
+            }}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
+          >
+            {paginatedServices.map((service, idx) => (
+              <Reorder.Item
+                key={service.id}
+                value={service}
+                layoutId={`service-entity-${service.id}`}
+                whileDrag={{
+                  scale: 1.05,
+                  boxShadow: "0 20px 30px -10px rgba(0, 0, 0, 0.25)",
+                  zIndex: 40,
+                }}
+                transition={{
+                  duration: 0.2, // 200ms surrounding rows slide out of the way
+                  ease: "easeOut",
+                }}
+                className="cursor-grab active:cursor-grabbing"
+              >
+                <Card
+                  onClick={() => setSelectedEntityModal({ type: "service", id: service.id, data: service })}
+                  className={`h-full overflow-hidden rounded-2xl border border-slate-200/70 dark:border-slate-800/60 bg-white dark:bg-slate-900 shadow-xs hover:shadow-md hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between cursor-pointer group/card ${service.isActive === false ? "opacity-60 bg-slate-50/50 dark:bg-slate-900/40" : ""
+                    }`}
+                >
+                  <div>
+                    {/* Header & Badges */}
+                    <div className="p-5 pb-3">
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <span className="text-[11px] font-semibold tracking-wide px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">
+                          {CATEGORIES.find((c) => c.id === service.category)?.label || service.category}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          {service.code && (
+                            <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-semibold">
+                              {service.code}
+                            </span>
+                          )}
+                          {service.isHighlighted && (
+                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                              <Sparkles className="w-3 h-3" /> Featured
+                            </span>
+                          )}
+                        </div>
+                      </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+                      <div className="flex items-start gap-3">
+                        {service.imageUrl ? (
+                          <div className="w-12 h-12 rounded-xl overflow-hidden border border-border/50 shrink-0 bg-muted">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={resolveMediaUrl(service.imageUrl) || undefined}
+                              alt={service.title}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                            <Layers className="w-5 h-5" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-base text-foreground line-clamp-1">{service.title}</h3>
+                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                            {service.shortDesc || "No short description provided."}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Key Metrics - Soft Pill Box */}
+                    <div className="px-4 py-3 bg-slate-50/70 dark:bg-slate-800/40 rounded-xl mx-4 my-1 grid grid-cols-2 gap-3 text-xs">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                          <Tag className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <div className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-semibold">Standard Fee</div>
+                          <div className="font-semibold text-slate-800 dark:text-slate-200">{service.cashPrice}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+                          <Clock className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <div className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-semibold">Duration</div>
+                          <div className="font-semibold text-slate-800 dark:text-slate-200">{service.duration}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Visibility Badges */}
+                    <div className="px-5 py-2.5 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${service.bookableOnline !== false
+                            ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-medium"
+                            : "bg-muted text-muted-foreground line-through"
+                          }`}
+                      >
+                        <Check className="w-3 h-3" /> Online Booking
+                      </span>
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${service.isPublic !== false
+                            ? "bg-blue-500/10 text-blue-700 dark:text-blue-400 font-medium"
+                            : "bg-muted text-muted-foreground line-through"
+                          }`}
+                      >
+                        <Eye className="w-3 h-3" /> Website Visible
+                      </span>
+                      {service.bufferMinutes > 0 && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted font-medium">
+                          +{service.bufferMinutes}m buffer
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Action Bar */}
+                  <div onClick={(e) => e.stopPropagation()} className="px-5 py-3 border-t border-slate-100 dark:border-slate-800/60 bg-transparent flex items-center justify-between gap-2">
+                    {/* Reorder Arrows */}
+                    <div className="flex items-center gap-0.5">
+                      <button
+                        onClick={() => handleMove(idx, -1)}
+                        disabled={idx === 0}
+                        title="Move Up"
+                        className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                      >
+                        <ArrowUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleMove(idx, 1)}
+                        disabled={idx === filteredServices.length - 1}
+                        title="Move Down"
+                        className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                      >
+                        <ArrowDown className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleToggleStatus(service.id, service.isActive !== false)}
+                        className={`text-xs px-2.5 py-1 rounded-md font-medium transition-colors ${service.isActive !== false
+                            ? "text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10"
+                            : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                          }`}
+                      >
+                        {service.isActive !== false ? "Archive" : "Activate"}
+                      </button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openEditDrawer(service)}
+                        className="gap-1.5 text-xs h-8"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                        Edit
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              </Reorder.Item>
+            ))}
+          </Reorder.Group>
+
+          {/* Scalable Server/Client Pagination Component */}
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filteredServices.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+            pageSizeOptions={[6, 12, 24]}
+            itemName="Services"
+            className="pt-2"
+          />
+        </div>
+      )}
+
+      {/* Add / Edit Service Structured Drawer - Soft, Elegant & Rounded */}
+      {drawerOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-end bg-black/60 backdrop-blur-xs animate-in fade-in duration-300"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setDrawerOpen(false);
+          }}
+        >
+          <div className="h-full w-full max-w-2xl bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-l-3xl shadow-2xl border-l border-gray-200 dark:border-gray-800 flex flex-col justify-between overflow-hidden animate-in slide-in-from-right duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]">
+            {/* Drawer Header */}
+            <div className="p-6 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex items-center justify-between shrink-0">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-primary">Catalog Definition</span>
+                <h2 className="text-xl font-bold text-foreground mt-0.5">
+                  {editingId ? "Edit Procedure" : "Add New Procedure"}
+                </h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Configure procedure details, fee, standard duration, and website visibility.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(false)}
+                className="w-9 h-9 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                aria-label="Close drawer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Drawer Body - Scrollable Form with 5 Structured Sections */}
+            <form id="service-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-8">
+              {/* SECTION 1: Basic Information */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 border-b border-border/40 pb-2">
+                  <span className="w-6 h-6 rounded-lg bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">1</span>
+                  <h3 className="font-semibold text-foreground text-sm">Basic Information</h3>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <TextField
-                    id="service-slug"
-                    label="Slug (URL key / Identifier)"
-                    value={form.slug}
-                    onChange={(e) => setForm({ ...form, slug: e.target.value })}
-                    placeholder="cleanings-exams"
-                    required
-                  />
+                  <div className="sm:col-span-2">
+                    <label className="text-xs font-bold text-foreground mb-1.5 block">Procedure Title *</label>
+                    <input
+                      type="text"
+                      required
+                      value={form.title}
+                      onChange={(e) => handleTitleChange(e.target.value)}
+                      placeholder="e.g. Routine Examination & Hygiene"
+                      className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground placeholder:text-muted-foreground outline-none font-medium transition-all"
+                    />
+                  </div>
 
                   <div>
-                    <label htmlFor="service-cat" className="block text-xs font-medium text-ink mb-1.5">
-                      Category
-                    </label>
+                    <label className="text-xs font-bold text-foreground mb-1.5 block">URL Slug *</label>
+                    <input
+                      type="text"
+                      required
+                      value={form.slug}
+                      onChange={(e) => setForm({ ...form, slug: e.target.value })}
+                      placeholder="routine-examination-hygiene"
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-mono text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-foreground mb-1.5 block">Category *</label>
                     <select
-                      id="service-cat"
                       value={form.category}
                       onChange={(e) => setForm({ ...form, category: e.target.value })}
-                      className="w-full rounded-[var(--radius-card)] border border-line bg-bone px-3.5 py-2 text-xs text-ink"
+                      className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground placeholder:text-muted-foreground outline-none font-medium transition-all"
                     >
-                      {CATEGORIES.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.label}
+                      {CATEGORIES.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.label}
                         </option>
                       ))}
                     </select>
                   </div>
-                </div>
 
-                <TextField
-                  id="service-title"
-                  label="Service Title"
-                  value={form.title}
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  placeholder="Cleanings & Comprehensive Exam"
-                  required
-                />
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <TextField
-                    id="service-price"
-                    label="Cash Price"
-                    value={form.cashPrice}
-                    onChange={(e) => setForm({ ...form, cashPrice: e.target.value })}
-                    placeholder="from Rs 1,500"
-                    required
-                  />
-                  <TextField
-                    id="service-duration"
-                    label="Estimated Duration"
-                    value={form.duration}
-                    onChange={(e) => setForm({ ...form, duration: e.target.value })}
-                    placeholder="45 to 60 min"
-                    required
-                  />
-                  <TextField
-                    id="service-code"
-                    label="CDT Billing Code"
-                    value={form.code}
-                    onChange={(e) => setForm({ ...form, code: e.target.value })}
-                    placeholder="CDT D0150 / D1110"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="service-short" className="block text-xs font-medium text-ink mb-1.5">
-                    Short Description (Card Summary)
-                  </label>
-                  <textarea
-                    id="service-short"
-                    rows={2}
-                    value={form.shortDesc}
-                    onChange={(e) => setForm({ ...form, shortDesc: e.target.value })}
-                    required
-                    className="w-full rounded-[var(--radius-card)] border border-line bg-bone px-3.5 py-2 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-forest"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="service-full" className="block text-xs font-medium text-ink mb-1.5">
-                    Full Description (Detail Modal / Expanded View)
-                  </label>
-                  <textarea
-                    id="service-full"
-                    rows={3}
-                    value={form.fullDesc}
-                    onChange={(e) => setForm({ ...form, fullDesc: e.target.value })}
-                    className="w-full rounded-[var(--radius-card)] border border-line bg-bone px-3.5 py-2 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-forest"
-                  />
-                </div>
-
-                {/* Service Image Section */}
-                <div className="space-y-3 rounded-xl border border-line bg-cream/40 p-4">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-xs font-semibold text-ink">
-                      Service Image
-                    </label>
-                    {form.imageUrl && (
-                      <button
-                        type="button"
-                        onClick={() => setForm({ ...form, imageUrl: "" })}
-                        className="text-[10px] text-red-600 hover:underline cursor-pointer"
-                      >
-                        Remove Image
-                      </button>
-                    )}
+                  <div>
+                    <label className="text-xs font-bold text-foreground mb-1.5 block">Billing / Insurance Code</label>
+                    <input
+                      type="text"
+                      value={form.code}
+                      onChange={(e) => setForm({ ...form, code: e.target.value })}
+                      placeholder="e.g. D0120, SRV-01"
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-mono text-xs"
+                    />
                   </div>
 
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                    <label className="inline-flex items-center gap-2 rounded-lg border border-line bg-bone px-3 py-2 text-xs font-medium text-ink cursor-pointer hover:bg-cream transition-colors">
-                      <Upload className="h-3.5 w-3.5 text-forest" />
-                      <span>{isUploadingImage ? "Uploading..." : "Choose File"}</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="hidden"
-                        disabled={isUploadingImage}
-                      />
-                    </label>
-                    {isUploadingImage && (
-                      <span className="text-xs text-forest animate-pulse font-medium">Uploading image to server...</span>
-                    )}
+                  <div>
+                    <label className="text-xs font-bold text-foreground mb-1.5 block">Insurance Coverage Note</label>
+                    <input
+                      type="text"
+                      value={form.insuranceNote}
+                      onChange={(e) => setForm({ ...form, insuranceNote: e.target.value })}
+                      placeholder="e.g. Usually 80% covered by primary"
+                      className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground placeholder:text-muted-foreground outline-none font-medium transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 2: Description & Media */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 border-b border-border/40 pb-2">
+                  <span className="w-6 h-6 rounded-lg bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">2</span>
+                  <h3 className="font-semibold text-foreground text-sm">Description & Media</h3>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-foreground mb-1.5 block">Short Summary *</label>
+                    <textarea
+                      rows={2}
+                      value={form.shortDesc}
+                      onChange={(e) => setForm({ ...form, shortDesc: e.target.value })}
+                      placeholder="Brief overview shown on booking cards and search results..."
+                      className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground placeholder:text-muted-foreground outline-none font-medium transition-all"
+                    />
                   </div>
 
-                  <TextField
-                    id="service-image-url"
-                    label="Image URL (auto-filled on file upload or enter /images/...)"
-                    value={form.imageUrl}
-                    onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
-                    placeholder="/images/treatment-cleanings.jpg or /uploads/..."
-                  />
+                  <div>
+                    <label className="text-xs font-bold text-foreground mb-1.5 block">Full Clinical Description</label>
+                    <textarea
+                      rows={4}
+                      value={form.fullDesc}
+                      onChange={(e) => setForm({ ...form, fullDesc: e.target.value })}
+                      placeholder="Comprehensive procedure description, patient preparation, and post-treatment guidance..."
+                      className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground placeholder:text-muted-foreground outline-none font-medium transition-all"
+                    />
+                  </div>
 
-                  {form.imageUrl && (
-                    <div className="mt-2 flex items-center gap-3">
-                      <div className="relative h-16 w-24 rounded-lg overflow-hidden border border-line bg-gray-100 dark:bg-gray-800 shadow-xs">
-                        <img
-                          src={resolveMediaUrl(form.imageUrl) || form.imageUrl}
-                          alt="Service preview"
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                      <span className="text-[11px] font-mono text-ink-soft truncate max-w-xs">{form.imageUrl}</span>
+                  <div>
+                    <label className="text-xs font-bold text-foreground mb-1.5 block">Service Image / Illustration</label>
+                    <div className="flex items-center gap-4">
+                      {form.imageUrl ? (
+                        <div className="flex items-center gap-3 p-3 rounded-xl border border-border bg-muted/20 w-full">
+                          <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-border shrink-0 bg-muted">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={resolveMediaUrl(form.imageUrl) || undefined}
+                              alt={form.title}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <span className="text-xs font-semibold text-foreground block truncate">Service Thumbnail</span>
+                            <span className="text-[11px] text-muted-foreground block truncate font-mono">
+                              {form.imageUrl.split("/").pop()}
+                            </span>
+                            <div className="flex items-center gap-2 mt-2">
+                              <label className="text-[11px] font-semibold text-primary hover:underline cursor-pointer">
+                                Change Image
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={handleImageUpload}
+                                  disabled={isUploadingImage}
+                                  className="hidden"
+                                />
+                              </label>
+                              <span className="text-muted-foreground">·</span>
+                              <button
+                                type="button"
+                                onClick={() => setForm({ ...form, imageUrl: "" })}
+                                className="text-[11px] font-semibold text-destructive hover:underline"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <label className="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-border rounded-xl text-xs font-medium text-muted-foreground hover:border-primary hover:text-foreground cursor-pointer transition-colors w-full bg-muted/10">
+                          <Upload className="w-5 h-5 text-primary" />
+                          <span>{isUploadingImage ? "Uploading..." : "Click to upload procedure illustration (max 15MB)"}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                            disabled={isUploadingImage}
+                            className="hidden"
+                          />
+                        </label>
+                      )}
                     </div>
-                  )}
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 3: Pricing & Duration */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 border-b border-border/40 pb-2">
+                  <span className="w-6 h-6 rounded-lg bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">3</span>
+                  <h3 className="font-semibold text-foreground text-sm">Pricing & Duration</h3>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <TextField
-                    id="service-rec"
-                    label="Recommended Interval Text"
-                    value={form.recommendedInterval}
-                    onChange={(e) => setForm({ ...form, recommendedInterval: e.target.value })}
-                    placeholder="Every 6 months"
-                  />
-                  <TextField
-                    id="service-recall-days"
-                    label="Recall Interval (Days)"
-                    type="number"
-                    value={
-                      form.recallIntervalDays !== undefined ? String(form.recallIntervalDays) : ""
-                    }
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        recallIntervalDays: e.target.value ? Number(e.target.value) : undefined,
-                      })
-                    }
-                    placeholder="e.g. 180 (or 90 for perio)"
-                  />
+                  <div>
+                    <label className="text-xs font-bold text-foreground mb-1.5 block">Standard Cash Fee *</label>
+                    <input
+                      type="text"
+                      required
+                      value={form.cashPrice}
+                      onChange={(e) => setForm({ ...form, cashPrice: e.target.value })}
+                      placeholder="e.g. Rs. 4,500"
+                      className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground placeholder:text-muted-foreground outline-none font-medium transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-foreground mb-1.5 block">Baseline Duration *</label>
+                    <input
+                      type="text"
+                      required
+                      value={form.duration}
+                      onChange={(e) => setForm({ ...form, duration: e.target.value })}
+                      placeholder="e.g. 45 min"
+                      className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground placeholder:text-muted-foreground outline-none font-medium transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-foreground mb-1.5 block">Recall Interval (Days)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={form.recallIntervalDays ?? ""}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          recallIntervalDays: e.target.value ? Number(e.target.value) : undefined,
+                        })
+                      }
+                      placeholder="e.g. 180"
+                      className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground placeholder:text-muted-foreground outline-none font-medium transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-foreground mb-1.5 block">Recommended Interval Label</label>
+                    <input
+                      type="text"
+                      value={form.recommendedInterval}
+                      onChange={(e) => setForm({ ...form, recommendedInterval: e.target.value })}
+                      placeholder="e.g. Every 6 months"
+                      className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground placeholder:text-muted-foreground outline-none font-medium transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 4: Website Visibility */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 border-b border-border/40 pb-2">
+                  <span className="w-6 h-6 rounded-lg bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">4</span>
+                  <h3 className="font-semibold text-foreground text-sm">Website Visibility</h3>
                 </div>
 
-                <div className="flex items-center gap-6 pt-2">
-                  <label className="flex items-center gap-2 text-xs font-medium text-ink cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={form.isHighlighted}
-                      onChange={(e) => setForm({ ...form, isHighlighted: e.target.checked })}
-                      className="rounded border-line text-forest focus:ring-forest"
-                    />
-                    <span>Highlight as Featured Treatment</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 text-xs font-medium text-ink cursor-pointer">
+                <div className="space-y-3">
+                  <label className="flex items-center justify-between p-3.5 rounded-xl border border-border bg-muted/20 cursor-pointer hover:bg-muted/40 transition-colors">
+                    <div>
+                      <div className="font-semibold text-sm text-foreground">Public Website Display</div>
+                      <div className="text-xs text-muted-foreground">Show this procedure on the public treatments and services showcase.</div>
+                    </div>
                     <input
                       type="checkbox"
                       checked={form.isPublic}
                       onChange={(e) => setForm({ ...form, isPublic: e.target.checked })}
-                      className="rounded border-line text-forest focus:ring-forest"
+                      className="w-4 h-4 rounded text-primary focus:ring-primary"
                     />
-                    <span>Show on Public Website</span>
+                  </label>
+
+                  <label className="flex items-center justify-between p-3.5 rounded-xl border border-border bg-muted/20 cursor-pointer hover:bg-muted/40 transition-colors">
+                    <div>
+                      <div className="font-semibold text-sm text-foreground">Featured Treatment</div>
+                      <div className="text-xs text-muted-foreground">Highlight prominently on the homepage hero treatments section.</div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={form.isHighlighted}
+                      onChange={(e) => setForm({ ...form, isHighlighted: e.target.checked })}
+                      className="w-4 h-4 rounded text-primary focus:ring-primary"
+                    />
                   </label>
                 </div>
+              </div>
 
-                {/* Offering Clinics Multi-Select */}
-                {matrixClinics.length > 0 && (
-                  <div className="rounded-xl border border-line bg-cream/40 p-4 space-y-2">
-                    <label className="block text-[11px] font-semibold text-ink">
-                      Offering Clinics
-                    </label>
-                    <div className="flex flex-wrap gap-3">
-                      {matrixClinics.map((clinic) => {
-                        const isChecked = form.clinicIds.includes(clinic.id);
-                        return (
-                          <label
-                            key={clinic.id}
-                            className="flex items-center gap-2 text-xs text-ink cursor-pointer p-1.5 rounded hover:bg-cream"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setForm({ ...form, clinicIds: [...form.clinicIds, clinic.id] });
-                                } else {
-                                  setForm({
-                                    ...form,
-                                    clinicIds: form.clinicIds.filter((id) => id !== clinic.id),
-                                  });
-                                }
-                              }}
-                              className="rounded border-line text-forest focus:ring-forest"
-                            />
-                            <span>{clinic.name}</span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+              {/* SECTION 5: General Booking Settings */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 border-b border-border/40 pb-2">
+                  <span className="w-6 h-6 rounded-lg bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">5</span>
+                  <h3 className="font-semibold text-foreground text-sm">General Booking Settings</h3>
+                </div>
 
-                {/* Online Booking & Clinician Assignment */}
-                <div className="rounded-xl border border-line bg-cream/40 p-4 space-y-4">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-ink-soft">
-                    Online Booking &amp; Clinician Assignment
-                  </h4>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-                    <label className="flex items-center gap-2 text-xs font-medium text-ink cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={form.bookableOnline}
-                        onChange={(e) => setForm({ ...form, bookableOnline: e.target.checked })}
-                        className="rounded border-line text-forest focus:ring-forest"
-                      />
-                      <span>Allow Online Patient Booking</span>
-                    </label>
-
+                <div className="space-y-4">
+                  <label className="flex items-center justify-between p-3.5 rounded-xl border border-border bg-muted/20 cursor-pointer hover:bg-muted/40 transition-colors">
                     <div>
-                      <label htmlFor="service-buffer" className="block text-[11px] font-medium text-ink mb-1">
-                        Post-Procedure Buffer Time (Minutes)
-                      </label>
-                      <input
-                        id="service-buffer"
-                        type="number"
-                        min={0}
-                        max={120}
-                        step={5}
-                        value={form.bufferMinutes}
-                        onChange={(e) =>
-                          setForm({ ...form, bufferMinutes: parseInt(e.target.value, 10) || 0 })
-                        }
-                        className="w-full rounded-[var(--radius-card)] border border-line bg-bone px-3 py-1.5 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-forest"
-                      />
-                      <p className="text-[10px] text-ink-soft mt-0.5">Buffer for room sterilization &amp; chair prep.</p>
+                      <div className="font-semibold text-sm text-foreground">Online Patient Booking</div>
+                      <div className="text-xs text-muted-foreground">Allow patients to book this procedure through the public online booking widget.</div>
                     </div>
-                  </div>
+                    <input
+                      type="checkbox"
+                      checked={form.bookableOnline}
+                      onChange={(e) => setForm({ ...form, bookableOnline: e.target.checked })}
+                      className="w-4 h-4 rounded text-primary focus:ring-primary"
+                    />
+                  </label>
 
-                  {/* Clinician Multi-Select */}
                   <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-[11px] font-semibold text-ink">
-                        Assigned Clinicians (Doctor Assignment)
-                      </label>
-                      {form.providerIds.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setForm({ ...form, providerIds: [] })}
-                          className="text-[10px] text-forest underline hover:text-forest/80 font-medium"
-                        >
-                          Reset to All Doctors
-                        </button>
-                      )}
-                    </div>
-
-                    {form.providerIds.length === 0 ? (
-                      <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-2.5 mb-2 text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
-                        <Check className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                        <span>
-                          <strong>Every active doctor at this clinic performs this service.</strong> (Empty set means unassigned &mdash; all doctors at the offering clinic are eligible).
-                        </span>
-                      </div>
-                    ) : (
-                      <p className="text-[11px] text-ink-soft mb-2">
-                        Only the {form.providerIds.length} checked doctor{form.providerIds.length > 1 ? "s" : ""} will be bookable for this service.
-                      </p>
-                    )}
-
-                    {teamMembers.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto border border-line rounded-lg p-2 bg-bone">
-                        {teamMembers.map((tm) => {
-                          const isChecked = form.providerIds.includes(tm.id);
-                          return (
-                            <label
-                              key={tm.id}
-                              className="flex items-center gap-2 text-xs text-ink p-1.5 rounded hover:bg-cream cursor-pointer"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setForm({ ...form, providerIds: [...form.providerIds, tm.id] });
-                                  } else {
-                                    setForm({
-                                      ...form,
-                                      providerIds: form.providerIds.filter((id) => id !== tm.id),
-                                    });
-                                  }
-                                }}
-                                className="rounded border-line text-forest focus:ring-forest"
-                              />
-                              <span className="truncate">
-                                {tm.displayName} ({tm.professionalTitle || tm.role})
-                              </span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-ink-soft italic">No active clinicians found.</p>
-                    )}
+                    <label className="text-xs font-bold text-foreground mb-1.5 block">Default Buffer Minutes</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={120}
+                      value={form.bufferMinutes}
+                      onChange={(e) => setForm({ ...form, bufferMinutes: Number(e.target.value) || 0 })}
+                      placeholder="e.g. 10 (minutes for sanitization/turnaround)"
+                      className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-border bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary text-foreground placeholder:text-muted-foreground outline-none font-medium transition-all"
+                    />
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Clinicians can override this buffer specifically in Team Management.
+                    </p>
                   </div>
                 </div>
 
-                <div className="sticky bottom-0 z-20 bg-cream dark:bg-gray-900 -mb-6 sm:-mb-8 -mx-6 sm:-mx-8 px-6 sm:px-8 py-4 border-t border-line/60 flex justify-end gap-2 shadow-xs">
-                  <Button type="button" variant="secondary" size="sm" onClick={() => setShowModal(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" variant="primary" size="sm">
-                    {editingId ? "Update Service" : "Save Service"}
-                  </Button>
+                {/* Scope Guidance Box */}
+                <div className="p-4 rounded-xl bg-muted/50 border border-border text-xs text-muted-foreground space-y-1">
+                  <p className="font-semibold text-foreground">Need to configure branch offerings or doctor permissions?</p>
+                  <p>
+                    • Branches choose which catalog services they offer in{" "}
+                    <Link href="/admin/locations" className="text-primary hover:underline font-medium">
+                      Locations → Services
+                    </Link>
+                    .
+                  </p>
+                  <p>
+                    • Doctors are authorized to perform services with custom duration overrides in{" "}
+                    <Link href="/admin/team" className="text-primary hover:underline font-medium">
+                      Team → Services
+                    </Link>
+                    .
+                  </p>
                 </div>
-              </form>
-            </Card>
+              </div>
+            </form>
+
+            {/* Drawer Footer - Frosted Glass Bar */}
+            <div className="p-5 border-t border-border bg-card flex items-center justify-end gap-3 rounded-bl-3xl shrink-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setDrawerOpen(false)}
+                disabled={isSaving}
+                className="rounded-xl px-5 py-2.5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                form="service-form"
+                disabled={isSaving}
+                className="rounded-xl px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-xs transition-all"
+              >
+                {isSaving ? "Saving..." : editingId ? "Save Changes" : "Create Procedure"}
+              </Button>
+            </div>
           </div>
         </div>
       )}
-
-      {/* Doctor Assignment Picker Modal from Matrix */}
-      {assignDoctorModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overflow-y-auto">
-          <div className="w-full max-w-md my-8">
-            <Card surface="cream" shadow="elevated" className="p-6 space-y-4" hoverLift={true} index={3}>
-              <div className="flex items-center justify-between border-b border-line pb-3">
-                <h3 className="font-display text-base text-ink font-semibold">
-                  Doctor Assignment: {assignDoctorModal.serviceTitle}
-                </h3>
-                <button
-                  onClick={() => setAssignDoctorModal(null)}
-                  className="text-xs text-ink-soft hover:text-ink font-mono"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                {assignDoctorModal.providerIds.length === 0 ? (
-                  <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-3 text-xs text-emerald-800 dark:text-emerald-300 flex items-start gap-2">
-                    <Check className="h-4 w-4 shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
-                    <div>
-                      <p className="font-semibold">Empty Set (Default)</p>
-                      <p className="text-[11px] text-emerald-700 dark:text-emerald-300/80 mt-0.5">
-                        Every active doctor at this clinic performs this service. Select individual doctors below to restrict eligibility.
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between text-xs text-ink-soft">
-                    <span>
-                      {assignDoctorModal.providerIds.length} doctor{assignDoctorModal.providerIds.length > 1 ? "s" : ""} selected.
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setAssignDoctorModal({ ...assignDoctorModal, providerIds: [] })
-                      }
-                      className="text-forest underline font-semibold text-[11px]"
-                    >
-                      Reset to All Doctors
-                    </button>
-                  </div>
-                )}
-
-                <div className="max-h-60 overflow-y-auto border border-line rounded-lg p-2 bg-bone space-y-1">
-                  {teamMembers.map((tm) => {
-                    const isChecked = assignDoctorModal.providerIds.includes(tm.id);
-                    return (
-                      <label
-                        key={tm.id}
-                        className="flex items-center gap-2.5 text-xs text-ink p-2 rounded hover:bg-cream cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={(e) => {
-                            const newIds = e.target.checked
-                              ? [...assignDoctorModal.providerIds, tm.id]
-                              : assignDoctorModal.providerIds.filter((id) => id !== tm.id);
-                            setAssignDoctorModal({ ...assignDoctorModal, providerIds: newIds });
-                          }}
-                          className="rounded border-line text-forest focus:ring-forest"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-ink truncate">{tm.displayName}</p>
-                          <p className="text-[10px] text-ink-soft truncate">
-                            {tm.professionalTitle || tm.role}
-                          </p>
-                        </div>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="pt-3 border-t border-line/60 flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setAssignDoctorModal(null)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  onClick={handleSaveDoctorAssignment}
-                >
-                  Save Assignment
-                </Button>
-              </div>
-            </Card>
-          </div>
-        </div>
-      )}
-    </div>
-  </AnimatedPage>
+      {/* Unified Entity Details Modal */}
+      <EntityDetailsModal
+        isOpen={Boolean(selectedEntityModal)}
+        onClose={() => setSelectedEntityModal(null)}
+        initialEntity={selectedEntityModal}
+        allServices={services}
+        allTeamMembers={allTeamMembers}
+        allLocations={allLocations}
+        accessToken={accessToken}
+      />
+    </AnimatedPage>
   );
 }

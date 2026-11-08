@@ -77,7 +77,7 @@ export function FAQ() {
   return (
     <section
       id="faq"
-      className="border-t border-gray-200 dark:border-gray-800 bg-[#FAF9F5] dark:bg-gray-900/50 py-20 md:py-28"
+      className="border-t border-gray-200 dark:border-gray-800 bg-[#FAF9F5] dark:bg-gray-900/50 py-28 md:py-36"
     >
       {/* Technical SEO: FAQPage Structured Data */}
       {faqs.length > 0 && (

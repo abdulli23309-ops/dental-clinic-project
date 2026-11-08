@@ -273,12 +273,6 @@ class BookingEligibilityService:
                     reasons=["NO_ACTIVE_CLINIC"],
                 )
 
-        # 2. Check doctor assignment per spec:
-        # Doctors are linked to services via service_providers.
-        # If a service has no provider rows, every active doctor at that clinic can perform it.
-        provider_links = await self.booking_settings_repo.list_service_providers(service_id=svc.id)
-        linked_provider_ids = [l.team_member_id for l in provider_links]
-
         eligible_clinics: List[UUID] = []
         eligible_doctors: List[UUID] = []
         first_date: Optional[date] = None
@@ -303,13 +297,16 @@ class BookingEligibilityService:
             d_res = await self.session.execute(doctor_stmt)
             active_clinic_doctors = list(d_res.scalars().all())
 
-            if linked_provider_ids:
-                qualified_doctors = [
-                    d for d in active_clinic_doctors if d.id in linked_provider_ids
-                ]
+            # Check branch-specific doctor-service assignments only. Unscoped null-clinic rows
+            # are not treated as a silent fallback for a specific branch.
+            clinic_provider_links = await self.booking_settings_repo.list_service_providers(
+                service_id=svc.id, clinic_id=clinic.id
+            )
+            if clinic_provider_links:
+                linked_ids = [l.team_member_id for l in clinic_provider_links if l.is_active]
+                qualified_doctors = [d for d in active_clinic_doctors if d.id in linked_ids]
             else:
-                # Empty provider set = all active doctors at that clinic
-                qualified_doctors = active_clinic_doctors
+                qualified_doctors = []
 
             if not qualified_doctors:
                 if "NO_ELIGIBLE_DOCTOR" not in reasons_accumulated:
@@ -481,8 +478,17 @@ class BookingEligibilityService:
             return []
 
         # Find qualified doctors
-        provider_links = await self.booking_settings_repo.list_service_providers(service_id=svc.id)
-        linked_ids = [l.team_member_id for l in provider_links]
+        clinic_provider_links = await self.booking_settings_repo.list_service_providers(
+            service_id=svc.id, clinic_id=clinic_id
+        )
+        if clinic_provider_links:
+            linked_ids = [l.team_member_id for l in clinic_provider_links if l.is_active]
+        else:
+            all_links = await self.booking_settings_repo.list_service_providers(service_id=svc.id)
+            if all_links:
+                linked_ids = [l.team_member_id for l in all_links if l.clinic_id is None and l.is_active]
+            else:
+                linked_ids = None
 
         shift_subquery = (
             select(ProviderAvailabilityORM.team_member_id)
@@ -501,7 +507,7 @@ class BookingEligibilityService:
         d_res = await self.session.execute(doc_stmt)
         clinic_doctors = list(d_res.scalars().all())
 
-        if linked_ids:
+        if linked_ids is not None:
             doctors = [d for d in clinic_doctors if d.id in linked_ids]
         else:
             doctors = clinic_doctors

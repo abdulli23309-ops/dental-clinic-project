@@ -7,10 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 async def test_admin_roles_crud(client_with_db: AsyncClient, test_session: AsyncSession, admin_auth):
     headers = admin_auth["headers"]
 
-    # 1. List all roles
+    # 1. List all roles (unpaginated backward-compatible list)
     resp = await client_with_db.get("/api/v1/admin/roles", headers=headers)
     assert resp.status_code == 200
     roles = resp.json()
+    assert isinstance(roles, list)
     assert len(roles) >= 13
     assert any(r["name"] == "Dentist" for r in roles)
 
@@ -60,3 +61,48 @@ async def test_admin_roles_crud(client_with_db: AsyncClient, test_session: Async
     pub_resp2 = await client_with_db.get("/api/v1/public/roles")
     pub_list = pub_resp2.json()
     assert not any(r["id"] == role_id for r in pub_list)
+
+
+@pytest.mark.asyncio
+async def test_admin_roles_pagination(client_with_db: AsyncClient, test_session: AsyncSession, admin_auth):
+    headers = admin_auth["headers"]
+
+    # 1. Page 1 with per_page = 6
+    p1_resp = await client_with_db.get("/api/v1/admin/roles?page=1&per_page=6", headers=headers)
+    assert p1_resp.status_code == 200
+    p1 = p1_resp.json()
+    assert isinstance(p1, dict)
+    assert "items" in p1
+    assert p1["page"] == 1
+    assert p1["per_page"] == 6
+    assert len(p1["items"]) == 6
+    assert p1["total"] >= 13
+    assert p1["total_pages"] >= 3
+
+    # 2. Page 2 with per_page = 6
+    p2_resp = await client_with_db.get("/api/v1/admin/roles?page=2&per_page=6", headers=headers)
+    assert p2_resp.status_code == 200
+    p2 = p2_resp.json()
+    assert p2["page"] == 2
+    assert p2["per_page"] == 6
+    assert len(p2["items"]) == 6
+
+    # Verify distinct items between pages
+    p1_ids = {r["id"] for r in p1["items"]}
+    p2_ids = {r["id"] for r in p2["items"]}
+    assert p1_ids.isdisjoint(p2_ids)
+
+    # 3. Beyond last page: empty items, valid metadata
+    p_high_resp = await client_with_db.get("/api/v1/admin/roles?page=999&per_page=6", headers=headers)
+    assert p_high_resp.status_code == 200
+    p_high = p_high_resp.json()
+    assert p_high["page"] == 999
+    assert len(p_high["items"]) == 0
+    assert p_high["total"] == p1["total"]
+
+    # 4. Search with pagination
+    search_resp = await client_with_db.get("/api/v1/admin/roles?search=dentist&page=1&per_page=12", headers=headers)
+    assert search_resp.status_code == 200
+    s_data = search_resp.json()
+    assert s_data["page"] == 1
+    assert all("dentist" in (r["name"] + r["displayName"]).lower() for r in s_data["items"])

@@ -552,6 +552,18 @@ async def save_doctor_service(
     return await service.save_doctor_service(req=req, user_id=current_user.id)
 
 
+@router.delete("/doctor-services/{assignment_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_doctor_service(
+    assignment_id: UUID,
+    current_user: User = Depends(require_admin),
+    service: BookingSettingsService = Depends(get_booking_settings_service),
+) -> None:
+    """Removes a doctor-service assignment."""
+    deleted = await service.delete_doctor_service(assignment_id=assignment_id, user_id=current_user.id)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assignment not found")
+
+
 # ---------------------------------------------------------------------------
 # Doctor Schedule Overrides Endpoints
 # ---------------------------------------------------------------------------

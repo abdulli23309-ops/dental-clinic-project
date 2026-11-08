@@ -9,6 +9,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { Pagination } from "@/components/ui/pagination";
 
 export default function DoctorPatientsPage() {
   const { accessToken } = useAuth();
@@ -16,6 +17,10 @@ export default function DoctorPatientsPage() {
   const [search, setSearch] = useState("");
   const [patients, setPatients] = useState<DoctorPatientSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Pagination state (Blueprint Phase 4)
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const loadPatients = async (query = search) => {
     setIsLoading(true);
@@ -117,7 +122,7 @@ export default function DoctorPatientsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line/60">
-                {patients.map((p) => (
+                {(patients.slice((page - 1) * pageSize, page * pageSize)).map((p) => (
                   <tr key={p.id} className="hover:bg-sand/20 transition-colors">
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
@@ -152,6 +157,18 @@ export default function DoctorPatientsPage() {
             </table>
           </div>
         )}
+
+        {/* Pagination Controls */}
+        <Pagination
+          currentPage={page}
+          totalItems={patients.length}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          pageSizeOptions={[10, 25, 50]}
+          itemName="Patients"
+          className="border-t border-line px-4 py-3 bg-bone"
+        />
       </Card>
     </div>
   </AnimatedPage>

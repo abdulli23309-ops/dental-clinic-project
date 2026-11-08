@@ -114,32 +114,32 @@ class NotificationPipelineService:
         conf_id = details.get("confirmation_id", "N/A")
         date_str = details.get("date", "your appointment date")
         time_str = details.get("time", "your scheduled time")
-        clinic_name = details.get("clinic_name", "Marlow Dental")
+        clinic_name = details.get("clinic_name", "Hira Dental Clinic")
         service_title = details.get("service_title", "Dental Consultation")
 
         if event_type == "booking_confirmed":
             body = (
-                f"Marlow Dental Confirmation:\n"
+                f"Hira Dental Clinic Confirmation:\n"
                 f"Dear {patient_name}, your appointment ({conf_id}) for {service_title} "
                 f"is confirmed for {date_str} at {time_str} at {clinic_name}. "
                 f"For questions or directions, please call us."
             )
         elif event_type == "booking_rescheduled":
             body = (
-                f"Marlow Dental Reschedule Update:\n"
+                f"Hira Dental Clinic Reschedule Update:\n"
                 f"Dear {patient_name}, your appointment ({conf_id}) has been successfully rescheduled "
                 f"to {date_str} at {time_str} at {clinic_name}."
             )
         elif event_type == "booking_cancelled":
             reason = details.get("reason", "Cancelled per request")
             body = (
-                f"Marlow Dental Cancellation Notice:\n"
+                f"Hira Dental Clinic Cancellation Notice:\n"
                 f"Dear {patient_name}, your appointment ({conf_id}) for {date_str} at {time_str} "
                 f"has been cancelled ({reason}). Call us if you need to rebook."
             )
         else:
             body = (
-                f"Marlow Dental:\n"
+                f"Hira Dental Clinic:\n"
                 f"Dear {patient_name}, we received your booking request ({conf_id}) for {service_title} "
                 f"on {date_str} at {time_str}. Our reception team will review and confirm shortly."
             )

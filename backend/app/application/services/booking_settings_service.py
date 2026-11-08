@@ -42,7 +42,7 @@ from app.domain.models.booking_settings import (
 from app.domain.repositories.booking_repo import BookingRepository
 from app.domain.repositories.booking_settings_repo import BookingSettingsRepository
 from app.domain.repositories.organization_repo import OrganizationRepository
-from app.infrastructure.database.orm_models import AnnouncementORM, AppointmentCategoryORM, BookingORM, ClinicORM, DoctorScheduleOverrideORM, ProviderAvailabilityORM, ServiceORM, ServiceProviderORM, TaskORM, TeamMemberClinicORM, TeamMemberORM
+from app.infrastructure.database.orm_models import ClinicServiceORM, AnnouncementORM, AppointmentCategoryORM, BookingORM, ClinicORM, DoctorScheduleOverrideORM, ProviderAvailabilityORM, ServiceORM, ServiceProviderORM, TaskORM, TeamMemberClinicORM, TeamMemberORM
 from app.infrastructure.repositories.postgres_activity_repo import (
     PostgresActivityLogRepository,
     record_activity,
@@ -148,7 +148,8 @@ class BookingSettingsService:
                 )
                 continue
 
-            open_blocks = [b for b in blocks if not b.is_closed and b.open_time and b.close_time]
+            # Check if any block is 24 hours or open
+            open_blocks = [b for b in blocks if not b.is_closed and (b.is_24_hours or (b.open_time and b.close_time))]
             if not open_blocks:
                 first = blocks[0]
                 result.append(
@@ -160,6 +161,8 @@ class BookingSettingsService:
                         openTime=None,
                         closeTime=None,
                         isClosed=True,
+                        is24Hours=bool(getattr(first, "is_24_hours", False)),
+                        periodsJson=getattr(first, "periods_json", None),
                     )
                 )
             elif len(open_blocks) == 1:
@@ -173,6 +176,8 @@ class BookingSettingsService:
                         openTime=b.open_time,
                         closeTime=b.close_time,
                         isClosed=False,
+                        is24Hours=bool(getattr(b, "is_24_hours", False)),
+                        periodsJson=getattr(b, "periods_json", None),
                     )
                 )
             else:
@@ -188,6 +193,8 @@ class BookingSettingsService:
                         openTime=merged_time_str,
                         closeTime=None,
                         isClosed=False,
+                        is24Hours=any(getattr(b, "is_24_hours", False) for b in sorted_blocks),
+                        periodsJson=getattr(first, "periods_json", None),
                     )
                 )
 
@@ -685,11 +692,14 @@ class BookingSettingsService:
         return [
             WorkingHoursDto(
                 id=h.id,
+                clinicId=h.clinic_id,
                 dayOfWeek=h.day_of_week,
                 dayName=h.day_name,
                 openTime=h.open_time,
                 closeTime=h.close_time,
                 isClosed=h.is_closed,
+                is24Hours=bool(getattr(h, "is_24_hours", False)),
+                periodsJson=getattr(h, "periods_json", None),
             )
             for h in saved
         ]
@@ -1000,7 +1010,7 @@ class BookingSettingsService:
         if team_member_id:
             stmt = stmt.where(ServiceProviderORM.team_member_id == team_member_id)
         if clinic_id:
-            stmt = stmt.where(or_(ServiceProviderORM.clinic_id.is_(None), ServiceProviderORM.clinic_id == clinic_id))
+            stmt = stmt.where(ServiceProviderORM.clinic_id == clinic_id)
         res = await self.session.execute(stmt)
         sp_records = res.scalars().all()
 
@@ -1029,6 +1039,26 @@ class BookingSettingsService:
         req: DoctorServiceAssignmentRequest,
         user_id: Optional[UUID] = None,
     ) -> DoctorServiceAssignmentDto:
+        if req.clinicId is None:
+            raise HTTPException(
+                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="clinicId is required for branch-scoped doctor service assignments.",
+            )
+
+        cs_stmt = select(ClinicServiceORM).where(
+            ClinicServiceORM.service_id == req.serviceId,
+            ClinicServiceORM.clinic_id == req.clinicId,
+            ClinicServiceORM.is_active.is_(True),
+        )
+        cs_res = await self.session.execute(cs_stmt)
+        if cs_res.scalar_one_or_none() is None:
+            svc = await self.session.get(ServiceORM, req.serviceId)
+            slug = svc.slug if svc and svc.slug else str(req.serviceId)
+            raise HTTPException(
+                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Service '{slug}' is not offered at this branch. Add it to branch services first.",
+            )
+
         stmt = select(ServiceProviderORM).where(
             ServiceProviderORM.service_id == req.serviceId,
             ServiceProviderORM.team_member_id == req.teamMemberId,
@@ -1087,6 +1117,35 @@ class BookingSettingsService:
             bufferMinutes=sp.buffer_minutes,
             isActive=sp.is_active,
         )
+
+    async def delete_doctor_service(
+        self,
+        assignment_id: UUID,
+        user_id: Optional[UUID] = None,
+    ) -> bool:
+        sp = await self.session.get(ServiceProviderORM, assignment_id)
+        if not sp:
+            return False
+        service_id = str(sp.service_id)
+        team_member_id = str(sp.team_member_id)
+        clinic_id = str(sp.clinic_id) if sp.clinic_id else None
+
+        await self.session.delete(sp)
+        await self.session.flush()
+
+        await record_activity(
+            self.activity_repo,
+            action="delete_doctor_service",
+            entity_type="service_providers",
+            entity_id=str(assignment_id),
+            user_id=user_id,
+            details={
+                "service_id": service_id,
+                "team_member_id": team_member_id,
+                "clinic_id": clinic_id,
+            },
+        )
+        return True
 
     # ---------------------------------------------------------------------------
     # Doctor Schedule Overrides

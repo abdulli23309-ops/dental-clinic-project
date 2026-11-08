@@ -713,7 +713,7 @@ export default function ReceptionCallDeskPage() {
                     <span>Did you collect caller details before the line dropped?</span>
                   </p>
                   <p className="text-[11px] text-amber-800 dark:text-amber-300">
-                    If contact details were collected, Marlow will save an unconverted lead so the follow-up sequence can resume. If left blank, no lead is created.
+                    If contact details were collected, our system will save an unconverted lead so the follow-up sequence can resume. If left blank, no lead is created.
                   </p>
                   <div className="space-y-2">
                     <TextField

@@ -1,3 +1,4 @@
+from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 
 from app.api.deps import get_auth_service, get_current_user
@@ -12,6 +13,7 @@ from app.application.dtos.auth_dto import (
 )
 from app.application.services.auth_service import AuthService
 from app.core.config import settings
+from app.core.security import generate_csrf_token
 from app.core.limiter import limiter
 from app.core.security import hash_password, validate_password_strength, verify_password
 from app.domain.models.user import User
@@ -29,6 +31,32 @@ def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
         path="/",
         domain=settings.COOKIE_DOMAIN,
+    )
+
+
+def _set_csrf_cookie(response: Response) -> None:
+    """Sets the CSRF token in an HTTP-only cookie for same-site auth flows."""
+    csrf_token = generate_csrf_token()
+    response.set_cookie(
+        key="marlow_csrf_token",
+        value=csrf_token,
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/",
+        domain=settings.COOKIE_DOMAIN,
+    )
+
+
+def _clear_csrf_cookie(response: Response) -> None:
+    response.delete_cookie(
+        key="marlow_csrf_token",
+        path="/",
+        domain=settings.COOKIE_DOMAIN,
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
     )
 
 
@@ -84,6 +112,7 @@ async def login(
     )
 
     _set_refresh_cookie(response, refresh_token)
+    _set_csrf_cookie(response)
 
     return LoginResponse(
         accessToken=access_token,
@@ -131,7 +160,10 @@ async def refresh_token(
     )
 
 
-@router.post("/logout")
+@router.post(
+    "/logout",
+    summary="Logout and clear authentication state",
+)
 async def logout(
     request: Request,
     response: Response,
@@ -145,7 +177,25 @@ async def logout(
         await auth_service.logout(token_str)
 
     _clear_refresh_cookie(response)
+    _clear_csrf_cookie(response)
     return {"success": True, "message": "Successfully logged out."}
+
+
+@router.get("/csrf", summary="Get CSRF token for state-changing requests")
+async def get_csrf_token(response: Response) -> Dict[str, str]:
+    """Returns the current CSRF token. Frontend must use this token for state-changing requests."""
+    token = generate_csrf_token()
+    response.set_cookie(
+        key="marlow_csrf_token",
+        value=token,
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/",
+        domain=settings.COOKIE_DOMAIN,
+    )
+    return {"csrfToken": token}
 
 
 @router.get("/me", response_model=UserResponse)
@@ -209,3 +259,4 @@ async def change_password(
     await auth_service.refresh_token_repo.revoke_all_for_user(current_user.id)
 
     return {"success": True, "message": "Password changed successfully."}
+

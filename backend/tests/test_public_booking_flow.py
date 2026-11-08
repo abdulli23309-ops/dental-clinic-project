@@ -32,6 +32,7 @@ from app.infrastructure.database.orm_models import (
     ProviderAvailabilityORM,
     ServiceORM,
     ServiceProviderORM,
+    TeamMemberClinicORM,
     TeamMemberORM,
 )
 
@@ -276,10 +277,16 @@ async def seed_booking_env(test_session: AsyncSession):
     test_session.add(ClinicServiceORM(clinic_id=clinic_a_id, service_id=s4_id, is_active=True))
 
     # 6. Service Provider Links (service_providers)
-    # S1 performed by Dr. Tariq and Dr. Sara
-    test_session.add(ServiceProviderORM(service_id=s1_id, team_member_id=doc_tariq_id))
-    test_session.add(ServiceProviderORM(service_id=s1_id, team_member_id=doc_sara_id))
-    # S2 has NO provider rows -> all active doctors at that clinic (Dr. Tariq, Dr. Sara)
+    # Doctor clinic assignments
+    test_session.add(TeamMemberClinicORM(team_member_id=doc_tariq_id, clinic_id=clinic_a_id, is_active=True))
+    test_session.add(TeamMemberClinicORM(team_member_id=doc_sara_id, clinic_id=clinic_a_id, is_active=True))
+    test_session.add(TeamMemberClinicORM(team_member_id=doc_sara_id, clinic_id=clinic_b_id, is_active=True))
+    # S1 performed by Dr. Tariq and Dr. Sara at Clinic A and Clinic B
+    test_session.add(ServiceProviderORM(service_id=s1_id, team_member_id=doc_tariq_id, clinic_id=clinic_a_id, is_active=True))
+    test_session.add(ServiceProviderORM(service_id=s1_id, team_member_id=doc_sara_id, clinic_id=clinic_a_id, is_active=True))
+    test_session.add(ServiceProviderORM(service_id=s1_id, team_member_id=doc_sara_id, clinic_id=clinic_b_id, is_active=True))
+    # S2 performed by Dr. Tariq at Clinic A
+    test_session.add(ServiceProviderORM(service_id=s2_id, team_member_id=doc_tariq_id, clinic_id=clinic_a_id, is_active=True))
     # S3 linked to a doctor that doesn't belong to Clinic B
     unrelated_doc_id = uuid4()
     test_session.add(
@@ -295,9 +302,11 @@ async def seed_booking_env(test_session: AsyncSession):
             is_active=True,
         )
     )
-    test_session.add(ServiceProviderORM(service_id=s3_id, team_member_id=unrelated_doc_id))
-    # S4 linked to Dr. Off (has no availability shifts)
-    test_session.add(ServiceProviderORM(service_id=s4_id, team_member_id=doc_off_id))
+    test_session.add(TeamMemberClinicORM(team_member_id=unrelated_doc_id, clinic_id=clinic_a_id, is_active=True))
+    test_session.add(ServiceProviderORM(service_id=s3_id, team_member_id=unrelated_doc_id, clinic_id=clinic_a_id, is_active=True))
+    # S4 linked to Dr. Off (has no availability shifts during clinic open hours)
+    test_session.add(TeamMemberClinicORM(team_member_id=doc_off_id, clinic_id=clinic_a_id, is_active=True))
+    test_session.add(ServiceProviderORM(service_id=s4_id, team_member_id=doc_off_id, clinic_id=clinic_a_id, is_active=True))
 
     await test_session.commit()
 
@@ -1038,7 +1047,7 @@ async def test_eligibility_service_unit_rules(
     assert eval_s4.is_eligible is False
     assert "NO_SLOTS_IN_HORIZON" in eval_s4.reasons
 
-    # 5. Empty provider set (S2 root-canals at Clinic A) -> all active doctors can perform it
+    # 5. Doctor authorized for S2 (root-canals at Clinic A)
     eval_s2 = await eligibility_service.check_service_bookability(env["s2_id"], clinic_id=env["clinic_a_id"])
     assert eval_s2.is_eligible is True
     assert eval_s2.status == "eligible"

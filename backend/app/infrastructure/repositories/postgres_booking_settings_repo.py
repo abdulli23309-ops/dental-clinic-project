@@ -1,3 +1,4 @@
+from fastapi import HTTPException, status as http_status
 from datetime import date, datetime, timezone
 from typing import List, Optional
 from uuid import UUID, uuid4
@@ -20,6 +21,8 @@ from app.domain.models.booking_settings import (
 )
 from app.domain.repositories.booking_settings_repo import BookingSettingsRepository
 from app.infrastructure.database.orm_models import (
+    ClinicServiceORM,
+    ServiceORM,
     AppointmentCategoryORM,
     CancellationRequestORM,
     ClinicBookingSettingsORM,
@@ -462,12 +465,15 @@ class PostgresBookingSettingsRepository(BookingSettingsRepository):
         self,
         service_id: Optional[UUID] = None,
         team_member_id: Optional[UUID] = None,
+        clinic_id: Optional[UUID] = None,
     ) -> List[ServiceProviderLink]:
-        stmt = select(ServiceProviderORM)
+        stmt = select(ServiceProviderORM).where(ServiceProviderORM.is_active.is_(True))
         if service_id:
             stmt = stmt.where(ServiceProviderORM.service_id == service_id)
         if team_member_id:
             stmt = stmt.where(ServiceProviderORM.team_member_id == team_member_id)
+        if clinic_id:
+            stmt = stmt.where(ServiceProviderORM.clinic_id == clinic_id)
         res = await self.session.execute(stmt)
         orms = res.scalars().all()
         return [
@@ -475,19 +481,49 @@ class PostgresBookingSettingsRepository(BookingSettingsRepository):
                 id=o.id,
                 service_id=o.service_id,
                 team_member_id=o.team_member_id,
+                clinic_id=o.clinic_id,
+                custom_duration_minutes=o.custom_duration_minutes,
+                buffer_minutes=o.buffer_minutes,
+                is_active=o.is_active,
                 created_at=o.created_at,
             )
             for o in orms
         ]
 
-    async def set_service_providers(self, service_id: UUID, team_member_ids: List[UUID]) -> None:
-        del_stmt = delete(ServiceProviderORM).where(ServiceProviderORM.service_id == service_id)
+    async def set_service_providers(
+        self,
+        service_id: UUID,
+        team_member_ids: List[UUID],
+        clinic_id: UUID,
+    ) -> None:
+        if clinic_id is None:
+            raise ValueError("clinic_id is required; branch-unscoped service provider assignment is forbidden.")
+
+        cs_stmt = select(ClinicServiceORM).where(
+            ClinicServiceORM.service_id == service_id,
+            ClinicServiceORM.clinic_id == clinic_id,
+            ClinicServiceORM.is_active.is_(True),
+        )
+        cs_res = await self.session.execute(cs_stmt)
+        if cs_res.scalar_one_or_none() is None:
+            svc = await self.session.get(ServiceORM, service_id)
+            slug = svc.slug if svc and svc.slug else str(service_id)
+            raise HTTPException(
+                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Service '{slug}' is not offered at this branch. Add it to branch services first.",
+            )
+
+        del_stmt = delete(ServiceProviderORM).where(
+            ServiceProviderORM.service_id == service_id,
+            ServiceProviderORM.clinic_id == clinic_id,
+        )
         await self.session.execute(del_stmt)
         for tm_id in team_member_ids:
             self.session.add(
                 ServiceProviderORM(
                     service_id=service_id,
                     team_member_id=tm_id,
+                    clinic_id=clinic_id,
                     created_at=datetime.now(timezone.utc),
                 )
             )

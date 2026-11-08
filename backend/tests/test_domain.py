@@ -1,4 +1,5 @@
 from datetime import date
+import pytest
 from uuid import UUID
 from app.domain.models.appointment import Appointment, AppointmentStatus
 
@@ -39,3 +40,71 @@ def test_appointment_domain_status_transitions():
     apt.cancel(reason="Patient rescheduled to November.")
     assert apt.status == AppointmentStatus.CANCELLED
     assert apt.staff_notes == "Patient rescheduled to November."
+
+
+def test_appointment_domain_rejects_invalid_transitions():
+    from app.domain.models.appointment import InvalidAppointmentTransition
+
+    # Confirming an already-confirmed appointment is not allowed.
+    apt = Appointment(
+        confirmation_id="MD-2026-1003",
+        service_id="cleanings-exams",
+        preferred_date=date(2026, 10, 7),
+        preferred_time="10:00 AM",
+        patient_full_name="Bad Transition",
+        patient_phone="3125550177",
+        patient_email="bad@example.com",
+    )
+    apt.confirm()
+    with pytest.raises(InvalidAppointmentTransition):
+        apt.confirm()
+    assert apt.status == AppointmentStatus.CONFIRMED
+
+    # Cancelling a completed appointment is not allowed.
+    apt2 = Appointment(
+        confirmation_id="MD-2026-1004",
+        service_id="cleanings-exams",
+        preferred_date=date(2026, 10, 8),
+        preferred_time="10:00 AM",
+        patient_full_name="Terminal",
+        patient_phone="3125550166",
+        patient_email="term@example.com",
+    )
+    apt2.confirm()
+    apt2.complete()
+    assert apt2.status == AppointmentStatus.COMPLETED
+    with pytest.raises(InvalidAppointmentTransition):
+        apt2.cancel()
+    assert apt2.status == AppointmentStatus.COMPLETED
+
+    # Moving directly from REQUESTED to COMPLETED is not allowed.
+    apt3 = Appointment(
+        confirmation_id="MD-2026-1005",
+        service_id="cleanings-exams",
+        preferred_date=date(2026, 10, 9),
+        preferred_time="10:00 AM",
+        patient_full_name="Direct",
+        patient_phone="3125550155",
+        patient_email="direct@example.com",
+    )
+    with pytest.raises(InvalidAppointmentTransition):
+        apt3.complete()
+    assert apt3.status == AppointmentStatus.REQUESTED
+
+    # A cancelled appointment is terminal.
+    apt4 = Appointment(
+        confirmation_id="MD-2026-1006",
+        service_id="cleanings-exams",
+        preferred_date=date(2026, 10, 10),
+        preferred_time="10:00 AM",
+        patient_full_name="Terminal2",
+        patient_phone="3125550144",
+        patient_email="term2@example.com",
+    )
+    apt4.cancel()
+    assert apt4.status == AppointmentStatus.CANCELLED
+    with pytest.raises(InvalidAppointmentTransition):
+        apt4.confirm()
+    with pytest.raises(InvalidAppointmentTransition):
+        apt4.complete()
+    assert apt4.status == AppointmentStatus.CANCELLED

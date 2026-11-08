@@ -12,6 +12,13 @@ from app.infrastructure.repositories.postgres_patient_repo import PostgresPatien
 from app.infrastructure.repositories.postgres_service_repo import PostgresServiceRepository
 from app.infrastructure.repositories.postgres_team_repo import PostgresTeamMemberRepository
 from app.infrastructure.repositories.postgres_user_repo import PostgresUserRepository
+from app.infrastructure.database.orm_models import (
+    ClinicORM,
+    ClinicServiceORM,
+    OrganizationORM,
+    ServiceProviderORM,
+    TeamMemberClinicORM,
+)
 
 
 @pytest.mark.asyncio
@@ -30,6 +37,22 @@ async def test_complete_12_step_clinical_lifecycle(client_with_db, test_session)
 
     org_id = uuid4()
     clinic_id = uuid4()
+
+    org = OrganizationORM(id=org_id, name="Marlow Dental Practice", display_name="Marlow Dental Practice")
+    test_session.add(org)
+
+    clinic = ClinicORM(
+        id=clinic_id,
+        organization_id=org_id,
+        name="Marlow Main Clinic",
+        address_line1="123 Dental Way",
+        city="Chicago",
+        state="IL",
+        postal_code="60601",
+        is_active=True,
+    )
+    test_session.add(clinic)
+    await test_session.flush()
 
     # Create Dr. Sarah Marlow team member
     dr_marlow_tm = await team_repo.save(TeamMember(
@@ -64,6 +87,24 @@ async def test_complete_12_step_clinical_lifecycle(client_with_db, test_session)
         cash_price="280.00",
         duration="60m",
     ))
+    await test_session.commit()
+
+    # Seed the service the public booking form requests so DB-backed catalogue validation passes.
+    booking_service = await service_repo.save(Service(
+        slug="cleanings-exams",
+        category="preventive",
+        title="Cleanings & Comprehensive Exam",
+        short_desc="Routine cleaning and exam",
+        cash_price="from 140",
+        duration="45 to 60 min",
+        is_active=True,
+        is_public=True,
+        bookable_online=True,
+    ))
+    test_session.add(ClinicServiceORM(clinic_id=clinic_id, service_id=booking_service.id, is_active=True))
+    test_session.add(TeamMemberClinicORM(team_member_id=dr_marlow_tm.id, clinic_id=clinic_id, is_active=True))
+    test_session.add(ServiceProviderORM(team_member_id=dr_marlow_tm.id, service_id=booking_service.id, clinic_id=clinic_id, is_active=True))
+    await test_session.commit()
 
     # Create Receptionist user
     receptionist_user = await user_repo.save(User(

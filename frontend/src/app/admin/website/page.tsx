@@ -23,6 +23,7 @@ import { Card } from "@/components/ui/card";
 import { TextField } from "@/components/ui/text-field";
 import { AnimatedView } from "@/components/ui/animated-view";
 import { motion } from "motion/react";
+import { toast } from "sonner";
 import { useAuth } from "@/components/providers/auth-provider";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import {
@@ -70,6 +71,7 @@ type SectionTab =
   | "homepage"
   | "about"
   | "contact"
+  | "footer"
   | "faq"
   | "seo"
   | "success-stories"
@@ -97,12 +99,19 @@ export default function AdminWebsitePage() {
   const [homepageData, setHomepageData] = useState<any>({
     heroEyebrow: "",
     heroHeading: "",
+    headline: "",
+    heroHighlightWord: "",
     heroDescription: "",
+    subheadline: "",
     heroCtaText: "",
     heroCtaLink: "",
     heroSecondaryCtaText: "",
     heroSecondaryCtaLink: "",
     heroImageUrl: "",
+    image: "",
+    startingFee: "",
+    heroBadges: [],
+    promises: [],
   });
 
   const [aboutData, setAboutData] = useState<any>({
@@ -120,6 +129,12 @@ export default function AdminWebsitePage() {
     transitNote: "",
     hoursSummary: "",
     emergencyNote: "",
+  });
+
+  const [footerData, setFooterData] = useState<any>({
+    tagline: "",
+    copyrightNotice: "",
+    cancellationPolicy: "",
   });
 
   const [seoData, setSeoData] = useState<any>({
@@ -199,6 +214,49 @@ export default function AdminWebsitePage() {
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // Pre-fill all core sections on initial auth mount
+  useEffect(() => {
+    if (!accessToken) return;
+    Promise.allSettled([
+      adminGetCmsSection("general", accessToken),
+      adminGetCmsSection("homepage", accessToken),
+      adminGetCmsSection("about", accessToken),
+      adminGetCmsSection("contact", accessToken),
+      adminGetCmsSection("footer", accessToken),
+      adminGetCmsSection("seo", accessToken),
+    ]).then((results) => {
+      const [gen, home, abt, cont, foot, seo] = results;
+      if (gen.status === "fulfilled" && gen.value) {
+        setGeneralData((prev: any) => ({ ...prev, ...gen.value }));
+      }
+      if (home.status === "fulfilled" && home.value) {
+        setHomepageData((prev: any) => ({
+          ...prev,
+          ...home.value,
+          heroHeading: home.value.heroHeading || home.value.headline || prev.heroHeading,
+          headline: home.value.headline || home.value.heroHeading || prev.headline,
+          heroDescription: home.value.heroDescription || home.value.subheadline || prev.heroDescription,
+          subheadline: home.value.subheadline || home.value.heroDescription || prev.subheadline,
+          heroImageUrl: home.value.heroImageUrl || home.value.image || prev.heroImageUrl,
+          image: home.value.image || home.value.heroImageUrl || prev.image,
+          promises: Array.isArray(home.value.promises) && home.value.promises.length > 0 ? home.value.promises : prev.promises,
+        }));
+      }
+      if (abt.status === "fulfilled" && abt.value) {
+        setAboutData((prev: any) => ({ ...prev, ...abt.value }));
+      }
+      if (cont.status === "fulfilled" && cont.value) {
+        setContactData((prev: any) => ({ ...prev, ...cont.value }));
+      }
+      if (foot.status === "fulfilled" && foot.value) {
+        setFooterData((prev: any) => ({ ...prev, ...foot.value }));
+      }
+      if (seo.status === "fulfilled" && seo.value) {
+        setSeoData((prev: any) => ({ ...prev, ...seo.value }));
+      }
+    });
+  }, [accessToken]);
+
   // Load section content on mount and tab switch
   useEffect(() => {
     async function loadData() {
@@ -222,11 +280,26 @@ export default function AdminWebsitePage() {
           setGalleryImages(galleryList);
         } else {
           const data = await adminGetCmsSection(activeTab, accessToken);
-          if (activeTab === "general") setGeneralData(data);
-          else if (activeTab === "homepage") setHomepageData(data);
-          else if (activeTab === "about") setAboutData(data);
-          else if (activeTab === "contact") setContactData(data);
-          else if (activeTab === "seo") setSeoData(data);
+          if (data) {
+            if (activeTab === "general") setGeneralData((prev: any) => ({ ...prev, ...data }));
+            else if (activeTab === "homepage") {
+              setHomepageData((prev: any) => ({
+                ...prev,
+                ...data,
+                heroHeading: data.heroHeading || data.headline || prev.heroHeading,
+                headline: data.headline || data.heroHeading || prev.headline,
+                heroDescription: data.heroDescription || data.subheadline || prev.heroDescription,
+                subheadline: data.subheadline || data.heroDescription || prev.subheadline,
+                heroImageUrl: data.heroImageUrl || data.image || prev.heroImageUrl,
+                image: data.image || data.heroImageUrl || prev.image,
+                promises: Array.isArray(data.promises) && data.promises.length > 0 ? data.promises : prev.promises,
+              }));
+            }
+            else if (activeTab === "about") setAboutData((prev: any) => ({ ...prev, ...data }));
+            else if (activeTab === "contact") setContactData((prev: any) => ({ ...prev, ...data }));
+            else if (activeTab === "footer") setFooterData((prev: any) => ({ ...prev, ...data }));
+            else if (activeTab === "seo") setSeoData((prev: any) => ({ ...prev, ...data }));
+          }
         }
       } catch (err: any) {
         setSaveError(err.message || "Failed to load section data.");
@@ -246,6 +319,9 @@ export default function AdminWebsitePage() {
 
     try {
       await adminUpdateCmsSection(sectionKey, payload, accessToken);
+      // Trigger user-facing Sonner toast as strictly mandated
+      toast.success("Website content updated");
+
       // Revalidate server-rendered public cache
       fetch('/api/revalidate', {
         method: 'POST',
@@ -272,6 +348,7 @@ export default function AdminWebsitePage() {
       setSaveSuccess(isLive ? "Saved. Live on the website now." : `Website ${sectionKey} section updated successfully.`);
       setTimeout(() => setSaveSuccess(null), 4000);
     } catch (err: any) {
+      toast.error(err.message || `Failed to update ${sectionKey} section.`);
       setSaveError(err.message || `Failed to update ${sectionKey} section.`);
     } finally {
       setIsSaving(false);
@@ -617,10 +694,11 @@ export default function AdminWebsitePage() {
       <div className="flex flex-wrap gap-2 border-b border-line pb-3" role="tablist">
         {[
           { id: "general", label: "General & Branding", icon: Globe },
-          { id: "homepage", label: "Homepage Hero", icon: Layers },
+          { id: "homepage", label: "Homepage & Hero", icon: Layers },
           { id: "gallery", label: "Gallery", icon: ImageIcon },
           { id: "about", label: "About Story", icon: Info },
           { id: "contact", label: "Contact & Hours", icon: Phone },
+          { id: "footer", label: "Footer", icon: MessageSquare },
           { id: "faq", label: "FAQ Items", icon: HelpCircle },
           { id: "seo", label: "Search & SEO", icon: MessageSquare },
           { id: "success-stories", label: "Success Stories", icon: Check },
@@ -681,7 +759,7 @@ export default function AdminWebsitePage() {
                   value={generalData.shortBrandName || ""}
                   maxLength={24}
                   onChange={(e) => setGeneralData({ ...generalData, shortBrandName: e.target.value.slice(0, 24) })}
-                  placeholder="e.g. Marlow Dental"
+                  placeholder="e.g. Hira Dental Clinic"
                 />
                 <TextField
                   id="general-tagline"
@@ -775,52 +853,80 @@ export default function AdminWebsitePage() {
             <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={1}>
               <h2 className="text-lg font-display text-ink">Homepage Hero &amp; Messaging</h2>
               <div className="space-y-4">
-                <TextField
-                  id="hero-eyebrow"
-                  label="Eyebrow Tagline"
-                  value={homepageData.heroEyebrow || ""}
-                  onChange={(e) => setHomepageData({ ...homepageData, heroEyebrow: e.target.value })}
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <TextField
+                    id="hero-eyebrow"
+                    label="Eyebrow Tagline"
+                    value={homepageData.heroEyebrow || ""}
+                    onChange={(e) => setHomepageData({ ...homepageData, heroEyebrow: e.target.value })}
+                  />
+                  <TextField
+                    id="hero-highlight-word"
+                    label="Highlight Accent Phrase"
+                    value={homepageData.heroHighlightWord || ""}
+                    onChange={(e) => setHomepageData({ ...homepageData, heroHighlightWord: e.target.value })}
+                    placeholder="e.g. Islamabad"
+                  />
+                </div>
                 <TextField
                   id="hero-heading"
-                  label="Main Hero Heading"
-                  value={homepageData.heroHeading || ""}
-                  onChange={(e) => setHomepageData({ ...homepageData, heroHeading: e.target.value })}
+                  label="Main Hero Heading / Headline"
+                  value={homepageData.heroHeading || homepageData.headline || ""}
+                  onChange={(e) =>
+                    setHomepageData({
+                      ...homepageData,
+                      heroHeading: e.target.value,
+                      headline: e.target.value,
+                    })
+                  }
                 />
                 <div>
                   <label htmlFor="hero-desc" className="block text-xs font-medium text-ink mb-1.5">
-                    Hero Description Paragraph
+                    Hero Subheadline / Description Paragraph
                   </label>
                   <textarea
                     id="hero-desc"
                     rows={3}
-                    value={homepageData.heroDescription || ""}
-                    onChange={(e) => setHomepageData({ ...homepageData, heroDescription: e.target.value })}
+                    value={homepageData.heroDescription || homepageData.subheadline || ""}
+                    onChange={(e) =>
+                      setHomepageData({
+                        ...homepageData,
+                        heroDescription: e.target.value,
+                        subheadline: e.target.value,
+                      })
+                    }
                     className="w-full rounded-[var(--radius-card)] border border-line bg-bone px-3.5 py-2.5 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-forest"
                   />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <TextField
+                    id="hero-starting-fee"
+                    label="Starting Consultation Fee Badge"
+                    value={homepageData.startingFee || ""}
+                    onChange={(e) => setHomepageData({ ...homepageData, startingFee: e.target.value })}
+                    placeholder="e.g. Rs. 3,500"
+                  />
                   <TextField
                     id="hero-cta-text"
-                    label="Primary CTA Button Text"
+                    label="Primary CTA Text"
                     value={homepageData.heroCtaText || ""}
                     onChange={(e) => setHomepageData({ ...homepageData, heroCtaText: e.target.value })}
                   />
                   <TextField
                     id="hero-cta-link"
-                    label="Primary CTA Button URL"
+                    label="Primary CTA Link"
                     value={homepageData.heroCtaLink || ""}
                     onChange={(e) => setHomepageData({ ...homepageData, heroCtaLink: e.target.value })}
                   />
                   <TextField
                     id="hero-sec-text"
-                    label="Secondary CTA Button Text"
+                    label="Secondary CTA Text"
                     value={homepageData.heroSecondaryCtaText || ""}
                     onChange={(e) => setHomepageData({ ...homepageData, heroSecondaryCtaText: e.target.value })}
                   />
                   <TextField
                     id="hero-sec-link"
-                    label="Secondary CTA Button URL"
+                    label="Secondary CTA Link"
                     value={homepageData.heroSecondaryCtaLink || ""}
                     onChange={(e) => setHomepageData({ ...homepageData, heroSecondaryCtaLink: e.target.value })}
                   />
@@ -830,12 +936,12 @@ export default function AdminWebsitePage() {
               {/* Hero Image Upload */}
               <div>
                 <label className="block text-xs font-medium text-ink mb-1.5">
-                  Hero Image
+                  Hero Architectural Image
                 </label>
                 <div className="flex items-center gap-3">
-                  {homepageData.heroImageUrl && (
+                  {(homepageData.heroImageUrl || homepageData.image) && (
                     <img
-                      src={homepageData.heroImageUrl}
+                      src={homepageData.heroImageUrl || homepageData.image}
                       alt="Current hero"
                       className="h-16 w-24 rounded-lg object-cover border border-line bg-bone"
                     />
@@ -855,9 +961,104 @@ export default function AdminWebsitePage() {
                     <span className="text-xs text-ink-soft">Uploading…</span>
                   )}
                 </div>
-                {homepageData.heroImageUrl && (
-                  <p className="mt-1 text-[11px] text-ink-soft/70 truncate">{homepageData.heroImageUrl}</p>
+                {(homepageData.heroImageUrl || homepageData.image) && (
+                  <p className="mt-1 text-[11px] text-ink-soft/70 truncate">{homepageData.heroImageUrl || homepageData.image}</p>
                 )}
+              </div>
+
+              {/* Why Choose Us Value Propositions / Promises */}
+              <div className="pt-4 border-t border-line/60 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold text-ink">&ldquo;Why Choose Us&rdquo; Value Propositions</h3>
+                    <p className="text-[11px] text-ink-soft">Checklist cards displayed on the homepage left column.</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      const current = Array.isArray(homepageData.promises) ? [...homepageData.promises] : [];
+                      current.push({
+                        num: `0${current.length + 1}`,
+                        title: "New Clinical Standard",
+                        subtitle: "Care Guarantee",
+                        description: "Description of your clinic value proposition and patient care protocol.",
+                      });
+                      setHomepageData({ ...homepageData, promises: current });
+                    }}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" />
+                    <span>Add Item</span>
+                  </Button>
+                </div>
+
+                <div className="space-y-3">
+                  {Array.isArray(homepageData.promises) && homepageData.promises.length > 0 ? (
+                    homepageData.promises.map((p: any, idx: number) => (
+                      <div
+                        key={idx}
+                        className="rounded-xl border border-line bg-bone p-4 space-y-3 relative group"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-mono text-xs font-bold text-forest">
+                            Step #{p.num || `0${idx + 1}`}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = homepageData.promises.filter((_: any, i: number) => i !== idx);
+                              setHomepageData({ ...homepageData, promises: updated });
+                            }}
+                            className="text-xs text-red-600 hover:text-red-700 p-1"
+                            title="Delete proposition"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <TextField
+                            id={`promise-title-${idx}`}
+                            label="Title"
+                            value={p.title || ""}
+                            onChange={(e) => {
+                              const updated = [...homepageData.promises];
+                              updated[idx] = { ...updated[idx], title: e.target.value };
+                              setHomepageData({ ...homepageData, promises: updated });
+                            }}
+                          />
+                          <TextField
+                            id={`promise-subtitle-${idx}`}
+                            label="Subtitle (Badge)"
+                            value={p.subtitle || ""}
+                            onChange={(e) => {
+                              const updated = [...homepageData.promises];
+                              updated[idx] = { ...updated[idx], subtitle: e.target.value };
+                              setHomepageData({ ...homepageData, promises: updated });
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-ink mb-1">
+                            Description
+                          </label>
+                          <textarea
+                            rows={2}
+                            value={p.description || ""}
+                            onChange={(e) => {
+                              const updated = [...homepageData.promises];
+                              updated[idx] = { ...updated[idx], description: e.target.value };
+                              setHomepageData({ ...homepageData, promises: updated });
+                            }}
+                            className="w-full rounded-[var(--radius-card)] border border-line bg-cream px-3 py-1.5 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-forest"
+                          />
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-ink-soft italic">No value propositions added yet. Click &ldquo;Add Item&rdquo; above.</p>
+                  )}
+                </div>
               </div>
 
               <div className="pt-4 border-t border-line/60 flex justify-end">
@@ -1146,6 +1347,54 @@ export default function AdminWebsitePage() {
                 ))}
               </div>
             </div>
+          )}
+
+          {/* 5b. FOOTER SECTION */}
+          {activeTab === "footer" && (
+            <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={5}>
+              <h2 className="text-lg font-display text-ink">Footer &amp; Legal Notices</h2>
+              <div className="space-y-4">
+                <TextField
+                  id="footer-tagline"
+                  label="Footer Brand Tagline"
+                  value={footerData.tagline || ""}
+                  onChange={(e) => setFooterData({ ...footerData, tagline: e.target.value })}
+                  placeholder="e.g. Precision & Compassion in Modern Dentistry."
+                />
+                <TextField
+                  id="footer-copyright"
+                  label="Copyright Notice"
+                  value={footerData.copyrightNotice || ""}
+                  onChange={(e) => setFooterData({ ...footerData, copyrightNotice: e.target.value })}
+                  placeholder="e.g. © 2026 Hira Dental Clinic. All clinical rights reserved."
+                />
+                <div>
+                  <label htmlFor="footer-cancellation" className="block text-xs font-medium text-ink mb-1.5">
+                    Cancellation &amp; Rescheduling Policy Notice
+                  </label>
+                  <textarea
+                    id="footer-cancellation"
+                    rows={3}
+                    value={footerData.cancellationPolicy || ""}
+                    onChange={(e) => setFooterData({ ...footerData, cancellationPolicy: e.target.value })}
+                    className="w-full rounded-[var(--radius-card)] border border-line bg-bone px-3.5 py-2.5 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-forest"
+                    placeholder="e.g. Cancellations made 24 hours prior to appointment time..."
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-line/60 flex justify-end">
+                <Button
+                  onClick={() => handleSaveSection("footer", footerData)}
+                  disabled={isSaving}
+                  variant="primary"
+                  size="sm"
+                >
+                  <Save className="h-3.5 w-3.5 mr-1" />
+                  <span>{isSaving ? "Saving..." : "Save Footer Settings"}</span>
+                </Button>
+              </div>
+            </Card>
           )}
 
           {/* 6. SEO SECTION */}

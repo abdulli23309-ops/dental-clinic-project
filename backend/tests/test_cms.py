@@ -14,7 +14,7 @@ async def test_cms_sections_and_faqs(client_with_db: AsyncClient, admin_auth):
     init_pub = await client_with_db.get("/api/v1/public/content")
     assert init_pub.status_code == 200
     assert "general" in init_pub.json()
-    assert init_pub.json()["general"]["practiceName"] == "Marlow Dental"
+    assert init_pub.json()["general"]["practiceName"] == "Hira Dental Clinic"
 
     # 3. Admin updates general CMS section
     update_payload = {

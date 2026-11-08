@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.models.service import Service
 from app.domain.repositories.service_repo import ServiceRepository
-from app.infrastructure.database.orm_models import ServiceORM
+from app.infrastructure.database.orm_models import ClinicServiceORM, ServiceORM
 
 
 class PostgresServiceRepository(ServiceRepository):
@@ -83,6 +83,34 @@ class PostgresServiceRepository(ServiceRepository):
 
     async def get_by_slug(self, slug: str) -> Optional[Service]:
         stmt = select(ServiceORM).where(ServiceORM.slug == slug.strip().lower())
+        result = await self._session.execute(stmt)
+        orm = result.scalar_one_or_none()
+        return self._to_domain(orm) if orm else None
+
+    async def get_by_id_and_clinic(self, service_id: UUID, clinic_id: UUID) -> Optional[Service]:
+        stmt = (
+            select(ServiceORM)
+            .join(ClinicServiceORM, ClinicServiceORM.service_id == ServiceORM.id)
+            .where(
+                ServiceORM.id == service_id,
+                ClinicServiceORM.clinic_id == clinic_id,
+                ClinicServiceORM.is_active.is_(True),
+            )
+        )
+        result = await self._session.execute(stmt)
+        orm = result.scalar_one_or_none()
+        return self._to_domain(orm) if orm else None
+
+    async def get_by_slug_and_clinic(self, slug: str, clinic_id: UUID) -> Optional[Service]:
+        stmt = (
+            select(ServiceORM)
+            .join(ClinicServiceORM, ClinicServiceORM.service_id == ServiceORM.id)
+            .where(
+                ServiceORM.slug == slug.strip().lower(),
+                ClinicServiceORM.clinic_id == clinic_id,
+                ClinicServiceORM.is_active.is_(True),
+            )
+        )
         result = await self._session.execute(stmt)
         orm = result.scalar_one_or_none()
         return self._to_domain(orm) if orm else None

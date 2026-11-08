@@ -214,7 +214,7 @@ export default function TreatmentPlanTab({
         <div className="flex items-center justify-between border-b pb-4">
           <div>
             <h1 className="text-xl font-bold font-serif text-gray-900">
-              Marlow Dental Clinic — Treatment Plan Summary
+              Hira Dental Clinic — Treatment Plan Summary
             </h1>
             <p className="text-xs text-gray-600">
               Personalized Dental Care Estimate & Proposed Sequence

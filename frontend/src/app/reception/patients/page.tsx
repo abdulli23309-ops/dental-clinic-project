@@ -19,6 +19,7 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/components/providers/auth-provider";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { Pagination } from "@/components/ui/pagination";
 
 export default function ReceptionPatientsPage() {
   const { accessToken } = useAuth();
@@ -27,6 +28,10 @@ export default function ReceptionPatientsPage() {
   const [patients, setPatients] = useState<ReceptionPatient[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Pagination state (Blueprint Phase 4)
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Create Patient Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -66,10 +71,11 @@ export default function ReceptionPatientsPage() {
   const patientAge = calculateAge(dob);
   const isMinor = patientAge !== null && patientAge < 18;
 
-  const loadPatients = async (query = search) => {
+  const loadPatients = async (query = search, targetPage = page, targetSize = pageSize) => {
     setIsLoading(true);
     try {
-      const data = await searchReceptionPatients({ search: query, limit: 20 }, accessToken);
+      const offset = (targetPage - 1) * targetSize;
+      const data = await searchReceptionPatients({ search: query, limit: targetSize, offset }, accessToken);
       setPatients(data.items);
       setTotal(data.total);
     } catch (err) {
@@ -269,6 +275,25 @@ export default function ReceptionPatientsPage() {
             </table>
           </div>
         )}
+
+        {/* Server-Side Pagination Controls */}
+        <Pagination
+          currentPage={page}
+          totalItems={total}
+          pageSize={pageSize}
+          onPageChange={(p) => {
+            setPage(p);
+            loadPatients(search, p, pageSize);
+          }}
+          onPageSizeChange={(s) => {
+            setPageSize(s);
+            setPage(1);
+            loadPatients(search, 1, s);
+          }}
+          pageSizeOptions={[10, 25, 50]}
+          itemName="Patients"
+          className="border-t border-gray-100 dark:border-gray-800 px-4 py-3 bg-gray-50/50 dark:bg-gray-950/50"
+        />
       </div>
 
       {/* New Patient Modal with Duplicate Detection Safeguard */}

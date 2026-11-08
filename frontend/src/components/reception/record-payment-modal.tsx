@@ -379,7 +379,7 @@ export function PaymentReceiptModal({
       <div role="dialog" aria-modal="true" aria-labelledby="payment-receipt-title" className="bg-white text-gray-900 border border-gray-300 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 font-sans text-xs print:p-0 print:border-none print:shadow-none">
         <div className="border-b-2 border-dashed border-gray-300 pb-3 text-center space-y-1">
           <h3 id="payment-receipt-title" className="text-base font-bold tracking-tight uppercase">
-            Marlow Dental Clinic
+            Hira Dental Clinic
           </h3>
           <p className="text-[11px] text-gray-500 font-mono">Front-Desk Patient Accounts</p>
           <div className="inline-block mt-1 px-3 py-1 bg-gray-100 text-gray-800 font-bold text-[11px] rounded-md border border-gray-300">

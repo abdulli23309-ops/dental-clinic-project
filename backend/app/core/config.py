@@ -1,6 +1,7 @@
 import os
+import secrets
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -17,7 +18,7 @@ class Settings(BaseSettings):
     """
     ENVIRONMENT: str = "development"
     DEBUG: bool = False
-    APP_NAME: str = "Marlow Dental API"
+    APP_NAME: str = "Hira Dental Clinic API"
     API_V1_PREFIX: str = "/api/v1"
 
     @field_validator("DEBUG", mode="before")
@@ -41,13 +42,13 @@ class Settings(BaseSettings):
     PUBLIC_BOOKING_RATE_LIMIT: str = "60/minute"
 
     # Authentication & Security
-    JWT_SECRET_KEY: str = "dev-marlow-dental-insecure-secret-key-change-in-production-2026"
+    JWT_SECRET_KEY: Optional[str] = None
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 7 * 24 * 60  # 7 days (10,080 minutes)
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7  # 7 days
     REFRESH_TOKEN_ROTATE_AFTER_MINUTES: int = 35  # 35 minutes rotation window
     REFRESH_COOKIE_NAME: str = "marlow_refresh_token"
-    COOKIE_SECURE: bool = False
+    COOKIE_SECURE: bool = True
     COOKIE_SAMESITE: str = "lax"
     COOKIE_DOMAIN: Optional[str] = None
     LOGIN_RATE_LIMIT: str = "5/minute"
@@ -72,22 +73,73 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def verify_production_safety(self) -> "Settings":
-        if self.ENVIRONMENT.lower() == "production":
-            insecure_markers = ["dev-marlow", "change-in-production", "secret", "default", "insecure"]
-            if (
-                not self.JWT_SECRET_KEY
-                or len(self.JWT_SECRET_KEY) < 32
-                or any(marker in self.JWT_SECRET_KEY.lower() for marker in ["change-in-production", "dev-marlow-dental"])
-            ):
+        env_name = (self.ENVIRONMENT or "").strip().lower()
+        insecure_markers = ["dev-marlow", "change-in-production", "default", "insecure", "example", "placeholder"]
+
+        if not self.JWT_SECRET_KEY or not str(self.JWT_SECRET_KEY).strip():
+            if env_name in {"development", "test"}:
+                self.JWT_SECRET_KEY = secrets.token_urlsafe(32)
+                return self
+            raise ValueError("Startup refused: JWT_SECRET_KEY is required for this environment.")
+
+        secret_value = str(self.JWT_SECRET_KEY).strip()
+        if env_name in {"development", "test"}:
+            if any(marker in secret_value.lower() for marker in insecure_markers):
                 raise ValueError(
-                    "Production startup refused: JWT_SECRET_KEY is unset or using the default development secret."
+                    "Startup refused: insecure JWT secret value is not allowed in local or test environments. "
+                    "Set JWT_SECRET_KEY to a strong per-environment value or let the app generate one for local development."
                 )
+            return self
+
+        if len(secret_value) < 32 or any(marker in secret_value.lower() for marker in ["change-in-production", "dev-marlow-dental"]):
+            raise ValueError(
+                "Production startup refused: JWT_SECRET_KEY is unset or using the default development secret."
+            )
+
+        # Production cookies must only be sent over HTTPS and must not be accessible to
+        # client-side script. A non-secure cookie in production would expose the refresh
+        # token (and thus the session) to interception.
+        if not self.COOKIE_SECURE:
+            raise ValueError(
+                "Production startup refused: COOKIE_SECURE must be true in production."
+            )
+        if self.COOKIE_SAMESITE.lower() not in ("lax", "strict", "none"):
+            raise ValueError(
+                "Production startup refused: COOKIE_SAMESITE must be lax, strict, or none."
+            )
         return self
 
     @property
     def cors_origins(self) -> List[str]:
         """Converts the comma-separated string of allowed web addresses into a clean Python list."""
         return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
+
+    @property
+    def security_headers(self) -> Dict[str, str]:
+        """Returns security headers configured for the deployment environment."""
+        return {
+            "X-Content-Type-Options": "nosniff",
+            "X-Frame-Options": "DENY",
+            "Referrer-Policy": "strict-origin-when-cross-origin",
+            "Cache-Control": "no-store, max-age=0",
+            "Pragma": "no-cache",
+            "X-Permitted-Cross-Domain-Policies": "none",
+            "Cross-Origin-Embedder-Policy": "require-corp",
+            "Cross-Origin-Opener-Policy": "same-origin",
+            "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+            "Content-Security-Policy": (
+                "default-src 'self'; "
+                "script-src 'self' 'unsafe-inline' https://*.googleapis.com https://www.google-analytics.com; "
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+                "font-src 'self' https://fonts.gstatic.com; "
+                "img-src 'self' data: https:; "
+                "connect-src 'self' https://*.google-analytics.com https://*.g.doubleclick.net; "
+                "frame-ancestors 'none'; "
+                "base-uri 'self'; "
+                "form-action 'self'; "
+                "upgrade-insecure-requests;"
+            ),
+        }
 
     model_config = SettingsConfigDict(
         env_file=str(PROJECT_ROOT / ".env"),

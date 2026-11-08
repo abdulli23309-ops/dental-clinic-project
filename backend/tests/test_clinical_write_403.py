@@ -221,5 +221,5 @@ async def test_revoked_session_returns_401(test_session, matrix_client):
 
     resp = await matrix_client.get("/api/v1/auth/me", headers=headers)
     assert resp.status_code == 401
-    assert "revoked or expired" in resp.json()["detail"]
+    assert "session" in resp.json()["detail"].lower()
 

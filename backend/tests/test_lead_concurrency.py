@@ -6,7 +6,7 @@ from uuid import uuid4
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import select, text
+from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.core.database import get_db_session
@@ -82,18 +82,23 @@ async def setup_pg_concurrency_data(pg_session_factory):
         await session.flush()
 
         # 2. Clinic
-        clinic = ClinicORM(
-            id=uuid4(),
-            organization_id=org.id,
-            name="Main Lahore Clinic",
-            address_line1="Plaza 45, Phase 5 DHA",
-            city="Lahore",
-            state="Punjab",
-            postal_code="54000",
-            phone="04235891234",
-            is_active=True,
+        c_res = await session.execute(
+            select(ClinicORM).where(ClinicORM.name == "Main Lahore Clinic")
         )
-        session.add(clinic)
+        clinic = c_res.scalars().first()
+        if not clinic:
+            clinic = ClinicORM(
+                id=uuid4(),
+                organization_id=org.id,
+                name="Main Lahore Clinic",
+                address_line1="Plaza 45, Phase 5 DHA",
+                city="Lahore",
+                state="Punjab",
+                postal_code="54000",
+                phone="04235891234",
+                is_active=True,
+            )
+            session.add(clinic)
 
         # 3. Booking flow settings
         flow_settings = BookingFlowSettingsORM(
@@ -149,11 +154,27 @@ async def setup_pg_concurrency_data(pg_session_factory):
         session.add(client_orm)
         await session.commit()
 
-        return {
+        admin_id = admin.id
+        client_id = client_orm.id
+        flow_id = flow_settings.id
+        org_id = org.id
+
+    try:
+        yield {
             "org": org,
             "clinic": clinic,
             "integration_key": raw_key,
         }
+    finally:
+        try:
+            async with pg_session_factory() as cleanup_session:
+                async with cleanup_session.begin():
+                    await cleanup_session.execute(delete(IntegrationClientORM).where(IntegrationClientORM.id == client_id))
+                    await cleanup_session.execute(delete(UserORM).where(UserORM.id == admin_id))
+                    await cleanup_session.execute(delete(BookingFlowSettingsORM).where(BookingFlowSettingsORM.id == flow_id))
+                    await cleanup_session.execute(delete(OrganizationORM).where(OrganizationORM.id == org_id))
+        except Exception:
+            pass
 
 
 @pytest.mark.asyncio

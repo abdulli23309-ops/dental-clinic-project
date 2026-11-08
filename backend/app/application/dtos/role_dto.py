@@ -66,3 +66,18 @@ class RoleResponse(BaseModel):
         populate_by_name=True,
         serialize_by_alias=True
     )
+
+
+class PaginatedRolesResponse(BaseModel):
+    """Paginated list of clinical/system roles."""
+    items: List[RoleResponse]
+    total: int
+    page: int
+    per_page: int
+    total_pages: int
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        serialize_by_alias=True
+    )

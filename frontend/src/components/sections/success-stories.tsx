@@ -44,11 +44,6 @@ export function SuccessStories() {
     };
   }, []);
 
-  // Hard content rule: if no reviews exist in DB, render nothing
-  if (!isLoading && reviews.length === 0) {
-    return null;
-  }
-
   // Calculate average rating
   const avgRating =
     reviews.length > 0
@@ -60,14 +55,14 @@ export function SuccessStories() {
   return (
     <section
       id="reviews"
-      className="border-t border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/40 py-20 md:py-28 overflow-hidden"
+      className="border-t border-gray-200 dark:border-gray-800 bg-[#FAF9F5] dark:bg-gray-900/40 py-28 md:py-36 overflow-hidden"
     >
-      <div className="container-x space-y-12">
+      <div className="container-x space-y-14 lg:space-y-16">
         {/* Section Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <SectionHeading
             eyebrow="Patient Experiences"
-            title={copy.successStories}
+            title={copy.successStories || "Success Stories"}
           />
 
           {reviews.length > 0 && (
@@ -97,33 +92,23 @@ export function SuccessStories() {
               />
             ))}
           </div>
+        ) : reviews.length === 0 ? (
+          /* Designed Luxury Empty State as explicitly mandated */
+          <div className="rounded-3xl border border-dashed border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/60 p-12 text-center flex flex-col items-center justify-center space-y-3">
+            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-amber-500/10 text-amber-500">
+              <Star className="h-6 w-6 fill-current" />
+            </div>
+            <h3 className="font-display text-base font-semibold text-gray-900 dark:text-white">
+              No reviews yet
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 max-w-sm">
+              Patient reviews and clinical testimonials will be showcased here once verified by our clinic team.
+            </p>
+          </div>
         ) : (
-          /* Reviews Scroll Row */
-          <div className="relative w-full group">
-            <button
-              onClick={() => scroll(-340)}
-              aria-label="Previous reviews"
-              className="absolute -left-3 top-1/2 -translate-y-1/2 z-20 h-10 w-10 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-full shadow-lg border border-gray-200 dark:border-gray-700 hidden md:flex items-center justify-center hover:scale-105 active:scale-95 transition-all cursor-pointer"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-
-            <button
-              onClick={() => scroll(340)}
-              aria-label="Next reviews"
-              className="absolute -right-3 top-1/2 -translate-y-1/2 z-20 h-10 w-10 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-full shadow-lg border border-gray-200 dark:border-gray-700 hidden md:flex items-center justify-center hover:scale-105 active:scale-95 transition-all cursor-pointer"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-
-            <div
-              ref={scrollRef}
-              tabIndex={0}
-              role="region"
-              aria-label={copy.successStories}
-              className="flex flex-row overflow-x-auto snap-x snap-mandatory gap-6 py-2 hide-scrollbar focus:outline-none focus:ring-1 focus:ring-primary/40 rounded-2xl"
-              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-            >
+          /* 3-Column Glass Review Cards Grid & Scroll */
+          <div className="relative w-full">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {reviews.map((rev, idx) => {
                 const isGoogle = rev.sourceLabel
                   ?.toLowerCase()
@@ -136,10 +121,10 @@ export function SuccessStories() {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, amount: 0.15 }}
                     transition={{ duration: 0.4, delay: idx * 0.06 }}
-                    className="min-w-[300px] sm:min-w-[340px] max-w-[380px] snap-center shrink-0 rounded-3xl border border-gray-200/90 dark:border-gray-800/90 bg-white dark:bg-gray-950 p-6 sm:p-7 shadow-xs hover:border-primary/40 transition-all flex flex-col justify-between space-y-6"
+                    className="rounded-3xl border border-gray-200/90 dark:border-gray-800/90 bg-white/80 dark:bg-[#070D0B]/85 backdrop-blur-md p-6 sm:p-7 shadow-xs hover:border-emerald-500/40 hover:shadow-xl transition-all flex flex-col justify-between space-y-6"
                   >
                     <div className="space-y-4">
-                      {/* Top Bar: Stars & Google Badge */}
+                      {/* Top Bar: 5 Gold Stars & Verified Badge */}
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-1 text-amber-400">
                           {Array.from({ length: rev.rating || 5 }).map((_, i) => (
@@ -147,22 +132,18 @@ export function SuccessStories() {
                           ))}
                         </div>
 
-                        {/* Google badge only if source=Google */}
-                        {isGoogle ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900 px-2.5 py-0.5 text-[10px] font-semibold text-blue-700 dark:text-blue-300">
-                            <span className="font-bold text-[11px] text-blue-600 dark:text-blue-400">G</span>
-                            <span>Google Review</span>
-                          </span>
-                        ) : rev.sourceLabel ? (
-                          <span className="rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-[10px] font-medium text-gray-600 dark:text-gray-300">
-                            {rev.sourceLabel}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary">
+                        <div className="flex items-center gap-1.5">
+                          {isGoogle && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-900 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:text-blue-300">
+                              <span className="font-bold text-[11px] text-blue-600 dark:text-blue-400">G</span>
+                              <span>Google Review</span>
+                            </span>
+                          )}
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 dark:bg-emerald-400/10 border border-emerald-600/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:text-emerald-300">
                             <CheckCircle2 className="h-3 w-3" />
-                            <span>Verified Patient</span>
+                            <span>Verified</span>
                           </span>
-                        )}
+                        </div>
                       </div>
 
                       {/* Review Text */}
@@ -174,7 +155,7 @@ export function SuccessStories() {
                     {/* Author & Date Footer */}
                     <div className="pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2.5">
-                        <div className="grid h-8 w-8 place-items-center rounded-full bg-primary/10 text-primary font-bold text-xs uppercase">
+                        <div className="grid h-8 w-8 place-items-center rounded-full bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 font-bold text-xs uppercase">
                           {rev.authorName ? rev.authorName.charAt(0) : "P"}
                         </div>
                         <div className="flex flex-col">

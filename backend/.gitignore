@@ -20,4 +20,5 @@ venv/
 !alembic/versions/
 
 # Uploaded user files
-uploads/
+/uploads/
+!seed_data/uploads/

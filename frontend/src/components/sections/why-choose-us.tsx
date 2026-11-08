@@ -21,16 +21,18 @@ const LEAD_TOKEN_STORAGE_KEY = "mb_booking_lead_token";
 
 export function WhyChooseUs() {
   const router = useRouter();
-  const { content, organization, copy } = usePublicContent();
+  const { content, organization, locations, copy } = usePublicContent();
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [selectedBranch, setSelectedBranch] = useState("");
   const [selectedService, setSelectedService] = useState("");
   const [honeypot, setHoneypot] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const promises = content.homepage?.promises || [];
+  const activeLocations = locations.filter((l) => l.isActive !== false);
   const practiceName =
     content.general?.practiceName || organization?.displayName || "";
 
@@ -56,13 +58,13 @@ export function WhyChooseUs() {
     const cleanName = fullName.trim();
 
     if (!cleanName) {
-      setErrorMsg(copy.enterFullNameError);
+      setErrorMsg(copy.enterFullNameError || "Please enter your full name.");
       return;
     }
 
     const digits = cleanPhone.replace(/[^0-9]/g, "");
     if (digits.length < 10) {
-      setErrorMsg(copy.enterValidPhoneError);
+      setErrorMsg(copy.enterValidPhoneError || "Please enter a valid mobile phone number.");
       return;
     }
 
@@ -87,16 +89,20 @@ export function WhyChooseUs() {
           sessionStorage.setItem(LEAD_TOKEN_STORAGE_KEY, captureRes.captureToken);
         }
 
-        // 2. If service was selected, update lead record
-        if (selectedService) {
+        // 2. If service or branch was selected, update lead record
+        if (selectedService || selectedBranch) {
           await publicLeadUpdate({
             captureToken: captureRes.captureToken,
-            serviceId: selectedService,
+            serviceId: selectedService || undefined,
+            clinicId: selectedBranch || undefined,
           }).catch(() => {});
         }
 
-        // 3. Continue to booking flow with preselected service
-        const query = selectedService ? `?service=${encodeURIComponent(selectedService)}` : "";
+        // 3. Continue to booking flow with preselected service and branch
+        const params = new URLSearchParams();
+        if (selectedService) params.set("service", selectedService);
+        if (selectedBranch) params.set("clinic", selectedBranch);
+        const query = params.toString() ? `?${params.toString()}` : "";
         router.push(`/book${query}`);
       } else {
         router.push("/book");
@@ -111,12 +117,12 @@ export function WhyChooseUs() {
   return (
     <section
       id="why-us"
-      className="border-t border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/50 py-20 md:py-28"
+      className="border-t border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/50 py-28 md:py-36"
     >
       <div className="container-x">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-14 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-start">
           {/* Left Column: Why Choose Us Promises + 3-Step Strip */}
-          <div className="lg:col-span-7 space-y-8">
+          <div className="lg:col-span-7 flex flex-col items-start text-start space-y-8">
             <div className="space-y-3">
               <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
                 <Sparkles className="h-3.5 w-3.5" />
@@ -133,7 +139,7 @@ export function WhyChooseUs() {
             </div>
 
             {/* Promises List (from CMS) */}
-            <div className="space-y-4">
+            <div className="space-y-4 w-full">
               {promises.length > 0 ? (
                 promises.map((p, idx) => (
                   <motion.div
@@ -224,18 +230,18 @@ export function WhyChooseUs() {
             <Card
               surface="bone"
               shadow="card"
-              className="p-6 sm:p-8 rounded-3xl border border-gray-200/90 dark:border-gray-800/90 bg-white/95 dark:bg-gray-950/95 shadow-xl backdrop-blur-md sticky top-28"
+              className="p-6 sm:p-8 rounded-3xl border border-emerald-900/10 dark:border-emerald-500/20 bg-white/95 dark:bg-[#070D0B]/95 shadow-2xl backdrop-blur-xl sticky top-28"
             >
               <div className="space-y-2 mb-6">
                 <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
                   <Calendar className="h-4 w-4" />
-                  <span>{copy.onlineReservation}</span>
+                  <span>{copy.onlineReservation || "Online Reservation"}</span>
                 </div>
                 <h3 className="font-display text-2xl font-bold tracking-tight text-gray-950 dark:text-white">
-                  {copy.bookAppointment}
+                  {copy.bookAppointment || "Book Appointment"}
                 </h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {copy.enterBookingDetails}
+                  {copy.enterBookingDetails || "Enter your contact details to reserve your preferred consultation time."}
                 </p>
               </div>
 
@@ -266,7 +272,7 @@ export function WhyChooseUs() {
                     htmlFor="lead_name"
                     className="block text-xs font-semibold text-gray-700 dark:text-gray-300"
                   >
-                    {copy.fullName} <span className="text-red-500">*</span>
+                    {copy.fullName || "Full Name"} <span className="text-red-500">*</span>
                   </label>
                   <input
                     id="lead_name"
@@ -285,7 +291,7 @@ export function WhyChooseUs() {
                     htmlFor="lead_phone"
                     className="block text-xs font-semibold text-gray-700 dark:text-gray-300"
                   >
-                    {copy.mobilePhone} <span className="text-red-500">*</span>
+                    {copy.mobilePhone || "Mobile Phone"} <span className="text-red-500">*</span>
                   </label>
                   <input
                     id="lead_phone"
@@ -297,6 +303,31 @@ export function WhyChooseUs() {
                     className="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3.5 py-2.5 text-xs sm:text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
                   />
                 </div>
+
+                {/* Preferred Branch Dropdown */}
+                {activeLocations.length > 0 && (
+                  <div className="space-y-1.5">
+                    <label
+                      htmlFor="lead_branch"
+                      className="block text-xs font-semibold text-gray-700 dark:text-gray-300"
+                    >
+                      Preferred Branch
+                    </label>
+                    <select
+                      id="lead_branch"
+                      value={selectedBranch}
+                      onChange={(e) => setSelectedBranch(e.target.value)}
+                      className="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3.5 py-2.5 text-xs sm:text-sm text-gray-900 dark:text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+                    >
+                      <option value="">Select a branch (optional)...</option>
+                      {activeLocations.map((loc) => (
+                        <option key={loc.id} value={loc.id}>
+                          {loc.name} {loc.city ? `(${loc.city})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 {/* Service Selection */}
                 <div className="space-y-1.5">
@@ -332,7 +363,7 @@ export function WhyChooseUs() {
                   {loading ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Saving your inquiry...</span>
+                      <span>Preparing your reservation...</span>
                     </>
                   ) : (
                     <>

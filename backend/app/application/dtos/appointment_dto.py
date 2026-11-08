@@ -1,27 +1,8 @@
 import re
 from datetime import date, datetime, timezone
-from typing import Optional, Set
+from typing import Optional
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-
-# Ground truth from frontend: src/app/book/page.tsx
-ALLOWED_SERVICES: Set[str] = {
-    "cleanings-exams",
-    "fillings-crowns",
-    "root-canals",
-    "invisalign",
-    "whitening",
-    "emergency",
-}
-
-ALLOWED_TIME_SLOTS: Set[str] = {
-    "8:30 AM",
-    "10:00 AM",
-    "11:30 AM",
-    "1:30 PM",
-    "3:00 PM",
-    "4:30 PM",
-}
 
 
 class AppointmentCreateRequest(BaseModel):
@@ -30,8 +11,12 @@ class AppointmentCreateRequest(BaseModel):
 
     This ensures incoming data has proper names, valid contact information, and realistic
     dates before the server attempts to save anything.
+
+    The requested service is validated against the persisted service catalogue in the
+    application layer (AppointmentService), not against a static allow-list, so newly
+    created or updated catalogue entries are honoured without code changes.
     """
-    serviceId: str = Field(..., description="Service identifier selected by patient")
+    serviceId: str = Field(..., description="Service identifier selected by patient (slug or UUID)")
     preferredDate: str = Field(..., description="Target appointment date (YYYY-MM-DD)")
     preferredTime: str = Field(..., description="Requested time slot")
     fullName: str = Field(..., min_length=2, max_length=100, description="Full legal name")
@@ -51,16 +36,20 @@ class AppointmentCreateRequest(BaseModel):
     @field_validator("serviceId")
     @classmethod
     def validate_service_id(cls, v: str) -> str:
-        """Checks that the requested dental procedure matches a standard service or UUID."""
-        clean = v.strip().lower()
-        if clean in ALLOWED_SERVICES:
-            return clean
+        """Normalises and lightly validates the requested service identifier.
+
+        Accepts either a service slug or a UUID. Full existence/active/bookable
+        validation is performed against the database in AppointmentService so that
+        the backend stays consistent with the dynamic catalogue.
+        """
+        clean = v.strip()
+        if not clean:
+            raise ValueError("serviceId is required.")
         try:
-            from uuid import UUID
             UUID(clean)
             return clean
         except ValueError:
-            raise ValueError(f"Invalid serviceId '{v}'. Must be one of: {', '.join(sorted(ALLOWED_SERVICES))} or a valid service UUID.")
+            return clean.lower()
 
     @field_validator("preferredDate")
     @classmethod

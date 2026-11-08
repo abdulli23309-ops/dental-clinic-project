@@ -3,7 +3,7 @@ import hashlib
 import json
 import secrets
 from datetime import date, datetime, timezone
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
@@ -211,21 +211,37 @@ async def get_public_organization(
     request: Request,
     response: Response,
     org_service: OrganizationService = Depends(get_organization_service),
+    cms_service: CmsService = Depends(get_cms_service),
 ) -> Any:
     """Returns top-level practice organization details including branding, currency, and dynamic theming."""
     org = await org_service.get_organization()
     if org is None:
         response.headers["Cache-Control"] = "public, max-age=0, must-revalidate"
         return None
+
+    cms_general: Dict[str, Any] = {}
+    try:
+        cms_general = await cms_service.get_section("general")
+    except Exception:
+        cms_general = {}
+
+    logo_url = org.logo_url or (cms_general.get("logoUrl") if cms_general else None)
+    short_brand_name = (
+        (cms_general.get("shortBrandName") if cms_general else None)
+        or org.display_name
+        or org.name
+    )
+
     res = OrganizationResponse(
         id=org.id,
         name=org.name,
         displayName=org.display_name,
-        tagline=org.tagline,
+        shortBrandName=short_brand_name,
+        tagline=org.tagline or (cms_general.get("tagline") if cms_general else None),
         description=org.description,
-        logoUrl=org.logo_url,
-        contactEmail=org.contact_email,
-        contactPhone=org.contact_phone,
+        logoUrl=logo_url,
+        contactEmail=org.contact_email or (cms_general.get("email") if cms_general else None),
+        contactPhone=org.contact_phone or (cms_general.get("phone") if cms_general else None),
         websiteUrl=org.website_url,
         primaryColor=org.primary_color,
         secondaryColor=org.secondary_color,
@@ -337,7 +353,7 @@ async def get_public_clinics(
     return await get_public_locations(org_service)
 
 
-_lead_phone_locks: dict[str, asyncio.Lock] = {}
+_lead_phone_locks: Dict[str, asyncio.Lock] = {}
 _lead_phone_locks_guard = asyncio.Lock()
 
 

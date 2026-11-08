@@ -54,6 +54,8 @@ pytest_out.txt
 *.out.txt
 *out.txt
 *.log
+*.err
+backups/
 
 # Documentation and Scratch files
 docs/*

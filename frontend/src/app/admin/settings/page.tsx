@@ -16,7 +16,9 @@ import { Card } from "@/components/ui/card";
 import { TextField } from "@/components/ui/text-field";
 import { StaggerList } from "@/components/ui/stagger-list";
 import { useAuth } from "@/components/providers/auth-provider";
+import { usePublicContent } from "@/components/providers/public-content-provider";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { SuccessAlert } from "@/components/ui/success-draw";
 import {
   adminGetOrganization,
   adminUpdateOrganization,
@@ -45,6 +47,7 @@ const PRESET_PALETTES = [
 
 export default function AdminSettingsPage() {
   const { user, accessToken, updateInactivity } = useAuth();
+  const { refreshPublicContent } = usePublicContent();
   const [activeTab, setActiveTab] = useState<"account" | "appearance">("account");
 
   // Inactivity State
@@ -90,6 +93,27 @@ export default function AdminSettingsPage() {
         console.error("Failed to load organization theming settings:", err);
       });
   }, [accessToken]);
+
+  // Real-time Dynamic Theming Live Preview
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      const root = document.documentElement;
+      if (primaryColor) {
+        root.style.setProperty("--primary", primaryColor);
+        root.style.setProperty("--color-primary", primaryColor);
+        root.style.setProperty("--color-forest", primaryColor);
+        root.style.setProperty("--theme-primary", primaryColor);
+      }
+      if (secondaryColor) {
+        root.style.setProperty("--secondary", secondaryColor);
+        root.style.setProperty("--color-secondary", secondaryColor);
+        root.style.setProperty("--color-gold", secondaryColor);
+      }
+      if (backgroundColor) {
+        root.style.setProperty("--color-bg-base", backgroundColor);
+      }
+    }
+  }, [primaryColor, secondaryColor, backgroundColor]);
 
   const handleSaveInactivity = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -162,6 +186,11 @@ export default function AdminSettingsPage() {
         }
         styleTag.textContent = css;
       }
+      try {
+        await refreshPublicContent();
+      } catch (refreshErr) {
+        console.warn("Failed to refresh public branding cache:", refreshErr);
+      }
       setThemingSuccess(true);
       setTimeout(() => setThemingSuccess(false), 3000);
     } catch (err: any) {
@@ -172,391 +201,383 @@ export default function AdminSettingsPage() {
   };
 
   return (
-  <AnimatedPage>
-    <div className="space-y-6 max-w-4xl">
-      <div className="border-b border-line pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <p className="eyebrow mb-1">Administrative Center</p>
-          <h1 className="text-2xl sm:text-3xl font-display text-ink font-semibold">
-            System &amp; Workspace Settings
-          </h1>
-          <p className="mt-1 text-xs sm:text-sm text-ink-soft">
-            Manage authenticated staff credentials, security timeouts, and dynamic organization theming.
-          </p>
+    <AnimatedPage>
+      <div className="space-y-6 max-w-4xl">
+        <div className="border-b border-line pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <p className="eyebrow mb-1">Administrative Center</p>
+            <h1 className="text-2xl sm:text-3xl font-display text-ink font-semibold">
+              System &amp; Workspace Settings
+            </h1>
+            <p className="mt-1 text-xs sm:text-sm text-ink-soft">
+              Manage authenticated staff credentials, security timeouts, and dynamic organization theming.
+            </p>
+          </div>
+
+          {/* Tab Controls */}
+          <div className="bg-gray-100 p-1 rounded-full inline-flex border border-gray-200/80 gap-1 w-fit shadow-inner">
+            <button
+              type="button"
+              onClick={() => setActiveTab("account")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs sm:text-sm transition-all duration-200 cursor-pointer ${activeTab === "account"
+                  ? "bg-white shadow-md text-primary font-semibold"
+                  : "text-gray-600 hover:text-gray-900 font-medium"
+                }`}
+            >
+              <Shield className="h-4 w-4" />
+              <span>Account &amp; Security</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("appearance")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs sm:text-sm transition-all duration-200 cursor-pointer ${activeTab === "appearance"
+                  ? "bg-white shadow-md text-primary font-semibold"
+                  : "text-gray-600 hover:text-gray-900 font-medium"
+                }`}
+            >
+              <Palette className="h-4 w-4" />
+              <span>Appearance &amp; Theming</span>
+            </button>
+          </div>
         </div>
 
-        {/* Tab Controls */}
-        <div className="bg-gray-100 p-1 rounded-full inline-flex border border-gray-200/80 gap-1 w-fit shadow-inner">
-          <button
-            type="button"
-            onClick={() => setActiveTab("account")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs sm:text-sm transition-all duration-200 cursor-pointer ${
-              activeTab === "account"
-                ? "bg-white shadow-md text-primary font-semibold"
-                : "text-gray-600 hover:text-gray-900 font-medium"
-            }`}
-          >
-            <Shield className="h-4 w-4" />
-            <span>Account &amp; Security</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("appearance")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs sm:text-sm transition-all duration-200 cursor-pointer ${
-              activeTab === "appearance"
-                ? "bg-white shadow-md text-primary font-semibold"
-                : "text-gray-600 hover:text-gray-900 font-medium"
-            }`}
-          >
-            <Palette className="h-4 w-4" />
-            <span>Appearance &amp; Theming</span>
-          </button>
-        </div>
-      </div>
-
-      {/* TAB 1: ACCOUNT & INACTIVITY SETTINGS */}
-      {activeTab === "account" && (
-        <div className="space-y-6">
-          <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={0}>
-            <div className="flex items-center gap-4">
-              <div className="h-16 w-16 rounded-2xl bg-forest text-[#FAF7F2] grid place-items-center text-xl font-display font-bold shadow-subtle">
-                {user?.fullName
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")
-                  .slice(0, 2)
-                  .toUpperCase()}
-              </div>
-              <div>
-                <h2 className="text-lg font-display font-bold text-ink">{user?.fullName}</h2>
-                <p className="text-xs text-ink-soft">{user?.email}</p>
-                <div className="mt-1 flex items-center gap-2">
-                  <span className="rounded-full bg-forest/10 px-2 py-0.5 text-[10px] font-semibold text-forest uppercase font-mono">
-                    {user?.role}
-                  </span>
-                  <span className="rounded-full bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:text-emerald-300">
-                    Active Session
-                  </span>
+        {/* TAB 1: ACCOUNT & INACTIVITY SETTINGS */}
+        {activeTab === "account" && (
+          <div className="space-y-6">
+            <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={0}>
+              <div className="flex items-center gap-4">
+                <div className="h-16 w-16 rounded-2xl bg-forest text-[#FAF7F2] grid place-items-center text-xl font-display font-bold shadow-subtle">
+                  {user?.fullName
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase()}
+                </div>
+                <div>
+                  <h2 className="text-lg font-display font-bold text-ink">{user?.fullName}</h2>
+                  <p className="text-xs text-ink-soft">{user?.email}</p>
+                  <div className="mt-1 flex items-center gap-2">
+                    <span className="rounded-full bg-forest/10 px-2 py-0.5 text-[10px] font-semibold text-forest uppercase font-mono">
+                      {user?.role}
+                    </span>
+                    <span className="rounded-full bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:text-emerald-300">
+                      Active Session
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="space-y-3 pt-4 border-t border-line/60 text-xs text-ink-soft">
-              <div className="flex justify-between py-1 border-b border-line/40">
-                <span>Account ID:</span>
-                <span className="font-mono text-ink">{user?.id}</span>
+              <div className="space-y-3 pt-4 border-t border-line/60 text-xs text-ink-soft">
+                <div className="flex justify-between py-1 border-b border-line/40">
+                  <span>Account ID:</span>
+                  <span className="font-mono text-ink">{user?.id}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-line/40">
+                  <span>Authentication Model:</span>
+                  <span className="font-medium text-ink">
+                    Strict Single Active Session (One PC at a time) + 7-Day In-Memory JWT
+                  </span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-line/40">
+                  <span>Silent Rotation Threshold:</span>
+                  <span className="text-ink">35 minutes with concurrency grace period &amp; FIFO request queue</span>
+                </div>
               </div>
-              <div className="flex justify-between py-1 border-b border-line/40">
-                <span>Authentication Model:</span>
-                <span className="font-medium text-ink">
-                  Strict Single Active Session (One PC at a time) + 7-Day In-Memory JWT
-                </span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-line/40">
-                <span>Silent Rotation Threshold:</span>
-                <span className="text-ink">35 minutes with concurrency grace period &amp; FIFO request queue</span>
-              </div>
-            </div>
-          </Card>
+            </Card>
 
-          {/* Inactivity Form */}
-          <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={1}>
-            <div className="flex items-center gap-3 border-b border-line/60 pb-3">
-              <Clock className="h-5 w-5 text-forest" />
+            {/* Inactivity Form */}
+            <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={1}>
+              <div className="flex items-center gap-3 border-b border-line/60 pb-3">
+                <Clock className="h-5 w-5 text-forest" />
+                <div>
+                  <h3 className="text-base font-display font-semibold text-ink">
+                    Inactivity Logout Policy
+                  </h3>
+                  <p className="text-xs text-ink-soft">
+                    Automatically secures unattended workstations after a configured period of idle time.
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleSaveInactivity} className="space-y-5">
+                <label className="flex items-center gap-3 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={inactivityEnabled}
+                    onChange={(e) => setInactivityEnabled(e.target.checked)}
+                    className="h-4 w-4 rounded border-line text-forest focus:ring-forest"
+                  />
+                  <div>
+                    <span className="text-sm font-semibold text-ink block">
+                      Enable automatic idle workstation logout
+                    </span>
+                    <span className="text-xs text-ink-soft block">
+                      When enabled, an interactive warning dialog will appear before terminating the session.
+                    </span>
+                  </div>
+                </label>
+
+                {inactivityEnabled && (
+                  <StaggerList className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2" stagger={0.1}>
+                    <TextField
+                      id="timeout-minutes"
+                      label="Idle Timeout (Minutes)"
+                      type="number"
+                      min={1}
+                      max={240}
+                      value={timeoutMinutes}
+                      onChange={(e) => setTimeoutMinutes(Number(e.target.value))}
+                      helpText="Default: 15 minutes before warning."
+                    />
+                    <TextField
+                      id="warning-seconds"
+                      label="Warning Window (Seconds)"
+                      type="number"
+                      min={10}
+                      max={300}
+                      value={warningSeconds}
+                      onChange={(e) => setWarningSeconds(Number(e.target.value))}
+                      helpText="Duration countdown modal is visible before hard logout."
+                    />
+                  </StaggerList>
+                )}
+
+                {inactivityError && (
+                  <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs">
+                    {inactivityError}
+                  </div>
+                )}
+
+                {inactivitySuccess && (
+                  <SuccessAlert message="Inactivity policies updated successfully." />
+                )}
+
+                <Button type="submit" variant="primary" size="md" disabled={isSavingInactivity}>
+                  {isSavingInactivity ? "Saving..." : "Save Inactivity Policy"}
+                </Button>
+              </form>
+            </Card>
+          </div>
+        )}
+
+        {/* TAB 2: APPEARANCE & THEMING */}
+        {activeTab === "appearance" && (
+          <div className="space-y-6">
+            <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={2}>
               <div>
-                <h3 className="text-base font-display font-semibold text-ink">
-                  Inactivity Logout Policy
-                </h3>
-                <p className="text-xs text-ink-soft">
-                  Automatically secures unattended workstations after a configured period of idle time.
+                <h2 className="text-lg font-display font-bold text-ink">
+                  Global Organization Theming
+                </h2>
+                <p className="mt-1 text-xs text-ink-soft">
+                  Customise the visual identity across the public website and multi-branch booking flow.
+                  Values are stored in the database and applied dynamically via CSS variables.
                 </p>
               </div>
-            </div>
 
-            <form onSubmit={handleSaveInactivity} className="space-y-5">
-              <label className="flex items-center gap-3 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={inactivityEnabled}
-                  onChange={(e) => setInactivityEnabled(e.target.checked)}
-                  className="h-4 w-4 rounded border-line text-forest focus:ring-forest"
-                />
-                <div>
-                  <span className="text-sm font-semibold text-ink block">
-                    Enable automatic idle workstation logout
-                  </span>
-                  <span className="text-xs text-ink-soft block">
-                    When enabled, an interactive warning dialog will appear before terminating the session.
-                  </span>
+              {/* Color Palette Quick Presets */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-ink-soft mb-2 font-mono">
+                  Preset Palettes
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {PRESET_PALETTES.map((preset) => (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      onClick={() => {
+                        setPrimaryColor(preset.primary);
+                        setSecondaryColor(preset.secondary);
+                        setBackgroundColor(preset.bg);
+                      }}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-line bg-white/70 dark:bg-black/30 hover:border-forest text-xs font-medium transition-all"
+                    >
+                      <div className="flex items-center -space-x-1">
+                        <span
+                          className="h-3.5 w-3.5 rounded-full border border-white"
+                          style={{ backgroundColor: preset.primary }}
+                        />
+                        <span
+                          className="h-3.5 w-3.5 rounded-full border border-white"
+                          style={{ backgroundColor: preset.secondary }}
+                        />
+                        <span
+                          className="h-3.5 w-3.5 rounded-full border border-line"
+                          style={{ backgroundColor: preset.bg }}
+                        />
+                      </div>
+                      <span>{preset.name}</span>
+                    </button>
+                  ))}
                 </div>
-              </label>
+              </div>
 
-              {inactivityEnabled && (
-                <StaggerList className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2" stagger={0.1}>
-                  <TextField
-                    id="timeout-minutes"
-                    label="Idle Timeout (Minutes)"
-                    type="number"
-                    min={1}
-                    max={240}
-                    value={timeoutMinutes}
-                    onChange={(e) => setTimeoutMinutes(Number(e.target.value))}
-                    helpText="Default: 15 minutes before warning."
-                  />
-                  <TextField
-                    id="warning-seconds"
-                    label="Warning Window (Seconds)"
-                    type="number"
-                    min={10}
-                    max={300}
-                    value={warningSeconds}
-                    onChange={(e) => setWarningSeconds(Number(e.target.value))}
-                    helpText="Duration countdown modal is visible before hard logout."
-                  />
-                </StaggerList>
-              )}
-
-              {inactivityError && (
-                <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs">
-                  {inactivityError}
-                </div>
-              )}
-
-              {inactivitySuccess && (
-                <div className="p-3 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 text-xs flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-600" />
-                  <span>Inactivity policies updated successfully.</span>
-                </div>
-              )}
-
-              <Button type="submit" variant="primary" size="md" disabled={isSavingInactivity}>
-                {isSavingInactivity ? "Saving..." : "Save Inactivity Policy"}
-              </Button>
-            </form>
-          </Card>
-        </div>
-      )}
-
-      {/* TAB 2: APPEARANCE & THEMING */}
-      {activeTab === "appearance" && (
-        <div className="space-y-6">
-          <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={2}>
-            <div>
-              <h2 className="text-lg font-display font-bold text-ink">
-                Global Organization Theming
-              </h2>
-              <p className="mt-1 text-xs text-ink-soft">
-                Customise the visual identity across the public website and multi-branch booking flow.
-                Values are stored in the database and applied dynamically via CSS variables.
-              </p>
-            </div>
-
-            {/* Color Palette Quick Presets */}
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-ink-soft mb-2 font-mono">
-                Preset Palettes
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {PRESET_PALETTES.map((preset) => (
-                  <button
-                    key={preset.name}
-                    type="button"
-                    onClick={() => {
-                      setPrimaryColor(preset.primary);
-                      setSecondaryColor(preset.secondary);
-                      setBackgroundColor(preset.bg);
-                    }}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-line bg-white/70 dark:bg-black/30 hover:border-forest text-xs font-medium transition-all"
-                  >
-                    <div className="flex items-center -space-x-1">
-                      <span
-                        className="h-3.5 w-3.5 rounded-full border border-white"
-                        style={{ backgroundColor: preset.primary }}
+              <form onSubmit={handleSaveTheming} className="space-y-6">
+                {/* Colors */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-xs font-semibold text-ink block mb-1">
+                      Primary Brand Color
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={primaryColor}
+                        onChange={(e) => setPrimaryColor(e.target.value)}
+                        className="h-9 w-10 rounded border border-line cursor-pointer p-0.5 bg-transparent"
                       />
-                      <span
-                        className="h-3.5 w-3.5 rounded-full border border-white"
-                        style={{ backgroundColor: preset.secondary }}
-                      />
-                      <span
-                        className="h-3.5 w-3.5 rounded-full border border-line"
-                        style={{ backgroundColor: preset.bg }}
+                      <input
+                        type="text"
+                        value={primaryColor}
+                        onChange={(e) => setPrimaryColor(e.target.value)}
+                        placeholder="#1B3B2B"
+                        className="flex-1 rounded-lg border border-line bg-white/80 dark:bg-black/20 px-3 py-2 text-xs font-mono text-ink"
                       />
                     </div>
-                    <span>{preset.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <form onSubmit={handleSaveTheming} className="space-y-6">
-              {/* Colors */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="text-xs font-semibold text-ink block mb-1">
-                    Primary Brand Color
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={primaryColor}
-                      onChange={(e) => setPrimaryColor(e.target.value)}
-                      className="h-9 w-10 rounded border border-line cursor-pointer p-0.5 bg-transparent"
-                    />
-                    <input
-                      type="text"
-                      value={primaryColor}
-                      onChange={(e) => setPrimaryColor(e.target.value)}
-                      placeholder="#1B3B2B"
-                      className="flex-1 rounded-lg border border-line bg-white/80 dark:bg-black/20 px-3 py-2 text-xs font-mono text-ink"
-                    />
+                    <span className="text-[10px] text-ink-soft mt-1 block">
+                      Buttons, highlights, brand accents
+                    </span>
                   </div>
-                  <span className="text-[10px] text-ink-soft mt-1 block">
-                    Buttons, highlights, brand accents
-                  </span>
-                </div>
 
-                <div>
-                  <label className="text-xs font-semibold text-ink block mb-1">
-                    Secondary Accent Color
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={secondaryColor}
-                      onChange={(e) => setSecondaryColor(e.target.value)}
-                      className="h-9 w-10 rounded border border-line cursor-pointer p-0.5 bg-transparent"
-                    />
-                    <input
-                      type="text"
-                      value={secondaryColor}
-                      onChange={(e) => setSecondaryColor(e.target.value)}
-                      placeholder="#C59B27"
-                      className="flex-1 rounded-lg border border-line bg-white/80 dark:bg-black/20 px-3 py-2 text-xs font-mono text-ink"
-                    />
+                  <div>
+                    <label className="text-xs font-semibold text-ink block mb-1">
+                      Secondary Accent Color
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={secondaryColor}
+                        onChange={(e) => setSecondaryColor(e.target.value)}
+                        className="h-9 w-10 rounded border border-line cursor-pointer p-0.5 bg-transparent"
+                      />
+                      <input
+                        type="text"
+                        value={secondaryColor}
+                        onChange={(e) => setSecondaryColor(e.target.value)}
+                        placeholder="#C59B27"
+                        className="flex-1 rounded-lg border border-line bg-white/80 dark:bg-black/20 px-3 py-2 text-xs font-mono text-ink"
+                      />
+                    </div>
+                    <span className="text-[10px] text-ink-soft mt-1 block">
+                      Badges, sub-headings, stars, icons
+                    </span>
                   </div>
-                  <span className="text-[10px] text-ink-soft mt-1 block">
-                    Badges, sub-headings, stars, icons
-                  </span>
-                </div>
 
-                <div>
-                  <label className="text-xs font-semibold text-ink block mb-1">
-                    Background Color
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={backgroundColor}
-                      onChange={(e) => setBackgroundColor(e.target.value)}
-                      className="h-9 w-10 rounded border border-line cursor-pointer p-0.5 bg-transparent"
-                    />
-                    <input
-                      type="text"
-                      value={backgroundColor}
-                      onChange={(e) => setBackgroundColor(e.target.value)}
-                      placeholder="#FAF7F2"
-                      className="flex-1 rounded-lg border border-line bg-white/80 dark:bg-black/20 px-3 py-2 text-xs font-mono text-ink"
-                    />
+                  <div>
+                    <label className="text-xs font-semibold text-ink block mb-1">
+                      Background Color
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={backgroundColor}
+                        onChange={(e) => setBackgroundColor(e.target.value)}
+                        className="h-9 w-10 rounded border border-line cursor-pointer p-0.5 bg-transparent"
+                      />
+                      <input
+                        type="text"
+                        value={backgroundColor}
+                        onChange={(e) => setBackgroundColor(e.target.value)}
+                        placeholder="#FAF7F2"
+                        className="flex-1 rounded-lg border border-line bg-white/80 dark:bg-black/20 px-3 py-2 text-xs font-mono text-ink"
+                      />
+                    </div>
+                    <span className="text-[10px] text-ink-soft mt-1 block">
+                      Main surface wash &amp; section backgrounds
+                    </span>
                   </div>
-                  <span className="text-[10px] text-ink-soft mt-1 block">
-                    Main surface wash &amp; section backgrounds
-                  </span>
-                </div>
-              </div>
-
-              {/* Fonts */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-semibold text-ink block mb-1">
-                    Primary Heading Font
-                  </label>
-                  <select
-                    value={primaryFont}
-                    onChange={(e) => setPrimaryFont(e.target.value)}
-                    className="w-full rounded-lg border border-line bg-white/80 dark:bg-black/20 px-3 py-2 text-xs text-ink"
-                  >
-                    {PRESET_FONTS.map((font) => (
-                      <option key={font} value={font}>
-                        {font}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="text-[10px] text-ink-soft mt-1 block">
-                    Used for titles, hero statements, and editorial display headings.
-                  </span>
                 </div>
 
-                <div>
-                  <label className="text-xs font-semibold text-ink block mb-1">
-                    Secondary Body Font
-                  </label>
-                  <select
-                    value={secondaryFont}
-                    onChange={(e) => setSecondaryFont(e.target.value)}
-                    className="w-full rounded-lg border border-line bg-white/80 dark:bg-black/20 px-3 py-2 text-xs text-ink"
-                  >
-                    {PRESET_FONTS.map((font) => (
-                      <option key={font} value={font}>
-                        {font}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="text-[10px] text-ink-soft mt-1 block">
-                    Used for body copy, fee amounts, and clinical details.
-                  </span>
-                </div>
-              </div>
+                {/* Fonts */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-semibold text-ink block mb-1">
+                      Primary Heading Font
+                    </label>
+                    <select
+                      value={primaryFont}
+                      onChange={(e) => setPrimaryFont(e.target.value)}
+                      className="w-full rounded-lg border border-line bg-white/80 dark:bg-black/20 px-3 py-2 text-xs text-ink"
+                    >
+                      {PRESET_FONTS.map((font) => (
+                        <option key={font} value={font}>
+                          {font}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="text-[10px] text-ink-soft mt-1 block">
+                      Used for titles, hero statements, and editorial display headings.
+                    </span>
+                  </div>
 
-              {/* Live Preview Box */}
-              <div className="rounded-2xl border border-line p-5 space-y-3" style={{ backgroundColor }}>
-                <p className="text-[10px] uppercase font-mono tracking-wider font-semibold" style={{ color: secondaryColor }}>
-                  Live Preview Preview
-                </p>
-                <h4 className="text-xl font-bold" style={{ fontFamily: primaryFont, color: primaryColor }}>
-                  {org?.displayName || "Your Clinic Name"}
-                </h4>
-                <p className="text-xs" style={{ fontFamily: secondaryFont, color: "#374151" }}>
-                  Your clinic tagline will appear here.
-                </p>
-                <div className="flex gap-2 pt-1">
-                  <button
-                    type="button"
-                    className="px-4 py-1.5 rounded-lg text-xs font-semibold text-white shadow-sm"
-                    style={{ backgroundColor: primaryColor }}
-                  >
-                    Book Examination
-                  </button>
-                  <button
-                    type="button"
-                    className="px-4 py-1.5 rounded-lg text-xs font-semibold border"
-                    style={{ borderColor: primaryColor, color: primaryColor }}
-                  >
-                    Our Branches
-                  </button>
+                  <div>
+                    <label className="text-xs font-semibold text-ink block mb-1">
+                      Secondary Body Font
+                    </label>
+                    <select
+                      value={secondaryFont}
+                      onChange={(e) => setSecondaryFont(e.target.value)}
+                      className="w-full rounded-lg border border-line bg-white/80 dark:bg-black/20 px-3 py-2 text-xs text-ink"
+                    >
+                      {PRESET_FONTS.map((font) => (
+                        <option key={font} value={font}>
+                          {font}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="text-[10px] text-ink-soft mt-1 block">
+                      Used for body copy, fee amounts, and clinical details.
+                    </span>
+                  </div>
                 </div>
-              </div>
 
-              {themingError && (
-                <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs">
-                  {themingError}
+                {/* Live Preview Box */}
+                <div className="rounded-2xl border border-line p-5 space-y-3" style={{ backgroundColor }}>
+                  <p className="text-[10px] uppercase font-mono tracking-wider font-semibold" style={{ color: secondaryColor }}>
+                    Live Preview Preview
+                  </p>
+                  <h4 className="text-xl font-bold" style={{ fontFamily: primaryFont, color: primaryColor }}>
+                    {org?.displayName || "Your Clinic Name"}
+                  </h4>
+                  <p className="text-xs" style={{ fontFamily: secondaryFont, color: "#374151" }}>
+                    Your clinic tagline will appear here.
+                  </p>
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      type="button"
+                      className="px-4 py-1.5 rounded-lg text-xs font-semibold text-white shadow-sm"
+                      style={{ backgroundColor: primaryColor }}
+                    >
+                      Book Examination
+                    </button>
+                    <button
+                      type="button"
+                      className="px-4 py-1.5 rounded-lg text-xs font-semibold border"
+                      style={{ borderColor: primaryColor, color: primaryColor }}
+                    >
+                      Our Branches
+                    </button>
+                  </div>
                 </div>
-              )}
 
-              {themingSuccess && (
-                <div className="p-3 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 text-xs flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-600" />
-                  <span>Theming settings saved to database and active.</span>
-                </div>
-              )}
+                {themingError && (
+                  <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs">
+                    {themingError}
+                  </div>
+                )}
 
-              <Button type="submit" variant="primary" size="md" disabled={isSavingTheming}>
-                {isSavingTheming ? "Saving Theming..." : "Save Theming Settings"}
-              </Button>
-            </form>
-          </Card>
-        </div>
-      )}
-    </div>
-  </AnimatedPage>
+                {themingSuccess && (
+                  <SuccessAlert message="Theming settings saved to database and active." />
+                )}
+
+                <Button type="submit" variant="primary" size="md" disabled={isSavingTheming}>
+                  {isSavingTheming ? "Saving Theming..." : "Save Theming Settings"}
+                </Button>
+              </form>
+            </Card>
+          </div>
+        )}
+      </div>
+    </AnimatedPage>
   );
 }

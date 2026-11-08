@@ -1,6 +1,6 @@
 import json
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,7 +22,7 @@ class PostgresActivityLogRepository:
         entity_type: str,
         entity_id: Optional[str] = None,
         user_id: Optional[UUID] = None,
-        details: Optional[dict] = None,
+        details: Optional[Dict[str, Any]] = None,
         ip_address: Optional[str] = None,
     ) -> None:
         """
@@ -52,7 +52,7 @@ class PostgresActivityLogRepository:
         patient: Optional[str] = None,
         limit: int = 50,
         offset: int = 0,
-    ) -> tuple[list[dict], int]:
+    ) -> Tuple[List[Dict[str, Any]], int]:
         """
         Query audit activity logs with optional filters and pagination.
         Includes user account details for who performed the action.
@@ -148,7 +148,7 @@ class PostgresActivityLogRepository:
         end_date: Optional[datetime] = None,
         patient: Optional[str] = None,
         max_records: int = 5000,
-    ) -> list[dict]:
+    ) -> List[Dict[str, Any]]:
         """
         Exports audit log records up to max_records for CSV generation.
         """
@@ -171,7 +171,7 @@ async def record_activity(
     entity_type: str,
     entity_id: Optional[Any] = None,
     user_id: Optional[UUID] = None,
-    details: Optional[dict] = None,
+    details: Optional[Dict[str, Any]] = None,
     ip_address: Optional[str] = None,
 ) -> None:
     """

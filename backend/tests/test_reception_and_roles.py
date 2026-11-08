@@ -334,6 +334,8 @@ async def test_public_booking_request_visibility_in_reception_and_admin(
         ProviderAvailabilityORM,
         ServiceORM,
         ClinicServiceORM,
+        ServiceProviderORM,
+        TeamMemberClinicORM,
         TeamMemberORM,
     )
     from app.infrastructure.repositories.postgres_booking_repo import PostgresBookingRepository
@@ -409,6 +411,8 @@ async def test_public_booking_request_visibility_in_reception_and_admin(
         is_active=True,
     )
     test_session.add(doc_amna)
+    test_session.add(TeamMemberClinicORM(team_member_id=doc_amna.id, clinic_id=clinic_f7.id, is_active=True))
+    test_session.add(ServiceProviderORM(team_member_id=doc_amna.id, service_id=svc.id, clinic_id=clinic_f7.id, is_active=True))
 
     for dow in range(7):
         test_session.add(

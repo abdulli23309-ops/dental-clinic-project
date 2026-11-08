@@ -37,10 +37,12 @@ def parse_duration_to_minutes(duration_str: Optional[str]) -> int:
     return int(val)
 
 
-def parse_time_to_minutes(time_str: Optional[str]) -> Optional[int]:
+def parse_time_to_minutes(time_str: Optional[str], is_end_time: bool = False) -> Optional[int]:
     if not time_str or not time_str.strip():
         return None
     s = time_str.strip().upper()
+    if s in ("24:00", "24:00:00"):
+        return 1440
     # Support "HH:MM", "HH:MM:SS", and 12-hour "HH:MM AM/PM"
     m = re.match(r"^(\d{1,2})(?::(\d{2}))?(?::(\d{2}))?\s*(AM|PM)?$", s)
     if not m:
@@ -60,6 +62,10 @@ def parse_time_to_minutes(time_str: Optional[str]) -> Optional[int]:
         elif hours > 12:
             return None
     else:
+        if hours == 24 and minutes == 0:
+            return 1440
+        if is_end_time and hours == 0 and minutes == 0:
+            return 1440
         if hours > 23 or minutes > 59:
             return None
 
@@ -145,7 +151,8 @@ class AvailabilityService:
             return []
 
         clinic_open_intervals: List[Tuple[int, int]] = []
-        if getattr(wh, "is_24_hours", False):
+        is_clinic_24_hours = bool(getattr(wh, "is_24_hours", False)) or (wh.open_time == "00:00" and wh.close_time in ("24:00", "00:00"))
+        if is_clinic_24_hours:
             clinic_open_intervals.append((0, 1440))
         elif getattr(wh, "periods_json", None):
             try:
@@ -153,7 +160,7 @@ class AvailabilityService:
                 if isinstance(periods, list) and periods:
                     for p in periods:
                         p_st = parse_time_to_minutes(p.get("open_time"))
-                        p_en = parse_time_to_minutes(p.get("close_time"))
+                        p_en = parse_time_to_minutes(p.get("close_time"), is_end_time=True)
                         if p_st is not None and p_en is not None and p_en > p_st:
                             clinic_open_intervals.append((p_st, p_en))
             except Exception:
@@ -163,7 +170,7 @@ class AvailabilityService:
             if not wh.open_time or not wh.close_time:
                 return []
             clinic_open_mins = parse_time_to_minutes(wh.open_time)
-            clinic_close_mins = parse_time_to_minutes(wh.close_time)
+            clinic_close_mins = parse_time_to_minutes(wh.close_time, is_end_time=True)
             if clinic_open_mins is None or clinic_close_mins is None or clinic_close_mins <= clinic_open_mins:
                 return []
             clinic_open_intervals.append((clinic_open_mins, clinic_close_mins))
@@ -376,9 +383,15 @@ class AvailabilityService:
                 b_list = []
                 for a in day_avails:
                     s_st = parse_time_to_minutes(a.start_time)
-                    s_en = parse_time_to_minutes(a.end_time)
-                    if s_st is not None and s_en is not None and s_en > s_st:
-                        s_list.append((s_st, s_en))
+                    s_en = parse_time_to_minutes(a.end_time, is_end_time=True)
+                    if s_st is not None and s_en is not None:
+                        if s_en > s_st:
+                            s_list.append((s_st, s_en))
+                        elif s_en < s_st:
+                            # Cross-midnight shift starting on target_date
+                            s_list.append((s_st, 1440))
+                        elif s_st == 0 and s_en == 1440:
+                            s_list.append((0, 1440))
                     if a.break_start_time and a.break_end_time:
                         b_st = parse_time_to_minutes(a.break_start_time)
                         b_en = parse_time_to_minutes(a.break_end_time)
@@ -394,6 +407,27 @@ class AvailabilityService:
                                     b_list.append((b_st, b_en))
                         except Exception:
                             pass
+
+                # Check previous day's overnight shift continuation
+                prev_dow = (dow - 1) % 7
+                prev_pa_stmt = select(ProviderAvailabilityORM).where(
+                    ProviderAvailabilityORM.team_member_id == cid,
+                    ProviderAvailabilityORM.day_of_week == prev_dow,
+                    ProviderAvailabilityORM.is_active.is_(True),
+                    ProviderAvailabilityORM.is_draft.is_(False),
+                    or_(
+                        ProviderAvailabilityORM.clinic_id.is_(None),
+                        ProviderAvailabilityORM.clinic_id == clinic_id,
+                    ),
+                )
+                prev_pa_res = await self.session.execute(prev_pa_stmt)
+                for pa in prev_pa_res.scalars().all():
+                    p_st = parse_time_to_minutes(pa.start_time)
+                    p_en = parse_time_to_minutes(pa.end_time)
+                    if p_st is not None and p_en is not None and p_en < p_st:
+                        # Morning continuation of yesterday's overnight shift
+                        s_list.append((0, p_en))
+
                 clinician_shifts_map[cid] = s_list
                 clinician_breaks_map[cid] = b_list
             else:
@@ -405,9 +439,9 @@ class AvailabilityService:
         if not working_clinicians:
             return []
 
-        # 8. Pre-load existing bookings on target date to check collisions & inter-branch travel
+        # 8. Pre-load existing bookings on target date and previous date to check collisions & inter-branch travel
         bk_stmt = select(BookingORM).where(
-            BookingORM.preferred_date == target_date,
+            BookingORM.preferred_date.in_([target_date, target_date - timedelta(days=1)]),
             BookingORM.status.not_in(["cancelled", "no_show"]),
         )
         bk_res = await self.session.execute(bk_stmt)
@@ -428,7 +462,12 @@ class AvailabilityService:
                     except Exception:
                         pass
                 b_end = b_start + b_dur + b_buf
-                existing_intervals.append((b.team_member_id, b.clinic_id, b_start, b_end))
+                if b.preferred_date == target_date:
+                    existing_intervals.append((b.team_member_id, b.clinic_id, b_start, b_end))
+                elif b.preferred_date == target_date - timedelta(days=1):
+                    if b_end > 1440:
+                        # Overnight booking spilling into target_date
+                        existing_intervals.append((b.team_member_id, b.clinic_id, 0, b_end - 1440))
 
         # 9. Lead time threshold
         min_allowed_time = None

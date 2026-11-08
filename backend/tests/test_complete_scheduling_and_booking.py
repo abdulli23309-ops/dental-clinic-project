@@ -611,11 +611,45 @@ async def test_booking_confirmation_rules_existing_vs_new_vs_special_category(
         email="zainab@example.com",
     )
     test_session.add(existing_patient)
-    await test_session.commit()
+    await test_session.flush()
 
     tz = ZoneInfo("Asia/Karachi")
     target_date = datetime.now(tz).date() + timedelta(days=2)
     dow = target_date.weekday()
+
+    # Branch-scoped authorization chain: AppointmentService strictly validates that
+    # the clinic offers the service (ClinicServiceORM), has an assigned active doctor
+    # (TeamMemberClinicORM), and that the doctor is authorized for the service at this branch
+    # (ServiceProviderORM) with availability. This fixture establishes that valid baseline.
+    doctor = TeamMemberORM(
+        id=uuid4(),
+        organization_id=org.id,
+        clinic_id=clinic.id,
+        first_name="Ayesha",
+        last_name="Hussain",
+        display_name="Dr. Ayesha Hussain",
+        professional_title="BDS, RDS",
+        role="doctor",
+        is_active=True,
+    )
+    test_session.add(doctor)
+    await test_session.flush()
+
+    test_session.add(TeamMemberClinicORM(team_member_id=doctor.id, clinic_id=clinic.id, is_active=True, is_primary=True))
+    test_session.add(ClinicServiceORM(clinic_id=clinic.id, service_id=svc_routine.id, is_active=True))
+    test_session.add(ClinicServiceORM(clinic_id=clinic.id, service_id=svc_implant.id, is_active=True))
+    test_session.add(ServiceProviderORM(team_member_id=doctor.id, service_id=svc_routine.id, clinic_id=clinic.id, is_active=True))
+    test_session.add(ServiceProviderORM(team_member_id=doctor.id, service_id=svc_implant.id, clinic_id=clinic.id, is_active=True))
+    test_session.add(
+        ProviderAvailabilityORM(
+            team_member_id=doctor.id,
+            clinic_id=clinic.id,
+            day_of_week=dow,
+            start_time="09:00",
+            end_time="18:00",
+            is_active=True,
+        )
+    )
 
     wh = ClinicWorkingHoursORM(
         id=uuid4(),

@@ -39,7 +39,7 @@ export function ThemeToggle({ className = "", size = "md" }: ThemeToggleProps) {
         {isDark ? (
           <motion.div
             key="dark-sun"
-            initial={shouldReduceMotion ? { opacity: 0 } : { rotate: -90, scale: 0.5, opacity: 0 }}
+            initial={false}
             animate={shouldReduceMotion ? { opacity: 1 } : { rotate: 0, scale: 1, opacity: 1 }}
             exit={shouldReduceMotion ? { opacity: 0 } : { rotate: 90, scale: 0.5, opacity: 0 }}
             transition={{ type: "spring", stiffness: 350, damping: 22 }}

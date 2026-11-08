@@ -45,6 +45,7 @@ from app.application.dtos.service_dto import ServiceResponse
 from app.application.dtos.team_dto import TeamMemberResponse
 from app.application.services.announcement_service import AnnouncementService
 from app.application.services.availability_service import AvailabilityService
+from app.application.services.role_service import RoleService  # Import present for RoleService
 from app.application.services.booking_eligibility_service import BookingEligibilityService
 from app.application.services.booking_settings_service import BookingSettingsService
 from app.application.services.cms_service import CmsService

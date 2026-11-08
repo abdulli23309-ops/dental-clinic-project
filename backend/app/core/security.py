@@ -102,3 +102,8 @@ def generate_refresh_token() -> str:
 def hash_refresh_token(token: str) -> str:
     """Hashes a refresh token with SHA-256 for secure database lookup."""
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def generate_csrf_token() -> str:
+    """Generates a cryptographically secure CSRF token for state-changing requests."""
+    return secrets.token_urlsafe(32)

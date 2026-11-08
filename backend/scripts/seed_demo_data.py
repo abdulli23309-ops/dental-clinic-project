@@ -16,6 +16,7 @@ import shutil
 import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
 # Ensure backend root is on sys.path
@@ -58,6 +59,8 @@ from app.infrastructure.database.orm_models import (
 # ---------------------------------------------------------------------------
 
 ROLE_SEEDS = [
+    ("Doctor", "Doctor", "Licensed Dental Clinician"),
+    ("doctor", "Doctor", "Licensed Dental Clinician"),
     ("Dentist", "Dentist", "General dental care and clinical dentistry"),
     ("General Dentist", "General Dentist", "Comprehensive primary dental examinations and restorative treatments"),
     ("Orthodontist", "Orthodontist", "Alignment of teeth and malocclusion correction"),
@@ -692,7 +695,7 @@ def sync_all_assets(dry_run: bool = False):
 # Main Seed Logic
 # ---------------------------------------------------------------------------
 
-async def seed_database(database_name: str | None = None, dry_run: bool = False):
+async def seed_database(database_name: Optional[str] = None, dry_run: bool = False):
     load_dotenv(BACKEND_DIR / ".env")
     base_url = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5433/dental_dev")
 
@@ -742,37 +745,28 @@ async def seed_database(database_name: str | None = None, dry_run: bool = False)
                 org.secondary_color = "#B8935A"
         org_id = org.id
 
-        # 1b. SiteSection 'general' for shortBrandName, logo, and clinic metadata
-        sec_res = await session.execute(select(SiteSectionORM).where(SiteSectionORM.section_key == "general"))
-        sec = sec_res.scalars().first()
-        gen_data = {
-            "practiceName": "Hira Dental Clinic",
-            "shortBrandName": "DHDC",
-            "tagline": "Precision & Compassion in Modern Dentistry",
-            "logoUrl": "/media/8d90adff4feb4e8db41f532aa3d630f1.png",
-            "faviconUrl": None,
-            "phone": "051-6102977",
-            "email": "care@hiradental.com",
-            "address": "Shop No. 8 & 9, ASCON Heights, Lower Ground, Soan Garden, Block C, Islamabad.",
-            "emergencyPhone": "0300-610-2977",
-        }
-        if not sec:
-            session.add(SiteSectionORM(
-                section_key="general",
-                content_json=json.dumps(gen_data),
-                updated_at=datetime.now(timezone.utc),
-            ))
-        else:
-            try:
-                curr = json.loads(sec.content_json) if isinstance(sec.content_json, str) else dict(sec.content_json)
-            except Exception:
-                curr = {}
-            curr["practiceName"] = "Hira Dental Clinic"
-            curr["shortBrandName"] = "DHDC"
-            curr["logoUrl"] = curr.get("logoUrl") or "/media/8d90adff4feb4e8db41f532aa3d630f1.png"
-            curr["phone"] = curr.get("phone") or "051-6102977"
-            curr["email"] = curr.get("email") or "care@hiradental.com"
-            sec.content_json = json.dumps(curr)
+        # 1b. SiteSection initialization from CMS DEFAULT_SECTIONS
+        from app.application.services.cms_service import DEFAULT_SECTIONS
+
+        for s_key, s_defaults in DEFAULT_SECTIONS.items():
+            sec_res = await session.execute(select(SiteSectionORM).where(SiteSectionORM.section_key == s_key))
+            sec = sec_res.scalars().first()
+            if not sec:
+                session.add(SiteSectionORM(
+                    section_key=s_key,
+                    content_json=json.dumps(s_defaults),
+                    updated_at=datetime.now(timezone.utc),
+                ))
+            else:
+                try:
+                    curr = json.loads(sec.content_json) if isinstance(sec.content_json, str) else dict(sec.content_json)
+                except Exception:
+                    curr = {}
+                # Fill any missing keys from defaults without overwriting existing non-empty values
+                for k, v in s_defaults.items():
+                    if k not in curr or curr[k] is None or curr[k] == "" or (isinstance(curr[k], list) and len(curr[k]) == 0 and len(v) > 0):
+                        curr[k] = v
+                sec.content_json = json.dumps(curr)
 
         # 2. Roles: RoleORM
         role_seed_count = 0

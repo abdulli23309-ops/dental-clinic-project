@@ -13,6 +13,7 @@ import {
   SharedDashboardLayout,
   SidebarLink,
 } from "@/components/layout/shared-dashboard-layout";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 const DOCTOR_LINKS: SidebarLink[] = [
   { href: "/doctor", title: "Daily Schedule", icon: Calendar, exact: true },
@@ -30,7 +31,12 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
       badgeLabel="Doctor"
       basePath="/doctor"
     >
-      {children}
+      <ErrorBoundary
+        fallbackTitle="Clinical Module Error"
+        fallbackMessage="An unexpected issue occurred while rendering this patient chart or clinical view. Your unsaved clinical documentation is preserved."
+      >
+        {children}
+      </ErrorBoundary>
     </SharedDashboardLayout>
   );
 }

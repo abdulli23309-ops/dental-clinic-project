@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class FaqCreateRequest(BaseModel):
@@ -56,20 +56,44 @@ class GeneralSectionDTO(BaseModel):
 
 
 class HomepageSectionDTO(BaseModel):
-    """CMS Homepage section configuration. Empty until the admin configures the organization."""
+    """CMS Homepage section configuration."""
     heroEyebrow: Optional[str] = None
     heroHeading: Optional[str] = None
+    headline: Optional[str] = None
     heroHighlightWord: Optional[str] = None
     heroDescription: Optional[str] = None
+    subheadline: Optional[str] = None
     heroCtaText: Optional[str] = None
     heroCtaLink: Optional[str] = None
     heroSecondaryCtaText: Optional[str] = None
     heroSecondaryCtaLink: Optional[str] = None
     heroImageUrl: Optional[str] = None
+    image: Optional[str] = None
     startingFee: Optional[str] = None
     heroBadges: List[str] = Field(default_factory=list)
     heroTicks: List[Dict[str, Any]] = Field(default_factory=list)
     promises: List[Dict[str, Any]] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def sync_aliases(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            # Sync headline <-> heroHeading
+            if not data.get("heroHeading") and data.get("headline"):
+                data["heroHeading"] = data["headline"]
+            elif not data.get("headline") and data.get("heroHeading"):
+                data["headline"] = data["heroHeading"]
+            # Sync subheadline <-> heroDescription
+            if not data.get("heroDescription") and data.get("subheadline"):
+                data["heroDescription"] = data["subheadline"]
+            elif not data.get("subheadline") and data.get("heroDescription"):
+                data["subheadline"] = data["heroDescription"]
+            # Sync image <-> heroImageUrl
+            if not data.get("heroImageUrl") and data.get("image"):
+                data["heroImageUrl"] = data["image"]
+            elif not data.get("image") and data.get("heroImageUrl"):
+                data["image"] = data["heroImageUrl"]
+        return data
 
     model_config = ConfigDict(extra="ignore")
 
@@ -120,6 +144,7 @@ class PublicCmsResponse(BaseModel):
     """Public aggregated CMS configuration for frontend rendering."""
     general: GeneralSectionDTO
     homepage: HomepageSectionDTO
+    hero: Optional[HomepageSectionDTO] = None
     about: AboutSectionDTO
     contact: ContactSectionDTO
     footer: FooterSectionDTO

@@ -1,29 +1,25 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   ArrowLeft,
   ArrowRight,
   Building2,
   CalendarCheck2,
   CheckCircle2,
-  Eye,
-  EyeOff,
   Lock,
   ShieldCheck,
-  Sparkles,
   Stethoscope,
-  User,
-  Users,
 } from "lucide-react";
 
 import { useAuth } from "@/components/providers/auth-provider";
 import { homePathForRole } from "@/lib/workspace";
-import { fetchPublicOrganization, Organization, resolveMediaUrl } from "@/lib/api";
-import { useClinicBranding, ClinicLogo } from "@/components/ui/clinic-logo";
+import { fetchPublicOrganization, Organization } from "@/lib/api";
+import { useClinicBranding } from "@/components/ui/clinic-logo";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -47,7 +43,6 @@ export default function LoginPage() {
 
   // Dynamic Organization & Theming
   const [org, setOrg] = useState<Organization | null>(null);
-  // 1. Fetch Organization Branding on Mount
   useEffect(() => {
     fetchPublicOrganization()
       .then((data) => {
@@ -100,33 +95,27 @@ export default function LoginPage() {
     }
   };
 
-  const primaryColor = brandPrimaryColor || org?.primaryColor || "#1F3D34";
-  const secondaryColor = brandSecondaryColor || org?.secondaryColor || "#B8935A";
+  const primaryColor = brandPrimaryColor || org?.primaryColor || "#107D52";
   const orgName = fullBrandName || org?.displayName || org?.name || "Hira Dental Clinic";
-  const orgTagline = clinicTagline || org?.tagline || "Clinical Management Suite";
+  const orgTagline = clinicTagline || org?.tagline || "Comprehensive, Unhurried Dental Care";
 
   return (
-    <div className="min-h-screen w-full grid grid-cols-1 lg:grid-cols-2 bg-white dark:bg-[#0c0d0e] text-slate-900 dark:text-slate-100 overflow-hidden">
-      {/* LEFT PANEL: Dynamic Theme Soft Gradient with 3D Glassmorphic Floating Cards & Typography */}
-      <div 
-        className="relative hidden lg:flex flex-col justify-between p-12 xl:p-16 border-r border-slate-200/50 dark:border-white/5 overflow-hidden transition-colors duration-500"
-        style={{
-          background: `linear-gradient(135deg, ${primaryColor}22 0%, #FFFFFF 50%, ${secondaryColor}18 100%)`,
-        }}
-      >
-        {/* Soft Decorative Ambient Glows using Dynamic Theme Colors */}
+    <div className="min-h-screen w-full grid grid-cols-1 lg:grid-cols-2 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans">
+      {/* LEFT PANEL: Responsive Enterprise Showcase with High-Contrast Typography & Floating Cards */}
+      <div className="relative hidden lg:flex flex-col justify-between p-12 xl:p-16 bg-gradient-to-br from-slate-100 via-slate-50 to-emerald-50/30 dark:from-slate-900 dark:via-slate-950 dark:to-emerald-950/20 border-r border-slate-200 dark:border-slate-800 overflow-hidden">
+        {/* Soft Decorative Ambient Background */}
         <div 
-          className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full blur-3xl pointer-events-none opacity-40 transition-colors duration-500"
+          className="absolute -top-24 -left-24 w-96 h-96 rounded-full blur-3xl pointer-events-none opacity-20 dark:opacity-10"
           style={{ backgroundColor: primaryColor }}
         />
         <div 
-          className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full blur-3xl pointer-events-none opacity-30 transition-colors duration-500"
-          style={{ backgroundColor: secondaryColor }}
+          className="absolute -bottom-24 -right-24 w-96 h-96 rounded-full blur-3xl pointer-events-none opacity-15 dark:opacity-10"
+          style={{ backgroundColor: primaryColor }}
         />
 
-        {/* Top Branding Pill - Dynamic Organization Branding with Real Uploaded Logo */}
+        {/* Top Branding Pill */}
         <div className="relative z-10 flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-white/90 dark:bg-white/10 backdrop-blur-md border border-white/60 dark:border-white/10 shadow-xs flex items-center justify-center p-1 overflow-hidden shrink-0">
+          <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs flex items-center justify-center p-1.5 overflow-hidden shrink-0">
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -135,8 +124,8 @@ export default function LoginPage() {
                 className="w-full h-full object-contain"
               />
             ) : (
-              <span className="font-display font-bold text-lg text-primary" style={{ color: primaryColor }}>
-                {shortBrandName.charAt(0)}
+              <span className="font-display font-bold text-xl text-primary" style={{ color: primaryColor }}>
+                {shortBrandName.charAt(0) || "H"}
               </span>
             )}
           </div>
@@ -144,106 +133,105 @@ export default function LoginPage() {
             <span className="font-display font-bold text-base tracking-tight text-slate-900 dark:text-white block leading-tight truncate">
               {orgName}
             </span>
-            <span className="block text-[10px] font-mono uppercase tracking-wider text-slate-600 dark:text-slate-400 mt-0.5 truncate">
+            <span className="block text-[11px] font-medium tracking-wide text-slate-500 dark:text-slate-400 mt-0.5 truncate">
               {orgTagline}
             </span>
           </div>
         </div>
 
-        {/* Floating 3D Glassmorphic Cards Container */}
-        <div className="relative z-10 my-auto py-12 flex flex-col items-center justify-center space-y-6 w-full max-w-lg mx-auto">
-          {/* Floating Card 1: Daily On-Time Consultations */}
+        {/* Floating Enterprise Metric Cards */}
+        <div className="relative z-10 my-auto py-10 flex flex-col items-center justify-center space-y-5 w-full max-w-md mx-auto">
+          {/* Card 1: Daily Schedule & Turnaround */}
           <motion.div
-            animate={{ y: [-8, 8, -8] }}
+            animate={{ y: [-5, 5, -5] }}
             transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-            className="w-full backdrop-blur-xl bg-white/60 dark:bg-white/10 border border-white/80 dark:border-white/20 shadow-xl rounded-3xl p-5 hover:shadow-2xl transition-all"
+            className="w-full bg-white dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 shadow-md dark:shadow-2xl rounded-2xl p-4 sm:p-5 backdrop-blur-xs"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3.5">
                 <div 
-                  className="w-12 h-12 rounded-2xl flex items-center justify-center font-bold"
+                  className="w-11 h-11 rounded-xl flex items-center justify-center font-bold"
                   style={{ backgroundColor: `${primaryColor}15`, color: primaryColor }}
                 >
-                  <CalendarCheck2 className="w-6 h-6" />
+                  <CalendarCheck2 className="w-5 h-5" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h4 className="font-bold text-slate-900 dark:text-white text-base">Daily Schedule</h4>
+                    <h4 className="font-bold text-slate-900 dark:text-white text-sm">Daily Schedule</h4>
                     <span 
                       className="px-2 py-0.5 rounded-full text-[10px] font-bold"
-                      style={{ backgroundColor: `${primaryColor}20`, color: primaryColor }}
+                      style={{ backgroundColor: `${primaryColor}18`, color: primaryColor }}
                     >
                       Live
                     </span>
                   </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
                     98.4% on-time chair turnaround
                   </p>
                 </div>
               </div>
-              <span className="text-2xl font-display font-bold" style={{ color: primaryColor }}>24/7</span>
+              <span className="text-xl font-display font-bold" style={{ color: primaryColor }}>
+                24/7
+              </span>
             </div>
           </motion.div>
 
-          {/* Floating Card 2: Secure Clinical Workspace & Real-time Operations */}
+          {/* Card 2: Secure Staff Portal & Desk */}
           <motion.div
-            animate={{ y: [8, -8, 8] }}
-            transition={{ duration: 5.6, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
-            className="w-11/12 ml-auto backdrop-blur-xl bg-white/70 dark:bg-white/15 border border-white/80 dark:border-white/20 shadow-xl rounded-3xl p-4 hover:shadow-2xl transition-all"
+            animate={{ y: [5, -5, 5] }}
+            transition={{ duration: 5.6, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
+            className="w-11/12 ml-auto bg-white dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 shadow-md dark:shadow-2xl rounded-2xl p-4 backdrop-blur-xs"
           >
             <div className="flex items-center gap-3.5">
               <div
-                className="w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-sm shrink-0"
-                style={{ backgroundColor: `${primaryColor}18`, color: primaryColor }}
+                className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shrink-0"
+                style={{ backgroundColor: `${primaryColor}15`, color: primaryColor }}
               >
                 <ShieldCheck className="w-5 h-5" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
                   <h4 className="font-bold text-slate-900 dark:text-white text-sm truncate">
-                    {shortBrandName} Portal
+                    {shortBrandName || "DHDC"} Staff Portal
                   </h4>
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Secure Clinical Network" />
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Active Connection" />
                 </div>
-                <p className="text-xs text-slate-600 dark:text-slate-300 truncate mt-0.5">
-                  {clinicPhone ? `Direct Desk: ${clinicPhone}` : "Encrypted Staff Workspace"}
+                <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5 font-medium">
+                  {clinicPhone ? `Direct Desk: ${clinicPhone}` : "Encrypted Clinical Workspace"}
                 </p>
               </div>
             </div>
           </motion.div>
 
-          {/* Floating Card 3: Multi-Location Coordination Badge */}
+          {/* Card 3: Multi-Location Coordination Badge */}
           <motion.div
-            animate={{ y: [-6, 6, -6] }}
-            transition={{ duration: 4.8, repeat: Infinity, ease: "easeInOut", delay: 0.8 }}
-            className="w-10/12 mr-auto backdrop-blur-xl bg-white/60 dark:bg-white/10 border border-white/80 dark:border-white/20 shadow-lg rounded-2xl p-3.5"
+            animate={{ y: [-4, 4, -4] }}
+            transition={{ duration: 4.8, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
+            className="w-10/12 mr-auto bg-white dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-xl rounded-xl p-3.5 backdrop-blur-xs"
           >
-            <div className="flex items-center gap-3 text-xs text-slate-700 dark:text-slate-200">
-              <div 
-                className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-                style={{ backgroundColor: `${secondaryColor}25`, color: secondaryColor }}
-              >
+            <div className="flex items-center gap-3 text-xs text-slate-700 dark:text-slate-300">
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0">
                 <Building2 className="w-4 h-4" />
               </div>
-              <span className="font-medium truncate">4 Active Clinical Branches Connected</span>
+              <span className="font-semibold truncate">Active Clinical Branches Connected</span>
               <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 ml-auto shrink-0" />
             </div>
           </motion.div>
         </div>
 
-        {/* Bottom Headline & Editorial Typography */}
-        <div className="relative z-10 space-y-3">
-          <h2 className="font-display text-3xl xl:text-4xl font-normal leading-tight text-slate-900 dark:text-white">
-            Effortlessly manage your clinics, team and patients in one place.
+        {/* Bottom Headline & Clear High-Contrast Text (Never Blurry) */}
+        <div className="relative z-10 space-y-2.5">
+          <h2 className="font-display text-2xl xl:text-3xl font-bold leading-tight text-slate-900 dark:text-white tracking-tight">
+            Effortlessly manage your clinics, team, and patients in one place.
           </h2>
-          <p className="text-xs xl:text-sm text-slate-600 dark:text-slate-400 max-w-md leading-relaxed">
+          <p className="text-xs xl:text-sm text-slate-600 dark:text-slate-400 max-w-md leading-relaxed font-normal">
             Enterprise clinical administration with real-time chair scheduling, doctor procedure overrides, and multi-branch catalog coordination.
           </p>
         </div>
       </div>
 
-      {/* RIGHT PANEL: Pristine White Login Form */}
-      <div className="flex flex-col justify-between p-6 sm:p-12 lg:p-16 xl:p-20 bg-white dark:bg-[#0c0d0e]">
+      {/* RIGHT PANEL: Adaptive Light / Dark Card Login Form */}
+      <div className="flex flex-col justify-between p-6 sm:p-12 lg:p-16 xl:p-20 bg-white dark:bg-slate-950 transition-colors">
         {/* Top Bar Navigation */}
         <div className="flex items-center justify-between">
           <Link
@@ -253,22 +241,20 @@ export default function LoginPage() {
             <ArrowLeft className="w-4 h-4" />
             <span>Return to public website</span>
           </Link>
-          <span className="text-[11px] font-mono uppercase tracking-wider text-emerald-700 dark:text-emerald-400 font-semibold px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50">
-            Staff Portal
-          </span>
+          <div className="flex items-center gap-2.5">
+            <ThemeToggle />
+            <span className="text-[11px] font-mono uppercase tracking-wider text-emerald-800 dark:text-emerald-300 font-bold px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/80">
+              Staff Portal
+            </span>
+          </div>
         </div>
 
         {/* Center Login Form Container */}
-        <div className="w-full max-w-md mx-auto my-auto py-10">
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
-            className="space-y-6"
-          >
+        <div className="w-full max-w-md mx-auto my-auto py-8">
+          <div className="space-y-6">
             {/* Header */}
-            <div className="space-y-2">
-              <h1 className="font-serif text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+            <div className="space-y-1.5">
+              <h1 className="font-display text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
                 Welcome back
               </h1>
               <p className="text-sm text-slate-500 dark:text-slate-400">
@@ -278,26 +264,23 @@ export default function LoginPage() {
 
             {/* Info Message Notice */}
             {infoMessage && !errorMessage && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                className="rounded-2xl border border-amber-200 bg-amber-50/80 dark:border-amber-900/40 dark:bg-amber-950/30 p-3.5 text-xs text-amber-800 dark:text-amber-300"
-              >
+              <div className="rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-3.5 text-xs text-amber-900 dark:text-amber-200 font-medium">
                 {infoMessage}
-              </motion.div>
+              </div>
             )}
 
             {/* User Signed In Without Workspace Alert */}
             {!isLoading && user && !homePathForRole(user.role) && (
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/60 p-4 text-xs text-slate-700 dark:text-slate-300 space-y-3">
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-4 text-xs text-slate-700 dark:text-slate-300 space-y-3">
                 <p>
                   Signed in as <strong className="text-slate-900 dark:text-white">{user.email}</strong> with role{" "}
                   <strong className="text-slate-900 dark:text-white">{user.role}</strong>. There is no staff
                   workspace assigned to this role.
                 </p>
                 <button
+                  type="button"
                   onClick={() => logout()}
-                  className="px-3 py-1.5 rounded-full bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-900 dark:text-white font-semibold transition-colors"
+                  className="px-4 py-1.5 rounded-full bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-semibold transition-colors cursor-pointer"
                 >
                   Sign out
                 </button>
@@ -306,20 +289,16 @@ export default function LoginPage() {
 
             {/* Error Message Notice */}
             {errorMessage && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="rounded-2xl border border-rose-200 bg-rose-50/90 dark:border-rose-900/40 dark:bg-rose-950/30 p-4 text-xs text-rose-800 dark:text-rose-300"
-              >
+              <div className="rounded-2xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 p-4 text-xs text-rose-900 dark:text-rose-200 font-medium">
                 {errorMessage}
-              </motion.div>
+              </div>
             )}
 
             {/* Login Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Email Field */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
                   Email Address
                 </label>
                 <input
@@ -329,19 +308,17 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="admin@hiradental.com"
                   autoComplete="email"
-                  className="w-full px-4 py-3.5 text-sm rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-[#1F3D34]/20 focus:border-[#1F3D34] dark:focus:border-emerald-500 transition-all"
+                  className="w-full px-4 py-3 text-sm rounded-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                 />
               </div>
 
-              {/* Password Field with Visual Padlock Anchor and Show/Hide Text Toggle */}
+              {/* Password Field with Left Padlock and Right Show/Hide Toggle */}
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Password
-                  </label>
-                </div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
+                  Password
+                </label>
                 <div className="relative flex items-center">
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-4 pointer-events-none" />
+                  <Lock className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-4 pointer-events-none" />
                   <input
                     type={showPassword ? "text" : "password"}
                     required
@@ -349,12 +326,12 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••••••"
                     autoComplete="current-password"
-                    className="w-full pl-11 pr-16 py-3.5 text-sm rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-[#1F3D34]/20 focus:border-[#1F3D34] dark:focus:border-emerald-500 transition-all font-mono"
+                    className="w-full pl-11 pr-16 py-3 text-sm rounded-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-mono"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors p-1 cursor-pointer"
+                    className="absolute right-4 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors p-1 cursor-pointer"
                     aria-label={showPassword ? "Hide password" : "Show password"}
                   >
                     {showPassword ? "Hide" : "Show"}
@@ -362,31 +339,29 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Submit Button with Sink & Spring Interaction */}
+              {/* Submit Button */}
               <div className="pt-2">
-                <motion.button
+                <button
                   type="submit"
                   disabled={isSubmitting}
-                  whileTap={{ scale: 0.95 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                  className="w-full py-3.5 px-6 rounded-full bg-slate-900 hover:bg-black text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 font-semibold text-sm flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
+                  className="w-full py-3.5 px-6 rounded-full bg-slate-900 hover:bg-slate-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
                 >
                   <span>{isSubmitting ? "Signing in..." : "Log in"}</span>
                   <ArrowRight className="w-4 h-4" />
-                </motion.button>
+                </button>
               </div>
             </form>
 
             {/* Security Assurance Badge */}
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-center gap-2 text-[11px] text-slate-400 dark:text-slate-500">
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-900 flex items-center justify-center gap-2 text-[11px] text-slate-400 dark:text-slate-500">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>Session protected with JWT and HttpOnly token rotation</span>
             </div>
-          </motion.div>
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="text-center text-xs text-slate-400 dark:text-slate-600">
+        <div className="text-center text-xs text-slate-400 dark:text-slate-500">
           {orgName} · Clinical Management System
         </div>
       </div>

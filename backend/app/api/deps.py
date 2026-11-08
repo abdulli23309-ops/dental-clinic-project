@@ -295,8 +295,9 @@ def get_auth_service(
 def get_team_service(
     team_repo: TeamMemberRepository = Depends(get_team_repository),
     org_repo: OrganizationRepository = Depends(get_organization_repository),
+    session: AsyncSession = Depends(get_db_session),
 ) -> TeamService:
-    return TeamService(team_repo, org_repo)
+    return TeamService(team_repo, org_repo, session)
 
 
 def get_role_repository(
@@ -610,12 +611,40 @@ def get_lead_status_service(
     return LeadStatusService(session, activity_repo)
 
 
+from app.core.permissions import (
+    ADMIN_ROLES,
+    DOCTOR_ROLES,
+    RECEPTIONIST_ROLES,
+    NURSE_ROLES,
+    CLEANER_ROLES,
+    PERM_FULL_ADMIN,
+    PERM_VIEW_TEAM,
+    PERM_MANAGE_TEAM,
+    PERM_VIEW_APPOINTMENTS,
+    PERM_MANAGE_APPOINTMENTS,
+    PERM_CLINICAL_NOTES,
+    PERM_PATIENT_CHARTS,
+    PERM_VIEW_LOCATIONS,
+    PERM_REPORTS,
+    PERM_AUDIT_LOGS,
+    PERM_USER_MANAGEMENT,
+    PERM_SYSTEM_SETTINGS,
+    PERM_MY_SCHEDULE,
+)
+
 # Pre-configured role dependencies
 require_platform_owner = require_role("Platform Owner", "platform_owner", "Super Admin")
-require_admin = require_role("admin", "Platform Owner", "Super Admin")
-require_receptionist = require_role("receptionist", "Receptionist", "admin", "Admin", "Super Admin", "Clinic Branch Manager")
-require_doctor = require_role("doctor", "Doctor", "admin", "Admin", "Super Admin")
-require_doctor_strictly = require_role("doctor", "Doctor")
+require_admin = require_role(*ADMIN_ROLES)
+require_receptionist = require_role(*(ADMIN_ROLES | RECEPTIONIST_ROLES))
+require_doctor = require_role(*(ADMIN_ROLES | DOCTOR_ROLES))
+require_doctor_strictly = require_role(*DOCTOR_ROLES)
+require_nurse = require_role(*(ADMIN_ROLES | NURSE_ROLES))
+require_appointments_view = require_role(*PERM_VIEW_APPOINTMENTS)
+require_appointments_manage = require_role(*PERM_MANAGE_APPOINTMENTS)
+require_team_view = require_role(*PERM_VIEW_TEAM)
+require_locations_view = require_role(*PERM_VIEW_LOCATIONS)
+require_reports_access = require_role(*PERM_REPORTS)
+require_my_schedule_access = require_role(*PERM_MY_SCHEDULE)
 
 
 def require_roles(allowed_roles: list) -> Callable:

@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 
 from fastapi import HTTPException, status as http_status
@@ -583,7 +583,7 @@ class LeadStatusService:
     async def enrich_bookings_with_lead_and_first_visit(
         self,
         bookings: List[Any],
-    ) -> tuple[Dict[UUID, bool], Dict[UUID, Optional[str]]]:
+    ) -> Tuple[Dict[UUID, bool], Dict[UUID, Optional[str]]]:
         """
         Calculates first visit flags and associated lead statuses for a collection of bookings.
         - First visit: True if the patient has no other completed visits (or this is their first completed visit).

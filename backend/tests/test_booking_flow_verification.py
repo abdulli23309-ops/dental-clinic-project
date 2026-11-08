@@ -303,6 +303,7 @@ async def test_auto_confirm_scenarios(setup_test_org, client_with_db, test_sessi
     doc1 = TeamMemberORM(
         id=uuid4(),
         organization_id=env["org"].id,
+        clinic_id=clinic_id,
         first_name="Bilal",
         last_name="Saeed",
         display_name="Dr. Bilal Saeed",
@@ -316,6 +317,7 @@ async def test_auto_confirm_scenarios(setup_test_org, client_with_db, test_sessi
     doc2 = TeamMemberORM(
         id=uuid4(),
         organization_id=env["org"].id,
+        clinic_id=clinic_id,
         first_name="Fatima",
         last_name="Ali",
         display_name="Dr. Fatima Ali",
@@ -360,9 +362,13 @@ async def test_auto_confirm_scenarios(setup_test_org, client_with_db, test_sessi
     test_session.add(ClinicServiceORM(clinic_id=clinic_id, service_id=svc_a.id, is_active=True))
     test_session.add(ClinicServiceORM(clinic_id=clinic_id, service_id=svc_b.id, is_active=True))
 
-    # Link Doc1 to Service B specifically via service_providers
-    from app.infrastructure.database.orm_models import ServiceProviderORM
-    test_session.add(ServiceProviderORM(service_id=svc_b.id, team_member_id=doc1.id))
+    # Link doctors to services at clinic via service_providers and branch assignment
+    from app.infrastructure.database.orm_models import ServiceProviderORM, TeamMemberClinicORM
+    test_session.add(TeamMemberClinicORM(team_member_id=doc1.id, clinic_id=clinic_id, is_active=True))
+    test_session.add(TeamMemberClinicORM(team_member_id=doc2.id, clinic_id=clinic_id, is_active=True))
+    test_session.add(ServiceProviderORM(service_id=svc_a.id, team_member_id=doc1.id, clinic_id=clinic_id, is_active=True))
+    test_session.add(ServiceProviderORM(service_id=svc_a.id, team_member_id=doc2.id, clinic_id=clinic_id, is_active=True))
+    test_session.add(ServiceProviderORM(service_id=svc_b.id, team_member_id=doc1.id, clinic_id=clinic_id, is_active=True))
 
     # Set working schedules for both doctors on all weekdays
     for dow in range(6):

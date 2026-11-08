@@ -324,32 +324,27 @@ export default function AdminServicesPage() {
   };
 
   // Filtered Services List
-  const filteredServices = useMemo(() => {
-    return services.filter((s) => {
-      const matchesSearch =
-        searchQuery.trim() === "" ||
-        s.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.slug?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.shortDesc?.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredServices = services.filter((s) => {
+    const matchesSearch =
+      searchQuery.trim() === "" ||
+      s.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.slug?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.shortDesc?.toLowerCase().includes(searchQuery.toLowerCase());
 
-      const matchesCategory =
-        selectedCategory === "all" || s.category?.toLowerCase() === selectedCategory.toLowerCase();
+    const matchesCategory =
+      selectedCategory === "all" || s.category?.toLowerCase() === selectedCategory.toLowerCase();
 
-      const matchesStatus =
-        statusFilter === "all" ||
-        (statusFilter === "active" && s.isActive !== false) ||
-        (statusFilter === "archived" && s.isActive === false);
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "active" && s.isActive !== false) ||
+      (statusFilter === "archived" && s.isActive === false);
 
-      return matchesSearch && matchesCategory && matchesStatus;
-    });
-  }, [services, searchQuery, selectedCategory, statusFilter]);
+    return matchesSearch && matchesCategory && matchesStatus;
+  });
 
   // Paginated slice for current page
-  const paginatedServices = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredServices.slice(start, start + pageSize);
-  }, [filteredServices, currentPage, pageSize]);
+  const paginatedServices = filteredServices.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
     <AnimatedPage className="space-y-8 p-6 max-w-7xl mx-auto">

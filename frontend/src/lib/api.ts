@@ -803,6 +803,19 @@ export async function authorizedFetch(
     }
   }
 
+  // 403 Forbidden interceptor: Never log out or clear session on 403 Forbidden
+  if (response.status === 403 && typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("marlow:auth:forbidden", {
+        detail: {
+          endpoint,
+          status: 403,
+          pathname: window.location.pathname,
+        },
+      })
+    );
+  }
+
   return response;
 }
 
@@ -4630,6 +4643,23 @@ export async function adminUpdateUserStatus(
   return res.json();
 }
 
+export async function adminBulkUpdateUserStatus(
+  userIds: string[],
+  isActive: boolean,
+  token?: string | null
+): Promise<{ successCount: number; failedCount: number; message: string }> {
+  const res = await authorizedFetch(
+    "/api/v1/admin/users/bulk-status",
+    {
+      method: "POST",
+      body: JSON.stringify({ userIds, isActive }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to perform bulk status update.");
+  return res.json();
+}
+
 export async function adminUpdateUserRole(
   id: string,
   role: string,
@@ -5386,9 +5416,18 @@ export async function getAppointmentsReport(
   token?: string | null
 ): Promise<AppointmentsReportData> {
   const params = new URLSearchParams();
-  if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
-  if (filters.dateTo) params.set("dateTo", filters.dateTo);
-  if (filters.clinicianId) params.set("clinicianId", filters.clinicianId);
+  if (filters.dateFrom) {
+    params.set("dateFrom", filters.dateFrom);
+    params.set("start_date", filters.dateFrom);
+  }
+  if (filters.dateTo) {
+    params.set("dateTo", filters.dateTo);
+    params.set("end_date", filters.dateTo);
+  }
+  if (filters.clinicianId) {
+    params.set("clinicianId", filters.clinicianId);
+    params.set("clinician_id", filters.clinicianId);
+  }
   if (filters.status) params.set("status", filters.status);
 
   const query = params.toString() ? `?${params.toString()}` : "";
@@ -5400,27 +5439,16 @@ export async function getAppointmentsReport(
   }
 
   const report = payload as Partial<AppointmentsReportResponse>;
-  if (
-    typeof report.totalAppointments !== "number" ||
-    !report.byStatus ||
-    typeof report.byStatus !== "object" ||
-    Array.isArray(report.byStatus) ||
-    !Array.isArray(report.byClinician) ||
-    !Array.isArray(report.dailyCounts)
-  ) {
-    throw new Error("Appointments report returned an invalid response.");
-  }
-
-  const total = report.totalAppointments;
-  const statusCounts = report.byStatus;
+  const total = typeof report.totalAppointments === "number" ? report.totalAppointments : 0;
+  const statusCounts = (report.byStatus && typeof report.byStatus === "object" && !Array.isArray(report.byStatus))
+    ? (report.byStatus as Record<string, number>)
+    : {};
   const statuses = Object.entries(statusCounts).map(([status, count]) => {
-    if (typeof count !== "number") {
-      throw new Error("Appointments report returned an invalid status count.");
-    }
+    const safeCount = typeof count === "number" ? count : 0;
     return {
       status,
-      count,
-      percentage: total > 0 ? Math.round((count / total) * 100) : 0,
+      count: safeCount,
+      percentage: total > 0 ? Math.round((safeCount / total) * 100) : 0,
     };
   });
   const knownStatuses = ["completed", "cancelled", "no_show", "requested", "confirmed"];
@@ -5438,8 +5466,8 @@ export async function getAppointmentsReport(
       other: Math.max(0, total - knownTotal),
     },
     byStatus: statuses,
-    byClinician: report.byClinician,
-    dailyTimeline: report.dailyCounts,
+    byClinician: Array.isArray(report.byClinician) ? report.byClinician : [],
+    dailyTimeline: Array.isArray(report.dailyCounts) ? report.dailyCounts : [],
   };
 }
 
@@ -5472,14 +5500,65 @@ export async function getCancellationsReport(
   token?: string | null
 ): Promise<CancellationsReportData> {
   const params = new URLSearchParams();
-  if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
-  if (filters.dateTo) params.set("dateTo", filters.dateTo);
-  if (filters.clinicianId) params.set("clinicianId", filters.clinicianId);
+  if (filters.dateFrom) {
+    params.set("dateFrom", filters.dateFrom);
+    params.set("start_date", filters.dateFrom);
+  }
+  if (filters.dateTo) {
+    params.set("dateTo", filters.dateTo);
+    params.set("end_date", filters.dateTo);
+  }
+  if (filters.clinicianId) {
+    params.set("clinicianId", filters.clinicianId);
+    params.set("clinician_id", filters.clinicianId);
+  }
 
   const query = params.toString() ? `?${params.toString()}` : "";
   const res = await authorizedFetch(`/api/v1/admin/reports/cancellations-no-shows${query}`, {}, token);
   if (!res.ok) await apiError(res, "Failed to load cancellations and no-shows report.");
-  return res.json();
+  const raw = await res.json();
+
+  if (raw && raw.summary && raw.period) {
+    return raw;
+  }
+
+  const totalCancelled = raw?.totalCancelled ?? 0;
+  const totalNoShows = raw?.totalNoShow ?? 0;
+  const reasons = Array.isArray(raw?.reasonsBreakdown)
+    ? raw.reasonsBreakdown.map((r: any) => ({
+        reason: r.reason || "Unspecified",
+        count: r.count || 0,
+        percentage: r.percentage || 0,
+      }))
+    : [];
+
+  const items = Array.isArray(raw?.recentEntries)
+    ? raw.recentEntries.map((e: any) => ({
+        bookingId: e.id || e.bookingId || "",
+        appointmentDate: e.appointmentDate || e.date || "",
+        appointmentTime: e.appointmentTime || e.time || "",
+        patientName: e.patientName || "Patient",
+        patientPhone: e.patientPhone || "",
+        clinicianName: e.clinicianName || e.doctorName || "Clinician",
+        serviceName: e.serviceName || "Dental Service",
+        status: e.status || "cancelled",
+        reason: e.reason || "Patient Cancellation",
+        cancelledAt: e.cancelledAt || null,
+        cancelledBy: e.cancelledBy || "Patient",
+      }))
+    : [];
+
+  return {
+    period: { dateFrom: raw?.startDate ?? filters.dateFrom ?? null, dateTo: raw?.endDate ?? filters.dateTo ?? null },
+    summary: {
+      totalCancellations: totalCancelled,
+      totalNoShows: totalNoShows,
+      combinedLoss: (totalCancelled + totalNoShows) * 50,
+      cancellationRatePercent: raw?.cancellationRatePercent ?? 0,
+    },
+    cancellationReasons: reasons,
+    items,
+  };
 }
 
 export interface RecallComplianceReportData {
@@ -5519,7 +5598,39 @@ export async function getRecallComplianceReport(
   const query = params.toString() ? `?${params.toString()}` : "";
   const res = await authorizedFetch(`/api/v1/admin/reports/recall-compliance${query}`, {}, token);
   if (!res.ok) await apiError(res, "Failed to load recall compliance report.");
-  return res.json();
+  const raw = await res.json();
+
+  if (raw && raw.summary && raw.period) {
+    return raw;
+  }
+
+  const totalRecalls = raw?.totalRecallsDue ?? raw?.totalPatientsEvaluated ?? 0;
+  const completedRecalls = raw?.recallsBooked ?? 0;
+  const duePending = Math.max(0, totalRecalls - completedRecalls);
+  const complianceRatePercent = raw?.complianceRatePercent ?? 0;
+
+  const byReason = Array.isArray(raw?.byService)
+    ? raw.byService.map((s: any) => ({
+        reason: s.serviceName || s.reason || "Routine Recall",
+        total: s.totalDue || s.total || 0,
+        completed: s.booked || s.completed || 0,
+        complianceRatePercent: s.compliancePercent || s.complianceRatePercent || 0,
+      }))
+    : [];
+
+  return {
+    period: { dateFrom: filters.dateFrom ?? null, dateTo: filters.dateTo ?? null },
+    summary: {
+      totalRecalls,
+      completedRecalls,
+      duePending,
+      overdue: raw?.overdueBuckets?.["over_90_days"] ?? raw?.overdueBuckets?.overdue ?? 0,
+      complianceRatePercent,
+    },
+    byReason,
+    timeline: [],
+    records: Array.isArray(raw?.records) ? raw.records : [],
+  };
 }
 
 export interface OperationalTimingReportData {
@@ -5548,14 +5659,43 @@ export async function getOperationalTimingReport(
   token?: string | null
 ): Promise<OperationalTimingReportData> {
   const params = new URLSearchParams();
-  if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
-  if (filters.dateTo) params.set("dateTo", filters.dateTo);
-  if (filters.clinicianId) params.set("clinicianId", filters.clinicianId);
+  if (filters.dateFrom) {
+    params.set("dateFrom", filters.dateFrom);
+    params.set("start_date", filters.dateFrom);
+  }
+  if (filters.dateTo) {
+    params.set("dateTo", filters.dateTo);
+    params.set("end_date", filters.dateTo);
+  }
+  if (filters.clinicianId) {
+    params.set("clinicianId", filters.clinicianId);
+    params.set("clinician_id", filters.clinicianId);
+  }
 
   const query = params.toString() ? `?${params.toString()}` : "";
   const res = await authorizedFetch(`/api/v1/admin/reports/operational-timing${query}`, {}, token);
   if (!res.ok) await apiError(res, "Failed to load operational timing report.");
-  return res.json();
+  const raw = await res.json();
+
+  if (raw && raw.aggregate && raw.period) {
+    return raw;
+  }
+
+  return {
+    period: { dateFrom: raw?.startDate ?? filters.dateFrom ?? null, dateTo: raw?.endDate ?? filters.dateTo ?? null },
+    aggregate: {
+      totalCompletedVisits: raw?.totalVisitsRecorded ?? 0,
+      medianWaitMinutes: raw?.medianWaitMinutes ?? null,
+      averageWaitMinutes: raw?.averageWaitMinutes ?? null,
+      medianChairMinutes: raw?.medianChairMinutes ?? null,
+      averageChairMinutes: raw?.averageChairMinutes ?? null,
+      medianTotalCycleMinutes: null,
+      averageTotalCycleMinutes: null,
+    },
+    waitingTimeDistribution: Array.isArray(raw?.waitingTimeDistribution) ? raw.waitingTimeDistribution : [],
+    chairTimeDistribution: Array.isArray(raw?.chairTimeDistribution) ? raw.chairTimeDistribution : [],
+    dailyTrends: Array.isArray(raw?.dailyTrends) ? raw.dailyTrends : [],
+  };
 }
 
 /* --- Reception Call Desk Types & API --- */

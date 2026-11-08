@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   Building2,
@@ -128,6 +129,7 @@ export default function AdminTeamPage() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [createModalOpen]);
+
   const [createForm, setCreateForm] = useState({
     displayName: "",
     professionalTitle: "Associate Dental Surgeon",
@@ -140,6 +142,25 @@ export default function AdminTeamPage() {
     photoUrl: "",
   });
   const [isUploadingCreatePhoto, setIsUploadingCreatePhoto] = useState(false);
+
+  // Auto-reset form state whenever modal closes to prevent stale data
+  useEffect(() => {
+    if (!createModalOpen) {
+      setCreateForm({
+        displayName: "",
+        professionalTitle: "Associate Dental Surgeon",
+        specialties: ["General Dentistry"] as string[],
+        credentials: "BDS",
+        education: "",
+        biography: "",
+        role: "doctor",
+        locationId: "",
+        photoUrl: "",
+      });
+      setIsUploadingCreatePhoto(false);
+      setErrorMessage(null);
+    }
+  }, [createModalOpen]);
 
   // Tab 1: Profile Form for Selected Clinician
   const [profileForm, setProfileForm] = useState({
@@ -553,6 +574,124 @@ export default function AdminTeamPage() {
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: any) {
       setErrorMessage(err.message || "Failed to authorize all services.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Smart Defaults helper: role to default procedures mapping
+  const ROLE_SERVICE_TITLES: Record<string, string[]> = {
+    "General Dentist": [
+      "Cleanings & Comprehensive Exam",
+      "Tooth-Colored Fillings & Crowns",
+      "Gentle Endodontics (Root Canals)",
+      "Invisalign Clear Aligners",
+      "Professional Enamel Whitening",
+      "Same-Day Emergency Triage",
+    ],
+    "Dentist": [
+      "Cleanings & Comprehensive Exam",
+      "Tooth-Colored Fillings & Crowns",
+      "Gentle Endodontics (Root Canals)",
+      "Invisalign Clear Aligners",
+      "Professional Enamel Whitening",
+      "Same-Day Emergency Triage",
+    ],
+    "Hygienist": [
+      "Cleanings & Comprehensive Exam",
+      "Professional Enamel Whitening",
+    ],
+    "Endodontist": [
+      "Gentle Endodontics (Root Canals)",
+      "Same-Day Emergency Triage",
+    ],
+    "Orthodontist": [
+      "Invisalign Clear Aligners",
+      "Cleanings & Comprehensive Exam",
+    ],
+    "Oral Surgeon": [
+      "Same-Day Emergency Triage",
+      "Tooth-Colored Fillings & Crowns",
+    ],
+    "Periodontist": [
+      "Cleanings & Comprehensive Exam",
+      "Same-Day Emergency Triage",
+    ],
+    "Pediatric Dentist": [
+      "Cleanings & Comprehensive Exam",
+      "Tooth-Colored Fillings & Crowns",
+      "Same-Day Emergency Triage",
+    ],
+    "Cosmetic Dentist": [
+      "Professional Enamel Whitening",
+      "Invisalign Clear Aligners",
+      "Tooth-Colored Fillings & Crowns",
+    ],
+    "Prosthodontist": [
+      "Tooth-Colored Fillings & Crowns",
+      "Invisalign Clear Aligners",
+    ],
+    "Implantologist": [
+      "Same-Day Emergency Triage",
+    ],
+  };
+
+  const handleQuickAssignBranch = async (branchId: string) => {
+    if (!selectedClinician || !branchId || !accessToken) return;
+    setIsSaving(true);
+    setErrorMessage(null);
+    try {
+      // 1. Assign doctor to this branch
+      const existingBranchIds = allDoctorBranches
+        .filter((db) => db.teamMemberId === selectedClinician.id && db.isActive)
+        .map((db) => db.clinicId);
+      const newBranchIds = Array.from(new Set([...existingBranchIds, branchId]));
+
+      const updatedBranches = await setDoctorBranches(
+        { teamMemberId: selectedClinician.id, clinicIds: newBranchIds },
+        accessToken
+      );
+      setAllDoctorBranches((prev) => [
+        ...prev.filter((db) => db.teamMemberId !== selectedClinician.id),
+        ...updatedBranches.filter((db) => db.isActive),
+      ]);
+
+      // 2. Select this branch for services and load offered services
+      setSelectedBranchForServices(branchId);
+      const srvs = await adminGetLocationServices(branchId, accessToken);
+      const offered = srvs.filter((s) => s.isOffered);
+      setBranchOfferedServices(offered);
+
+      // 3. Populate Smart Defaults for this branch
+      const roleKey = selectedClinician.role || "General Dentist";
+      const targetTitles = ROLE_SERVICE_TITLES[roleKey] || ROLE_SERVICE_TITLES["General Dentist"] || [];
+
+      const matchingOffered = offered.filter((s) =>
+        targetTitles.some((t) => t.toLowerCase() === s.title.toLowerCase())
+      );
+      const toAuthorize = matchingOffered.length > 0 ? matchingOffered : offered;
+
+      for (const srv of toAuthorize) {
+        await saveDoctorServiceAssignment(
+          {
+            teamMemberId: selectedClinician.id,
+            serviceId: srv.id,
+            clinicId: branchId,
+            isActive: true,
+          },
+          accessToken
+        );
+      }
+
+      // Reload assignments
+      const latestAssignments = await getDoctorServices(selectedClinician.id, undefined, accessToken);
+      setDoctorServiceAssignments(latestAssignments);
+
+      const locName = locations.find((l) => l.id === branchId)?.name || "Branch";
+      toast.success(`Assigned to ${locName} and populated Smart Default procedures.`);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to assign branch.");
+      setErrorMessage(err?.message || "Failed to assign branch.");
     } finally {
       setIsSaving(false);
     }
@@ -1177,7 +1316,7 @@ export default function AdminTeamPage() {
               {/* TAB 1: PROFILE */}
               {activeTab === "profile" && (
                 <Card className="p-6">
-                  <form onSubmit={handleSaveProfile} className="space-y-6 max-w-3xl">
+                  <form noValidate onSubmit={handleSaveProfile} className="space-y-6 max-w-3xl">
                     <div>
                       <h3 className="text-base font-bold text-foreground">Clinician Profile & Credentials</h3>
                       <p className="text-xs text-muted-foreground mt-0.5">
@@ -1396,25 +1535,40 @@ export default function AdminTeamPage() {
                   </div>
 
                   {selectedClinicIds.length === 0 ? (
-                    /* EMPTY STATE: Doctor not assigned to any branch */
-                    <div className="py-12 px-6 text-center border-2 border-dashed border-border rounded-2xl p-8 space-y-3 bg-muted/5">
+                    /* EMPTY STATE: Quick Branch Selector with Smart Defaults Auto-population */
+                    <div className="py-10 px-6 text-center border-2 border-dashed border-border rounded-2xl p-8 space-y-4 bg-muted/5 max-w-xl mx-auto">
                       <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto">
                         <Building2 className="w-6 h-6" />
                       </div>
-                      <h4 className="text-sm font-bold text-foreground">No Physical Branches Assigned Yet</h4>
-                      <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                        Following clinical hierarchy: <code>Branch → Branch Offerings → Doctor Assignment → Doctor-Specific Service Authorization</code>.
-                        You must assign this clinician to one or more physical branches before authorizing procedures.
-                      </p>
-                      <Button
-                        type="button"
-                        onClick={() => setActiveTab("locations")}
-                        size="sm"
-                        className="mt-2 text-xs font-semibold gap-1.5"
-                      >
-                        <Building2 className="w-3.5 h-3.5" />
-                        Assign Branches in Tab 2
-                      </Button>
+                      <div className="space-y-1">
+                        <h4 className="text-base font-bold text-foreground">Configure Branch Services & Smart Defaults</h4>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          This clinician does not have an active physical branch assigned yet. Select a branch below to immediately assign them and populate smart default procedures.
+                        </p>
+                      </div>
+
+                      <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                        <select
+                          disabled={isSaving}
+                          onChange={(e) => {
+                            if (e.target.value) handleQuickAssignBranch(e.target.value);
+                          }}
+                          defaultValue=""
+                          className="w-full sm:w-72 px-4 py-2.5 text-xs sm:text-sm rounded-xl border border-border bg-card text-foreground font-medium outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer shadow-xs"
+                        >
+                          <option value="" disabled>Select a branch to configure services...</option>
+                          {locations.map((loc) => (
+                            <option key={loc.id} value={loc.id}>
+                              {loc.name} {loc.city ? `(${loc.city})` : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div className="pt-2 flex items-center justify-center gap-2 text-[11px] text-muted-foreground">
+                        <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />
+                        <span>Smart defaults will automatically authorize procedures matching &ldquo;{selectedClinician.role}&rdquo; at the selected branch.</span>
+                      </div>
                     </div>
                   ) : (
                     <div className="space-y-6">
@@ -1657,7 +1811,7 @@ export default function AdminTeamPage() {
                   </div>
 
                   {/* Add New Shift Form */}
-                  <form onSubmit={handleAddShift} className="p-4 rounded-xl border border-border bg-muted/20 space-y-3">
+                  <form noValidate onSubmit={handleAddShift} className="p-4 rounded-xl border border-border bg-muted/20 space-y-3">
                     <div className="text-xs font-bold uppercase tracking-wider text-primary">Add Weekly Working Shift</div>
                     <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
                       <div>
@@ -1801,7 +1955,7 @@ export default function AdminTeamPage() {
                   </div>
 
                   {/* Add Override Form */}
-                  <form onSubmit={handleAddOverride} className="p-4 rounded-xl border border-border bg-muted/20 space-y-3">
+                  <form noValidate onSubmit={handleAddOverride} className="p-4 rounded-xl border border-border bg-muted/20 space-y-3">
                     <div className="text-xs font-bold uppercase tracking-wider text-primary">Record Date Override</div>
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                       <div>
@@ -1927,20 +2081,34 @@ export default function AdminTeamPage() {
             </div>
 
             <form
+              noValidate
               onSubmit={async (e) => {
                 e.preventDefault();
+                // Custom React Validation (No ugly native bubbles)
                 if (!createForm.displayName.trim()) {
-                  setErrorMessage("Team member full name is required.");
+                  toast.error("Full Name is required.");
                   return;
                 }
+                if (!createForm.locationId) {
+                  toast.error("Primary Branch is required.");
+                  return;
+                }
+                const isMedical = createForm.role === "doctor" || createForm.role === "nurse";
+                if (isMedical && (!createForm.specialties || createForm.specialties.length === 0)) {
+                  toast.error("Clinical Specialty is required.");
+                  return;
+                }
+                if (!createForm.professionalTitle.trim()) {
+                  toast.error("Professional Title is required.");
+                  return;
+                }
+
                 setIsSaving(true);
                 setErrorMessage(null);
 
                 const names = createForm.displayName.trim().split(" ");
                 const firstName = names[0] || "Staff";
                 const lastName = names.slice(1).join(" ") || "Member";
-
-                const isMedical = createForm.role === "doctor" || createForm.role === "nurse";
                 const specialtiesToSend = isMedical ? createForm.specialties : [];
 
                 try {
@@ -1961,14 +2129,15 @@ export default function AdminTeamPage() {
                     },
                     accessToken || undefined
                   );
-                  setSuccessMessage(`Team member "${created.displayName}" created successfully.`);
+                  toast.success(`Team member "${created.displayName}" created successfully.`);
                   setCreateModalOpen(false);
                   await loadInitialData();
                   setSelectedClinician(created);
                   setActiveTab("profile");
-                  setTimeout(() => setSuccessMessage(null), 3000);
                 } catch (err: any) {
-                  setErrorMessage(err.message || "Failed to create team member.");
+                  const errorMsg = err?.message || "Failed to create team member.";
+                  setErrorMessage(errorMsg);
+                  toast.error(errorMsg);
                 } finally {
                   setIsSaving(false);
                 }
@@ -2113,9 +2282,10 @@ export default function AdminTeamPage() {
 
                     <div>
                       <label className="text-xs font-semibold text-foreground mb-1 block">
-                        Primary Branch
+                        Primary Branch {createForm.role === "doctor" && <span className="text-rose-500">*</span>}
                       </label>
                       <select
+                        required={createForm.role === "doctor"}
                         value={createForm.locationId}
                         onChange={(e) => setCreateForm({ ...createForm, locationId: e.target.value })}
                         className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background outline-none focus:ring-2 focus:ring-primary/20"

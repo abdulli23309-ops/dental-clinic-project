@@ -4,10 +4,15 @@ from uuid import UUID
 
 from fastapi import HTTPException, status
 
+from sqlalchemy import func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.application.dtos.team_dto import TeamMemberCreateRequest, TeamMemberUpdateRequest
+from app.application.services.role_default_service import RoleDefaultService
 from app.domain.models.team_member import TeamMember
 from app.domain.repositories.organization_repo import OrganizationRepository
 from app.domain.repositories.team_repo import TeamMemberRepository
+from app.infrastructure.database.orm_models import TeamMemberClinicORM, TeamMemberORM
 
 
 class TeamService:
@@ -17,9 +22,12 @@ class TeamService:
         self,
         team_repo: TeamMemberRepository,
         org_repo: OrganizationRepository,
+        session: AsyncSession,
     ):
         self.team_repo = team_repo
         self.org_repo = org_repo
+        self.session = session
+        self.role_default_service = RoleDefaultService(session)
 
     async def list_members(self, include_inactive: bool = False) -> List[TeamMember]:
         return await self.team_repo.list_all(include_inactive=include_inactive)
@@ -34,6 +42,28 @@ class TeamService:
         return member
 
     async def create_member(self, req: TeamMemberCreateRequest) -> TeamMember:
+        # Check if doctor with same display_name already exists at the selected clinic/branch
+        if req.locationId and req.displayName:
+            clean_name = req.displayName.strip().lower()
+            stmt_dup = (
+                select(TeamMemberORM)
+                .outerjoin(TeamMemberClinicORM, TeamMemberClinicORM.team_member_id == TeamMemberORM.id)
+                .where(
+                    func.lower(func.trim(TeamMemberORM.display_name)) == clean_name,
+                    or_(
+                        TeamMemberORM.location_id == req.locationId,
+                        TeamMemberORM.clinic_id == req.locationId,
+                        TeamMemberClinicORM.clinic_id == req.locationId,
+                    ),
+                )
+            )
+            res_dup = await self.session.execute(stmt_dup)
+            if res_dup.scalars().first():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="A doctor with this name already exists at this branch.",
+                )
+
         # If organizationId is not provided, associate with default practice
         org_id = req.organizationId
         if not org_id:
@@ -65,7 +95,13 @@ class TeamService:
             is_active=req.isActive,
             show_patients_treated=req.showPatientsTreated,
         )
-        return await self.team_repo.save(member)
+        saved = await self.team_repo.save(member)
+        # Smart Defaults: auto-assign role-based services when the new member
+        # has no service_providers yet (respects any manual overrides later).
+        await self.role_default_service.apply_defaults(
+            saved.id, saved.role, req.locationId
+        )
+        return saved
 
     async def update_member(self, member_id: UUID, req: TeamMemberUpdateRequest) -> TeamMember:
         member = await self.get_member(member_id)
@@ -106,7 +142,13 @@ class TeamService:
             member.show_patients_treated = req.showPatientsTreated
 
         member.updated_at = datetime.now(timezone.utc)
-        return await self.team_repo.save(member)
+        saved = await self.team_repo.save(member)
+        # Smart Defaults: only auto-assign when the member has no services yet.
+        # If services already exist (manual overrides), leave them untouched.
+        await self.role_default_service.apply_defaults(
+            saved.id, saved.role, saved.location_id
+        )
+        return saved
 
     async def set_member_status(self, member_id: UUID, is_active: bool) -> TeamMember:
         member = await self.get_member(member_id)

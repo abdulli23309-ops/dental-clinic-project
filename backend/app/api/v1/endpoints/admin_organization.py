@@ -8,6 +8,7 @@ from app.api.deps import (
     get_cms_service,
     require_admin,
     require_platform_owner,
+    require_locations_view,
     get_clinic_service_repository,
     get_service_service,
 )
@@ -27,10 +28,10 @@ from app.application.dtos.organization_dto import (
 from app.application.dtos.team_dto import TeamMemberStatusRequest
 from app.application.services.organization_service import OrganizationService
 
-router = APIRouter(prefix="/admin", tags=["Admin Organization"], dependencies=[Depends(require_admin)])
+router = APIRouter(prefix="/admin", tags=["Admin Organization"])
 
 
-@router.get("/organization", response_model=OrganizationResponse)
+@router.get("/organization", response_model=OrganizationResponse, dependencies=[Depends(require_admin)])
 async def get_organization(
     org_service: OrganizationService = Depends(get_organization_service),
     cms_service: CmsService = Depends(get_cms_service),
@@ -75,7 +76,7 @@ async def get_organization(
     )
 
 
-@router.put("/organization", response_model=OrganizationResponse)
+@router.put("/organization", response_model=OrganizationResponse, dependencies=[Depends(require_admin)])
 async def update_organization(
     req: OrganizationUpdateRequest,
     org_service: OrganizationService = Depends(get_organization_service),
@@ -127,7 +128,7 @@ async def update_organization(
     )
 
 
-@router.get("/locations", response_model=Union[PaginatedLocationResponse, List[LocationResponse]])
+@router.get("/locations", response_model=Union[PaginatedLocationResponse, List[LocationResponse]], dependencies=[Depends(require_locations_view)])
 async def list_all_locations(
     page: Optional[int] = Query(None, ge=1, description="Page number starting at 1"),
     limit: Optional[int] = Query(None, ge=1, le=100, description="Items per page"),
@@ -209,7 +210,7 @@ async def create_location(
     )
 
 
-@router.put("/locations/{location_id}", response_model=LocationResponse)
+@router.put("/locations/{location_id}", response_model=LocationResponse, dependencies=[Depends(require_admin)])
 async def update_location(
     location_id: UUID,
     req: LocationUpdateRequest,
@@ -239,7 +240,7 @@ async def update_location(
     )
 
 
-@router.patch("/locations/{location_id}/status", response_model=LocationResponse)
+@router.patch("/locations/{location_id}/status", response_model=LocationResponse, dependencies=[Depends(require_admin)])
 async def toggle_location_status(
     location_id: UUID,
     req: TeamMemberStatusRequest,
@@ -295,7 +296,7 @@ async def delete_location(
     return None
 
 
-@router.get("/organization/setup-status")
+@router.get("/organization/setup-status", dependencies=[Depends(require_locations_view)])
 async def organization_setup_status(
     org_service: OrganizationService = Depends(get_organization_service),
 ) -> dict:
@@ -304,7 +305,7 @@ async def organization_setup_status(
     return {"isConfigured": org is not None, "organization": org}
 
 
-@router.get("/locations/{location_id}/services", response_model=List[LocationServiceItemDto])
+@router.get("/locations/{location_id}/services", response_model=List[LocationServiceItemDto], dependencies=[Depends(require_locations_view)])
 async def get_location_services(
     location_id: UUID,
     org_service: OrganizationService = Depends(get_organization_service),
@@ -331,7 +332,7 @@ async def get_location_services(
     ]
 
 
-@router.put("/locations/{location_id}/services", response_model=List[LocationServiceItemDto])
+@router.put("/locations/{location_id}/services", response_model=List[LocationServiceItemDto], dependencies=[Depends(require_admin)])
 async def update_location_services(
     location_id: UUID,
     req: LocationServicesUpdateRequest,

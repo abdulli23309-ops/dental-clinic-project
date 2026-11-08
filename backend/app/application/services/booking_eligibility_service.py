@@ -297,7 +297,8 @@ class BookingEligibilityService:
             d_res = await self.session.execute(doctor_stmt)
             active_clinic_doctors = list(d_res.scalars().all())
 
-            # Check branch-specific or global doctor-service assignments
+            # Check branch-specific doctor-service assignments only. Unscoped null-clinic rows
+            # are not treated as a silent fallback for a specific branch.
             clinic_provider_links = await self.booking_settings_repo.list_service_providers(
                 service_id=svc.id, clinic_id=clinic.id
             )
@@ -305,12 +306,7 @@ class BookingEligibilityService:
                 linked_ids = [l.team_member_id for l in clinic_provider_links if l.is_active]
                 qualified_doctors = [d for d in active_clinic_doctors if d.id in linked_ids]
             else:
-                all_links = await self.booking_settings_repo.list_service_providers(service_id=svc.id)
-                if all_links:
-                    global_ids = [l.team_member_id for l in all_links if l.clinic_id is None and l.is_active]
-                    qualified_doctors = [d for d in active_clinic_doctors if d.id in global_ids] if global_ids else []
-                else:
-                    qualified_doctors = active_clinic_doctors
+                qualified_doctors = []
 
             if not qualified_doctors:
                 if "NO_ELIGIBLE_DOCTOR" not in reasons_accumulated:

@@ -221,3 +221,12 @@ class PostgresPatientRepository(PatientRepository):
         orm = res.scalar_one_or_none()
         return self._to_domain(orm) if orm else None
 
+    async def get_by_id_and_clinic(self, patient_id: UUID, clinic_id: UUID) -> Optional[Patient]:
+        stmt = select(PatientORM).where(
+            PatientORM.id == patient_id,
+            PatientORM.clinic_id == clinic_id,
+        )
+        result = await self._session.execute(stmt)
+        orm = result.scalar_one_or_none()
+        return self._to_domain(orm) if orm else None
+

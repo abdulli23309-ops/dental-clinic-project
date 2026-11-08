@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "sonner";
 import React, { Suspense, useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -18,6 +19,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/ui/pagination";
+import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import {
   adminCreateRole,
   adminDeleteRole,
@@ -52,6 +54,7 @@ function RolesContent() {
   // Modal / Form state
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [roleToDelete, setRoleToDelete] = useState<RoleItem | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [form, setForm] = useState<{
@@ -180,43 +183,58 @@ function RolesContent() {
     try {
       if (editingId) {
         await adminUpdateRole(editingId, payload, accessToken);
-        setSuccessMessage(`Role "${payload.displayName}" updated successfully.`);
+        toast.success("Role updated successfully");
       } else {
         await adminCreateRole(payload, accessToken);
-        setSuccessMessage(`Role "${payload.displayName}" created successfully.`);
+        toast.success("Role created successfully");
       }
       setShowModal(false);
       loadRoles(currentPage, pageSize, searchQuery);
-      setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to save role.";
+      toast.error(msg);
       setErrorMessage(msg);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (role: RoleItem) => {
-    if (!accessToken) return;
-    if (!confirm(`Are you sure you want to deactivate role "${role.displayName}"?`)) {
-      return;
-    }
-    try {
-      await adminDeleteRole(role.id, accessToken);
-      setSuccessMessage(`Role "${role.displayName}" deactivated.`);
+  const openDeleteConfirm = (role: RoleItem) => {
+    setRoleToDelete(role);
+  };
 
-      // If the last item on the page was deleted and we're past page 1, go back one page
+  // Pattern #1: Optimistic UI for role deactivation with automatic rollback on error
+  const confirmDeleteRole = async () => {
+    if (!roleToDelete || !accessToken) return;
+    setIsSubmitting(true);
+    const previousRoles = [...roles];
+    const targetId = roleToDelete.id;
+    const targetName = roleToDelete.displayName;
+
+    // Optimistically update list state immediately
+    setRoles((prev) =>
+      prev.map((r) => (r.id === targetId ? { ...r, isActive: false } : r))
+    );
+
+    try {
+      await adminDeleteRole(targetId, accessToken);
+      toast.success(`Role "${targetName}" deactivated.`);
+
       const remainingOnPage = roles.length - 1;
       const targetPage = remainingOnPage === 0 && currentPage > 1 ? currentPage - 1 : currentPage;
+      setRoleToDelete(null);
       if (targetPage !== currentPage) {
         setCurrentPage(targetPage);
       } else {
         loadRoles(targetPage, pageSize, searchQuery);
       }
-      setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to delete role.";
-      setErrorMessage(msg);
+      // Rollback on failure
+      setRoles(previousRoles);
+      const msg = err instanceof Error ? err.message : "Failed to deactivate role.";
+      toast.error(msg);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -403,7 +421,7 @@ function RolesContent() {
                           {!r.isSystem && (
                             <button
                               type="button"
-                              onClick={() => handleDelete(r)}
+                              onClick={() => openDeleteConfirm(r)}
                               title="Deactivate Role"
                               aria-label={`Deactivate role ${r.displayName}`}
                               className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
@@ -434,27 +452,37 @@ function RolesContent() {
           )}
         </div>
 
-        {/* Create / Edit Role Modal */}
+        {/* Create / Edit Role Modal (Light Mode Enterprise SaaS Theme) */}
         {showModal && (
           <div
             role="dialog"
             aria-modal="true"
             aria-label={editingId ? "Edit Role" : "Add Role"}
-            className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
             onClick={(e) => {
               if (e.target === e.currentTarget) setShowModal(false);
             }}
           >
-            <div className="bg-card text-card-foreground rounded-2xl border border-border shadow-2xl w-full max-w-md p-6 space-y-5 animate-in zoom-in-95 duration-200">
-              <div className="flex items-center justify-between border-b border-border pb-3">
-                <h3 className="font-bold text-foreground text-base flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-primary" />
-                  {editingId ? "Edit Role Definition" : "Create New Role"}
-                </h3>
+            <div className="bg-white text-slate-900 rounded-2xl border border-slate-200/90 shadow-2xl w-full max-w-xl p-6 sm:p-7 space-y-5 animate-in zoom-in-95 duration-200">
+              {/* Header */}
+              <div className="flex items-start justify-between pb-3.5 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+                    <ShieldCheck className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-base tracking-tight">
+                      {editingId ? "Edit Role Definition" : "Create New Role"}
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Configure system identifier, public display name, and clinical scope.
+                    </p>
+                  </div>
+                </div>
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-muted transition-colors cursor-pointer"
+                  className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
                   aria-label="Close modal"
                 >
                   <X className="h-4 w-4" />
@@ -462,87 +490,103 @@ function RolesContent() {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-                <div className="space-y-1.5">
-                  <label className="font-bold text-foreground block">
-                    System Identifier Name <span className="text-destructive">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    disabled={Boolean(editingId)}
-                    placeholder="e.g. Endodontist"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-border rounded-xl text-xs bg-background text-foreground font-mono outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-50"
-                  />
-                  <p className="text-[10px] text-muted-foreground">
-                    Canonical unique key identifier used in permissions and API checks.
-                  </p>
+                {/* 2-Column Inputs */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 block">
+                      System Identifier Name <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      disabled={Boolean(editingId)}
+                      placeholder="e.g. Endodontist"
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-xs bg-slate-50 text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-50 font-medium"
+                    />
+                    <p className="text-[10px] text-slate-400">
+                      Canonical unique key used in permissions and API checks.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 block">
+                      Public Display Name <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Endodontic Specialist"
+                      value={form.displayName}
+                      onChange={(e) => setForm({ ...form, displayName: e.target.value })}
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-xs bg-slate-50 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    />
+                    <p className="text-[10px] text-slate-400">
+                      Shown across appointment schedules and clinician cards.
+                    </p>
+                  </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="font-bold text-foreground block">
-                    Public Display Name <span className="text-destructive">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Endodontic Specialist"
-                    value={form.displayName}
-                    onChange={(e) => setForm({ ...form, displayName: e.target.value })}
-                    className="w-full px-3 py-2 border border-border rounded-xl text-xs bg-background text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-medium"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="font-bold text-foreground block">Description</label>
+                  <label className="text-xs font-semibold text-slate-700 block">Clinical Scope / Description</label>
                   <textarea
-                    rows={2}
+                    rows={3}
                     placeholder="Describe clinical scope, typical duties, or scheduling tier..."
                     value={form.description}
                     onChange={(e) => setForm({ ...form, description: e.target.value })}
-                    className="w-full px-3 py-2 border border-border rounded-xl text-xs bg-background text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-xs bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary leading-relaxed"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="font-bold text-foreground block">Display Order</label>
+                {/* Display Order & Active Toggle Switch */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700 block">Display Order</label>
                     <input
                       type="number"
                       value={form.displayOrder}
                       onChange={(e) => setForm({ ...form, displayOrder: parseInt(e.target.value, 10) || 0 })}
-                      className="w-full px-3 py-2 border border-border rounded-xl text-xs bg-background text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-mono"
+                      className="w-28 px-3 py-1.5 border border-slate-200 rounded-lg text-xs bg-white text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="font-bold text-foreground block">Status</label>
-                    <div className="flex items-center gap-2 pt-2">
-                      <input
-                        type="checkbox"
-                        id="role-is-active"
-                        checked={form.isActive}
-                        onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-                        className="w-4 h-4 rounded text-primary focus:ring-primary border-border cursor-pointer"
+                  <div className="flex items-center justify-between sm:justify-end gap-3">
+                    <span className="text-xs font-semibold text-slate-700">Active for Assignment</span>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={form.isActive}
+                      onClick={() => setForm({ ...form, isActive: !form.isActive })}
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary/20 ${
+                        form.isActive ? "bg-primary" : "bg-slate-300"
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                          form.isActive ? "translate-x-5" : "translate-x-0"
+                        }`}
                       />
-                      <label htmlFor="role-is-active" className="text-xs font-semibold text-foreground cursor-pointer">
-                        Active for assignment
-                      </label>
-                    </div>
+                    </button>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-border">
+                <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100">
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     onClick={() => setShowModal(false)}
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" variant="primary" size="sm" disabled={isSubmitting} className="font-semibold shadow-xs">
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="sm"
+                    disabled={isSubmitting}
+                    className="font-semibold shadow-xs rounded-full px-5"
+                  >
                     {isSubmitting ? "Saving..." : editingId ? "Update Role" : "Create Role"}
                   </Button>
                 </div>
@@ -550,6 +594,17 @@ function RolesContent() {
             </div>
           </div>
         )}
+
+        {/* Pattern #19: Destructive Action Protection Dialog */}
+        <DestructiveConfirmDialog
+          isOpen={Boolean(roleToDelete)}
+          title={`Deactivate Role "${roleToDelete?.displayName}"?`}
+          description="This will deactivate the role for clinical staff and system assignment. Existing assignments will be archived."
+          confirmText="Deactivate Role"
+          isSubmitting={isSubmitting}
+          onConfirm={confirmDeleteRole}
+          onClose={() => setRoleToDelete(null)}
+        />
       </div>
     </AnimatedPage>
   );

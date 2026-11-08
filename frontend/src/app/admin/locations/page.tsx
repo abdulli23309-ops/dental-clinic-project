@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   Building2,
@@ -12,6 +13,7 @@ import {
   Compass,
   Edit2,
   ExternalLink,
+  ImageIcon,
   Info,
   Layers,
   Mail,
@@ -25,6 +27,7 @@ import {
   Stethoscope,
   Trash2,
   Upload,
+  UploadCloud,
   UserCheck,
   UserMinus,
   UserPlus,
@@ -105,10 +108,23 @@ export default function AdminLocationsPage() {
     phone: "",
     email: "",
     hoursInfo: "Mon-Sat: 09:00 AM - 09:00 PM",
+    description: "",
     imageUrl: "",
     isPrimary: false,
     displayOrder: 0,
   });
+
+  // Branch Images State (1 to 5 images)
+  interface BranchImageItem {
+    id: string;
+    file: File;
+    name: string;
+    size: number;
+    url: string;
+  }
+  const [branchImages, setBranchImages] = useState<BranchImageItem[]>([]);
+  const [isBranchDragging, setIsBranchDragging] = useState(false);
+  const branchFileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Tab 1: Overview Form for Selected Branch
   const [overviewForm, setOverviewForm] = useState({ ...createForm });
@@ -193,36 +209,7 @@ export default function AdminLocationsPage() {
     });
   }, [accessToken]);
 
-  // When a branch is selected, populate Overview and load tab-specific data
-  useEffect(() => {
-    if (!selectedBranch) return;
 
-    setOverviewForm({
-      name: selectedBranch.name,
-      addressLine1: selectedBranch.addressLine1,
-      addressLine2: selectedBranch.addressLine2 || "",
-      city: selectedBranch.city,
-      state: selectedBranch.state,
-      postalCode: selectedBranch.postalCode,
-      country: selectedBranch.country || "Pakistan",
-      phone: selectedBranch.phone || "",
-      email: selectedBranch.email || "",
-      hoursInfo: selectedBranch.hoursInfo || "",
-      imageUrl: selectedBranch.imageUrl || "",
-      isPrimary: selectedBranch.isPrimary,
-      displayOrder: selectedBranch.displayOrder || 0,
-    });
-
-    if (activeTab === "services") {
-      loadLocationServices(selectedBranch.id);
-    } else if (activeTab === "team") {
-      loadBranchTeam(selectedBranch.id);
-    } else if (activeTab === "hours") {
-      loadBranchHours();
-    } else if (activeTab === "booking") {
-      loadBranchBookingRules();
-    }
-  }, [selectedBranch, activeTab]);
 
   const loadLocationServices = async (branchId: string) => {
     if (!accessToken) return;
@@ -318,6 +305,38 @@ export default function AdminLocationsPage() {
     }
   };
 
+  // When a branch is selected, populate Overview and load tab-specific data
+  useEffect(() => {
+    if (!selectedBranch) return;
+
+    setOverviewForm({
+      name: selectedBranch.name,
+      addressLine1: selectedBranch.addressLine1,
+      addressLine2: selectedBranch.addressLine2 || "",
+      city: selectedBranch.city,
+      state: selectedBranch.state,
+      postalCode: selectedBranch.postalCode,
+      country: selectedBranch.country || "Pakistan",
+      phone: selectedBranch.phone || "",
+      email: selectedBranch.email || "",
+      hoursInfo: selectedBranch.hoursInfo || "",
+      description: "",
+      imageUrl: selectedBranch.imageUrl || "",
+      isPrimary: selectedBranch.isPrimary,
+      displayOrder: selectedBranch.displayOrder || 0,
+    });
+
+    if (activeTab === "services") {
+      loadLocationServices(selectedBranch.id);
+    } else if (activeTab === "team") {
+      loadBranchTeam(selectedBranch.id);
+    } else if (activeTab === "hours") {
+      loadBranchHours();
+    } else if (activeTab === "booking") {
+      loadBranchBookingRules();
+    }
+  }, [selectedBranch, activeTab]);
+
   const handleOpenCreateModal = () => {
     setCreateForm({
       name: "",
@@ -330,31 +349,141 @@ export default function AdminLocationsPage() {
       phone: "",
       email: "",
       hoursInfo: "Mon-Sat: 09:00 AM - 09:00 PM",
+      description: "",
       imageUrl: "",
       isPrimary: locations.length === 0,
       displayOrder: locations.length,
     });
+    setBranchImages([]);
     setCreateModalOpen(true);
+  };
+
+  const processBranchFiles = (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+
+    const files = Array.from(fileList);
+    const validImageTypes = ["image/jpeg", "image/png", "image/webp"];
+
+    const remainingSlots = 5 - branchImages.length;
+    if (remainingSlots <= 0) {
+      toast.warning("Maximum of 5 branch images reached.");
+      return;
+    }
+
+    if (files.length > remainingSlots) {
+      toast.warning(`Only ${remainingSlots} more image(s) can be attached (max 5 total).`);
+    }
+
+    const filesToAdd = files.slice(0, remainingSlots);
+    const newItems: BranchImageItem[] = [];
+
+    for (const file of filesToAdd) {
+      if (!validImageTypes.includes(file.type)) {
+        toast.error(`"${file.name}" is not a supported image format (JPG, PNG, WEBP).`);
+        continue;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(`"${file.name}" exceeds the 5MB size limit.`);
+        continue;
+      }
+      newItems.push({
+        id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        file,
+        name: file.name,
+        size: file.size,
+        url: URL.createObjectURL(file),
+      });
+    }
+
+    if (newItems.length > 0) {
+      setBranchImages((prev) => [...prev, ...newItems]);
+      toast.success(`Attached ${newItems.length} image(s).`);
+    }
+  };
+
+  const removeBranchImage = (id: string) => {
+    setBranchImages((prev) => {
+      const target = prev.find((img) => img.id === id);
+      if (target?.url) {
+        URL.revokeObjectURL(target.url);
+      }
+      return prev.filter((img) => img.id !== id);
+    });
+  };
+
+  const handleBranchDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsBranchDragging(true);
+  };
+
+  const handleBranchDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsBranchDragging(false);
+  };
+
+  const handleBranchDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsBranchDragging(false);
+    processBranchFiles(e.dataTransfer.files);
   };
 
   const handleCreateBranch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!createForm.name.trim() || !createForm.addressLine1.trim() || !createForm.city.trim()) {
-      setErrorMsg("Branch name, street address, and city are required.");
+    if (
+      !createForm.name.trim() ||
+      !createForm.email.trim() ||
+      !createForm.phone.trim() ||
+      !createForm.addressLine1.trim() ||
+      !createForm.city.trim() ||
+      !createForm.state.trim()
+    ) {
+      toast.error("Please fill in all required fields (Name, Email, Phone, Address, City, State/Province).");
       return;
     }
+
     setIsSaving(true);
-    setErrorMsg(null);
     try {
-      const created = await adminCreateLocation(createForm, accessToken);
-      setSuccessMsg(`Branch "${created.name}" created successfully.`);
+      let finalImageUrl = createForm.imageUrl;
+      if (branchImages.length > 0 && accessToken) {
+        try {
+          const uploadRes = await adminUploadMedia(branchImages[0].file, accessToken);
+          if (uploadRes?.url) {
+            finalImageUrl = uploadRes.url;
+          }
+        } catch (uploadErr) {
+          console.warn("Media upload failed, saving branch without uploaded image URL:", uploadErr);
+        }
+      }
+
+      const created = await adminCreateLocation(
+        {
+          name: createForm.name.trim(),
+          addressLine1: createForm.addressLine1.trim(),
+          addressLine2: createForm.addressLine2?.trim() || null,
+          city: createForm.city.trim(),
+          state: createForm.state.trim(),
+          postalCode: createForm.postalCode.trim() || "54000",
+          country: createForm.country || "Pakistan",
+          phone: createForm.phone.trim(),
+          email: createForm.email.trim(),
+          hoursInfo: createForm.hoursInfo || "Mon-Sat: 09:00 AM - 09:00 PM",
+          imageUrl: finalImageUrl || null,
+          isPrimary: createForm.isPrimary,
+          displayOrder: createForm.displayOrder,
+        },
+        accessToken
+      );
+
+      toast.success("Branch created successfully");
       setCreateModalOpen(false);
       await loadLocations();
       setSelectedBranch(created);
       setActiveTab("overview");
-      setTimeout(() => setSuccessMsg(null), 3000);
     } catch (err: any) {
-      setErrorMsg(err.message || "Failed to create branch.");
+      toast.error(err?.message || "Failed to create branch.");
     } finally {
       setIsSaving(false);
     }
@@ -364,19 +493,18 @@ export default function AdminLocationsPage() {
     e.preventDefault();
     if (!selectedBranch || !accessToken) return;
     if (!overviewForm.name.trim() || !overviewForm.addressLine1.trim() || !overviewForm.city.trim()) {
-      setErrorMsg("Branch name, street address, and city are required.");
+      toast.error("Branch name, street address, and city are required.");
       return;
     }
     setIsSaving(true);
     setErrorMsg(null);
     try {
       const updated = await adminUpdateLocation(selectedBranch.id, overviewForm, accessToken);
-      setSuccessMsg("Branch overview details saved successfully.");
+      toast.success("Branch overview details saved successfully.");
       setSelectedBranch(updated);
       setLocations((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
-      setTimeout(() => setSuccessMsg(null), 3000);
     } catch (err: any) {
-      setErrorMsg(err.message || "Failed to update branch overview.");
+      toast.error(err.message || "Failed to update branch overview.");
     } finally {
       setIsSaving(false);
     }
@@ -386,7 +514,7 @@ export default function AdminLocationsPage() {
     const file = e.target.files?.[0];
     if (!file || !accessToken) return;
     if (file.size > 20 * 1024 * 1024) {
-      setErrorMsg("File exceeds maximum allowed size of 20MB.");
+      toast.error("File exceeds maximum allowed size of 20MB.");
       return;
     }
     setIsUploadingPhoto(true);
@@ -394,11 +522,10 @@ export default function AdminLocationsPage() {
     try {
       const res = await adminUploadMedia(file, accessToken);
       setOverviewForm((prev) => ({ ...prev, imageUrl: res.url }));
-      setSuccessMsg("Branch photo uploaded successfully.");
-      setTimeout(() => setSuccessMsg(null), 3000);
+      toast.success("Branch photo uploaded successfully.");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to upload photo.";
-      setErrorMsg(msg);
+      toast.error(msg);
     } finally {
       setIsUploadingPhoto(false);
     }
@@ -408,14 +535,13 @@ export default function AdminLocationsPage() {
     if (!accessToken) return;
     try {
       await adminToggleLocationStatus(id, !currentStatus, accessToken);
-      setSuccessMsg(`Branch ${currentStatus ? "deactivated" : "reactivated"} successfully.`);
-      setTimeout(() => setSuccessMsg(null), 3000);
+      toast.success(`Branch ${currentStatus ? "deactivated" : "reactivated"} successfully.`);
       loadLocations();
       if (selectedBranch?.id === id) {
         setSelectedBranch((prev) => (prev ? { ...prev, isActive: !currentStatus } : null));
       }
     } catch (err: any) {
-      setErrorMsg(err.message || "Failed to toggle branch status.");
+      toast.error(err.message || "Failed to toggle branch status.");
     }
   };
 
@@ -1536,80 +1662,304 @@ export default function AdminLocationsPage() {
         )}
       </AnimatePresence>
 
-      {/* CREATE NEW BRANCH MODAL */}
+      {/* CREATE NEW BRANCH MODAL (Light Mode Enterprise SaaS Theme) */}
       {createModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-xl bg-background border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
-            <div className="p-6 border-b border-border/40 flex items-center justify-between">
-              <div>
-                <span className="text-xs font-semibold uppercase tracking-wider text-primary">New Location</span>
-                <h2 className="text-lg font-bold text-foreground">Add Clinic Branch</h2>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in duration-200"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isSaving) setCreateModalOpen(false);
+          }}
+        >
+          <div className="w-full max-w-2xl bg-white text-slate-900 border border-slate-200/90 rounded-2xl shadow-2xl overflow-hidden flex flex-col my-auto max-h-[92vh] animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="p-6 pb-4 border-b border-slate-100 flex items-start justify-between bg-white sticky top-0 z-10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-primary">New Practice Facility</span>
+                  <h2 className="text-lg font-bold text-slate-900">Add Clinic Branch</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Register a physical practice branch, contact channels, address details, and clinical reference photos.
+                  </p>
+                </div>
               </div>
               <button
+                type="button"
                 onClick={() => setCreateModalOpen(false)}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                aria-label="Close modal"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateBranch} className="p-6 space-y-4 overflow-y-auto max-h-[70vh]">
-              <div>
-                <label className="text-xs font-semibold text-foreground mb-1 block">Facility / Branch Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={createForm.name}
-                  onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
-                  placeholder="e.g. DHA Phase 5 Branch"
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </div>
+            {/* Modal Scrollable Form Body */}
+            <form id="create-branch-form" onSubmit={handleCreateBranch} className="p-6 sm:p-7 space-y-6 overflow-y-auto flex-1">
+              {/* GROUP 1: Basic Information */}
+              <div className="bg-slate-50/70 p-4 sm:p-5 rounded-xl border border-slate-200/80 space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-200/60 pb-2">
+                  <Building2 className="w-4 h-4 text-primary" />
+                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    Basic Facility Information
+                  </h3>
+                </div>
 
-              <div>
-                <label className="text-xs font-semibold text-foreground mb-1 block">Street Address *</label>
-                <input
-                  type="text"
-                  required
-                  value={createForm.addressLine1}
-                  onChange={(e) => setCreateForm({ ...createForm, addressLine1: e.target.value })}
-                  placeholder="e.g. Plaza 45, Commercial Area"
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-foreground mb-1 block">City *</label>
+                  <label className="text-xs font-semibold text-slate-700 mb-1.5 block">
+                    Facility / Branch Name <span className="text-rose-500">*</span>
+                  </label>
                   <input
                     type="text"
                     required
-                    value={createForm.city}
-                    onChange={(e) => setCreateForm({ ...createForm, city: e.target.value })}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background outline-none focus:ring-2 focus:ring-primary/20"
+                    value={createForm.name}
+                    onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                    placeholder="e.g. DHDC Phase 5 Dental Care & Surgery"
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-medium transition-all"
                   />
                 </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 mb-1.5 block">
+                      Email Address <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={createForm.email}
+                      onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+                      placeholder="e.g. branch.dha5@hiradental.com"
+                      className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-medium transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 mb-1.5 block">
+                      Phone Number <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={createForm.phone}
+                      onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
+                      placeholder="e.g. +92 42 3589 1234"
+                      className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-medium transition-all"
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <label className="text-xs font-semibold text-foreground mb-1 block">Phone</label>
-                  <input
-                    type="text"
-                    value={createForm.phone}
-                    onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
-                    placeholder="+92 42 3589 1234"
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background outline-none focus:ring-2 focus:ring-primary/20"
+                  <label className="text-xs font-semibold text-slate-700 mb-1.5 block">
+                    Short Description / About this branch
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={createForm.description}
+                    onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
+                    placeholder="Provide a brief clinical overview, landmark directions, parking cues, or specific specialties offered at this branch..."
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-medium transition-all resize-y"
                   />
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-border flex items-center justify-end gap-3">
-                <Button type="button" variant="outline" onClick={() => setCreateModalOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isSaving} className="font-semibold">
-                  {isSaving ? "Creating..." : "Create Branch"}
-                </Button>
+              {/* GROUP 2: Location Details */}
+              <div className="bg-slate-50/70 p-4 sm:p-5 rounded-xl border border-slate-200/80 space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-200/60 pb-2">
+                  <MapPin className="w-4 h-4 text-primary" />
+                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    Physical Location Details
+                  </h3>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 mb-1.5 block">
+                    Street Address <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={createForm.addressLine1}
+                    onChange={(e) => setCreateForm({ ...createForm, addressLine1: e.target.value })}
+                    placeholder="e.g. Plaza 45, Sector B, Commercial Broadway"
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-medium transition-all"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 mb-1.5 block">
+                      City <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={createForm.city}
+                      onChange={(e) => setCreateForm({ ...createForm, city: e.target.value })}
+                      placeholder="e.g. Lahore"
+                      className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-medium transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 mb-1.5 block">
+                      State / Province <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={createForm.state}
+                      onChange={(e) => setCreateForm({ ...createForm, state: e.target.value })}
+                      placeholder="e.g. Punjab"
+                      className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-medium transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 mb-1.5 block">Postal Code</label>
+                    <input
+                      type="text"
+                      value={createForm.postalCode}
+                      onChange={(e) => setCreateForm({ ...createForm, postalCode: e.target.value })}
+                      placeholder="e.g. 54000"
+                      className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-medium transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* GROUP 3: Branch Images (1 to 5 Images) */}
+              <div className="bg-slate-50/70 p-4 sm:p-5 rounded-xl border border-slate-200/80 space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                  <div className="flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4 text-primary" />
+                    <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                      Branch Images &amp; Visual References
+                    </h3>
+                  </div>
+                  <span className="text-[11px] font-semibold text-slate-500 bg-white px-2.5 py-0.5 rounded-full border border-slate-200">
+                    {branchImages.length} / 5 attached
+                  </span>
+                </div>
+
+                <p className="text-[11px] text-slate-500">
+                  Upload exterior facade, reception lobby, or operatory photographs (up to 5 images, max 5MB each).
+                </p>
+
+                {/* Hidden File Input */}
+                <input
+                  ref={branchFileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    processBranchFiles(e.target.files);
+                    if (e.target) e.target.value = "";
+                  }}
+                />
+
+                {/* Modern Drag & Drop Zone */}
+                <div
+                  onDragOver={handleBranchDragOver}
+                  onDragLeave={handleBranchDragLeave}
+                  onDrop={handleBranchDrop}
+                  onClick={() => {
+                    if (branchImages.length < 5) {
+                      branchFileInputRef.current?.click();
+                    }
+                  }}
+                  className={`rounded-2xl border-2 border-dashed p-6 text-center transition-all ${
+                    branchImages.length >= 5
+                      ? "border-slate-200 bg-white cursor-not-allowed opacity-60"
+                      : isBranchDragging
+                      ? "border-primary bg-primary/5 cursor-copy"
+                      : "border-slate-300 hover:border-primary/50 hover:bg-white bg-white/70 cursor-pointer"
+                  }`}
+                >
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                      <UploadCloud className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-800">
+                        {branchImages.length >= 5
+                          ? "Maximum limit of 5 branch images reached"
+                          : "Drag & drop branch photos here, or click to browse"}
+                      </p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Supports PNG, JPG, WEBP (up to 5MB each)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Thumbnail Previews Grid */}
+                {branchImages.length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-1">
+                    {branchImages.map((img, idx) => (
+                      <div
+                        key={img.id}
+                        className="group relative rounded-xl border border-slate-200 bg-white p-1.5 shadow-xs overflow-hidden flex flex-col"
+                      >
+                        <div className="aspect-square w-full rounded-lg bg-slate-100 overflow-hidden relative">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={img.url}
+                            alt={img.name}
+                            className="w-full h-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeBranchImage(img.id);
+                            }}
+                            title="Remove image"
+                            aria-label={`Remove ${img.name}`}
+                            className="absolute top-1 right-1 w-6 h-6 rounded-full bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center shadow-md transition-all cursor-pointer opacity-90 group-hover:opacity-100"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <div className="mt-1 px-1">
+                          <p className="text-[10px] font-semibold text-slate-700 truncate" title={img.name}>
+                            {idx + 1}. {img.name}
+                          </p>
+                          <p className="text-[9px] text-slate-400">
+                            {(img.size / 1024).toFixed(0)} KB
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </form>
+
+            {/* Modal Footer */}
+            <div className="p-4 sm:p-5 border-t border-slate-100 bg-slate-50/80 flex items-center justify-end gap-3">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setCreateModalOpen(false)}
+                disabled={isSaving}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                form="create-branch-form"
+                variant="primary"
+                size="sm"
+                disabled={isSaving}
+                className="font-semibold shadow-xs px-5"
+              >
+                {isSaving ? "Creating..." : "Create Branch"}
+              </Button>
+            </div>
           </div>
         </div>
       )}

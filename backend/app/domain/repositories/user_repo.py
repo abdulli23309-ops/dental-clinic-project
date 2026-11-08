@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import List, Optional
 from uuid import UUID
 
 from app.domain.models.user import RefreshToken, User, UserSession
@@ -23,7 +23,7 @@ class UserRepository(ABC):
     @abstractmethod
     async def list_users(
         self, role: Optional[str] = None, is_active: Optional[bool] = None
-    ) -> list[User]:
+    ) -> List[User]:
         pass
 
     @abstractmethod

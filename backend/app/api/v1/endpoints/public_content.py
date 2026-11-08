@@ -3,7 +3,7 @@ import hashlib
 import json
 import secrets
 from datetime import date, datetime, timezone
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
@@ -353,7 +353,7 @@ async def get_public_clinics(
     return await get_public_locations(org_service)
 
 
-_lead_phone_locks: dict[str, asyncio.Lock] = {}
+_lead_phone_locks: Dict[str, asyncio.Lock] = {}
 _lead_phone_locks_guard = asyncio.Lock()
 
 

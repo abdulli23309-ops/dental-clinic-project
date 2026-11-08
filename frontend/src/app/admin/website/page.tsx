@@ -1106,9 +1106,6 @@ export default function AdminWebsitePage() {
                   )}
                 </div>
               </div>
-                  )}
-                </div>
-              </div>
 
               <div className="pt-4 border-t border-line/60 flex justify-end">
                 <Button

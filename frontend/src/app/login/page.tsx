@@ -143,6 +143,7 @@ export default function LoginPage() {
         <div className="relative z-10 my-auto py-10 flex flex-col items-center justify-center space-y-5 w-full max-w-md mx-auto">
           {/* Card 1: Daily Schedule & Turnaround */}
           <motion.div
+            initial={false}
             animate={{ y: [-5, 5, -5] }}
             transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
             className="w-full bg-white dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 shadow-md dark:shadow-2xl rounded-2xl p-4 sm:p-5 backdrop-blur-xs"
@@ -178,6 +179,7 @@ export default function LoginPage() {
 
           {/* Card 2: Secure Staff Portal & Desk */}
           <motion.div
+            initial={false}
             animate={{ y: [5, -5, 5] }}
             transition={{ duration: 5.6, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
             className="w-11/12 ml-auto bg-white dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 shadow-md dark:shadow-2xl rounded-2xl p-4 backdrop-blur-xs"
@@ -205,6 +207,7 @@ export default function LoginPage() {
 
           {/* Card 3: Multi-Location Coordination Badge */}
           <motion.div
+            initial={false}
             animate={{ y: [-4, 4, -4] }}
             transition={{ duration: 4.8, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
             className="w-10/12 mr-auto bg-white dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-xl rounded-xl p-3.5 backdrop-blur-xs"

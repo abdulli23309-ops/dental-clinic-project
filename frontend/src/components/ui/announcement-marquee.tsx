@@ -54,6 +54,7 @@ export function AnnouncementMarquee() {
       <div className="w-full max-w-full overflow-hidden">
         <motion.div
           className="flex shrink-0 items-center gap-12 whitespace-nowrap"
+          initial={false}
           animate={{ x: ["0%", "-50%"] }}
           transition={{
             repeat: Infinity,

@@ -53,7 +53,7 @@ export function AnimatedCard({
   return (
     <motion.div
       custom={index}
-      initial="hidden"
+      initial={false}
       animate="visible"
       variants={variants}
       whileHover={hoverLift ? cardHover.whileHover : undefined}

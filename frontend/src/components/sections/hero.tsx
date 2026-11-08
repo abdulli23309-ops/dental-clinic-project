@@ -312,6 +312,7 @@ export function Hero() {
             {/* The Floating Tooth with glass badge */}
             <div className="absolute -bottom-6 -left-4 sm:-left-8 w-44 h-44 sm:w-52 sm:h-52 z-30 pointer-events-none">
               <motion.div
+                initial={false}
                 animate={shouldReduceMotion ? undefined : { y: [0, -10, 0] }}
                 transition={{
                   duration: 4,
@@ -321,6 +322,7 @@ export function Hero() {
                 className="w-full h-full flex items-center justify-center filter drop-shadow-[0_20px_25px_rgba(0,0,0,0.3)]"
               >
                 <motion.div
+                  initial={false}
                   style={
                     shouldReduceMotion
                       ? undefined

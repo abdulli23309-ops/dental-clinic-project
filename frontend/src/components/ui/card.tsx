@@ -65,7 +65,7 @@ export function Card({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 15 }}
+      initial={false}
       animate={{ opacity: 1, y: 0 }}
       transition={{
         delay: Math.min(index * 0.05, 0.35),

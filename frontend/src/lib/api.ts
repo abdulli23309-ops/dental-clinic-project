@@ -149,6 +149,8 @@ export interface SiteContent {
     heroTicks?: Array<{ label: string }>;
     heroBadges?: string[];
     promises?: Array<{ num?: string; title: string; subtitle?: string; description: string }>;
+    whyChooseUsImage?: string | null;
+    whyChooseUsCaption?: string | null;
   };
   about: {
     eyebrow: string;

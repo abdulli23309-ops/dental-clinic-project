@@ -85,17 +85,17 @@ export function OurTeam() {
   // Arc mode for n < 8 so cards never turn 90deg edge-on
   const isArcMode = n < 8;
   const cardWidth = 320;
-  const cardGap = 36;
+  const cardGap = 80;
 
   // Geometry calculations:
   // For n >= 8: 360deg cylinder ring
-  // For n < 8: 28deg open stage arc
-  const stepAngle = isArcMode ? 28 : n > 0 ? 360 / n : 0;
+  // For n < 8: 36deg open stage arc with ample clearance between cards
+  const stepAngle = isArcMode ? 36 : n > 0 ? 360 / n : 0;
   const radius = isArcMode
-    ? 580
+    ? 680
     : n > 0
-    ? Math.max(420, Math.round((cardWidth + cardGap) / (2 * Math.tan(Math.PI / n))))
-    : 450;
+    ? Math.max(620, Math.round((cardWidth + cardGap) / (2 * Math.tan(Math.PI / n))))
+    : 620;
 
   // Reset active card and camera angle when city filter changes
   useEffect(() => {
@@ -355,13 +355,14 @@ export function OurTeam() {
                       key={doc.id}
                       className={`team-3d-card transition-all duration-350 ${
                         isFront
-                          ? "opacity-100 filter-none z-10 pointer-events-auto"
+                          ? "opacity-100 filter-none z-30 pointer-events-auto"
                           : isVisible
-                          ? "opacity-80 sm:opacity-85 filter brightness-[0.92] sm:brightness-[0.94] z-[5] cursor-pointer pointer-events-auto hover:opacity-100 hover:brightness-100"
+                          ? "opacity-80 sm:opacity-85 filter brightness-[0.92] sm:brightness-[0.94] z-10 cursor-pointer pointer-events-auto hover:opacity-100 hover:brightness-100"
                           : "opacity-0 pointer-events-none z-0"
                       }`}
                       style={{
                         transform: `rotateY(${cardAngle}deg) translateZ(${radius}px)`,
+                        zIndex: isFront ? 30 : isVisible ? 10 : 0,
                       }}
                       onClick={(e) => {
                         if (!isFront && isVisible && !hasDragged.current) {
@@ -373,8 +374,8 @@ export function OurTeam() {
                       <div
                         className={`w-[280px] sm:w-[320px] h-[500px] sm:h-[540px] rounded-2xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border p-3.5 sm:p-4 shadow-xl flex flex-col justify-between transition-all ${
                           isFront
-                            ? "border-emerald-600 dark:border-emerald-500 ring-2 ring-emerald-500/40 shadow-2xl scale-[1.02]"
-                            : "border-gray-200/90 dark:border-gray-800/90 hover:border-emerald-500/40"
+                            ? "border-emerald-600 dark:border-emerald-500 ring-2 ring-emerald-500/40 shadow-2xl scale-100"
+                            : "border-gray-200/90 dark:border-gray-800/90 hover:border-emerald-500/40 scale-95"
                         }`}
                       >
                         <div>

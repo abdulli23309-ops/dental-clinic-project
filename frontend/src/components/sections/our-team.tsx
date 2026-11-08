@@ -15,6 +15,7 @@ import {
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SafeImage } from "@/components/ui/safe-image";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 import { resolveMediaUrl } from "@/lib/api";
 
@@ -213,12 +214,12 @@ export function OurTeam() {
   return (
     <section
       id="team"
-      className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 py-16 md:py-28 overflow-hidden select-none"
+      className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 py-28 md:py-36 overflow-hidden select-none"
       onKeyDown={handleKeyDown}
       tabIndex={0}
       aria-label="Our Clinical Specialists"
     >
-      <div className="container-x space-y-8 md:space-y-12">
+      <div className="container-x space-y-12 md:space-y-16">
         {/* Section Heading */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6">
           <SectionHeading
@@ -315,94 +316,104 @@ export function OurTeam() {
               </>
             )}
 
-            {/* 3D Perspective Stage Container with touch-swipe */}
+            {/* 3D Perspective Coverflow Stage Container with touch-swipe & spring physics */}
             <div
-              className="team-perspective-container relative w-full h-[540px] sm:h-[580px] md:h-[600px] flex items-center justify-center cursor-grab active:cursor-grabbing touch-pan-y"
+              className="relative w-full h-[540px] sm:h-[580px] md:h-[620px] flex items-center justify-center cursor-grab active:cursor-grabbing touch-pan-y overflow-visible"
+              style={{ perspective: "1400px" }}
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
               onPointerCancel={handlePointerUp}
             >
-              {/* 3D Ring */}
               <div
-                ref={ringRef}
-                className="team-3d-ring"
-                style={{
-                  ["--r" as any]: `${radius}px`,
-                  ["--ring-rotation" as any]: `${rotationAngle}deg`,
-                  transform: `translateZ(calc(${radius}px * -1)) rotateX(-2deg) rotateY(${rotationAngle}deg)`,
-                  transition: isDragging ? "none" : "transform 750ms cubic-bezier(0.22, 1, 0.36, 1)",
-                }}
+                className="relative w-[280px] sm:w-[320px] h-[500px] sm:h-[540px] flex items-center justify-center"
+                style={{ transformStyle: "preserve-3d" }}
               >
                 {filteredDoctors.map((doc, idx) => {
-                  const cardAngle = isArcMode
-                    ? (idx - (n - 1) / 2) * stepAngle * (isRtl ? -1 : 1)
-                    : idx * stepAngle * (isRtl ? -1 : 1);
+                  const offset = isArcMode
+                    ? idx - activeIndex
+                    : ((((idx - activeIndex) % n) + n + Math.floor(n / 2)) % n) - Math.floor(n / 2);
 
-                  const distance = isArcMode
-                    ? Math.abs(idx - activeIndex)
-                    : Math.min(
-                        Math.abs(idx - activeIndex),
-                        n - Math.abs(idx - activeIndex)
-                      );
+                  const isCenter = offset === 0;
+                  const distance = Math.abs(offset);
+                  const isVisible = distance <= 2;
 
-                  const isFront = distance === 0;
-                  const isVisible = isArcMode ? true : distance <= 2;
-                  const hasImage = Boolean(doc.photoUrl && !imageErrors[doc.id]);
+                  // 3D Coverflow transforms with inward tilt
+                  const rotateY = isCenter ? 0 : offset < 0 ? 22 : -22;
+                  const translateZ = isCenter ? 0 : -60 * distance;
+                  const scale = isCenter ? 1.04 : Math.max(0.86, 0.94 - 0.04 * (distance - 1));
+                  const translateX = offset * (isRtl ? -250 : 250);
+                  const opacity = isCenter ? 1 : Math.max(0.3, 0.78 - 0.25 * (distance - 1));
+                  const zIndex = isCenter ? 30 : 20 - distance * 5;
+
+                  const docInitials =
+                    doc.displayName
+                      .split(" ")
+                      .filter((w) => !w.toLowerCase().includes("dr"))
+                      .slice(0, 2)
+                      .map((w) => w[0])
+                      .join("") || "HS";
 
                   return (
-                    <div
+                    <motion.div
                       key={doc.id}
-                      className={`team-3d-card transition-all duration-350 ${
-                        isFront
-                          ? "opacity-100 filter-none z-10 pointer-events-auto"
-                          : isVisible
-                          ? "opacity-80 sm:opacity-85 filter brightness-[0.92] sm:brightness-[0.94] z-[5] cursor-pointer pointer-events-auto hover:opacity-100 hover:brightness-100"
-                          : "opacity-0 pointer-events-none z-0"
-                      }`}
-                      style={{
-                        transform: `rotateY(${cardAngle}deg) translateZ(${radius}px)`,
+                      animate={{
+                        x: translateX,
+                        rotateY: shouldReduceMotion ? 0 : rotateY,
+                        z: shouldReduceMotion ? 0 : translateZ,
+                        scale: shouldReduceMotion ? 1 : scale,
+                        opacity: isVisible ? opacity : 0,
                       }}
-                      onClick={(e) => {
-                        if (!isFront && isVisible && !hasDragged.current) {
-                          e.stopPropagation();
+                      transition={{
+                        type: "spring",
+                        stiffness: 280,
+                        damping: 28,
+                        mass: 0.8,
+                      }}
+                      style={{
+                        position: "absolute",
+                        inset: 0,
+                        zIndex,
+                        transformStyle: "preserve-3d",
+                        pointerEvents: isVisible ? "auto" : "none",
+                      }}
+                      onClick={() => {
+                        if (!isCenter && !hasDragged.current) {
                           rotateToDoctor(idx);
                         }
                       }}
+                      className="cursor-pointer"
                     >
                       <div
-                        className={`w-[280px] sm:w-[320px] h-[500px] sm:h-[540px] rounded-2xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border p-3.5 sm:p-4 shadow-xl flex flex-col justify-between transition-all ${
-                          isFront
-                            ? "border-emerald-600 dark:border-emerald-500 ring-2 ring-emerald-500/40 shadow-2xl scale-[1.02]"
+                        className={`w-full h-full rounded-3xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border p-4 sm:p-5 shadow-xl flex flex-col justify-between transition-all ${
+                          isCenter
+                            ? "border-emerald-600 dark:border-emerald-400 ring-2 ring-emerald-500/30 shadow-2xl"
                             : "border-gray-200/90 dark:border-gray-800/90 hover:border-emerald-500/40"
                         }`}
                       >
                         <div>
-                          {/* Portrait Photo Container with branded fallback avatar */}
-                          <div className="w-full h-[220px] sm:h-[255px] rounded-xl overflow-hidden bg-stone-100 dark:bg-gray-800 mb-2.5 relative shadow-inner">
-                            {hasImage ? (
-                              <Image
-                                src={resolveMediaUrl(doc.photoUrl) || doc.photoUrl!}
+                          {/* Portrait Photo Container with luxury initials fallback */}
+                          <div className="w-full h-[220px] sm:h-[255px] rounded-2xl overflow-hidden bg-stone-100 dark:bg-gray-800 mb-3 relative shadow-inner">
+                            {doc.photoUrl && !imageErrors[doc.id] ? (
+                              <SafeImage
+                                src={doc.photoUrl}
                                 alt={doc.displayName}
-                                width={320}
-                                height={320}
+                                fallbackInitials={docInitials}
+                                fallbackSubtitle={doc.role || "Specialist"}
+                                fill
                                 sizes="(max-width: 640px) 280px, 320px"
                                 className={`w-full h-full object-cover pointer-events-none transition-transform duration-300 ${getDoctorFocalClass(
                                   doc.displayName
                                 )}`}
-                                onError={() => handleImageError(doc.id)}
                               />
                             ) : (
-                              <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-stone-100 via-stone-200/70 to-stone-100 dark:from-gray-850 dark:via-gray-800 dark:to-gray-850 text-emerald-800 dark:text-emerald-300 select-none p-4 text-center">
-                                <span className="font-display text-3xl font-bold tracking-wider">
-                                  {doc.displayName
-                                    .split(" ")
-                                    .filter((w) => !w.toLowerCase().includes("dr"))
-                                    .slice(0, 2)
-                                    .map((w) => w[0])
-                                    .join("") || "MD"}
-                                </span>
-                                <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500 dark:text-gray-400 mt-1">
+                              <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#E8F3EE] via-[#D6EBE2] to-[#FAF9F5] dark:from-[#0E241C] dark:via-[#0B1E17] dark:to-[#070D0B] text-emerald-950 dark:text-emerald-100 select-none p-4 text-center">
+                                <div className="grid h-16 w-16 place-items-center rounded-2xl bg-white/80 dark:bg-emerald-950/60 border border-emerald-700/20 shadow-sm backdrop-blur-sm mb-2">
+                                  <span className="font-serif text-2xl font-bold tracking-wider text-emerald-900 dark:text-emerald-200">
+                                    {docInitials}
+                                  </span>
+                                </div>
+                                <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-800 dark:text-emerald-300 font-semibold mt-1">
                                   {doc.role || "Clinical Specialist"}
                                 </span>
                               </div>
@@ -487,7 +498,7 @@ export function OurTeam() {
                           </div>
                         </div>
 
-                        {/* Book Consultation Button (tappable on mobile) */}
+                        {/* Book Consultation Button */}
                         <div className="pt-2 border-t border-gray-100 dark:border-gray-800 mt-2">
                           <Button
                             href={`/book?doctor=${encodeURIComponent(doc.id)}`}
@@ -500,7 +511,7 @@ export function OurTeam() {
                           </Button>
                         </div>
                       </div>
-                    </div>
+                    </motion.div>
                   );
                 })}
               </div>

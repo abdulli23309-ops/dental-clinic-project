@@ -42,7 +42,7 @@ from app.domain.models.booking_settings import (
 from app.domain.repositories.booking_repo import BookingRepository
 from app.domain.repositories.booking_settings_repo import BookingSettingsRepository
 from app.domain.repositories.organization_repo import OrganizationRepository
-from app.infrastructure.database.orm_models import AnnouncementORM, AppointmentCategoryORM, BookingORM, ClinicORM, DoctorScheduleOverrideORM, ProviderAvailabilityORM, ServiceORM, ServiceProviderORM, TaskORM, TeamMemberClinicORM, TeamMemberORM
+from app.infrastructure.database.orm_models import ClinicServiceORM, AnnouncementORM, AppointmentCategoryORM, BookingORM, ClinicORM, DoctorScheduleOverrideORM, ProviderAvailabilityORM, ServiceORM, ServiceProviderORM, TaskORM, TeamMemberClinicORM, TeamMemberORM
 from app.infrastructure.repositories.postgres_activity_repo import (
     PostgresActivityLogRepository,
     record_activity,
@@ -1010,7 +1010,7 @@ class BookingSettingsService:
         if team_member_id:
             stmt = stmt.where(ServiceProviderORM.team_member_id == team_member_id)
         if clinic_id:
-            stmt = stmt.where(or_(ServiceProviderORM.clinic_id.is_(None), ServiceProviderORM.clinic_id == clinic_id))
+            stmt = stmt.where(ServiceProviderORM.clinic_id == clinic_id)
         res = await self.session.execute(stmt)
         sp_records = res.scalars().all()
 
@@ -1039,6 +1039,26 @@ class BookingSettingsService:
         req: DoctorServiceAssignmentRequest,
         user_id: Optional[UUID] = None,
     ) -> DoctorServiceAssignmentDto:
+        if req.clinicId is None:
+            raise HTTPException(
+                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="clinicId is required for branch-scoped doctor service assignments.",
+            )
+
+        cs_stmt = select(ClinicServiceORM).where(
+            ClinicServiceORM.service_id == req.serviceId,
+            ClinicServiceORM.clinic_id == req.clinicId,
+            ClinicServiceORM.is_active.is_(True),
+        )
+        cs_res = await self.session.execute(cs_stmt)
+        if cs_res.scalar_one_or_none() is None:
+            svc = await self.session.get(ServiceORM, req.serviceId)
+            slug = svc.slug if svc and svc.slug else str(req.serviceId)
+            raise HTTPException(
+                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Service '{slug}' is not offered at this branch. Add it to branch services first.",
+            )
+
         stmt = select(ServiceProviderORM).where(
             ServiceProviderORM.service_id == req.serviceId,
             ServiceProviderORM.team_member_id == req.teamMemberId,

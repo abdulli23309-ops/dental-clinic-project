@@ -110,6 +110,7 @@ export function Footer() {
 
   const phone =
     content.general?.phone ||
+    content.contact?.phone ||
     primaryLocation?.phone ||
     organization?.contactPhone ||
     "";
@@ -117,25 +118,32 @@ export function Footer() {
 
   const email =
     content.general?.email ||
+    content.contact?.email ||
     primaryLocation?.email ||
     organization?.contactEmail ||
     "";
 
   const addressLine1 =
     content.general?.address?.trim() ||
+    content.contact?.addressLine1?.trim() ||
     primaryLocation?.addressLine1 ||
     (organization as unknown as { address?: string })?.address ||
     "";
   const addressLine2 =
-    !content.general?.address?.trim() && primaryLocation?.city && primaryLocation?.state
+    content.contact?.addressLine2?.trim() ||
+    (!content.general?.address?.trim() && primaryLocation?.city && primaryLocation?.state
       ? `${primaryLocation.city}, ${primaryLocation.state} ${
           primaryLocation.postalCode || ""
         }`.trim()
       : !content.general?.address?.trim() && primaryLocation?.city
       ? primaryLocation.city
-      : "";
+      : "");
 
   const tagline = content.footer?.tagline || content.general?.tagline || "";
+  const copyrightNotice =
+    content.footer?.copyrightNotice ||
+    `© ${currentYear} ${practiceName ? `${practiceName}. ` : ""}${copy.allRightsReserved}`;
+  const cancellationPolicy = content.footer?.cancellationPolicy;
 
   const licenseText = director?.licenseNumber
     ? `${director.displayName} · License #${director.licenseNumber}`
@@ -439,13 +447,19 @@ export function Footer() {
 
         {/* Legal Strip */}
         <div className="mt-12 border-t border-gray-200 dark:border-gray-800 pt-6 text-[11.5px] text-gray-500 dark:text-gray-400 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-1.5 text-center sm:text-left">
-            <ShieldCheck className="h-3.5 w-3.5 text-primary/70 shrink-0" />
-            <span>
-              &copy; {currentYear} {practiceName ? `${practiceName}. ` : ""}
-              {copy.allRightsReserved}
-              {licenseText && <span className="ml-1">· {licenseText}</span>}
-            </span>
+          <div className="flex flex-col sm:flex-row items-center gap-1.5 text-center sm:text-left">
+            <div className="flex items-center gap-1.5">
+              <ShieldCheck className="h-3.5 w-3.5 text-primary/70 shrink-0" />
+              <span>
+                {copyrightNotice}
+                {licenseText && <span className="ml-1">· {licenseText}</span>}
+              </span>
+            </div>
+            {cancellationPolicy && (
+              <span className="text-gray-400 dark:text-gray-500 text-[10.5px] sm:ml-2">
+                · {cancellationPolicy}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-5 text-center">

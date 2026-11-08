@@ -60,9 +60,9 @@ export function Gallery() {
   return (
     <section
       id="gallery"
-      className="border-t border-gray-200 dark:border-gray-800 bg-[#FAF9F5] dark:bg-gray-900/50 py-20 md:py-28 overflow-hidden"
+      className="border-t border-gray-200 dark:border-gray-800 bg-[#FAF9F5] dark:bg-gray-900/50 py-28 md:py-36 overflow-hidden"
     >
-      <div className="container-x space-y-12">
+      <div className="container-x space-y-14 lg:space-y-16">
         {/* Section Heading */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <SectionHeading

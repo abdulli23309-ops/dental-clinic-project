@@ -12,7 +12,16 @@ from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException, status as http_status
-from sqlalchemy import text
+from sqlalchemy import text, select
+from app.infrastructure.database.orm_models import (
+    ActivityLogORM,
+    ClinicORM,
+    ClinicServiceORM,
+    ServiceORM,
+    ServiceProviderORM,
+    TeamMemberClinicORM,
+    TeamMemberORM,
+)
 
 from app.domain.models.booking_crm import Booking, Lead, Message, Patient, Task
 from app.domain.models.booking_flow import LeadStatus, is_valid_lead_transition
@@ -33,6 +42,14 @@ from app.infrastructure.repositories.postgres_activity_repo import (
     PostgresActivityLogRepository,
     record_activity,
 )
+from app.infrastructure.repositories.postgres_booking_repo import PostgresBookingRepository
+from app.infrastructure.repositories.postgres_booking_settings_repo import (
+    PostgresBookingSettingsRepository,
+)
+from app.infrastructure.repositories.postgres_service_repo import PostgresServiceRepository
+from app.infrastructure.repositories.postgres_team_repo import PostgresTeamMemberRepository
+from app.infrastructure.repositories.postgres_patient_repo import PostgresPatientRepository
+from app.infrastructure.repositories.postgres_user_repo import PostgresUserRepository
 
 _SCHEDULE_MUTEXES: Dict[str, asyncio.Lock] = {}
 _MUTEX_REGISTRY_LOCK = asyncio.Lock()
@@ -685,6 +702,254 @@ class ReceptionService:
                 return b
         return None
 
+    async def _log_booking_scope_rejection(
+        self,
+        session: Any,
+        clinic_id: Optional[UUID],
+        service_id: Optional[str],
+        team_member_id: Optional[UUID],
+        reason: str,
+        source: str = "reception",
+    ) -> None:
+        if session is None:
+            return
+        try:
+            details = {
+                "service_id": str(service_id) if service_id else None,
+                "team_member_id": str(team_member_id) if team_member_id else None,
+                "clinic_id": str(clinic_id) if clinic_id else None,
+                "reason": reason,
+                "source": source,
+            }
+            activity = ActivityLogORM(
+                id=uuid4(),
+                user_id=None,
+                action="booking_rejected_service_scope",
+                entity_type="booking",
+                entity_id=None,
+                details_json=json.dumps(details),
+                created_at=datetime.now(timezone.utc),
+            )
+            session.add(activity)
+            await session.flush()
+        except Exception as exc:
+            logger.warning(f"Failed to record booking_rejected_service_scope audit log: {exc}")
+
+    async def _validate_booking_scope(
+        self,
+        clinic_id: Optional[UUID],
+        service_id: Optional[str],
+        team_member_id: Optional[UUID],
+    ) -> None:
+        if clinic_id is None or service_id is None:
+            return
+
+        session = getattr(self.booking_repo, "_session", None)
+        if session is None:
+            return
+
+        clinic = await session.get(ClinicORM, clinic_id)
+        if clinic is None or not clinic.is_active:
+            await self._log_booking_scope_rejection(
+                session=session,
+                clinic_id=clinic_id,
+                service_id=str(service_id),
+                team_member_id=team_member_id,
+                reason="Clinic branch does not exist or is inactive",
+                source="reception",
+            )
+            raise HTTPException(
+                status_code=http_status.HTTP_409_CONFLICT,
+                detail="The selected clinic is not active.",
+            )
+
+        service = None
+        if self.service_repo is not None:
+            try:
+                service = await self.service_repo.get_by_id(UUID(str(service_id)))
+            except Exception:
+                service = None
+            if service is None:
+                try:
+                    service = await self.service_repo.get_by_slug(str(service_id))
+                except Exception:
+                    service = None
+
+        if service is None:
+            try:
+                service_stmt = select(ServiceORM).where(ServiceORM.slug == str(service_id).lower())
+                res = await session.execute(service_stmt)
+                service = res.scalar_one_or_none()
+            except Exception:
+                service = None
+
+        if service is None:
+            try:
+                service = await session.get(ServiceORM, UUID(str(service_id)))
+            except Exception:
+                service = None
+
+        if service is None:
+            await self._log_booking_scope_rejection(
+                session=session,
+                clinic_id=clinic_id,
+                service_id=str(service_id),
+                team_member_id=team_member_id,
+                reason="Service does not exist",
+                source="reception",
+            )
+            raise HTTPException(
+                status_code=http_status.HTTP_409_CONFLICT,
+                detail="The requested service is not available.",
+            )
+        if not service.is_active or not service.is_public or not service.bookable_online:
+            await self._log_booking_scope_rejection(
+                session=session,
+                clinic_id=clinic_id,
+                service_id=str(service.id),
+                team_member_id=team_member_id,
+                reason="Service is inactive, private, or not bookable online",
+                source="reception",
+            )
+            raise HTTPException(
+                status_code=http_status.HTTP_409_CONFLICT,
+                detail="The requested service is not currently bookable.",
+            )
+
+        offered = await session.execute(
+            select(ClinicServiceORM).where(
+                ClinicServiceORM.clinic_id == clinic_id,
+                ClinicServiceORM.service_id == service.id,
+                ClinicServiceORM.is_active.is_(True),
+            )
+        )
+        if offered.scalar_one_or_none() is None:
+            await self._log_booking_scope_rejection(
+                session=session,
+                clinic_id=clinic_id,
+                service_id=str(service.id),
+                team_member_id=team_member_id,
+                reason="Service is not offered at clinic branch",
+                source="reception",
+            )
+            raise HTTPException(
+                status_code=http_status.HTTP_409_CONFLICT,
+                detail=f"{service.title} is not offered at {clinic.name}.",
+            )
+
+        if team_member_id is None:
+            provider_ids = await session.execute(
+                select(ServiceProviderORM.team_member_id)
+                .where(
+                    ServiceProviderORM.service_id == service.id,
+                    ServiceProviderORM.clinic_id == clinic_id,
+                    ServiceProviderORM.is_active.is_(True),
+                )
+            )
+            eligible_ids = {row[0] for row in provider_ids.all() if row[0] is not None}
+            if not eligible_ids:
+                await self._log_booking_scope_rejection(
+                    session=session,
+                    clinic_id=clinic_id,
+                    service_id=str(service.id),
+                    team_member_id=None,
+                    reason="No doctor is authorized for service at branch",
+                    source="reception",
+                )
+                raise HTTPException(
+                    status_code=http_status.HTTP_409_CONFLICT,
+                    detail=f"No doctor is currently authorized to provide {service.title} at {clinic.name}.",
+                )
+            assigned = await session.execute(
+                select(TeamMemberORM.id)
+                .outerjoin(
+                    TeamMemberClinicORM,
+                    (TeamMemberClinicORM.team_member_id == TeamMemberORM.id)
+                    & (TeamMemberClinicORM.clinic_id == clinic_id)
+                    & (TeamMemberClinicORM.is_active.is_(True)),
+                )
+                .where(
+                    TeamMemberORM.is_active.is_(True),
+                    TeamMemberORM.id.in_(list(eligible_ids)),
+                    or_(
+                        TeamMemberORM.clinic_id == clinic_id,
+                        TeamMemberClinicORM.id.is_not(None),
+                    ),
+                )
+            )
+            if assigned.first() is None:
+                await self._log_booking_scope_rejection(
+                    session=session,
+                    clinic_id=clinic_id,
+                    service_id=str(service.id),
+                    team_member_id=None,
+                    reason="No authorized doctor is assigned to branch",
+                    source="reception",
+                )
+                raise HTTPException(
+                    status_code=http_status.HTTP_409_CONFLICT,
+                    detail=f"No doctor is currently authorized to provide {service.title} at {clinic.name}.",
+                )
+            return
+
+        doctor = await session.get(TeamMemberORM, team_member_id)
+        if doctor is None or not doctor.is_active:
+            await self._log_booking_scope_rejection(
+                session=session,
+                clinic_id=clinic_id,
+                service_id=str(service.id),
+                team_member_id=team_member_id,
+                reason="Selected doctor does not exist or is inactive",
+                source="reception",
+            )
+            raise HTTPException(
+                status_code=http_status.HTTP_409_CONFLICT,
+                detail="The selected doctor is not active.",
+            )
+
+        member_assignment = await session.execute(
+            select(TeamMemberClinicORM).where(
+                TeamMemberClinicORM.team_member_id == team_member_id,
+                TeamMemberClinicORM.clinic_id == clinic_id,
+                TeamMemberClinicORM.is_active.is_(True),
+            )
+        )
+        if member_assignment.scalar_one_or_none() is None and doctor.clinic_id != clinic_id:
+            await self._log_booking_scope_rejection(
+                session=session,
+                clinic_id=clinic_id,
+                service_id=str(service.id),
+                team_member_id=team_member_id,
+                reason="Doctor is not assigned to branch",
+                source="reception",
+            )
+            raise HTTPException(
+                status_code=http_status.HTTP_409_CONFLICT,
+                detail=f"Dr. {doctor.display_name} does not offer {service.title} at {clinic.name}. Please select another doctor.",
+            )
+
+        provider_link = await session.execute(
+            select(ServiceProviderORM).where(
+                ServiceProviderORM.service_id == service.id,
+                ServiceProviderORM.team_member_id == team_member_id,
+                ServiceProviderORM.clinic_id == clinic_id,
+                ServiceProviderORM.is_active.is_(True),
+            )
+        )
+        if provider_link.scalar_one_or_none() is None:
+            await self._log_booking_scope_rejection(
+                session=session,
+                clinic_id=clinic_id,
+                service_id=str(service.id),
+                team_member_id=team_member_id,
+                reason="Doctor is not authorized for service at branch",
+                source="reception",
+            )
+            raise HTTPException(
+                status_code=http_status.HTTP_409_CONFLICT,
+                detail=f"Dr. {doctor.display_name} does not offer {service.title} at {clinic.name}. Please select another doctor.",
+            )
+
     async def create_booking(
         self,
         patient_full_name: str,
@@ -720,6 +985,7 @@ class ReceptionService:
 
         conflict = None
         async with _acquire_schedule_lock(self.booking_repo, team_member_id, preferred_date):
+            session = getattr(self.booking_repo, "_session", None)
             if team_member_id and preferred_time and normalized_status not in ("cancelled", "no_show", "waitlist"):
                 conflict = await self.check_booking_overlap(
                     team_member_id=team_member_id,
@@ -738,6 +1004,8 @@ class ReceptionService:
                             status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
                             detail="Override reason is required to override double-booking.",
                         )
+
+            await self._validate_booking_scope(clinic_id=clinic_id, service_id=service_id, team_member_id=team_member_id)
 
             # If patient_id not provided, find or create patient record
             if not patient_id:
@@ -763,6 +1031,7 @@ class ReceptionService:
                     )
                     saved_pat = await self.patient_repo.save(new_pat)
                     patient_id = saved_pat.id
+
 
             booking = Booking(
                 confirmation_id=generate_booking_confirmation_id(),

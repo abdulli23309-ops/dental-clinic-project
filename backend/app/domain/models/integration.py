@@ -3,7 +3,7 @@ import hmac
 import secrets
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from uuid import UUID, uuid4
 
 INTEGRATION_SCOPES = [
@@ -17,7 +17,7 @@ INTEGRATION_SCOPES = [
 ]
 
 
-def generate_integration_key() -> tuple[str, str, str]:
+def generate_integration_key() -> Tuple[str, str, str]:
     """
     Generates a cryptographically secure 32-byte random API key for external automations.
     Returns:

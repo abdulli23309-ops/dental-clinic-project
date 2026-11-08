@@ -18,13 +18,96 @@ from app.application.dtos.cms_dto import (
 from app.domain.models.cms import FaqItem, SiteSection
 from app.domain.repositories.cms_repo import CmsRepository
 
+SECTION_KEY_ALIASES = {
+    "hero": "homepage",
+}
+
 DEFAULT_SECTIONS = {
-    "general": {**GeneralSectionDTO().model_dump(), "practiceName": "Hira Dental Clinic", "shortBrandName": "DHDC"},
-    "homepage": HomepageSectionDTO().model_dump(),
-    "about": AboutSectionDTO().model_dump(),
-    "contact": ContactSectionDTO().model_dump(),
-    "footer": FooterSectionDTO().model_dump(),
-    "seo": SeoSectionDTO().model_dump(),
+    "general": {
+        "practiceName": "Hira Dental Clinic",
+        "shortBrandName": "DHDC",
+        "tagline": "Precision & Compassion in Modern Dentistry",
+        "logoUrl": "/media/8d90adff4feb4e8db41f532aa3d630f1.png",
+        "faviconUrl": None,
+        "phone": "051-6102977",
+        "email": "care@hiradental.com",
+        "address": "Shop No. 8 & 9, ASCON Heights, Lower Ground, Soan Garden, Block C, Islamabad.",
+        "emergencyPhone": "0300-610-2977",
+    },
+    "homepage": {
+        "heroEyebrow": "Precision & Compassion",
+        "heroHeading": "World-Class Dental Excellence in Islamabad",
+        "headline": "World-Class Dental Excellence in Islamabad",
+        "heroHighlightWord": "Islamabad",
+        "heroDescription": "Experience minimally invasive, technology-driven oral healthcare designed around patient comfort, transparent pricing, and lasting clinical outcomes.",
+        "subheadline": "Experience minimally invasive, technology-driven oral healthcare designed around patient comfort, transparent pricing, and lasting clinical outcomes.",
+        "heroCtaText": "Book an Appointment",
+        "heroCtaLink": "#why-us",
+        "heroSecondaryCtaText": "Call Clinic",
+        "heroSecondaryCtaLink": "tel:0516102977",
+        "heroImageUrl": "/images/benyamin.jpg",
+        "image": "/images/benyamin.jpg",
+        "startingFee": "Rs. 3,500",
+        "heroBadges": [
+            "Sterilization Protocols",
+            "Digital Low-Dose X-Rays",
+            "Painless Infiltration",
+        ],
+        "heroTicks": [
+            {"label": "Sterilization Protocols"},
+            {"label": "Digital Low-Dose X-Rays"},
+            {"label": "Painless Infiltration"},
+        ],
+        "promises": [
+            {
+                "num": "01",
+                "title": "Transparent Pricing & Zero Surprise Fees",
+                "subtitle": "Clear Estimates Upfront",
+                "description": "Every procedure has transparent, published pricing with comprehensive treatment estimates provided before care begins.",
+            },
+            {
+                "num": "02",
+                "title": "Minimally Invasive Dental Philosophy",
+                "subtitle": "Preserving Natural Structure",
+                "description": "We employ ultra-conservative protocols that conserve healthy tooth enamel and prioritize biological tooth preservation.",
+            },
+            {
+                "num": "03",
+                "title": "Direct Doctor Access & Continuity",
+                "subtitle": "Personalized Care Partner",
+                "description": "Consult directly with your assigned specialist who oversees your complete clinical lifecycle across all follow-up visits.",
+            },
+        ],
+    },
+    "about": {
+        "eyebrow": "Our Heritage",
+        "title": "Redefining the Dental Experience in Pakistan",
+        "storyParagraphs": [
+            "Founded by Dr. Hira, Hira Dental Clinic was established to elevate aesthetic, surgical, and restorative dentistry to international standards.",
+            "Our multi-disciplinary team brings together board-certified specialists in endodontics, prosthodontics, periodontics, and implantology.",
+        ],
+        "imageUrl": "/images/benyamin.jpg",
+        "licensureText": "Licensed by the Pakistan Medical and Dental Council (PMDC)",
+    },
+    "contact": {
+        "phone": "051-6102977",
+        "email": "care@hiradental.com",
+        "addressLine1": "Shop No. 8 & 9, ASCON Heights, Lower Ground",
+        "addressLine2": "Soan Garden, Block C, Islamabad",
+        "transitNote": "Dedicated patient parking available in Lower Ground front concourse.",
+        "hoursSummary": "Monday – Saturday: 9:00 AM – 9:00 PM | Sunday: 11:00 AM – 6:00 PM",
+        "emergencyNote": "Emergency dental triage available 24/7 via WhatsApp or direct line.",
+    },
+    "footer": {
+        "tagline": "Precision & Compassion in Modern Dentistry.",
+        "copyrightNotice": "© 2026 Hira Dental Clinic. All clinical rights reserved.",
+        "cancellationPolicy": "Cancellations made 24 hours prior to appointment time are rescheduled with zero penalty.",
+    },
+    "seo": {
+        "siteTitle": "Hira Dental Clinic | Modern Dental Care in Islamabad",
+        "metaDescription": "Leading dental clinic in Islamabad offering advanced cosmetic dentistry, dental implants, root canal therapy, and painless routine care.",
+        "ogImageUrl": "/images/benyamin.jpg",
+    },
 }
 
 
@@ -41,14 +124,19 @@ class CmsService:
         def parse_section(key: str, model_cls):
             if key in sections and sections[key].content:
                 try:
-                    return model_cls(**sections[key].content)
+                    # Merge with default section dict so missing keys are gracefully populated
+                    merged = dict(DEFAULT_SECTIONS.get(key, {}))
+                    merged.update(sections[key].content)
+                    return model_cls(**merged)
                 except Exception:
                     pass
             return model_cls(**DEFAULT_SECTIONS[key])
 
+        homepage_sec = parse_section("homepage", HomepageSectionDTO)
         return PublicCmsResponse(
             general=parse_section("general", GeneralSectionDTO),
-            homepage=parse_section("homepage", HomepageSectionDTO),
+            homepage=homepage_sec,
+            hero=homepage_sec,
             about=parse_section("about", AboutSectionDTO),
             contact=parse_section("contact", ContactSectionDTO),
             footer=parse_section("footer", FooterSectionDTO),
@@ -56,7 +144,7 @@ class CmsService:
         )
 
     async def get_section(self, section_key: str) -> Dict[str, Any]:
-        clean_key = section_key.strip().lower()
+        clean_key = SECTION_KEY_ALIASES.get(section_key.strip().lower(), section_key.strip().lower())
         if clean_key not in DEFAULT_SECTIONS:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -71,7 +159,7 @@ class CmsService:
         return DEFAULT_SECTIONS[clean_key]
 
     async def update_section(self, section_key: str, content: Dict[str, Any]) -> Dict[str, Any]:
-        clean_key = section_key.strip().lower()
+        clean_key = SECTION_KEY_ALIASES.get(section_key.strip().lower(), section_key.strip().lower())
         if clean_key not in DEFAULT_SECTIONS:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

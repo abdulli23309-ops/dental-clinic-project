@@ -45,9 +45,9 @@ export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, Bu
 
     const variantStyles = {
       primary:
-        "btn-premium-emerald focus-visible:ring-emerald-700",
+        "bg-primary text-white shadow-md hover:bg-primary/90 hover:opacity-95 active:opacity-90 active:scale-[0.98] focus-visible:ring-primary focus-visible:ring-offset-2 transition-all duration-150",
       premium:
-        "btn-premium-emerald focus-visible:ring-emerald-700",
+        "bg-primary text-white shadow-md hover:bg-primary/90 hover:opacity-95 active:opacity-90 active:scale-[0.98] focus-visible:ring-primary focus-visible:ring-offset-2 transition-all duration-150",
       secondary:
         "btn-tactile-secondary focus-visible:ring-gray-400",
       "tactile-secondary":

@@ -9,7 +9,8 @@ import React, {
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Clock, LogOut, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Clock, Eye, EyeOff, LogOut, ShieldCheck } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "motion/react";
 import { modalOverlay, modalContent } from "@/animations/variants";
@@ -57,6 +58,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
@@ -106,6 +110,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setOldPassword("");
       setNewPassword("");
       setConfirmPassword("");
+      setShowOldPassword(false);
+      setShowNewPassword(false);
+      setShowConfirmPassword(false);
     } catch (err: unknown) {
       setPasswordError(err instanceof Error ? err.message : "Failed to change password.");
     } finally {
@@ -167,6 +174,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
     window.addEventListener("marlow:auth:logout", handleSessionExpired);
     return () => window.removeEventListener("marlow:auth:logout", handleSessionExpired);
+  }, [router]);
+
+  // Listen for 403 Forbidden: NEVER log out or clear session, redirect to /unauthorized
+  useEffect(() => {
+    const handleForbidden = (e: Event) => {
+      const customEvent = e as CustomEvent<{ endpoint?: string; pathname?: string }>;
+      const attempted =
+        customEvent.detail?.pathname ||
+        (typeof window !== "undefined" ? window.location.pathname : "");
+      toast.error("Access Denied: You do not have permission to view this page.");
+      if (
+        typeof window !== "undefined" &&
+        !window.location.pathname.startsWith("/unauthorized") &&
+        !window.location.pathname.startsWith("/admin/unauthorized")
+      ) {
+        router.replace(
+          `/unauthorized?attempted=${encodeURIComponent(attempted)}`
+        );
+      }
+    };
+    window.addEventListener("marlow:auth:forbidden", handleForbidden);
+    return () => window.removeEventListener("marlow:auth:forbidden", handleForbidden);
   }, [router]);
 
   // Meaningful user interaction tracking (network traffic does NOT count as activity)
@@ -349,7 +378,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   autoFocus
                   onClick={() => {
                     resetActivity();
-                    getMe(accessToken || undefined).catch(() => {});
+                    getMe(accessToken || undefined).catch(() => { });
                   }}
                 >
                   <ShieldCheck className="h-4 w-4 mr-1.5" />
@@ -421,40 +450,70 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   <label className="block text-xs font-medium text-ink mb-1" htmlFor="current-password">
                     Current Password
                   </label>
-                  <input
-                    id="current-password"
-                    type="password"
-                    autoComplete="current-password"
-                    value={oldPassword}
-                    onChange={(e) => setOldPassword(e.target.value)}
-                    className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
+                  <div className="relative flex items-center">
+                    <input
+                      id="current-password"
+                      type={showOldPassword ? "text" : "password"}
+                      autoComplete="current-password"
+                      value={oldPassword}
+                      onChange={(e) => setOldPassword(e.target.value)}
+                      className="w-full rounded-lg border border-line bg-surface pl-3 pr-10 py-2 text-sm text-ink focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowOldPassword(!showOldPassword)}
+                      className="absolute right-3 p-1 text-ink-soft hover:text-ink transition-colors cursor-pointer"
+                      aria-label={showOldPassword ? "Hide current password" : "Show current password"}
+                    >
+                      {showOldPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-ink mb-1" htmlFor="new-password">
                     New Password
                   </label>
-                  <input
-                    id="new-password"
-                    type="password"
-                    autoComplete="new-password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
+                  <div className="relative flex items-center">
+                    <input
+                      id="new-password"
+                      type={showNewPassword ? "text" : "password"}
+                      autoComplete="new-password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full rounded-lg border border-line bg-surface pl-3 pr-10 py-2 text-sm text-ink focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3 p-1 text-ink-soft hover:text-ink transition-colors cursor-pointer"
+                      aria-label={showNewPassword ? "Hide new password" : "Show new password"}
+                    >
+                      {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-ink mb-1" htmlFor="confirm-password">
                     Confirm New Password
                   </label>
-                  <input
-                    id="confirm-password"
-                    type="password"
-                    autoComplete="new-password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
+                  <div className="relative flex items-center">
+                    <input
+                      id="confirm-password"
+                      type={showConfirmPassword ? "text" : "password"}
+                      autoComplete="new-password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full rounded-lg border border-line bg-surface pl-3 pr-10 py-2 text-sm text-ink focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 p-1 text-ink-soft hover:text-ink transition-colors cursor-pointer"
+                      aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
               </div>
 

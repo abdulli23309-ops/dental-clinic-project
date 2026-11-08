@@ -1,5 +1,6 @@
 from typing import List, Optional
 from uuid import UUID
+from pydantic import BaseModel, Field
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
@@ -32,10 +33,28 @@ from app.infrastructure.repositories.postgres_activity_repo import (
 
 router = APIRouter(prefix="/admin/users", tags=["Admin Staff Accounts"])
 
+class BulkStatusRequest(BaseModel):
+    userIds: List[UUID]
+    isActive: bool
+
+class BulkActionResponse(BaseModel):
+    successCount: int
+    failedCount: int
+    updatedIds: List[UUID]
+    message: str
+
 ROLE_LOOKUP = {
     "admin": UserRole.ADMIN,
+    "practice manager": UserRole.PRACTICE_MANAGER,
+    "practice_manager": UserRole.PRACTICE_MANAGER,
     "doctor": UserRole.DOCTOR,
     "receptionist": UserRole.RECEPTIONIST,
+    "nurse": UserRole.NURSE,
+    "dental assistant": UserRole.DENTAL_ASSISTANT,
+    "dental_assistant": UserRole.DENTAL_ASSISTANT,
+    "cleaner": UserRole.CLEANER,
+    "sterilization tech": UserRole.STERILIZATION_TECH,
+    "sterilization_tech": UserRole.STERILIZATION_TECH,
     "platform owner": UserRole.PLATFORM_OWNER,
     "super admin": UserRole.SUPER_ADMIN,
     "clinic branch manager": UserRole.CLINIC_BRANCH_MANAGER,
@@ -229,6 +248,51 @@ async def update_staff_status(
         details={"is_active": req.isActive},
     )
     return _to_dto(saved)
+
+
+@router.post("/bulk-status", response_model=BulkActionResponse)
+async def bulk_update_staff_status(
+    req: BulkStatusRequest,
+    current_admin: User = Depends(require_admin),
+    user_repo: UserRepository = Depends(get_user_repository),
+    session_repo: UserSessionRepository = Depends(get_session_repository),
+    refresh_token_repo: RefreshTokenRepository = Depends(get_refresh_token_repository),
+    activity_repo: PostgresActivityLogRepository = Depends(get_activity_log_repository),
+) -> BulkActionResponse:
+    """
+    Batch updates active status for multiple staff accounts in a single transactional operation.
+    """
+    updated: List[UUID] = []
+    failed: int = 0
+    for uid in req.userIds:
+        # Prevent admin deactivating their own account
+        if uid == current_admin.id and not req.isActive:
+            failed += 1
+            continue
+        user = await user_repo.get_by_id(uid)
+        if not user:
+            failed += 1
+            continue
+        user.is_active = req.isActive
+        await user_repo.save(user)
+        if not req.isActive:
+            await session_repo.revoke_all_for_user(user.id)
+            await refresh_token_repo.revoke_all_for_user(user.id)
+        updated.append(uid)
+        await record_activity(
+            activity_repo,
+            action="user_bulk_status",
+            entity_type="user",
+            entity_id=user.id,
+            user_id=current_admin.id,
+            details={"is_active": req.isActive, "bulk": True},
+        )
+    return BulkActionResponse(
+        successCount=len(updated),
+        failedCount=failed,
+        updatedIds=updated,
+        message=f"Successfully updated status for {len(updated)} staff accounts ({failed} skipped/failed).",
+    )
 
 
 @router.patch("/{id}/role", response_model=AdminUserDto)

@@ -1,13 +1,9 @@
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Dict, Optional
 
-# Ensure project root is on sys.path when executed directly (e.g. python app/main.py)
-_BACKEND_ROOT = str(Path(__file__).resolve().parent.parent)
-if _BACKEND_ROOT not in sys.path:
-    sys.path.insert(0, _BACKEND_ROOT)
-
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -15,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.config import settings
 import asyncio
@@ -116,6 +113,73 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Applies security headers to every outgoing HTTP response."""
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        # Apply security headers without clobbering existing custom Cache-Control headers
+        for header, value in settings.security_headers.items():
+            if header.lower() == "cache-control" and "cache-control" in response.headers:
+                continue
+            response.headers[header] = value
+        return response
+
+
+app.add_middleware(SecurityHeadersMiddleware)
+
+
+class CSRFProtectionMiddleware(BaseHTTPMiddleware):
+    """Validates CSRF tokens for cookie-authenticated state-changing requests."""
+
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+        method = request.method
+
+        # Allow safe methods
+        if method in ("GET", "HEAD", "OPTIONS", "TRACE"):
+            response = await call_next(request)
+            self._set_security_headers(response)
+            return response
+
+        # Skip CSRF validation for requests using Bearer tokens (immune to browser CSRF)
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            response = await call_next(request)
+            self._set_security_headers(response)
+            return response
+
+        # Skip CSRF validation for public lead capture, auth, health, media, docs
+        if (
+            path.startswith(("/api/v1/auth", "/auth"))
+            or path.startswith(("/api/v1/public", "/public"))
+            or path.startswith(("/docs", "/media", "/health", "/metrics", "/openapi"))
+        ):
+            response = await call_next(request)
+            self._set_security_headers(response)
+            return response
+
+        # Validate CSRF for cookie-based session mutations
+        token_from_cookie = request.cookies.get("marlow_csrf_token")
+        if token_from_cookie:
+            token_from_header = request.headers.get("X-CSRF-Token")
+            if not token_from_header or token_from_header != token_from_cookie:
+                return JSONResponse(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    content={"detail": "CSRF token validation failed."},
+                )
+
+        response = await call_next(request)
+        self._set_security_headers(response)
+        return response
+
+    def _set_security_headers(self, response) -> None:
+        for header, value in settings.security_headers.items():
+            if header.lower() == "cache-control" and "cache-control" in response.headers:
+                continue
+            response.headers[header] = value
 
 
 @app.exception_handler(Exception)

@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 
-from app.api.deps import get_role_service, get_team_service, require_admin
+from app.api.deps import get_role_service, get_team_service, require_admin, require_team_view
 from app.application.dtos.team_dto import (
     PaginatedTeamResponse,
     ReorderRequest,
@@ -16,7 +16,7 @@ from app.application.services.role_service import RoleService
 from app.application.services.team_service import TeamService
 from fastapi import HTTPException
 
-router = APIRouter(prefix="/admin/team", tags=["Admin Team"], dependencies=[Depends(require_admin)])
+router = APIRouter(prefix="/admin/team", tags=["Admin Team"], dependencies=[Depends(require_team_view)])
 
 
 @router.get("", response_model=Union[PaginatedTeamResponse, List[TeamMemberResponse]])
@@ -75,7 +75,7 @@ async def list_all_team_members(
     return all_responses
 
 
-@router.post("", response_model=TeamMemberResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=TeamMemberResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_admin)])
 async def create_team_member(
     req: TeamMemberCreateRequest,
     team_service: TeamService = Depends(get_team_service),
@@ -145,7 +145,7 @@ async def get_team_member(
     )
 
 
-@router.put("/{member_id}", response_model=TeamMemberResponse)
+@router.put("/{member_id}", response_model=TeamMemberResponse, dependencies=[Depends(require_admin)])
 async def update_team_member(
     member_id: UUID,
     req: TeamMemberUpdateRequest,
@@ -185,7 +185,7 @@ async def update_team_member(
     )
 
 
-@router.patch("/{member_id}/status", response_model=TeamMemberResponse)
+@router.patch("/{member_id}/status", response_model=TeamMemberResponse, dependencies=[Depends(require_admin)])
 async def toggle_team_member_status(
     member_id: UUID,
     req: TeamMemberStatusRequest,
@@ -217,7 +217,7 @@ async def toggle_team_member_status(
     )
 
 
-@router.patch("/reorder")
+@router.patch("/reorder", dependencies=[Depends(require_admin)])
 async def reorder_team_members(
     req: ReorderRequest,
     team_service: TeamService = Depends(get_team_service),

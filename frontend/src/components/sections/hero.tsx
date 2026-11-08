@@ -15,8 +15,10 @@ import {
   Sparkles,
   ShieldCheck,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
+import { SafeImage } from "@/components/ui/safe-image";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 import { resolveMediaUrl } from "@/lib/api";
 
@@ -29,7 +31,10 @@ function renderTwoToneHeadline(heading: string, highlightWord?: string) {
       <>
         {parts.map((part, i) =>
           part.toLowerCase() === highlightWord.toLowerCase() ? (
-            <span key={i} className="text-primary italic">
+            <span
+              key={i}
+              className="bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-700 dark:from-emerald-400 dark:via-teal-300 dark:to-emerald-500 bg-clip-text text-transparent italic"
+            >
               {part}
             </span>
           ) : (
@@ -40,10 +45,14 @@ function renderTwoToneHeadline(heading: string, highlightWord?: string) {
     );
   }
 
-  // Fallback: Split words into first half (neutral) and second half (accent)
+  // Split words into first half and last phrase with animated gradient
   const words = heading.split(" ");
   if (words.length <= 1) {
-    return <span className="text-primary">{heading}</span>;
+    return (
+      <span className="bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-700 dark:from-emerald-400 dark:via-teal-300 dark:to-emerald-500 bg-clip-text text-transparent italic">
+        {heading}
+      </span>
+    );
   }
   const mid = Math.ceil(words.length / 2);
   const firstHalf = words.slice(0, mid).join(" ");
@@ -52,7 +61,9 @@ function renderTwoToneHeadline(heading: string, highlightWord?: string) {
   return (
     <>
       <span>{firstHalf} </span>
-      <span className="text-primary italic">{secondHalf}</span>
+      <span className="bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-700 dark:from-emerald-400 dark:via-teal-300 dark:to-emerald-500 bg-clip-text text-transparent italic">
+        {secondHalf}
+      </span>
     </>
   );
 }
@@ -103,51 +114,55 @@ export function Hero() {
   const phone = content.general?.phone || primaryLocation?.phone || "";
   const cleanPhone = phone.replace(/[^0-9+]/g, "");
 
-  const heading = content.homepage?.heroHeading?.trim() || practiceName;
-  const description =
-    content.homepage?.heroDescription?.trim() ||
+  const heroObj = (content as any).hero || content.homepage || {};
+  const heading = (heroObj.headline || heroObj.heroHeading || practiceName || "").trim();
+  const description = (
+    heroObj.subheadline ||
+    heroObj.heroDescription ||
     organization?.description ||
     organization?.tagline ||
-    "";
-  const eyebrow = content.homepage?.heroEyebrow?.trim() || (content.homepage?.heroHeading ? practiceName : "");
-  const highlightWord = content.homepage?.heroHighlightWord?.trim() || "";
-  const startingFee = content.homepage?.startingFee?.trim() || "";
-  const heroSealText = ((content.homepage as any)?.heroSealText || "").trim();
+    ""
+  ).trim();
+  const heroImage = heroObj.image || heroObj.heroImageUrl || "/images/benyamin.jpg";
+  const eyebrow = (heroObj.heroEyebrow || (heading ? practiceName : "")).trim();
+  const highlightWord = (heroObj.heroHighlightWord || "").trim();
+  const startingFee = (heroObj.startingFee || "").trim();
+  const heroSealText = ((heroObj as any)?.heroSealText || "").trim();
 
   // Section with no data is not rendered once loading is complete
   if (!isLoading && !heading && !description) {
     return null;
   }
 
-  const heroTicks = content.homepage?.heroBadges?.length
-    ? content.homepage.heroBadges
-    : content.homepage?.heroTicks?.map((t) => t.label) || [];
+  const heroTicks = heroObj.heroBadges?.length
+    ? heroObj.heroBadges
+    : heroObj.heroTicks?.map((t: any) => t.label || t) || [];
 
   return (
-    <section className="relative overflow-hidden pt-12 pb-20 md:pt-16 md:pb-28 lg:pt-20 lg:pb-32 bg-[radial-gradient(ellipse_75%_50%_at_50%_-5%,rgba(var(--color-primary-rgb,16,125,82),0.08),transparent)] dark:bg-[radial-gradient(ellipse_75%_50%_at_50%_-5%,rgba(var(--color-primary-rgb,16,125,82),0.14),transparent)]">
+    <section className="relative overflow-hidden pt-16 pb-28 md:pt-24 md:pb-36 lg:pt-28 lg:pb-40 bg-[radial-gradient(ellipse_75%_50%_at_50%_-5%,rgba(var(--color-primary-rgb,16,125,82),0.08),transparent)] dark:bg-[radial-gradient(ellipse_75%_50%_at_50%_-5%,rgba(var(--color-primary-rgb,16,125,82),0.14),transparent)]">
       <div className="container-x">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
-          {/* Left Column: Two-Tone Copy, Badges, CTAs, Trust Ticks */}
-          <div className="lg:col-span-7 space-y-6 text-start">
-            {/* Practice / Eyebrow Badge */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+          {/* Left Column: Strict Single-Edge Alignment, Generous Spacing */}
+          <div className="lg:col-span-7 flex flex-col items-start text-start space-y-8 sm:space-y-10">
+            {/* Practice / Eyebrow Badge (Subtle kicker text so it doesn't compete with dominant headline) */}
             {(eyebrow || practiceName) ? (
               <div
-                className="inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 px-3.5 py-1 text-xs text-gray-700 dark:text-gray-300 backdrop-blur-md shadow-xs"
+                className="inline-flex items-center gap-2 rounded-full border border-gray-200/70 dark:border-gray-800/70 bg-gray-50/90 dark:bg-gray-900/70 px-3.5 py-1 text-xs text-gray-600 dark:text-gray-400 backdrop-blur-md"
               >
-                <span className="h-2 w-2 rounded-full bg-primary" />
+                <span className="h-1.5 w-1.5 rounded-full bg-primary/80" />
                 {eyebrow && (
-                  <span className="font-semibold text-primary uppercase tracking-wider text-[11px]">
+                  <span className="font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider text-[11px]">
                     {eyebrow}
                   </span>
                 )}
                 {eyebrow && practiceName && (
                   <span className="text-gray-300 dark:text-gray-700">|</span>
                 )}
-                {practiceName && <span className="font-medium">{practiceName}</span>}
+                {practiceName && <span className="font-medium text-gray-600 dark:text-gray-400">{practiceName}</span>}
               </div>
             ) : null}
 
-            {/* Two-Tone Headline */}
+            {/* Dominant Headline (One Strong Dominant Element with High Contrast) */}
             {heading ? (
               <h1
                 className="font-display text-4xl sm:text-5xl lg:text-6xl tracking-tight text-gray-950 dark:text-white leading-[1.12] font-bold"
@@ -165,31 +180,45 @@ export function Hero() {
               </p>
             ) : null}
 
-            {/* CTAs and Starting Fee Badge */}
+            {/* CTAs and Starting Fee Badge (Single Dominant Primary Button + Subtle Outline Secondary) */}
             <div
-              className="pt-2 flex flex-wrap items-center gap-3.5 justify-start min-h-[48px]"
+              className="pt-2 flex flex-wrap items-center gap-4 justify-start min-h-[48px]"
             >
               <Button
-                href={content.homepage?.heroCtaLink || "/book"}
+                onClick={(e) => {
+                  e.preventDefault();
+                  const el = document.getElementById("why-us");
+                  if (el) {
+                    el.scrollIntoView({ behavior: "smooth" });
+                  } else {
+                    window.location.href = heroObj.heroCtaLink || "/book";
+                  }
+                }}
                 variant="primary"
                 size="lg"
-                className="rounded-full px-7 flex items-center gap-2"
+                className="rounded-full px-7 flex items-center gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer"
               >
-                <span>{isUrdu ? copy.bookAppointment : (content.homepage?.heroCtaText || copy.bookAppointment)}</span>
+                <span>{isUrdu ? copy.bookAppointment : (heroObj.heroCtaText || copy.bookAppointment || "Book an Appointment")}</span>
                 <ArrowRight className="h-4 w-4 rtl:rotate-180" />
               </Button>
 
               {phone ? (
                 <div className="flex items-center gap-1.5">
                   <Button
-                    href={`tel:${cleanPhone}`}
-                    variant="secondary"
+                    onClick={() => {
+                      if (typeof navigator !== "undefined" && navigator.clipboard) {
+                        navigator.clipboard.writeText(phone);
+                        toast.success(`Copied phone: ${phone}`);
+                      }
+                      window.location.href = `tel:${cleanPhone}`;
+                    }}
+                    variant="outline"
                     size="lg"
-                    className="rounded-full px-5 flex items-center gap-2"
+                    className="rounded-full px-5 flex items-center gap-2 border-gray-300 dark:border-gray-700 bg-transparent text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
                   >
                     <Phone className="h-4 w-4 text-primary shrink-0" />
                     <span>
-                      {copy.call} <bdi dir="ltr">{phone}</bdi>
+                      {copy.call || "Call"} <bdi dir="ltr">{phone}</bdi>
                     </span>
                   </Button>
                   <CopyButton text={phone} label={copy.copyPhone} className="h-10 px-2.5 rounded-full" />
@@ -198,7 +227,7 @@ export function Hero() {
 
               {startingFee && (
                 <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 dark:bg-emerald-400/15 border border-emerald-600/25 px-3.5 py-1.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300 shadow-xs">
-                  <Sparkles className="h-3.5 w-3.5" />
+                  <Sparkles className="h-3.5 w-3.5 text-primary" />
                   <span>
                     {copy.treatmentsFrom} {startingFee}
                   </span>
@@ -206,13 +235,12 @@ export function Hero() {
               )}
             </div>
 
-
-            {/* Trust Ticks */}
+            {/* Trust Ticks (Generous Top Spacing & Strict Single-Edge Left Alignment) */}
             {heroTicks.length > 0 && (
               <div
-                className="pt-6 border-t border-gray-200/80 dark:border-gray-800/80 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-gray-600 dark:text-gray-300"
+                className="pt-8 border-t border-gray-200/80 dark:border-gray-800/80 w-full grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-gray-600 dark:text-gray-300"
               >
-                {heroTicks.map((tick, idx) => (
+                {heroTicks.map((tick: string, idx: number) => (
                   <div key={idx} className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
                     <span>{tick}</span>
@@ -236,16 +264,12 @@ export function Hero() {
               onPointerLeave={handlePointerLeave}
               className="relative w-full max-w-[420px] min-h-[420px] aspect-[4/5] rounded-t-[200px] rounded-b-3xl overflow-hidden shadow-2xl border-4 border-white dark:border-gray-800 bg-gray-100 dark:bg-gray-800 group"
             >
-              <Image
-                src={
-                  content.homepage?.heroImageUrl
-                    ? resolveMediaUrl(content.homepage.heroImageUrl) || content.homepage.heroImageUrl
-                    : "/images/benyamin.jpg"
-                }
-                alt="Modern state-of-the-art clinic treatment suite"
+              <SafeImage
+                src={heroImage}
+                alt={heading || "Modern dental clinic treatment suite"}
+                fallbackInitials="DHDC"
+                fallbackSubtitle={practiceName}
                 priority={true}
-                fetchPriority="high"
-                quality={70}
                 width={420}
                 height={525}
                 sizes="(max-width: 640px) 380px, (max-width: 1024px) 50vw, 420px"
@@ -253,7 +277,7 @@ export function Hero() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent pointer-events-none" />
 
-              {/* Rotating Dental Seal Badge: only shown if heroSealText is configured */}
+              {/* Rotating Dental Seal Badge */}
               {heroSealText ? (
                 <div
                   className="absolute top-4 right-4 z-20 pointer-events-none select-none"
@@ -285,7 +309,7 @@ export function Hero() {
               ) : null}
             </div>
 
-            {/* The Floating Tooth: absolutely positioned overlapping the bottom-left corner of the photo frame */}
+            {/* The Floating Tooth with glass badge */}
             <div className="absolute -bottom-6 -left-4 sm:-left-8 w-44 h-44 sm:w-52 sm:h-52 z-30 pointer-events-none">
               <motion.div
                 animate={shouldReduceMotion ? undefined : { y: [0, -10, 0] }}
@@ -306,14 +330,15 @@ export function Hero() {
                           rotate: toothRotate,
                         }
                   }
-                  className="w-full h-full flex items-center justify-center"
+                  className="w-full h-full flex items-center justify-center relative"
                 >
+                  <div className="absolute inset-4 rounded-3xl bg-white/40 dark:bg-black/40 backdrop-blur-md border border-white/60 dark:border-white/10 shadow-xl" />
                   <Image
                     src="/images/tooth-hero.png"
                     alt="Professional anatomical tooth model illustrating dental care quality"
                     width={220}
                     height={220}
-                    className="w-full h-full object-contain select-none pointer-events-none"
+                    className="w-full h-full object-contain select-none pointer-events-none relative z-10"
                   />
                 </motion.div>
               </motion.div>

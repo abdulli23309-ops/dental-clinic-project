@@ -299,7 +299,7 @@ class DoctorServiceAssignmentDto(BaseModel):
 class DoctorServiceAssignmentRequest(BaseModel):
     serviceId: UUID
     teamMemberId: UUID
-    clinicId: Optional[UUID] = None
+    clinicId: UUID = Field(..., description="Branch-scoped clinic assignment for this doctor-service relationship")
     customDurationMinutes: Optional[int] = None
     bufferMinutes: Optional[int] = None
     isActive: bool = True

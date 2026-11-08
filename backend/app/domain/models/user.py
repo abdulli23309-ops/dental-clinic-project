@@ -9,9 +9,14 @@ class UserRole(str, Enum):
     PLATFORM_OWNER = "Platform Owner"
     SUPER_ADMIN = "Super Admin"
     CLINIC_BRANCH_MANAGER = "Clinic Branch Manager"
+    PRACTICE_MANAGER = "Practice Manager"
+    ADMIN = "admin"
     DOCTOR = "doctor"
     RECEPTIONIST = "receptionist"
-    ADMIN = "admin"
+    NURSE = "nurse"
+    DENTAL_ASSISTANT = "dental_assistant"
+    CLEANER = "cleaner"
+    STERILIZATION_TECH = "sterilization_tech"
     PATIENT = "patient"
 
 

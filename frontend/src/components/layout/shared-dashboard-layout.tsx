@@ -11,6 +11,7 @@ import {
   ExternalLink,
   LogOut,
   Menu,
+  Search,
   X,
 } from "lucide-react";
 
@@ -18,6 +19,10 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 import { useClinicBranding } from "@/components/ui/clinic-logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { CommandPalette } from "@/components/ui/command-palette";
+import { OnboardingWizardModal } from "@/components/modals/onboarding-wizard-modal";
+import { Kbd } from "@/components/ui/kbd";
+import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
 import {
   canAccessWorkspace,
   homePathForRole,
@@ -52,9 +57,8 @@ function renderIcon(
     const IconComp = icon as React.ComponentType<{ className?: string }>;
     return (
       <IconComp
-        className={`h-5 w-5 shrink-0 transition-colors ${
-          isActive ? "text-white" : "text-primary"
-        }`}
+        className={`h-5 w-5 shrink-0 transition-colors ${isActive ? "text-white" : "text-primary"
+          }`}
       />
     );
   }
@@ -81,7 +85,35 @@ export function SharedDashboardLayout({
   const orgName = fullBrandName;
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const shouldReduceMotion = useReducedMotion();
+
+  // Hydrate persistent sidebar collapse state from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("marlow_dashboard_sidebar_collapsed");
+      if (saved !== null) {
+        setIsCollapsed(saved === "true");
+      }
+    } catch {}
+  }, []);
+
+  const handleToggleCollapse = () => {
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("marlow_dashboard_sidebar_collapsed", String(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  // Global hotkey: Cmd/Ctrl + K opens Command Palette
+  useKeyboardShortcut("k", () => setIsCommandPaletteOpen((prev) => !prev), {
+    ctrl: true,
+    meta: true,
+    ignoreInputs: true,
+  });
 
   useEffect(() => {
     if (!isLoading) {
@@ -93,7 +125,7 @@ export function SharedDashboardLayout({
         ? (basePath.replace(/^\//, "").split("/")[0] as WorkspaceKey)
         : null;
       if (currentWorkspace && !canAccessWorkspace(user.role, currentWorkspace)) {
-        const fallback = homePathForRole(user.role) || "/login";
+        const fallback = homePathForRole(user.role) || "/unauthorized";
         router.push(fallback);
       }
     }
@@ -157,6 +189,14 @@ export function SharedDashboardLayout({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => setIsCommandPaletteOpen(true)}
+            title="Command Palette (Cmd+K)"
+            className="p-1.5 rounded-xl border border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+            aria-label="Open Command Palette"
+          >
+            <Search className="h-4 w-4" />
+          </button>
           <ThemeToggle />
           <button
             onClick={() => logout()}
@@ -179,15 +219,13 @@ export function SharedDashboardLayout({
 
       {/* Floating Pill Left Sidebar (Desktop + Mobile Drawer) */}
       <aside
-        className={`m-4 h-[calc(100vh-2rem)] rounded-[2.5rem] shadow-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 flex flex-col transition-all duration-300 ease-in-out overflow-hidden shrink-0 fixed md:sticky top-0 z-50 md:z-30 ${
-          mobileOpen ? "left-0" : "-left-96 md:left-0"
-        } ${isCollapsed ? "w-24" : "w-64"}`}
+        className={`m-4 h-[calc(100vh-2rem)] rounded-[2.5rem] shadow-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 flex flex-col transition-all duration-300 ease-in-out overflow-hidden shrink-0 fixed md:sticky top-0 z-50 md:z-30 ${mobileOpen ? "left-0" : "-left-96 md:left-0"
+          } ${isCollapsed ? "w-24" : "w-64"}`}
       >
         {/* Top: Brand Header */}
         <div
-          className={`p-4 border-b border-gray-200 dark:border-gray-800 flex items-center ${
-            isCollapsed ? "justify-center" : "justify-between"
-          }`}
+          className={`p-4 border-b border-gray-200 dark:border-gray-800 flex items-center ${isCollapsed ? "justify-center" : "justify-between"
+            }`}
         >
           <div className="flex items-center gap-3 overflow-hidden min-w-0">
             {/* Real Uploaded Clinic Logo Anchor */}
@@ -214,9 +252,8 @@ export function SharedDashboardLayout({
 
             <Link
               href={basePath || links[0]?.href || "/"}
-              className={`truncate transition-opacity duration-300 ${
-                isCollapsed ? "hidden opacity-0" : "opacity-100 flex flex-col min-w-0"
-              }`}
+              className={`truncate transition-opacity duration-300 ${isCollapsed ? "hidden opacity-0" : "opacity-100 flex flex-col min-w-0"
+                }`}
             >
               <span className="font-display text-sm font-bold text-gray-900 dark:text-gray-100 block leading-tight tracking-tight hover:text-primary transition-colors truncate">
                 {shortBrandName}
@@ -235,36 +272,46 @@ export function SharedDashboardLayout({
           >
             <X className="h-5 w-5" />
           </button>
+
+          {/* Persistent collapse toggle on desktop */}
+          <button
+            onClick={handleToggleCollapse}
+            className="hidden md:flex p-1.5 rounded-xl border border-gray-200 dark:border-gray-800 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer shrink-0"
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </button>
         </div>
 
         {/* Center: Navigation Links */}
         <nav
-          className={`flex-1 overflow-y-auto p-3 space-y-2 scrollbar-none ${
-            isCollapsed ? "flex flex-col items-center" : ""
-          }`}
+          className={`flex-1 overflow-y-auto p-3 space-y-2 scrollbar-none ${isCollapsed ? "flex flex-col items-center" : ""
+            }`}
         >
           {links.map((item) => {
             const title = item.title;
+            const normalizedPath = pathname.replace(/^\/(cleaner|receptionist|doctor|nurse)/, "/admin");
+            const normalizedHref = item.href.replace(/^\/(cleaner|receptionist|doctor|nurse)/, "/admin");
             const isActive = item.exact
-              ? pathname === item.href
+              ? pathname === item.href || normalizedPath === normalizedHref
               : pathname === item.href ||
-                (item.href !== "/" &&
-                  pathname.startsWith(`${item.href}/`));
+              normalizedPath === normalizedHref ||
+              (item.href !== "/" && pathname.startsWith(`${item.href}/`)) ||
+              (normalizedHref !== "/admin" && normalizedPath.startsWith(`${normalizedHref}/`));
 
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 title={title}
-                className={`relative flex items-center rounded-full text-xs font-medium transition-all duration-200 ease-in-out ${
-                  isCollapsed
+                className={`relative flex items-center rounded-full text-xs font-medium transition-all duration-200 ease-in-out ${isCollapsed
                     ? "h-12 w-12 justify-center p-0"
                     : "gap-3.5 px-4 py-3 w-full justify-between"
-                } ${
-                  isActive
+                  } ${isActive
                     ? "text-white font-semibold"
                     : "text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
-                }`}
+                  }`}
               >
                 {isActive && !shouldReduceMotion && (
                   <motion.span
@@ -279,20 +326,18 @@ export function SharedDashboardLayout({
                 <div className="relative z-10 flex items-center gap-3.5 min-w-0">
                   {renderIcon(item.icon, isActive)}
                   <span
-                    className={`truncate transition-opacity duration-300 ${
-                      isCollapsed ? "hidden opacity-0" : "opacity-100 flex"
-                    }`}
+                    className={`truncate transition-opacity duration-300 ${isCollapsed ? "hidden opacity-0" : "opacity-100 flex"
+                      }`}
                   >
                     {title}
                   </span>
                 </div>
                 {!isCollapsed && item.badge !== undefined && (
                   <span
-                    className={`relative z-10 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                      isActive
+                    className={`relative z-10 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${isActive
                         ? "bg-white/20 text-white"
                         : "bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-                    }`}
+                      }`}
                   >
                     {item.badge}
                   </span>
@@ -307,17 +352,15 @@ export function SharedDashboardLayout({
           {user && (
             <div
               title={`${user.fullName} (${user.role})`}
-              className={`flex items-center rounded-2xl bg-white dark:bg-gray-950 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-800 shadow-xs ${
-                isCollapsed ? "p-1.5 justify-center" : "gap-2.5 p-2.5"
-              }`}
+              className={`flex items-center rounded-2xl bg-white dark:bg-gray-950 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-800 shadow-xs ${isCollapsed ? "p-1.5 justify-center" : "gap-2.5 p-2.5"
+                }`}
             >
               <div className="h-9 w-9 shrink-0 rounded-full bg-primary/10 text-primary grid place-items-center text-xs font-bold font-mono">
                 {user.fullName ? user.fullName.slice(0, 2).toUpperCase() : "HD"}
               </div>
               <div
-                className={`truncate flex-1 min-w-0 transition-opacity duration-300 ${
-                  isCollapsed ? "hidden opacity-0" : "opacity-100 flex flex-col"
-                }`}
+                className={`truncate flex-1 min-w-0 transition-opacity duration-300 ${isCollapsed ? "hidden opacity-0" : "opacity-100 flex flex-col"
+                  }`}
               >
                 <p className="text-xs font-semibold text-gray-900 dark:text-white truncate leading-tight">
                   {user.fullName}
@@ -330,19 +373,17 @@ export function SharedDashboardLayout({
           )}
 
           <div
-            className={`flex items-center ${
-              isCollapsed ? "flex-col gap-2 pt-1" : "justify-between pt-1"
-            }`}
+            className={`flex items-center ${isCollapsed ? "flex-col gap-2 pt-1" : "justify-between pt-1"
+              }`}
           >
             <Link
               href="/"
               target="_blank"
               title="View live website"
-              className={`transition-opacity duration-300 ${
-                isCollapsed
+              className={`transition-opacity duration-300 ${isCollapsed
                   ? "hidden opacity-0"
                   : "opacity-100 inline-flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white px-3 py-1.5 rounded-full hover:bg-white dark:hover:bg-gray-800 shadow-xs transition-colors"
-              }`}
+                }`}
             >
               <span>Live Site</span>
               <ExternalLink className="h-3 w-3" />
@@ -371,6 +412,15 @@ export function SharedDashboardLayout({
           </div>
 
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsCommandPaletteOpen(true)}
+              className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/80 text-xs text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer"
+              title="Command Palette (Cmd+K)"
+            >
+              <Search className="w-3.5 h-3.5 text-primary" />
+              <span>Search or jump to...</span>
+              <Kbd size="sm">⌘K</Kbd>
+            </button>
             <Link
               href="/"
               target="_blank"
@@ -385,12 +435,18 @@ export function SharedDashboardLayout({
 
         <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full">
           <AnimatePresence mode="wait" key={pathname}>
-        <AnimatedPage key={pathname}>
-          {children}
-        </AnimatedPage>
-      </AnimatePresence>
+            <AnimatedPage key={pathname}>
+              {children}
+            </AnimatedPage>
+          </AnimatePresence>
         </main>
       </div>
+
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+      />
+      <OnboardingWizardModal />
     </div>
   );
 }

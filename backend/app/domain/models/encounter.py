@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Optional, Set
+from typing import Dict, Optional, Set
 from uuid import UUID, uuid4
 
 
@@ -12,7 +12,7 @@ class EncounterStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
-ALLOWED_ENCOUNTER_TRANSITIONS: dict[EncounterStatus, Set[EncounterStatus]] = {
+ALLOWED_ENCOUNTER_TRANSITIONS: Dict[EncounterStatus, Set[EncounterStatus]] = {
     EncounterStatus.DRAFT: {EncounterStatus.IN_PROGRESS, EncounterStatus.CANCELLED},
     EncounterStatus.IN_PROGRESS: {EncounterStatus.COMPLETED, EncounterStatus.CANCELLED},
     EncounterStatus.COMPLETED: set(),  # Terminal visit state

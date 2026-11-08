@@ -115,7 +115,7 @@ export default function RootLayout({
             <PublicContentProvider>
               <LightboxProvider>
                 {children}
-                <Toaster />
+                <Toaster position="top-right" richColors closeButton />
               </LightboxProvider>
             </PublicContentProvider>
           </AuthProvider>

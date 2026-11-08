@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
+import { motion } from "motion/react";
 import {
   ArrowRight,
   Clock,
@@ -12,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SafeImage } from "@/components/ui/safe-image";
 import { getServices, resolveMediaUrl, ServiceItem } from "@/lib/api";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 
@@ -79,12 +81,12 @@ export function Treatments() {
   return (
     <section
       id="treatments"
-      className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 py-20 md:py-28 overflow-hidden select-none"
+      className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 py-28 md:py-36 overflow-hidden select-none"
     >
       {/* Anchor alias for backwards compatibility */}
       <span id="services" className="sr-only" />
 
-      <div className="container-x space-y-12">
+      <div className="container-x space-y-14 lg:space-y-16">
         {/* Section Heading */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <SectionHeading
@@ -96,7 +98,7 @@ export function Treatments() {
           </p>
         </div>
 
-        {/* Full Category Filter Pills */}
+        {/* Full Category Filter Pills with motion animation */}
         {categories.length > 1 && (
           <div
             className="border-b border-gray-200 dark:border-gray-800 pb-4 flex items-center gap-2 overflow-x-auto scrollbar-none"
@@ -106,15 +108,22 @@ export function Treatments() {
               role="tab"
               aria-selected={activeTab === "all"}
               onClick={() => setActiveTab("all")}
-              className={`rounded-full px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 ${
+              className={`relative rounded-full px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 ${
                 activeTab === "all"
-                  ? "btn-premium-emerald text-white font-semibold"
+                  ? "text-white font-semibold"
                   : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700"
               }`}
             >
-              <span>{copy.allTreatments}</span>
+              {activeTab === "all" && (
+                <motion.div
+                  layoutId="activeTreatmentCategory"
+                  className="absolute inset-0 rounded-full btn-premium-emerald"
+                  transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                />
+              )}
+              <span className="relative z-10">{copy.allTreatments}</span>
               <span
-                className={`text-[11px] rounded-full px-2 py-0.2 ${
+                className={`relative z-10 text-[11px] rounded-full px-2 py-0.2 ${
                   activeTab === "all"
                     ? "bg-white/20 text-white"
                     : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
@@ -134,15 +143,22 @@ export function Treatments() {
                   role="tab"
                   aria-selected={isActive}
                   onClick={() => setActiveTab(cat)}
-                  className={`rounded-full px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 capitalize ${
+                  className={`relative rounded-full px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer flex items-center gap-2 capitalize ${
                     isActive
-                      ? "btn-premium-emerald text-white font-semibold"
+                      ? "text-white font-semibold"
                       : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700"
                   }`}
                 >
-                  <span>{cat}</span>
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeTreatmentCategory"
+                      className="absolute inset-0 rounded-full btn-premium-emerald"
+                      transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                    />
+                  )}
+                  <span className="relative z-10">{cat}</span>
                   <span
-                    className={`text-[11px] rounded-full px-2 py-0.2 ${
+                    className={`relative z-10 text-[11px] rounded-full px-2 py-0.2 ${
                       isActive
                         ? "bg-white/20 text-white"
                         : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
@@ -199,24 +215,23 @@ export function Treatments() {
                   className="w-[85%] md:w-[45%] lg:w-[31%] min-w-[85%] md:min-w-[45%] lg:min-w-[31%] shrink-0 snap-start bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden shadow-xs p-4 sm:p-5 flex flex-col justify-between space-y-4 hover:border-emerald-600/40 hover:shadow-md transition-all self-stretch group"
                 >
                   <div className="space-y-3">
-                    {/* Treatment Card Photo */}
+                    {/* Treatment Card Photo with SafeImage */}
                     <div className="w-full aspect-[4/3] relative overflow-hidden rounded-xl bg-[#FAF9F5] dark:bg-gray-800/60 shadow-inner">
-                      {service.imageUrl ? (
-                        <Image
-                          src={resolveMediaUrl(service.imageUrl) || service.imageUrl}
-                          alt={service.title}
-                          fill
-                          sizes="(max-width: 768px) 85vw, (max-width: 1024px) 45vw, 31vw"
-                          className="object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-[#FAF9F5] dark:bg-gray-800/60 flex flex-col items-center justify-center p-4 text-center">
-                          <ShieldCheck className="h-8 w-8 text-primary/70 mb-1" />
-                          <span className="text-[11px] font-semibold text-gray-600 dark:text-gray-300 capitalize">
-                            {service.category} {copy.careSuffix}
-                          </span>
-                        </div>
-                      )}
+                      <SafeImage
+                        src={service.imageUrl}
+                        alt={service.title}
+                        fallbackInitials={
+                          service.title
+                            .split(" ")
+                            .map((w) => w[0])
+                            .slice(0, 2)
+                            .join("") || "TR"
+                        }
+                        fallbackSubtitle={`${service.category} Care`}
+                        fill
+                        sizes="(max-width: 768px) 85vw, (max-width: 1024px) 45vw, 31vw"
+                        className="object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+                      />
                     </div>
 
                     <div className="flex items-center justify-between text-xs pt-1">

@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Optional
+from typing import List, Optional
 from uuid import UUID
 
 from sqlalchemy import delete, select, update
@@ -21,12 +21,23 @@ class PostgresUserRepository(UserRepository):
         raw_role = (orm.role or "admin").strip().lower()
         role_map = {
             "admin": UserRole.ADMIN,
+            "practice manager": UserRole.PRACTICE_MANAGER,
+            "practice_manager": UserRole.PRACTICE_MANAGER,
             "receptionist": UserRole.RECEPTIONIST,
             "doctor": UserRole.DOCTOR,
+            "nurse": UserRole.NURSE,
+            "dental assistant": UserRole.DENTAL_ASSISTANT,
+            "dental_assistant": UserRole.DENTAL_ASSISTANT,
+            "cleaner": UserRole.CLEANER,
+            "sterilization tech": UserRole.STERILIZATION_TECH,
+            "sterilization_tech": UserRole.STERILIZATION_TECH,
             "patient": UserRole.PATIENT,
             "platform owner": UserRole.PLATFORM_OWNER,
+            "platform_owner": UserRole.PLATFORM_OWNER,
             "super admin": UserRole.SUPER_ADMIN,
+            "super_admin": UserRole.SUPER_ADMIN,
             "clinic branch manager": UserRole.CLINIC_BRANCH_MANAGER,
+            "clinic_branch_manager": UserRole.CLINIC_BRANCH_MANAGER,
         }
         role = role_map.get(raw_role, UserRole.ADMIN)
         return User(
@@ -79,7 +90,7 @@ class PostgresUserRepository(UserRepository):
 
     async def list_users(
         self, role: Optional[str] = None, is_active: Optional[bool] = None
-    ) -> list[User]:
+    ) -> List[User]:
         stmt = select(UserORM).order_by(UserORM.created_at.desc())
         if role:
             stmt = stmt.where(UserORM.role == role)

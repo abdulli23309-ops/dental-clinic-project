@@ -23,6 +23,7 @@ from app.api.v1.endpoints import (
     health,
     integration,
     admin_integrations,
+    my_schedule,
     patient_attachments,
     public_content,
     reception,
@@ -64,3 +65,4 @@ api_v1_router.include_router(admin_messaging.router, tags=["Admin Messaging & Re
 api_v1_router.include_router(admin_audit.router, tags=["Admin Audit Viewer"])
 api_v1_router.include_router(admin_reports.router, tags=["Admin Reports"])
 api_v1_router.include_router(admin_integrations.router, tags=["Admin Integrations"])
+api_v1_router.include_router(my_schedule.router, tags=["Staff My Schedule"])

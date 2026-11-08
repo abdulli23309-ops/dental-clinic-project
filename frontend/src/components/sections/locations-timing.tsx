@@ -17,6 +17,7 @@ import {
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
+import { SafeImage } from "@/components/ui/safe-image";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 import { getOfficeStatus } from "@/lib/utils";
 import { formatTimeRangeString } from "@/lib/currency";
@@ -68,12 +69,12 @@ export function LocationsTiming() {
   return (
     <section
       id="locations"
-      className="border-t border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/40 py-20 md:py-28 overflow-hidden"
+      className="border-t border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/40 py-28 md:py-36 overflow-hidden"
     >
       {/* Anchor alias for backwards compatibility */}
       <span id="visit" className="sr-only" />
 
-      <div className="container-x space-y-12">
+      <div className="container-x space-y-14 lg:space-y-16">
         {/* Section Heading */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <SectionHeading
@@ -249,23 +250,22 @@ export function LocationsTiming() {
                 {/* Branch Photo or Soft Gradient Placeholder */}
                 <div className="p-4 sm:p-6 pb-0">
                   <div className="relative w-full aspect-[16/9] overflow-hidden rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 group">
-                    {photoSrc ? (
-                      <Image
-                        src={photoSrc}
-                        alt={loc.name}
-                        fill
-                        unoptimized
-                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                        className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-700 ease-out"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 text-gray-400">
-                        <Building2 className="h-12 w-12 stroke-[1.2] mb-2 text-gray-500" />
-                        <span className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300">
-                          {loc.name}
-                        </span>
-                      </div>
-                    )}
+                    <SafeImage
+                      src={photoSrc}
+                      alt={loc.name}
+                      fallbackInitials={
+                        loc.name
+                          .split(" ")
+                          .filter((w) => !w.toLowerCase().includes("dhdc"))
+                          .slice(0, 2)
+                          .map((w) => w[0])
+                          .join("") || "DHDC"
+                      }
+                      fallbackSubtitle={loc.city || "Clinic Branch"}
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-700 ease-out"
+                    />
 
                     {/* Gradient overlay for badges readability */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent pointer-events-none" />

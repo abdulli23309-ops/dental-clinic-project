@@ -27,6 +27,7 @@ import {
   SharedDashboardLayout,
   SidebarLink,
 } from "@/components/layout/shared-dashboard-layout";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { fetchPublicBookingStatus, PublicBookingStatus } from "@/lib/api";
 
 const RECEPTION_LINKS: SidebarLink[] = [
@@ -151,7 +152,12 @@ export default function ReceptionLayout({ children }: { children: React.ReactNod
         </div>
       )}
 
-      {children}
+      <ErrorBoundary
+        fallbackTitle="Reception Workspace Recovery"
+        fallbackMessage="An unexpected issue occurred while rendering this front-office intake view. Front-office data and patient communications remain protected."
+      >
+        {children}
+      </ErrorBoundary>
     </SharedDashboardLayout>
   );
 }

@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Union
 from uuid import UUID, uuid4
 
 
@@ -40,8 +40,8 @@ AUTOMATIC_LEAD_TRANSITIONS: Dict[LeadStatus, Set[LeadStatus]] = {
 
 
 def is_valid_lead_transition(
-    current: str | LeadStatus,
-    target: str | LeadStatus,
+    current: Union[str, LeadStatus],
+    target: Union[str, LeadStatus],
     is_manual: bool = False,
 ) -> bool:
     """

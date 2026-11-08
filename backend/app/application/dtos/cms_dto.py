@@ -73,6 +73,8 @@ class HomepageSectionDTO(BaseModel):
     heroBadges: List[str] = Field(default_factory=list)
     heroTicks: List[Dict[str, Any]] = Field(default_factory=list)
     promises: List[Dict[str, Any]] = Field(default_factory=list)
+    whyChooseUsImage: Optional[str] = None
+    whyChooseUsCaption: Optional[str] = None
 
     @model_validator(mode="before")
     @classmethod

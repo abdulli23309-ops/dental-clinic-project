@@ -42,6 +42,7 @@ from app.domain.models.booking_settings import (
 from app.domain.repositories.booking_repo import BookingRepository
 from app.domain.repositories.booking_settings_repo import BookingSettingsRepository
 from app.domain.repositories.organization_repo import OrganizationRepository
+from app.domain.repositories.task_repo import TaskRepository
 from app.infrastructure.database.orm_models import ClinicServiceORM, AnnouncementORM, AppointmentCategoryORM, BookingORM, ClinicORM, DoctorScheduleOverrideORM, ProviderAvailabilityORM, ServiceORM, ServiceProviderORM, TaskORM, TeamMemberClinicORM, TeamMemberORM
 from app.infrastructure.repositories.postgres_activity_repo import (
     PostgresActivityLogRepository,

@@ -13,15 +13,12 @@ export interface ThemeToggleProps {
 /**
  * Animated Theme Toggle button:
  * Displays a sun icon when dark mode is active and a moon icon when light mode is active.
- * Features a spring rotate & scale transition on click matching the demo dynamics,
- * with full accessibility and prefers-reduced-motion support.
- * 
- * Hydration safe: mounts gracefully on the client to prevent SSR mismatches.
+ * Uses a mounted state guard to ensure zero SSR/hydration mismatch with the client's resolved theme.
  */
 export function ThemeToggle({ className = "", size = "md" }: ThemeToggleProps) {
+  const [mounted, setMounted] = useState(false);
   const { resolvedTheme, toggleTheme } = useTheme();
   const shouldReduceMotion = useReducedMotion();
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -32,14 +29,10 @@ export function ThemeToggle({ className = "", size = "md" }: ThemeToggleProps) {
 
   if (!mounted) {
     return (
-      <button
-        type="button"
-        disabled
+      <div
+        className={`border border-transparent bg-slate-100 dark:bg-slate-800 animate-pulse shrink-0 ${sizeClass} ${className}`}
         aria-hidden="true"
-        className={`relative grid place-items-center border border-gray-200/90 dark:border-white/10 bg-gray-100/90 dark:bg-[#121316] text-gray-400 opacity-60 backdrop-blur-sm shadow-xs ${sizeClass} ${className}`}
-      >
-        <span className={iconClass} />
-      </button>
+      />
     );
   }
 
@@ -60,7 +53,7 @@ export function ThemeToggle({ className = "", size = "md" }: ThemeToggleProps) {
         {isDark ? (
           <motion.div
             key="dark-sun"
-            initial={false}
+            initial={shouldReduceMotion ? { opacity: 0 } : { rotate: -90, scale: 0.5, opacity: 0 }}
             animate={shouldReduceMotion ? { opacity: 1 } : { rotate: 0, scale: 1, opacity: 1 }}
             exit={shouldReduceMotion ? { opacity: 0 } : { rotate: 90, scale: 0.5, opacity: 0 }}
             transition={{ type: "spring", stiffness: 350, damping: 22 }}

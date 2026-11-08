@@ -86,17 +86,17 @@ export function OurTeam() {
   // Arc mode for n < 8 so cards never turn 90deg edge-on
   const isArcMode = n < 8;
   const cardWidth = 320;
-  const cardGap = 36;
+  const cardGap = 80;
 
   // Geometry calculations:
   // For n >= 8: 360deg cylinder ring
-  // For n < 8: 28deg open stage arc
-  const stepAngle = isArcMode ? 28 : n > 0 ? 360 / n : 0;
+  // For n < 8: 36deg open stage arc with ample clearance between cards
+  const stepAngle = isArcMode ? 36 : n > 0 ? 360 / n : 0;
   const radius = isArcMode
-    ? 580
+    ? 680
     : n > 0
-    ? Math.max(420, Math.round((cardWidth + cardGap) / (2 * Math.tan(Math.PI / n))))
-    : 450;
+    ? Math.max(620, Math.round((cardWidth + cardGap) / (2 * Math.tan(Math.PI / n))))
+    : 620;
 
   // Reset active card and camera angle when city filter changes
   useEffect(() => {
@@ -357,6 +357,7 @@ export function OurTeam() {
                   return (
                     <motion.div
                       key={doc.id}
+                      initial={false}
                       animate={{
                         x: translateX,
                         rotateY: shouldReduceMotion ? 0 : rotateY,

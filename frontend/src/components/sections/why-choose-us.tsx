@@ -1,128 +1,29 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
-import {
-  CheckCircle2,
-  Calendar,
-  Sparkles,
-  ArrowRight,
-  ShieldCheck,
-  AlertCircle,
-  Loader2,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { CheckCircle2, Sparkles } from "lucide-react";
 import { usePublicContent } from "@/components/providers/public-content-provider";
-import { getServices, publicLeadCapture, publicLeadUpdate, ServiceItem } from "@/lib/api";
-
-const LEAD_TOKEN_STORAGE_KEY = "mb_booking_lead_token";
+import { SafeImage } from "@/components/ui/safe-image";
 
 export function WhyChooseUs() {
-  const router = useRouter();
-  const { content, organization, locations, copy } = usePublicContent();
-  const [services, setServices] = useState<ServiceItem[]>([]);
-  const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [selectedBranch, setSelectedBranch] = useState("");
-  const [selectedService, setSelectedService] = useState("");
-  const [honeypot, setHoneypot] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const { content, organization, copy } = usePublicContent();
 
   const promises = content.homepage?.promises || [];
-  const activeLocations = locations.filter((l) => l.isActive !== false);
   const practiceName =
     content.general?.practiceName || organization?.displayName || "";
-
-  useEffect(() => {
-    let mounted = true;
-    getServices()
-      .then((data) => {
-        if (mounted && Array.isArray(data)) {
-          setServices(data.filter((s) => s.isActive !== false));
-        }
-      })
-      .catch(() => {});
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg(null);
-
-    const cleanPhone = phone.trim();
-    const cleanName = fullName.trim();
-
-    if (!cleanName) {
-      setErrorMsg(copy.enterFullNameError || "Please enter your full name.");
-      return;
-    }
-
-    const digits = cleanPhone.replace(/[^0-9]/g, "");
-    if (digits.length < 10) {
-      setErrorMsg(copy.enterValidPhoneError || "Please enter a valid mobile phone number.");
-      return;
-    }
-
-    // Bot honeypot caught
-    if (honeypot.trim()) {
-      router.push("/book");
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      // 1. Capture public lead
-      const captureRes = await publicLeadCapture({
-        fullName: cleanName,
-        phone: cleanPhone,
-      });
-
-      if (captureRes?.captureToken) {
-        // Save token to session storage for progressive booking wizard
-        if (typeof window !== "undefined") {
-          sessionStorage.setItem(LEAD_TOKEN_STORAGE_KEY, captureRes.captureToken);
-        }
-
-        // 2. If service or branch was selected, update lead record
-        if (selectedService || selectedBranch) {
-          await publicLeadUpdate({
-            captureToken: captureRes.captureToken,
-            serviceId: selectedService || undefined,
-            clinicId: selectedBranch || undefined,
-          }).catch(() => {});
-        }
-
-        // 3. Continue to booking flow with preselected service and branch
-        const params = new URLSearchParams();
-        if (selectedService) params.set("service", selectedService);
-        if (selectedBranch) params.set("clinic", selectedBranch);
-        const query = params.toString() ? `?${params.toString()}` : "";
-        router.push(`/book${query}`);
-      } else {
-        router.push("/book");
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to record inquiry. Please try again.";
-      setErrorMsg(msg);
-      setLoading(false);
-    }
-  };
+  const whyChooseUsImage = content.homepage?.whyChooseUsImage;
+  const whyChooseUsCaption =
+    content.homepage?.whyChooseUsCaption || "Modern Dental Suite - DHDC Islamabad";
 
   return (
     <section
       id="why-us"
-      className="border-t border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/50 py-28 md:py-36"
+      className="border-t border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/50 py-20 md:py-28"
     >
       <div className="container-x">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-14 items-start">
           {/* Left Column: Why Choose Us Promises + 3-Step Strip */}
-          <div className="lg:col-span-7 flex flex-col items-start text-start space-y-8">
+          <div className="lg:col-span-7 space-y-8">
             <div className="space-y-3">
               <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
                 <Sparkles className="h-3.5 w-3.5" />
@@ -139,7 +40,7 @@ export function WhyChooseUs() {
             </div>
 
             {/* Promises List (from CMS) */}
-            <div className="space-y-4 w-full">
+            <div className="space-y-4">
               {promises.length > 0 ? (
                 promises.map((p, idx) => (
                   <motion.div
@@ -225,160 +126,17 @@ export function WhyChooseUs() {
             </div>
           </div>
 
-          {/* Right Column: Instant Booking Lead Form */}
-          <div className="lg:col-span-5">
-            <Card
-              surface="bone"
-              shadow="card"
-              className="p-6 sm:p-8 rounded-3xl border border-emerald-900/10 dark:border-emerald-500/20 bg-white/95 dark:bg-[#070D0B]/95 shadow-2xl backdrop-blur-xl sticky top-28"
-            >
-              <div className="space-y-2 mb-6">
-                <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
-                  <Calendar className="h-4 w-4" />
-                  <span>{copy.onlineReservation || "Online Reservation"}</span>
-                </div>
-                <h3 className="font-display text-2xl font-bold tracking-tight text-gray-950 dark:text-white">
-                  {copy.bookAppointment || "Book Appointment"}
-                </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {copy.enterBookingDetails || "Enter your contact details to reserve your preferred consultation time."}
-                </p>
-              </div>
-
-              {errorMsg && (
-                <div className="mb-4 rounded-xl border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/50 p-3 text-xs text-red-700 dark:text-red-300 flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                  <span>{errorMsg}</span>
-                </div>
-              )}
-
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Honeypot field (hidden from real users) */}
-                <div className="hidden" aria-hidden="true">
-                  <label htmlFor="hp_check">Leave empty</label>
-                  <input
-                    id="hp_check"
-                    type="text"
-                    tabIndex={-1}
-                    value={honeypot}
-                    onChange={(e) => setHoneypot(e.target.value)}
-                    autoComplete="off"
-                  />
-                </div>
-
-                {/* Full Name */}
-                <div className="space-y-1.5">
-                  <label
-                    htmlFor="lead_name"
-                    className="block text-xs font-semibold text-gray-700 dark:text-gray-300"
-                  >
-                    {copy.fullName || "Full Name"} <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="lead_name"
-                    type="text"
-                    required
-                    placeholder="e.g. Sarah Ahmed"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3.5 py-2.5 text-xs sm:text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
-                  />
-                </div>
-
-                {/* Phone Number */}
-                <div className="space-y-1.5">
-                  <label
-                    htmlFor="lead_phone"
-                    className="block text-xs font-semibold text-gray-700 dark:text-gray-300"
-                  >
-                    {copy.mobilePhone || "Mobile Phone"} <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="lead_phone"
-                    type="tel"
-                    required
-                    placeholder="e.g. 0300 1234567"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3.5 py-2.5 text-xs sm:text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
-                  />
-                </div>
-
-                {/* Preferred Branch Dropdown */}
-                {activeLocations.length > 0 && (
-                  <div className="space-y-1.5">
-                    <label
-                      htmlFor="lead_branch"
-                      className="block text-xs font-semibold text-gray-700 dark:text-gray-300"
-                    >
-                      Preferred Branch
-                    </label>
-                    <select
-                      id="lead_branch"
-                      value={selectedBranch}
-                      onChange={(e) => setSelectedBranch(e.target.value)}
-                      className="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3.5 py-2.5 text-xs sm:text-sm text-gray-900 dark:text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
-                    >
-                      <option value="">Select a branch (optional)...</option>
-                      {activeLocations.map((loc) => (
-                        <option key={loc.id} value={loc.id}>
-                          {loc.name} {loc.city ? `(${loc.city})` : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {/* Service Selection */}
-                <div className="space-y-1.5">
-                  <label
-                    htmlFor="lead_service"
-                    className="block text-xs font-semibold text-gray-700 dark:text-gray-300"
-                  >
-                    Treatment Needed (Optional)
-                  </label>
-                  <select
-                    id="lead_service"
-                    value={selectedService}
-                    onChange={(e) => setSelectedService(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3.5 py-2.5 text-xs sm:text-sm text-gray-900 dark:text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
-                  >
-                    <option value="">Select a treatment (optional)...</option>
-                    {services.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.title} {s.cashPrice ? `(${s.cashPrice})` : ""}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Submit CTA */}
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="lg"
-                  disabled={loading}
-                  className="w-full rounded-full py-3.5 text-sm font-semibold flex items-center justify-center gap-2 mt-2"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Preparing your reservation...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Continue to Booking</span>
-                      <ArrowRight className="h-4 w-4 rtl:rotate-180" />
-                    </>
-                  )}
-                </Button>
-
-                <div className="flex items-center gap-2 pt-2 text-[11px] text-gray-500 dark:text-gray-400">
-                  <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
-                  <span>Confidential. Your phone is only used for appointment scheduling.</span>
-                </div>
-              </form>
-            </Card>
+          {/* Right Column: Luxury Clinical Facility Feature Image with Caption */}
+          <div className="lg:col-span-5 sticky top-28 space-y-4">
+            <SafeImage
+              src={whyChooseUsImage}
+              alt={whyChooseUsCaption}
+              caption={whyChooseUsCaption}
+              aspectRatio="aspect-[4/3]"
+              fallbackTitle="Modern Dental Suite"
+              fallbackSubtitle="DHDC Islamabad Clinical Facility"
+              className="w-full"
+            />
           </div>
         </div>
       </div>

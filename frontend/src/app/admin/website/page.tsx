@@ -112,6 +112,8 @@ export default function AdminWebsitePage() {
     startingFee: "",
     heroBadges: [],
     promises: [],
+    whyChooseUsImage: "",
+    whyChooseUsCaption: "",
   });
 
   const [aboutData, setAboutData] = useState<any>({
@@ -357,7 +359,7 @@ export default function AdminWebsitePage() {
 
   const handleUploadImage = async (
     file: File,
-    field: "logoUrl" | "heroImageUrl",
+    field: "logoUrl" | "heroImageUrl" | "whyChooseUsImage",
     section: "general" | "homepage"
   ) => {
     if (!accessToken) return;
@@ -834,6 +836,7 @@ export default function AdminWebsitePage() {
                 )}
               </div>
 
+
               <div className="pt-4 border-t border-line/60 flex justify-end">
                 <Button
                   onClick={() => handleSaveSection("general", generalData)}
@@ -1061,6 +1064,52 @@ export default function AdminWebsitePage() {
                 </div>
               </div>
 
+              {/* Why Choose Us Facility Image & Caption */}
+              <div className="pt-4 border-t border-line/40 space-y-4">
+                <h3 className="text-sm font-semibold text-ink">Why Choose Us Section Image</h3>
+                <TextField
+                  id="why-choose-us-caption"
+                  label="Image Caption"
+                  value={homepageData.whyChooseUsCaption || ""}
+                  onChange={(e) => setHomepageData({ ...homepageData, whyChooseUsCaption: e.target.value })}
+                  placeholder="e.g. Modern Dental Suite - DHDC Islamabad"
+                />
+                <div>
+                  <label className="block text-xs font-medium text-ink mb-1.5">
+                    Facility Feature Image
+                  </label>
+                  <div className="flex items-center gap-3">
+                    {homepageData.whyChooseUsImage && (
+                      <img
+                        src={homepageData.whyChooseUsImage}
+                        alt="Why choose us facility"
+                        className="h-16 w-24 rounded-lg object-cover border border-line bg-bone"
+                      />
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={isUploading}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleUploadImage(file, "whyChooseUsImage", "homepage");
+                        e.target.value = "";
+                      }}
+                      className="block text-xs text-ink-soft file:mr-3 file:rounded-full file:border file:border-line file:bg-bone file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-ink file:cursor-pointer hover:file:bg-sand/60 disabled:opacity-50"
+                    />
+                    {isUploading && (
+                      <span className="text-xs text-ink-soft">Uploading…</span>
+                    )}
+                  </div>
+                  {homepageData.whyChooseUsImage && (
+                    <p className="mt-1 text-[11px] text-ink-soft/70 truncate">{homepageData.whyChooseUsImage}</p>
+                  )}
+                </div>
+              </div>
+                  )}
+                </div>
+              </div>
+
               <div className="pt-4 border-t border-line/60 flex justify-end">
                 <Button
                   onClick={() => handleSaveSection("homepage", homepageData)}
@@ -1116,6 +1165,7 @@ export default function AdminWebsitePage() {
                   onChange={(e) => setAboutData({ ...aboutData, licensureText: e.target.value })}
                 />
               </div>
+
 
               <div className="pt-4 border-t border-line/60 flex justify-end">
                 <Button
@@ -1199,6 +1249,7 @@ export default function AdminWebsitePage() {
                   onChange={(e) => setContactData({ ...contactData, emergencyNote: e.target.value })}
                 />
               </div>
+
 
               <div className="pt-4 border-t border-line/60 flex justify-end">
                 <Button
@@ -1421,6 +1472,7 @@ export default function AdminWebsitePage() {
                   />
                 </div>
               </div>
+
 
               <div className="pt-4 border-t border-line/60 flex justify-end">
                 <Button

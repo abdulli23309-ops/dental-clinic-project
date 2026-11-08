@@ -405,7 +405,7 @@
 
   /* 3D Cylindrical Ring Stage Utilities */
   .team-perspective-container {
-    perspective: 1600px;
+    perspective: 1800px;
     perspective-origin: 50% 50%;
     overflow-x: clip;
     overflow-y: visible;

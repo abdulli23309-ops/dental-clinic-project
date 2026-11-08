@@ -23,6 +23,12 @@ node_modules/
 .next/
 out/
 build/
+frontend/repro-error.mjs
+frontend/start-dev.bat
+frontend/.tsc-out.txt
+frontend/playwright-report/
+frontend/test-results/
+frontend/scripts/verify_stage1_mobile.mjs
 
 # Python / Backend artifacts
 __pycache__/
@@ -31,6 +37,9 @@ __pycache__/
 .pytest_cache/
 .coverage
 htmlcov/
+backend/_migcheck.py
+
+# Uploads & Storage
 backend/uploads/
 uploads/
 backend/storage/
@@ -43,23 +52,17 @@ FINAL_RELEASE_AUDIT_REPORT.md
 pytest_out.txt
 *.out
 *.out.txt
-# Next.js build output directory (root)
+*out.txt
+*.log
+
+# Documentation and Scratch files
 docs/*
 !docs/*.md
 !docs/screenshots/
 !docs/screenshots/*
-*out.txt
-*.log
-backend/_migcheck.py
-frontend/repro-error.mjs
-frontend/start-dev.bat
-frontend/.tsc-out.txt
-frontend/playwright-report/
-frontend/test-results/
-
 _scratch/
- 
-frontend/scripts/verify_stage1_mobile.mjs
+
+# Archives and Database dumps
 *.zip
 *.sql
 *.dump

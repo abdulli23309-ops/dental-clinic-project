@@ -4016,6 +4016,7 @@ export async function getDoctorPatientDetail(
 }
 
 
+
 /* --- Clinical Encounter & SOAP Notes (Phase 1) --- */
 
 export interface ClinicalEncounter {

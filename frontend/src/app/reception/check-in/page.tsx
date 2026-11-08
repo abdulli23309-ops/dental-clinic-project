@@ -23,6 +23,17 @@ import {
 
 import { useAuth } from "@/components/providers/auth-provider";
 import { useDirectory } from "@/lib/directory";
+import { Card } from "@/components/ui/card";
+import { AnimatedPage } from "@/components/ui/animated-page";
+import {
+  isWaiting,
+  isInProgress,
+  isExpected,
+  isCompleted,
+  APPOINTMENT_STATUS,
+  WAITING_TIME_THRESHOLDS,
+  getWaitingTimeCategory,
+} from "@/lib/statuses";
 
 export default function ReceptionCheckInPage() {
   const { accessToken } = useAuth();
@@ -45,7 +56,9 @@ export default function ReceptionCheckInPage() {
   };
 
   useEffect(() => {
-    loadFlow();
+    queueMicrotask(() => {
+      loadFlow();
+    });
     // Auto-refresh every 30 seconds for live waiting room
     const interval = setInterval(loadFlow, 30000);
     return () => clearInterval(interval);
@@ -63,16 +76,13 @@ export default function ReceptionCheckInPage() {
     }
   };
 
-  const waitingPatients = bookings.filter(
-    (b) => b.status === "arrived" || b.status === "checked_in" || b.status === "waiting"
-  );
-  const inProgressPatients = bookings.filter((b) => b.status === "in_progress");
-  const scheduledUpcoming = bookings.filter(
-    (b) => b.status === "confirmed" || b.status === "scheduled"
-  );
-  const completedPatients = bookings.filter((b) => b.status === "completed");
+  const waitingPatients = bookings.filter((b) => isWaiting(b.status));
+  const inProgressPatients = bookings.filter((b) => isInProgress(b.status));
+  const scheduledUpcoming = bookings.filter((b) => isExpected(b.status));
+  const completedPatients = bookings.filter((b) => isCompleted(b.status));
 
   return (
+  <AnimatedPage>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -111,10 +121,14 @@ export default function ReceptionCheckInPage() {
                 No more pending arrivals expected today.
               </div>
             ) : (
-              scheduledUpcoming.map((b) => (
-                <div
+              scheduledUpcoming.map((b, index) => (
+                <Card
                   key={b.id}
-                  className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-xs space-y-3 hover:border-primary/50 transition-colors"
+                  index={index}
+                  hoverLift
+                  surface="bone"
+                  shadow="subtle"
+                  className="p-4 space-y-3"
                 >
                   <div className="flex items-start justify-between">
                     <div>
@@ -151,7 +165,7 @@ export default function ReceptionCheckInPage() {
                       <span>Check In Patient</span>
                     </button>
                   </div>
-                </div>
+                </Card>
               ))
             )}
           </div>
@@ -172,10 +186,14 @@ export default function ReceptionCheckInPage() {
                 Waiting room is currently clear.
               </div>
             ) : (
-              waitingPatients.map((b) => (
-                <div
+              waitingPatients.map((b, index) => (
+                <Card
                   key={b.id}
-                  className="p-4 rounded-2xl bg-amber-50/40 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/60 shadow-xs space-y-3"
+                  index={index}
+                  hoverLift
+                  surface="sand"
+                  shadow="subtle"
+                  className="p-4 bg-amber-50/40 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/60 shadow-xs space-y-3"
                 >
                   <div className="flex items-start justify-between">
                     <div>
@@ -189,10 +207,37 @@ export default function ReceptionCheckInPage() {
                         {directory.serviceName(b.serviceId) || "Consultation"} · {directory.providerName(b.providerId) || "Provider"}
                       </p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right space-y-1">
                       <span className="font-mono text-xs font-bold text-amber-700 dark:text-amber-300 block">
                         {b.bookingTime}
                       </span>
+                      {(() => {
+                        const mins = b.arrivedAt
+                          ? Math.max(0, Math.floor((Date.now() - new Date(b.arrivedAt).getTime()) / 60000))
+                          : 0;
+                        const cat = getWaitingTimeCategory(mins);
+                        const badgeClasses =
+                          cat === "on_time"
+                            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200"
+                            : cat === "extended"
+                            ? "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200"
+                            : "bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300 border-red-200 animate-pulse";
+                        const label =
+                          cat === "on_time"
+                            ? `On time (${mins}m)`
+                            : cat === "extended"
+                            ? `Waiting ${mins}m (>5m)`
+                            : `Overdue ${mins}m (>15m)`;
+
+                        return (
+                          <span
+                            className={`inline-flex items-center gap-1 font-mono text-[10px] font-semibold px-2 py-0.5 rounded-full border ${badgeClasses}`}
+                          >
+                            <Clock className="h-2.5 w-2.5" />
+                            {label}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
 
@@ -206,7 +251,7 @@ export default function ReceptionCheckInPage() {
                       <span>Send to Chair / Doctor</span>
                     </button>
                   </div>
-                </div>
+                </Card>
               ))
             )}
           </div>
@@ -227,10 +272,14 @@ export default function ReceptionCheckInPage() {
                 No active visits in treatment rooms right now.
               </div>
             ) : (
-              inProgressPatients.map((b) => (
-                <div
+              inProgressPatients.map((b, index) => (
+                <Card
                   key={b.id}
-                  className="p-4 rounded-2xl bg-primary/5 dark:bg-primary/10 border border-primary/20 shadow-xs space-y-3"
+                  index={index}
+                  hoverLift
+                  surface="sand"
+                  shadow="subtle"
+                  className="p-4 bg-primary/5 dark:bg-primary/10 border-primary/20 space-y-3"
                 >
                   <div className="flex items-start justify-between">
                     <div>
@@ -259,12 +308,13 @@ export default function ReceptionCheckInPage() {
                       <span>Complete Checkout</span>
                     </button>
                   </div>
-                </div>
+                </Card>
               ))
             )}
           </div>
         </div>
       </div>
     </div>
+  </AnimatedPage>
   );
 }

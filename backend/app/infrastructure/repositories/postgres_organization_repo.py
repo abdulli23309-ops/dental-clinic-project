@@ -32,6 +32,9 @@ class PostgresOrganizationRepository(OrganizationRepository):
             background_color=getattr(orm, "background_color", None),
             primary_font=getattr(orm, "primary_font", None),
             secondary_font=getattr(orm, "secondary_font", None),
+            currency_code=getattr(orm, "currency_code", "PKR") or "PKR",
+            currency_symbol=getattr(orm, "currency_symbol", "Rs") or "Rs",
+            timezone=getattr(orm, "timezone", "Asia/Karachi") or "Asia/Karachi",
             is_active=orm.is_active,
             created_at=orm.created_at,
             updated_at=orm.updated_at,
@@ -63,6 +66,9 @@ class PostgresOrganizationRepository(OrganizationRepository):
             existing.background_color = org.background_color
             existing.primary_font = org.primary_font
             existing.secondary_font = org.secondary_font
+            existing.currency_code = org.currency_code
+            existing.currency_symbol = org.currency_symbol
+            existing.timezone = org.timezone
             existing.is_active = org.is_active
             existing.updated_at = org.updated_at
             await self._session.flush()
@@ -83,6 +89,9 @@ class PostgresOrganizationRepository(OrganizationRepository):
                 background_color=org.background_color,
                 primary_font=org.primary_font,
                 secondary_font=org.secondary_font,
+                currency_code=org.currency_code,
+                currency_symbol=org.currency_symbol,
+                timezone=org.timezone,
                 is_active=org.is_active,
                 created_at=org.created_at,
                 updated_at=org.updated_at,
@@ -90,6 +99,12 @@ class PostgresOrganizationRepository(OrganizationRepository):
             self._session.add(orm)
             await self._session.flush()
             return self._to_domain(orm)
+
+    async def delete(self, org_id: UUID) -> None:
+        orm = await self._session.get(OrganizationORM, org_id)
+        if orm is not None:
+            await self._session.delete(orm)
+            await self._session.flush()
 
 
 class PostgresLocationRepository(LocationRepository):
@@ -113,6 +128,7 @@ class PostgresLocationRepository(LocationRepository):
             phone=orm.phone,
             email=orm.email,
             hours_info=orm.hours_info,
+            image_url=orm.image_url,
             is_primary=orm.is_primary,
             is_active=orm.is_active,
             display_order=orm.display_order,
@@ -146,6 +162,7 @@ class PostgresLocationRepository(LocationRepository):
             existing.phone = location.phone
             existing.email = location.email
             existing.hours_info = location.hours_info
+            existing.image_url = location.image_url
             existing.is_primary = location.is_primary
             existing.is_active = location.is_active
             existing.display_order = location.display_order
@@ -166,6 +183,7 @@ class PostgresLocationRepository(LocationRepository):
                 phone=location.phone,
                 email=location.email,
                 hours_info=location.hours_info,
+                image_url=location.image_url,
                 is_primary=location.is_primary,
                 is_active=location.is_active,
                 display_order=location.display_order,
@@ -175,3 +193,8 @@ class PostgresLocationRepository(LocationRepository):
             self._session.add(orm)
             await self._session.flush()
             return self._to_domain(orm)
+    async def delete(self, location_id: UUID) -> None:
+        orm = await self._session.get(LocationORM, location_id)
+        if orm is not None:
+            await self._session.delete(orm)
+            await self._session.flush()

@@ -1,13 +1,18 @@
 import type { MetadataRoute } from "next";
+import { getServices } from "@/lib/api";
 
-/**
- * Generates the XML sitemap listing all public pages with crawl frequencies and relative priorities.
- */
-export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://marlowdental.com";
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "";
   const now = new Date();
 
-  return [
+  let services: Array<{ id: string }> = [];
+  try {
+    services = await getServices();
+  } catch {
+    services = [];
+  }
+
+  const staticRoutes: MetadataRoute.Sitemap = [
     {
       url: `${baseUrl}/`,
       lastModified: now,
@@ -17,17 +22,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     {
       url: `${baseUrl}/book`,
       lastModified: now,
-      changeFrequency: "monthly",
+      changeFrequency: "weekly",
       priority: 0.9,
     },
     {
       url: `${baseUrl}/privacy`,
-      lastModified: now,
-      changeFrequency: "yearly",
-      priority: 0.3,
-    },
-    {
-      url: `${baseUrl}/hipaa`,
       lastModified: now,
       changeFrequency: "yearly",
       priority: 0.3,
@@ -45,4 +44,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.3,
     },
   ];
+
+  const serviceRoutes: MetadataRoute.Sitemap = services.map((s) => ({
+    url: `${baseUrl}/book?service=${s.id}`,
+    lastModified: now,
+    changeFrequency: "weekly",
+    priority: 0.8,
+  }));
+
+  return [...staticRoutes, ...serviceRoutes];
 }

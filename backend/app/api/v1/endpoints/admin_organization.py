@@ -1,15 +1,16 @@
-from typing import List
+from typing import List, Optional, Union
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.api.deps import get_organization_service, require_admin
+from app.api.deps import get_organization_service, require_admin, require_platform_owner
 from app.application.dtos.organization_dto import (
     LocationCreateRequest,
     LocationResponse,
     LocationUpdateRequest,
     OrganizationResponse,
     OrganizationUpdateRequest,
+    PaginatedLocationResponse,
 )
 from app.application.dtos.team_dto import TeamMemberStatusRequest
 from app.application.services.organization_service import OrganizationService
@@ -21,8 +22,13 @@ router = APIRouter(prefix="/admin", tags=["Admin Organization"], dependencies=[D
 async def get_organization(
     org_service: OrganizationService = Depends(get_organization_service),
 ) -> OrganizationResponse:
-    """Retrieves top-level practice details."""
+    """Retrieves top-level practice details. 404 if no organization configured."""
     org = await org_service.get_organization()
+    if org is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No organization configured. Create the organization profile first.",
+        )
     return OrganizationResponse(
         id=org.id,
         name=org.name,
@@ -72,13 +78,16 @@ async def update_organization(
     )
 
 
-@router.get("/locations", response_model=List[LocationResponse])
+@router.get("/locations", response_model=Union[PaginatedLocationResponse, List[LocationResponse]])
 async def list_all_locations(
+    page: Optional[int] = Query(None, ge=1, description="Page number starting at 1"),
+    limit: Optional[int] = Query(None, ge=1, le=100, description="Items per page"),
+    search: Optional[str] = Query(None, description="Search filter by name, city, or address"),
     org_service: OrganizationService = Depends(get_organization_service),
-) -> List[LocationResponse]:
-    """Lists all locations including inactive ones."""
+) -> Union[PaginatedLocationResponse, List[LocationResponse]]:
+    """Lists all locations including inactive ones with optional pagination."""
     locations = await org_service.list_locations(include_inactive=True)
-    return [
+    all_responses = [
         LocationResponse(
             id=loc.id,
             organizationId=loc.organization_id,
@@ -92,6 +101,7 @@ async def list_all_locations(
             phone=loc.phone,
             email=loc.email,
             hoursInfo=loc.hours_info,
+            imageUrl=loc.image_url,
             isPrimary=loc.is_primary,
             isActive=loc.is_active,
             displayOrder=loc.display_order,
@@ -100,9 +110,28 @@ async def list_all_locations(
         )
         for loc in locations
     ]
+    if search:
+        q = search.strip().lower()
+        all_responses = [
+            loc for loc in all_responses
+            if q in loc.name.lower()
+            or q in loc.city.lower()
+            or q in loc.addressLine1.lower()
+            or (loc.email and q in loc.email.lower())
+        ]
+
+    if page is not None or limit is not None:
+        p = page or 1
+        l = limit or 20
+        total = len(all_responses)
+        start = (p - 1) * l
+        items = all_responses[start : start + l]
+        return PaginatedLocationResponse(items=items, total=total, page=p, limit=l)
+
+    return all_responses
 
 
-@router.post("/locations", response_model=LocationResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/locations", response_model=LocationResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_platform_owner)])
 async def create_location(
     req: LocationCreateRequest,
     org_service: OrganizationService = Depends(get_organization_service),
@@ -122,6 +151,7 @@ async def create_location(
         phone=loc.phone,
         email=loc.email,
         hoursInfo=loc.hours_info,
+        imageUrl=loc.image_url,
         isPrimary=loc.is_primary,
         isActive=loc.is_active,
         displayOrder=loc.display_order,
@@ -151,6 +181,7 @@ async def update_location(
         phone=loc.phone,
         email=loc.email,
         hoursInfo=loc.hours_info,
+        imageUrl=loc.image_url,
         isPrimary=loc.is_primary,
         isActive=loc.is_active,
         displayOrder=loc.display_order,
@@ -180,9 +211,45 @@ async def toggle_location_status(
         phone=loc.phone,
         email=loc.email,
         hoursInfo=loc.hours_info,
+        imageUrl=loc.image_url,
         isPrimary=loc.is_primary,
         isActive=loc.is_active,
         displayOrder=loc.display_order,
         createdAt=loc.created_at,
         updatedAt=loc.updated_at,
     )
+
+
+@router.delete("/organization", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_platform_owner)])
+async def delete_organization(
+    org_service: OrganizationService = Depends(get_organization_service),
+) -> None:
+    """Deletes the configured organization (admin-only)."""
+    org = await org_service.get_organization()
+    if org is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No organization configured.",
+        )
+    await org_service.delete_organization(org.id)
+    return None
+
+
+@router.delete("/locations/{location_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_platform_owner)])
+async def delete_location(
+    location_id: UUID,
+    org_service: OrganizationService = Depends(get_organization_service),
+) -> None:
+    """Deletes a clinic location (admin-only)."""
+    await org_service.get_location(location_id)  # raises 404 if missing
+    await org_service.delete_location(location_id)
+    return None
+
+
+@router.get("/organization/setup-status")
+async def organization_setup_status(
+    org_service: OrganizationService = Depends(get_organization_service),
+) -> dict:
+    """Reports whether the organization has been configured."""
+    org = await org_service.get_organization()
+    return {"isConfigured": org is not None, "organization": org}

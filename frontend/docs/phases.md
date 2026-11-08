@@ -28,7 +28,6 @@
   - Implemented real dark mode toggle with persistent preference and system sync.
   - Built real structured compliance pages:
     - `/privacy` (labeled for legal review)
-    - `/hipaa` (labeled for legal review)
     - `/accessibility` (physical and digital accommodations)
     - `/terms` (labeled for legal review)
   - Added `error.tsx` (calm, non-alarming route error boundary) and `not-found.tsx` (custom 404).
@@ -98,11 +97,32 @@
   - Replaced solo-dentist layout with scalable multi-doctor medical group presentation (`Doctor.tsx` rendering Clinical Director profile alongside multi-doctor clinical team roster).
   - Implemented multi-location selector tabs in `Visit.tsx` dynamically presenting address, phone, email, hours, and navigation maps per facility.
   - Built dynamic client search index transformation layer without stale hardcoded arrays.
-  - Built reusable `LegalContactBox` across legal pages (`/privacy`, `/terms`, `/hipaa`, `/accessibility`, `404`, `500`) dynamically referencing clinic officer contacts.
+  - Built reusable `LegalContactBox` across legal pages (`/privacy`, `/terms`, `/accessibility`, `404`, `500`) dynamically referencing clinic officer contacts.
   - Verified backend test suite with 32 passing automated tests (100% pass rate).
   - Verified frontend production build with 21 static and dynamic routes compiled without errors.
 
+- [x] **Phase 14: Signature Public Homepage Interactive Upgrades (October 2026)**
+  - Implemented tactile 4-shadow "Lit from Above" Emerald button system (`.btn-premium-emerald`) and secondary variant across all primary CTAs, submit buttons, and active filter tabs.
+  - Refined "Treatments We Offer" (`treatments.tsx`) with smooth horizontal scrolling carousel cards, eager image loading to eliminate transition flash, and tactile 4-shadow booking CTAs.
+  - Upgraded "Our Team" (`our-team.tsx`) to hardware-accelerated pure-CSS 3D cylindrical ring and stage arc carousel (`perspective: 1600px`, dynamic stage arc geometry for counts under 8 to prevent 90-degree edge-on occlusion, custom studio focal framing per doctor, eager image loading, drag gesture, keyboard controls, Urdu RTL inversion, and mobile touch fallback).
+  - Maintained complete zero-em-dash copy rule, zero WebGL constraints, and `prefers-reduced-motion` accessibility standards.
+
 ## Deferred Capabilities (Explicitly Not Built)
+
+- [ ] **Phase 13 Addendum: Public Progressive Booking Flow (October 2026)**
+  - Replaced the public `/book` 6-step wizard with `ProgressiveBookingFlow`
+    (`src/components/booking/progressive-booking-flow.tsx`): 3 pages (Contact &rarr; Waterfall &rarr; Summary)
+    with progressive disclosure, shared UI primitives (`Button`, `Card`, `TextField`),
+    `useReducedMotion` fallbacks, and strict `data-testid` hooks for Playwright.
+  - Wired exclusively to the live public API: `getPublicBookingServices`,
+    `getPublicBookingClinics`, `getPublicBookingDoctors` (real `slotsByDate`), `publicLeadCapture`,
+    `publicLeadUpdate`, `fetchPublicBookingStatus`, `fetchPublicBookingSettings`, and
+    `submitBookingRequest`. All mock datasets and simulated submissions removed.
+  - The legacy `booking-wizard.tsx` is retained and powers the internal
+    `/reception/call-desk` staff workflow only. E2E suites updated to the new journey;
+    call desk tests unchanged.
+  - Known follow-up: public flow conversational copy is inline in the component
+    (BF17 marked PARTIAL until it is extracted into a content module).
 
 - [ ] **Phase 14: Clinical Operations & Integrations (Deferred)**
   - Patient portal, patient-facing login, medical intake forms, and electronic health records (EHR).

@@ -2,13 +2,10 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { RefreshCw, ArrowLeft, Phone } from "lucide-react";
+import { RefreshCw, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getUiCopy } from "@/content/ui-copy";
 
-/**
- * Route-level error boundary that catches unexpected client-side rendering crashes.
- * It displays a polite recovery message offering a retry button or a return to the homepage.
- */
 export default function ErrorBoundary({
   error,
   reset,
@@ -16,8 +13,9 @@ export default function ErrorBoundary({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const copy = getUiCopy("en");
+
   useEffect(() => {
-    // Log unexpected client exceptions
     console.error("Route error boundary caught exception:", error);
   }, [error]);
 
@@ -26,13 +24,13 @@ export default function ErrorBoundary({
       <header className="border-b border-line bg-bone/80 py-4">
         <div className="container-x flex items-center justify-between">
           <Link href="/" className="font-display text-[18px] tracking-tight text-ink">
-            Marlow <span className="text-forest dark:text-emerald-500">Dental</span>
+            Homepage
           </Link>
           <Link
             href="/"
             className="text-xs text-ink-soft hover:text-forest transition-colors"
           >
-            Practice Home
+            {copy.returnToHomepage}
           </Link>
         </div>
       </header>
@@ -45,30 +43,24 @@ export default function ErrorBoundary({
         </h1>
 
         <p className="text-sm sm:text-base leading-relaxed text-ink-soft">
-          The page did not load as expected. Your connection is secure, and you can try refreshing the view or returning to our homepage.
+          The page did not load as expected. Your connection is secure, and you can try refreshing the view or returning to the homepage.
         </p>
 
         <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
           <Button variant="primary" onClick={() => reset()}>
             <RefreshCw className="h-4 w-4" />
-            <span>Try Again</span>
+            <span>{copy.retry}</span>
           </Button>
 
           <Button href="/" variant="secondary">
             <ArrowLeft className="h-4 w-4" />
-            <span>Return to Homepage</span>
+            <span>{copy.returnToHomepage}</span>
           </Button>
-        </div>
-
-        <div className="pt-8 border-t border-line/60 text-xs text-ink-soft">
-          <p>
-            If you need immediate scheduling or have an urgent clinical inquiry, please return to our homepage or use our online appointment reservation request form.
-          </p>
         </div>
       </main>
 
       <footer className="border-t border-line py-6 text-center text-xs text-ink-soft/75">
-        <p>&copy; {new Date().getFullYear()} Private Dental Practice Facility. All rights reserved.</p>
+        <p>&copy; {new Date().getFullYear()}. {copy.allRightsReserved}</p>
       </footer>
     </div>
   );

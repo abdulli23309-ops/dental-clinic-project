@@ -58,12 +58,34 @@ All shadows use warm-black undertones (`rgba(20, 20, 15, ...)`), avoiding harsh 
 - **Modal (`--shadow-modal`)**: `0 25px 60px -15px rgba(20, 20, 15, 0.3)`
 
 ## 5. UI Primitives
-- **`Button`**: Pill-shaped (`rounded-full`), primary (filled forest) and outline variants. Features subtle hover lift (`-translate-y-0.5` + shadow increase) and active press (`scale-[0.98]`).
+- **`Button`**: Pill-shaped (`rounded-full`), primary (tactile 4-shadow emerald), secondary (tactile warm ivory / charcoal slate), outline, and ghost variants.
+  - **Tactile 4-Shadow "Lit from Above" System (`.btn-premium-emerald`)**: Top-lit subtle gradient (`#194a36` to `#0d2b1f` in light mode, `#246349` to `#123828` in dark mode) paired with a 4-layer box-shadow:
+    1. Specular top-edge highlight: `inset 0 1px 0 rgba(255, 255, 255, 0.35)`
+    2. Bottom-edge inner shade: `inset 0 -2px 0 rgba(0, 0, 0, 0.25)`
+    3. Contact shadow: `0 1px 2px rgba(0, 0, 0, 0.50)`
+    4. Ambient emerald glow: `0 8px 24px -6px var(--color-btn-emerald-glow)`
+  - **Active / Pressed State (`:active`)**: Physically depresses by `translateY(1px)`, flipping shadow to recessed `inset 0 2px 4px rgba(0, 0, 0, 0.40)` to eliminate specular bounce.
 - **`Card`**: Surface container using `--radius-card` (4px) and warm shadow classes.
 - **`SectionHeading`**: Consolidates eyebrow, fluid heading, and optional description.
 - **`TextField`**: Accessible label-linked input with `htmlFor`, inline error messages, and `aria-live="polite"`.
 
-## 6. Motion & Animation Standards
+## 6. Signature Interactive Components
+
+### 6.1 Horizontal Scrolling Treatment Directory (`treatments.tsx`)
+- **Category Filter Tabs**: Dynamic category pills (`All Treatments`, `Preventive`, `Restorative`, `Cosmetic`, `Emergency`) with the active tab highlighted using the tactile 4-shadow `.btn-premium-emerald` button style.
+- **Horizontal Scrolling Cards Deck**: Hardware-accelerated smooth snapping carousel with left and right navigation chevrons.
+- **Individual Treatment Cards**: Features high-resolution clinical imagery with eager loading to prevent image flash, category chip, duration badge (`Clock` + duration), procedural description, fee indicator (`From Rs. X`), and tactile 4-shadow `.btn-premium-emerald` booking CTA.
+- **Signature Checkup Banner**: Diagnostic exam callout upgraded with the tactile 4-shadow emerald CTA.
+
+### 6.2 Pure-CSS 3D Cylindrical Ring & Stage Arc (`our-team.tsx`)
+- **Hardware-Accelerated 3D Transform**: Parent stage utilizes `perspective: 1600px` with central `.team-3d-ring` (`transform-style: preserve-3d`).
+- **Equiangular Cylinder Geometry ($n \ge 8$)**: For full rosters ($n = 18$ All, $n = 10$ Islamabad), cards form an equiangular 360-degree cylinder ring with dynamically calculated chord radius $r = \max(420, \text{round}((W + G) / (2 \cdot \tan(\pi / n))))$.
+- **Stage Arc Geometry ($n < 8$)**: Prevents 90-degree edge-on card occlusion on small filter subsets (e.g. Lahore with 4 clinicians, Karachi with 2 or 4 clinicians) by switching to an open 28-degree curved stage arc ($r = 580\text{px}$) keeping all doctors visible and facing forward.
+- **Doctor Portrait Framing**: Taller 255px portrait box with custom focal point mapping (`object-[50%_65%] scale-110` for Dr. Maral, `object-[50%_25%]` for Dr. Bilal, `object-[50%_15%]` for standard studio framing) and eager sync image loading.
+- **Interactivity & RTL**: Direct click-to-front navigation, continuous pointer drag with momentum snap, keyboard arrow navigation, and inverted rotation for Urdu RTL mode.
+- **Mobile & Accessibility Fallbacks**: Viewports under `lg` or clients with `prefers-reduced-motion: reduce` gracefully transition to an accelerated touch-snapping horizontal carousel.
+
+## 7. Motion & Animation Standards
 - **Section Reveals**: `whileInView`, `opacity: 0 -> 1`, `y: 12-16px -> 0`, duration `0.35-0.45s`, threshold `0.2`.
 - **List Staggering**: 60–80ms interval, capped under 350ms total.
 - **FAQ Accordion**: Hardware-accelerated CSS `grid-template-rows: 0fr -> 1fr` duration `300ms ease-out`.

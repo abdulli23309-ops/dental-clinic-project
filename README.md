@@ -1,6 +1,6 @@
 # Marlow Dental — Clinic Web Platform & Appointment API
 
-A production-grade web platform, administrative CMS, and appointment scheduling system for **Marlow Dental Medical Complex**, a multidisciplinary dental group founded by Dr. Sarah Marlow, DDS in Lincoln Park, Chicago.
+A production-grade web platform, administrative CMS, and appointment scheduling system for **Marlow Dental Medical Complex**, a multidisciplinary dental group founded by Dr. Sarah Marlow, BDS in Islamabad, Pakistan.
 
 This repository is maintained as a clean, decoupled monorepo containing:
 1. **Frontend**: Next.js 16.3 (React 19, TypeScript, Tailwind CSS v4, Motion 12) App Router web application.
@@ -209,7 +209,7 @@ cp .env.example .env
 Open `backend/.env` in your code editor and verify your database connection string:
 
 ```env
-DATABASE_URL=postgresql+asyncpg://postgres:YOUR_POSTGRES_PASSWORD@localhost:5432/dentai_dev
+DATABASE_URL=postgresql+asyncpg://<username>:<password>@localhost:5432/dental_dev
 JWT_SECRET_KEY=dev-jwt-secret-key-32-chars-minimum
 REFRESH_SECRET_KEY=dev-refresh-secret-key-32-chars-minimum
 ACCESS_TOKEN_EXPIRE_MINUTES=10080

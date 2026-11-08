@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -16,10 +16,16 @@ class ServiceCreateRequest(BaseModel):
     code: Optional[str] = None
     insuranceNote: Optional[str] = None
     recommendedInterval: Optional[str] = None
+    recallIntervalDays: Optional[int] = None
     displayOrder: int = 0
     isHighlighted: bool = False
     isPublic: bool = True
     isActive: bool = True
+    bookableOnline: bool = True
+    bufferMinutes: int = 0
+    imageUrl: Optional[str] = None
+    providerIds: Optional[List[UUID]] = None
+    clinicIds: Optional[List[UUID]] = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -36,10 +42,16 @@ class ServiceUpdateRequest(BaseModel):
     code: Optional[str] = None
     insuranceNote: Optional[str] = None
     recommendedInterval: Optional[str] = None
+    recallIntervalDays: Optional[int] = None
     displayOrder: Optional[int] = None
     isHighlighted: Optional[bool] = None
     isPublic: Optional[bool] = None
     isActive: Optional[bool] = None
+    bookableOnline: Optional[bool] = None
+    bufferMinutes: Optional[int] = None
+    imageUrl: Optional[str] = None
+    providerIds: Optional[List[UUID]] = None
+    clinicIds: Optional[List[UUID]] = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -62,11 +74,61 @@ class ServiceResponse(BaseModel):
     code: Optional[str] = None
     insuranceNote: Optional[str] = None
     recommendedInterval: Optional[str] = None
+    recallIntervalDays: Optional[int] = None
     displayOrder: int
     isHighlighted: bool
     isActive: bool
     isPublic: bool
+    bookableOnline: bool = True
+    bufferMinutes: int = 0
+    imageUrl: Optional[str] = None
+    providerIds: List[UUID] = []
+    clinicIds: List[UUID] = []
     createdAt: datetime
     updatedAt: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ServiceClinicMatrixItem(BaseModel):
+    serviceId: UUID
+    serviceTitle: str
+    serviceSlug: str
+    category: str
+    isActive: bool
+    offeredClinicIds: List[UUID]
+    assignedDoctorIds: List[UUID]
+
+
+class ClinicMatrixClinicItem(BaseModel):
+    id: UUID
+    name: str
+    city: str
+    isPrimary: bool
+
+
+class ClinicMatrixServiceItem(BaseModel):
+    id: UUID
+    slug: str
+    title: str
+    category: str
+    code: Optional[str] = None
+    isActive: bool = True
+    clinicIds: List[UUID] = []
+    providerIds: List[UUID] = []
+
+
+class ClinicMatrixResponse(BaseModel):
+    clinics: List[ClinicMatrixClinicItem]
+    matrix: List[ServiceClinicMatrixItem] = []
+    services: List[ClinicMatrixServiceItem] = []
+
+
+class ServiceClinicsUpdateRequest(BaseModel):
+    clinicIds: List[UUID]
+
+
+class ServiceProvidersUpdateRequest(BaseModel):
+    providerIds: List[UUID]
+
+

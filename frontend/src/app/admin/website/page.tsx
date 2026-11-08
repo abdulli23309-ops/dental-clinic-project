@@ -2,42 +2,92 @@
 
 import { useEffect, useState } from "react";
 import {
+  Camera,
   Check,
   Globe,
   HelpCircle,
+  Image as ImageIcon,
   Info,
   Layers,
   MessageSquare,
   Phone,
   Plus,
   Save,
+  Star,
   Trash2,
+  Upload,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { TextField } from "@/components/ui/text-field";
+import { AnimatedView } from "@/components/ui/animated-view";
+import { motion } from "motion/react";
 import { useAuth } from "@/components/providers/auth-provider";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import {
   adminCreateFaq,
   adminGetCmsSection,
   adminGetFaqs,
+  adminReorderFaqs,
   adminToggleFaqStatus,
   adminUpdateCmsSection,
   adminUpdateFaq,
+  adminUploadMedia,
   FaqItem,
+  // Stage-2: Reviews, Blogs, Social Links
+  adminCreateBlogPost,
+  adminCreateReview,
+  adminCreateSocialLink,
+  adminDeleteBlogPost,
+  adminDeleteReview,
+  adminDeleteSocialLink,
+  adminListBlogPosts,
+  adminListReviews,
+  adminListSocialLinks,
+  adminUpdateBlogPost,
+  adminUpdateReview,
+  adminUpdateSocialLink,
+  BlogPost,
+  Review,
+  SocialLink,
+  getSiteContent,
+  resolveMediaUrl,
+  // Gallery
+  adminCreateGalleryImage,
+  adminDeleteGalleryImage,
+  adminGetGallery,
+  GalleryImageItem,
 } from "@/lib/api";
+import { usePublicContent } from "@/components/providers/public-content-provider";
 
-type SectionTab = "general" | "homepage" | "about" | "contact" | "faq" | "seo";
+// Aliases matching user-specified signatures
+const adminCreateGallery = adminCreateGalleryImage;
+const adminDeleteGallery = adminDeleteGalleryImage;
+
+type SectionTab =
+  | "general"
+  | "homepage"
+  | "about"
+  | "contact"
+  | "faq"
+  | "seo"
+  | "success-stories"
+  | "blogs"
+  | "social-links"
+  | "gallery";
 
 export default function AdminWebsitePage() {
   const { accessToken } = useAuth();
+  const { refreshPublicContent } = usePublicContent();
   const [activeTab, setActiveTab] = useState<SectionTab>("general");
 
   // Form states per section
   const [generalData, setGeneralData] = useState<any>({
     practiceName: "",
+    shortBrandName: "",
     tagline: "",
+    logoUrl: "",
     phone: "",
     email: "",
     address: "",
@@ -52,6 +102,7 @@ export default function AdminWebsitePage() {
     heroCtaLink: "",
     heroSecondaryCtaText: "",
     heroSecondaryCtaLink: "",
+    heroImageUrl: "",
   });
 
   const [aboutData, setAboutData] = useState<any>({
@@ -80,8 +131,71 @@ export default function AdminWebsitePage() {
   const [newFaq, setNewFaq] = useState({ category: "pricing", question: "", answer: "" });
   const [showAddFaq, setShowAddFaq] = useState(false);
 
-  const [isLoading, setIsLoading] = useState(true);
+  // Stage-2: Success Stories form state
+  const [reviewForm, setReviewForm] = useState<{
+    authorName: string;
+    rating: number;
+    text: string;
+    sourceLabel: string;
+    displayOrder: number;
+    isPublished: boolean;
+  }>({
+    authorName: "",
+    rating: 5,
+    text: "",
+    sourceLabel: "",
+    displayOrder: 0,
+    isPublished: true,
+  });
+
+  const [blogForm, setBlogForm] = useState<{
+    title: string;
+    slug: string;
+    excerpt: string;
+    body: string;
+    displayOrder: number;
+    isPublished: boolean;
+  }>({
+    title: "",
+    slug: "",
+    excerpt: "",
+    body: "",
+    displayOrder: 0,
+    isPublished: false,
+  });
+
+  // Stage-2: Social Links form state
+  const [socialForm, setSocialForm] = useState<{
+    platform: string;
+    url: string;
+    displayOrder: number;
+    isActive: boolean;
+  }>({
+    platform: "",
+    url: "",
+    displayOrder: 0,
+    isActive: true,
+  });
+
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
+  const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
+  // Gallery state
+  const [galleryImages, setGalleryImages] = useState<GalleryImageItem[]>([]);
+  const [galleryForm, setGalleryForm] = useState<{
+    imageUrl: string;
+    caption: string;
+    displayOrder: number;
+  }>({
+    imageUrl: "",
+    caption: "",
+    displayOrder: 0,
+  });
+  const [isUploadingGallery, setIsUploadingGallery] = useState(false);
+
+  const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -94,6 +208,18 @@ export default function AdminWebsitePage() {
         if (activeTab === "faq") {
           const faqList = await adminGetFaqs(accessToken);
           setFaqs(faqList);
+        } else if (activeTab === "success-stories") {
+          const reviewList = await adminListReviews(accessToken);
+          setReviews(reviewList);
+        } else if (activeTab === "blogs") {
+          const blogList = await adminListBlogPosts(accessToken);
+          setBlogPosts(blogList);
+        } else if (activeTab === "social-links") {
+          const socialList = await adminListSocialLinks(accessToken);
+          setSocialLinks(socialList);
+        } else if (activeTab === "gallery") {
+          const galleryList = await adminGetGallery(accessToken);
+          setGalleryImages(galleryList);
         } else {
           const data = await adminGetCmsSection(activeTab, accessToken);
           if (activeTab === "general") setGeneralData(data);
@@ -120,12 +246,68 @@ export default function AdminWebsitePage() {
 
     try {
       await adminUpdateCmsSection(sectionKey, payload, accessToken);
-      setSaveSuccess(`Website ${sectionKey} section updated successfully.`);
+      // Revalidate server-rendered public cache
+      fetch('/api/revalidate', {
+        method: 'POST',
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+      }).catch(() => {});
+      // Trigger client provider re-fetch and broadcast to other open tabs
+      await refreshPublicContent();
+
+      // Verify that the public endpoint responds with updated content
+      let isLive = false;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        try {
+          const publicData = await getSiteContent();
+          if (publicData) {
+            isLive = true;
+            break;
+          }
+        } catch {
+          // Retry verification
+        }
+        await new Promise((r) => setTimeout(r, 150));
+      }
+
+      setSaveSuccess(isLive ? "Saved. Live on the website now." : `Website ${sectionKey} section updated successfully.`);
       setTimeout(() => setSaveSuccess(null), 4000);
     } catch (err: any) {
       setSaveError(err.message || `Failed to update ${sectionKey} section.`);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleUploadImage = async (
+    file: File,
+    field: "logoUrl" | "heroImageUrl",
+    section: "general" | "homepage"
+  ) => {
+    if (!accessToken) return;
+    if (file.size > 15 * 1024 * 1024) {
+      setSaveError("File exceeds maximum allowed size of 15MB.");
+      return;
+    }
+    setIsUploading(true);
+    setSaveError(null);
+    try {
+      const { url } = await adminUploadMedia(file, accessToken);
+      if (section === "general") {
+        setGeneralData((prev: any) => ({ ...prev, [field]: url }));
+      } else {
+        setHomepageData((prev: any) => ({ ...prev, [field]: url }));
+      }
+      const isJpeg = file.type === "image/jpeg" || /\.(jpe?g)$/i.test(file.name);
+      if (isJpeg) {
+        setSaveSuccess("Image uploaded. Note: JPEG images do not support transparency and will show a solid white box. For best results across light and dark themes, please upload a transparent PNG or WebP. Click Save to persist.");
+      } else {
+        setSaveSuccess("Image uploaded. Click Save to persist the change.");
+      }
+      setTimeout(() => setSaveSuccess(null), 5000);
+    } catch (err: any) {
+      setSaveError(err.message || "Image upload failed.");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -166,7 +348,237 @@ export default function AdminWebsitePage() {
     }
   };
 
+  const handleMoveFaq = async (index: number, direction: -1 | 1) => {
+    if (!accessToken) return;
+    const target = index + direction;
+    if (target < 0 || target >= faqs.length) return;
+    const ordered = [...faqs];
+    const [moved] = ordered.splice(index, 1);
+    ordered.splice(target, 0, moved);
+    try {
+      await adminReorderFaqs(ordered.map((f) => f.id), accessToken);
+      setFaqs(ordered);
+      setSaveSuccess("FAQ display order saved.");
+      setTimeout(() => setSaveSuccess(null), 3000);
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to reorder FAQs.");
+    }
+  };
+
+  // Review Handlers
+  const handleAddReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!accessToken || !reviewForm.authorName.trim() || !reviewForm.text.trim()) return;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      await adminCreateReview(
+        {
+          authorName: reviewForm.authorName.trim(),
+          rating: Number(reviewForm.rating),
+          text: reviewForm.text.trim(),
+          sourceLabel: reviewForm.sourceLabel.trim() || "Google",
+          isPublished: reviewForm.isPublished,
+          displayOrder: reviews.length,
+        },
+        accessToken
+      );
+      setReviewForm({
+        authorName: "",
+        rating: 5,
+        text: "",
+        sourceLabel: "",
+        displayOrder: 0,
+        isPublished: true,
+      });
+      const updated = await adminListReviews(accessToken);
+      setReviews(updated);
+      setSaveSuccess("Review created successfully.");
+      setTimeout(() => setSaveSuccess(null), 4000);
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to create review.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteReview = async (id: string) => {
+    if (!accessToken) return;
+    try {
+      await adminDeleteReview(id, accessToken);
+      const updated = await adminListReviews(accessToken);
+      setReviews(updated);
+      setSaveSuccess("Review deleted successfully.");
+      setTimeout(() => setSaveSuccess(null), 4000);
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to delete review.");
+    }
+  };
+
+  // Blog Handlers
+  const handleAddBlog = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!accessToken || !blogForm.title.trim() || !blogForm.slug.trim()) return;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      await adminCreateBlogPost(
+        {
+          title: blogForm.title.trim(),
+          slug: blogForm.slug.trim(),
+          excerpt: blogForm.excerpt.trim() || undefined,
+          body: blogForm.body.trim() || undefined,
+          isPublished: blogForm.isPublished,
+          displayOrder: blogPosts.length,
+        },
+        accessToken
+      );
+      setBlogForm({
+        title: "",
+        slug: "",
+        excerpt: "",
+        body: "",
+        displayOrder: 0,
+        isPublished: false,
+      });
+      const updated = await adminListBlogPosts(accessToken);
+      setBlogPosts(updated);
+      setSaveSuccess("Blog post created successfully.");
+      setTimeout(() => setSaveSuccess(null), 4000);
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to create blog post.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteBlog = async (id: string) => {
+    if (!accessToken) return;
+    try {
+      await adminDeleteBlogPost(id, accessToken);
+      const updated = await adminListBlogPosts(accessToken);
+      setBlogPosts(updated);
+      setSaveSuccess("Blog post deleted successfully.");
+      setTimeout(() => setSaveSuccess(null), 4000);
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to delete blog post.");
+    }
+  };
+
+  // Social Link Handlers
+  const handleAddSocial = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!accessToken || !socialForm.platform.trim() || !socialForm.url.trim()) return;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      await adminCreateSocialLink(
+        {
+          platform: socialForm.platform.trim().toLowerCase(),
+          url: socialForm.url.trim(),
+          displayOrder: socialLinks.length,
+          isActive: socialForm.isActive,
+        },
+        accessToken
+      );
+      setSocialForm({
+        platform: "",
+        url: "",
+        displayOrder: 0,
+        isActive: true,
+      });
+      const updated = await adminListSocialLinks(accessToken);
+      setSocialLinks(updated);
+      setSaveSuccess("Social link added successfully.");
+      setTimeout(() => setSaveSuccess(null), 4000);
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to add social link.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteSocial = async (id: string) => {
+    if (!accessToken) return;
+    try {
+      await adminDeleteSocialLink(id, accessToken);
+      const updated = await adminListSocialLinks(accessToken);
+      setSocialLinks(updated);
+      setSaveSuccess("Social link deleted successfully.");
+      setTimeout(() => setSaveSuccess(null), 4000);
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to delete social link.");
+    }
+  };
+
+  // Gallery Handlers
+  const handleUploadGalleryImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !accessToken) return;
+    if (file.size > 15 * 1024 * 1024) {
+      setSaveError("File exceeds maximum allowed size of 15MB.");
+      return;
+    }
+    setIsUploadingGallery(true);
+    setSaveError(null);
+    try {
+      const res = await adminUploadMedia(file, accessToken);
+      setGalleryForm((prev) => ({ ...prev, imageUrl: res.url }));
+      setSaveSuccess("Image uploaded successfully.");
+      setTimeout(() => setSaveSuccess(null), 3000);
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to upload image.");
+    } finally {
+      setIsUploadingGallery(false);
+    }
+  };
+
+  const handleAddGalleryImage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!accessToken || !galleryForm.imageUrl.trim()) return;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      await adminCreateGallery(
+        {
+          imageUrl: galleryForm.imageUrl.trim(),
+          caption: galleryForm.caption.trim() || undefined,
+          displayOrder: galleryImages.length,
+          isActive: true,
+        },
+        accessToken
+      );
+      setGalleryForm({
+        imageUrl: "",
+        caption: "",
+        displayOrder: 0,
+      });
+      const updated = await adminGetGallery(accessToken);
+      setGalleryImages(updated);
+      setSaveSuccess("Gallery image added successfully.");
+      setTimeout(() => setSaveSuccess(null), 4000);
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to add gallery image.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteGalleryImage = async (id: string) => {
+    if (!accessToken) return;
+    try {
+      await adminDeleteGallery(id, accessToken);
+      const updated = await adminGetGallery(accessToken);
+      setGalleryImages(updated);
+      setSaveSuccess("Gallery image deleted successfully.");
+      setTimeout(() => setSaveSuccess(null), 4000);
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to delete gallery image.");
+    }
+  };
+
   return (
+  <AnimatedPage>
     <div className="space-y-6 max-w-5xl">
       {/* Page Title */}
       <div className="border-b border-line pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -206,10 +618,14 @@ export default function AdminWebsitePage() {
         {[
           { id: "general", label: "General & Branding", icon: Globe },
           { id: "homepage", label: "Homepage Hero", icon: Layers },
+          { id: "gallery", label: "Gallery", icon: ImageIcon },
           { id: "about", label: "About Story", icon: Info },
           { id: "contact", label: "Contact & Hours", icon: Phone },
           { id: "faq", label: "FAQ Items", icon: HelpCircle },
           { id: "seo", label: "Search & SEO", icon: MessageSquare },
+          { id: "success-stories", label: "Success Stories", icon: Check },
+          { id: "blogs", label: "Blogs", icon: Layers },
+          { id: "social-links", label: "Social Links", icon: Globe },
         ].map((tab) => {
           const isActive = activeTab === tab.id;
           const Icon = tab.icon;
@@ -217,16 +633,25 @@ export default function AdminWebsitePage() {
             <button
               key={tab.id}
               role="tab"
+              id={`tab-${tab.id}`}
+              data-tab={tab.id}
               aria-selected={isActive}
               onClick={() => setActiveTab(tab.id as SectionTab)}
-              className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-medium transition-all cursor-pointer ${
+              className={`relative inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-medium transition-all cursor-pointer select-none ${
                 isActive
-                  ? "bg-forest text-[#FAF7F2] shadow-subtle"
+                  ? "text-[#FAF7F2] shadow-subtle"
                   : "bg-cream text-ink-soft hover:text-ink hover:bg-sand/60 border border-line/60"
               }`}
             >
-              <Icon className="h-3.5 w-3.5" />
-              <span>{tab.label}</span>
+              {isActive && (
+                <motion.div
+                  layoutId="adminWebsiteTabIndicator"
+                  className="absolute inset-0 rounded-full bg-forest"
+                  transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                />
+              )}
+              <Icon className="relative z-10 h-3.5 w-3.5" />
+              <span className="relative z-10">{tab.label}</span>
             </button>
           );
         })}
@@ -237,10 +662,10 @@ export default function AdminWebsitePage() {
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-forest border-t-transparent" />
         </div>
       ) : (
-        <>
+        <AnimatedView viewKey={activeTab}>
           {/* 1. GENERAL SECTION */}
           {activeTab === "general" && (
-            <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6">
+            <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={0}>
               <h2 className="text-lg font-display text-ink">General Clinic Branding</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <TextField
@@ -248,43 +673,87 @@ export default function AdminWebsitePage() {
                   label="Practice Name"
                   value={generalData.practiceName || ""}
                   onChange={(e) => setGeneralData({ ...generalData, practiceName: e.target.value })}
-                  placeholder="Marlow Dental"
+                  placeholder="Your Clinic Name"
+                />
+                <TextField
+                  id="short-brand-name"
+                  label="Short Brand Name (Navbar, max 24 chars)"
+                  value={generalData.shortBrandName || ""}
+                  maxLength={24}
+                  onChange={(e) => setGeneralData({ ...generalData, shortBrandName: e.target.value.slice(0, 24) })}
+                  placeholder="e.g. Marlow Dental"
                 />
                 <TextField
                   id="general-tagline"
                   label="Tagline"
                   value={generalData.tagline || ""}
                   onChange={(e) => setGeneralData({ ...generalData, tagline: e.target.value })}
-                  placeholder="Comprehensive, unhurried dental care..."
+                  placeholder="Your clinic tagline..."
                 />
                 <TextField
                   id="general-phone"
                   label="Clinic Telephone"
                   value={generalData.phone || ""}
                   onChange={(e) => setGeneralData({ ...generalData, phone: e.target.value })}
-                  placeholder="(312) 555-0147"
+                  placeholder="(000) 000-0000"
                 />
                 <TextField
                   id="general-emergency-phone"
                   label="Emergency Telephone"
                   value={generalData.emergencyPhone || ""}
                   onChange={(e) => setGeneralData({ ...generalData, emergencyPhone: e.target.value })}
-                  placeholder="(312) 555-0199"
+                  placeholder="(000) 000-0001"
                 />
                 <TextField
                   id="general-email"
                   label="Contact Email"
                   value={generalData.email || ""}
                   onChange={(e) => setGeneralData({ ...generalData, email: e.target.value })}
-                  placeholder="care@marlowdental.com"
+                  placeholder="clinic@example.com"
                 />
                 <TextField
                   id="general-address"
                   label="Physical Address"
                   value={generalData.address || ""}
                   onChange={(e) => setGeneralData({ ...generalData, address: e.target.value })}
-                  placeholder="214 Alder Street, Suite 3, Chicago, IL 60614"
+                  placeholder="e.g. Clinic Address"
                 />
+              </div>
+
+              {/* Logo Upload */}
+              <div>
+                <label className="block text-xs font-medium text-ink mb-1.5">
+                  Clinic Logo
+                </label>
+                <div className="flex items-center gap-3">
+                  {generalData.logoUrl && (
+                    <img
+                      src={resolveMediaUrl(generalData.logoUrl) || generalData.logoUrl}
+                      alt="Current logo"
+                      className="h-10 w-10 object-contain rounded-lg border border-line bg-transparent p-0.5"
+                    />
+                  )}
+                  <input
+                    type="file"
+                    accept="image/png,image/webp,image/svg+xml,image/jpeg,.png,.webp,.svg,.jpg,.jpeg"
+                    disabled={isUploading}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleUploadImage(file, "logoUrl", "general");
+                      e.target.value = "";
+                    }}
+                    className="block text-xs text-ink-soft file:mr-3 file:rounded-full file:border file:border-line file:bg-bone file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-ink file:cursor-pointer hover:file:bg-sand/60 disabled:opacity-50"
+                  />
+                  {isUploading && (
+                    <span className="text-xs text-ink-soft">Uploading…</span>
+                  )}
+                </div>
+                <p className="mt-1.5 text-[11px] text-ink-soft">
+                  Accepted formats: PNG, WebP, SVG, JPG. Transparent PNG or WebP recommended to avoid white background boxes in dark/light modes.
+                </p>
+                {generalData.logoUrl && (
+                  <p className="mt-0.5 text-[11px] text-ink-soft/70 truncate">{generalData.logoUrl}</p>
+                )}
               </div>
 
               <div className="pt-4 border-t border-line/60 flex justify-end">
@@ -303,7 +772,7 @@ export default function AdminWebsitePage() {
 
           {/* 2. HOMEPAGE SECTION */}
           {activeTab === "homepage" && (
-            <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6">
+            <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={1}>
               <h2 className="text-lg font-display text-ink">Homepage Hero &amp; Messaging</h2>
               <div className="space-y-4">
                 <TextField
@@ -358,6 +827,39 @@ export default function AdminWebsitePage() {
                 </div>
               </div>
 
+              {/* Hero Image Upload */}
+              <div>
+                <label className="block text-xs font-medium text-ink mb-1.5">
+                  Hero Image
+                </label>
+                <div className="flex items-center gap-3">
+                  {homepageData.heroImageUrl && (
+                    <img
+                      src={homepageData.heroImageUrl}
+                      alt="Current hero"
+                      className="h-16 w-24 rounded-lg object-cover border border-line bg-bone"
+                    />
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={isUploading}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleUploadImage(file, "heroImageUrl", "homepage");
+                      e.target.value = "";
+                    }}
+                    className="block text-xs text-ink-soft file:mr-3 file:rounded-full file:border file:border-line file:bg-bone file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-ink file:cursor-pointer hover:file:bg-sand/60 disabled:opacity-50"
+                  />
+                  {isUploading && (
+                    <span className="text-xs text-ink-soft">Uploading…</span>
+                  )}
+                </div>
+                {homepageData.heroImageUrl && (
+                  <p className="mt-1 text-[11px] text-ink-soft/70 truncate">{homepageData.heroImageUrl}</p>
+                )}
+              </div>
+
               <div className="pt-4 border-t border-line/60 flex justify-end">
                 <Button
                   onClick={() => handleSaveSection("homepage", homepageData)}
@@ -374,7 +876,7 @@ export default function AdminWebsitePage() {
 
           {/* 3. ABOUT SECTION */}
           {activeTab === "about" && (
-            <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6">
+            <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={2}>
               <h2 className="text-lg font-display text-ink">About Practice &amp; Story</h2>
               <div className="space-y-4">
                 <TextField
@@ -430,7 +932,7 @@ export default function AdminWebsitePage() {
 
           {/* 4. CONTACT SECTION */}
           {activeTab === "contact" && (
-            <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6">
+            <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={3}>
               <h2 className="text-lg font-display text-ink">Contact Details &amp; Operating Hours</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <TextField
@@ -461,9 +963,17 @@ export default function AdminWebsitePage() {
 
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="contact-hours" className="block text-xs font-medium text-ink mb-1.5">
-                    Operating Hours Summary
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label htmlFor="contact-hours" className="block text-xs font-medium text-ink">
+                      Operating Hours Summary (Legacy Fallback)
+                    </label>
+                    <a
+                      href="/admin/booking"
+                      className="text-[11px] text-forest hover:underline font-medium"
+                    >
+                      Edit single-source hours in Booking Settings →
+                    </a>
+                  </div>
                   <textarea
                     id="contact-hours"
                     rows={3}
@@ -471,6 +981,9 @@ export default function AdminWebsitePage() {
                     onChange={(e) => setContactData({ ...contactData, hoursSummary: e.target.value })}
                     className="w-full rounded-[var(--radius-card)] border border-line bg-bone px-3.5 py-2.5 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-forest"
                   />
+                  <p className="text-[11px] text-ink-soft/70 mt-1">
+                    Standard clinic hours and closures are managed in <a href="/admin/booking" className="underline text-forest font-medium">Booking Settings</a> as the single source of truth. This field is preserved only as a fallback.
+                  </p>
                 </div>
                 <TextField
                   id="contact-transit"
@@ -517,7 +1030,7 @@ export default function AdminWebsitePage() {
 
               {/* Add FAQ Form */}
               {showAddFaq && (
-                <Card surface="cream" shadow="card" className="p-6 space-y-4">
+                <Card surface="cream" shadow="card" className="p-6 space-y-4" hoverLift={true} index={4}>
                   <h3 className="text-sm font-semibold text-ink">Add New FAQ Question</h3>
                   <form onSubmit={handleAddFaq} className="space-y-4">
                     <div>
@@ -531,7 +1044,7 @@ export default function AdminWebsitePage() {
                         className="w-full rounded-[var(--radius-card)] border border-line bg-bone px-3.5 py-2 text-xs text-ink"
                       >
                         <option value="pricing">Pricing &amp; Estimates</option>
-                        <option value="insurance">Insurance &amp; PPO</option>
+                        <option value="general">General Information</option>
                         <option value="comfort">Anxiety &amp; Comfort</option>
                         <option value="scheduling">Appointments &amp; Scheduling</option>
                       </select>
@@ -579,7 +1092,7 @@ export default function AdminWebsitePage() {
                     surface={faq.isActive === false ? "sand" : "cream"}
                     shadow="subtle"
                     className="p-5 flex flex-col sm:flex-row sm:items-start justify-between gap-4"
-                  >
+                   hoverLift={true} index={5}>
                     <div className="space-y-1.5 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="rounded-full bg-forest/10 px-2 py-0.5 text-[10px] font-semibold text-forest uppercase">
@@ -600,6 +1113,27 @@ export default function AdminWebsitePage() {
                     </div>
 
                     <div className="flex items-center gap-2">
+                      <div className="flex flex-col gap-0.5 mr-1" role="group" aria-label="Reorder FAQ">
+                        <button
+                          type="button"
+                          onClick={() => handleMoveFaq(faqs.indexOf(faq), -1)}
+                          disabled={faqs.indexOf(faq) === 0}
+                          aria-label={`Move FAQ up`}
+                          className="h-5 w-6 rounded border border-line text-ink-soft hover:text-ink hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed text-[10px] leading-none"
+                        >
+                          ▲
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleMoveFaq(faqs.indexOf(faq), 1)}
+                          disabled={faqs.indexOf(faq) === faqs.length - 1}
+                          aria-label={`Move FAQ down`}
+                          className="h-5 w-6 rounded border border-line text-ink-soft hover:text-ink hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed text-[10px] leading-none"
+                        >
+                          ▼
+                        </button>
+                      </div>
+
                       <Button
                         onClick={() => handleToggleFaq(faq.id, faq.isActive !== false)}
                         variant="secondary"
@@ -616,7 +1150,7 @@ export default function AdminWebsitePage() {
 
           {/* 6. SEO SECTION */}
           {activeTab === "seo" && (
-            <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6">
+            <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={6}>
               <h2 className="text-lg font-display text-ink">Metadata &amp; Search Engine Optimization</h2>
               <div className="space-y-4">
                 <TextField
@@ -652,8 +1186,527 @@ export default function AdminWebsitePage() {
               </div>
             </Card>
           )}
-        </>
+
+          {/* 7. SUCCESS STORIES (REVIEWS) SECTION */}
+          {activeTab === "success-stories" && (
+            <div className="space-y-6">
+              <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-5" hoverLift={false} index={7}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-display text-ink">Add New Review (Success Story)</h2>
+                    <p className="text-xs text-ink-soft">Add patient testimonials and external reviews.</p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleAddReview} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <TextField
+                      id="review-author"
+                      label="Author Name"
+                      value={reviewForm.authorName}
+                      onChange={(e) => setReviewForm({ ...reviewForm, authorName: e.target.value })}
+                      placeholder="e.g. Jane D."
+                      required
+                    />
+
+                    <div>
+                      <label htmlFor="review-rating" className="block text-xs font-medium text-ink mb-1.5">
+                        Rating (1-5)
+                      </label>
+                      <select
+                        id="review-rating"
+                        value={reviewForm.rating}
+                        onChange={(e) => setReviewForm({ ...reviewForm, rating: Number(e.target.value) })}
+                        className="w-full rounded-[var(--radius-card)] border border-line bg-bone px-3.5 py-2 text-xs text-ink"
+                      >
+                        <option value={5}>5 Stars - Excellent</option>
+                        <option value={4}>4 Stars - Great</option>
+                        <option value={3}>3 Stars - Good</option>
+                        <option value={2}>2 Stars - Fair</option>
+                        <option value={1}>1 Star - Poor</option>
+                      </select>
+                    </div>
+
+                    <TextField
+                      id="review-source"
+                      label="Source Label"
+                      value={reviewForm.sourceLabel}
+                      onChange={(e) => setReviewForm({ ...reviewForm, sourceLabel: e.target.value })}
+                      placeholder="e.g. Google, Yelp, Direct"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="review-text" className="block text-xs font-medium text-ink mb-1.5">
+                      Review Text
+                    </label>
+                    <textarea
+                      id="review-text"
+                      rows={3}
+                      value={reviewForm.text}
+                      onChange={(e) => setReviewForm({ ...reviewForm, text: e.target.value })}
+                      placeholder="Write patient testimonial or review quote..."
+                      required
+                      className="w-full rounded-[var(--radius-card)] border border-line bg-bone px-3.5 py-2.5 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-forest"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-ink">
+                      <input
+                        type="checkbox"
+                        checked={reviewForm.isPublished}
+                        onChange={(e) => setReviewForm({ ...reviewForm, isPublished: e.target.checked })}
+                        className="rounded border-line text-forest focus:ring-forest"
+                      />
+                      <span>Publish immediately</span>
+                    </label>
+
+                    <Button type="submit" variant="primary" size="sm" disabled={isSaving}>
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      <span>{isSaving ? "Saving..." : "Add Review"}</span>
+                    </Button>
+                  </div>
+                </form>
+              </Card>
+
+              {/* Reviews List */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-ink">Existing Reviews ({reviews.length})</h3>
+                {reviews.length === 0 ? (
+                  <p className="text-xs text-ink-soft py-4 text-center">No reviews added yet.</p>
+                ) : (
+                  reviews.map((rev) => (
+                    <Card
+                      key={rev.id}
+                      surface={rev.isPublished ? "cream" : "sand"}
+                      shadow="subtle"
+                      className="p-5 flex flex-col sm:flex-row sm:items-start justify-between gap-4"
+                      hoverLift={true}
+                    >
+                      <div className="space-y-1.5 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm text-ink">{rev.authorName}</span>
+                          <span className="flex items-center text-amber-500 text-xs font-semibold">
+                            <Star className="h-3 w-3 fill-amber-400 stroke-amber-500 mr-0.5" />
+                            {rev.rating}/5
+                          </span>
+                          {rev.sourceLabel && (
+                            <span className="rounded-full bg-forest/10 px-2 py-0.5 text-[10px] font-semibold text-forest">
+                              {rev.sourceLabel}
+                            </span>
+                          )}
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                              rev.isPublished
+                                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                            }`}
+                          >
+                            {rev.isPublished ? "Published" : "Draft"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-ink-soft leading-relaxed">{rev.text}</p>
+                      </div>
+
+                      <Button
+                        onClick={() => handleDeleteReview(rev.id)}
+                        variant="secondary"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-1" />
+                        <span>Delete</span>
+                      </Button>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 8. BLOGS SECTION */}
+          {activeTab === "blogs" && (
+            <div className="space-y-6">
+              <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-5" hoverLift={false} index={8}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-display text-ink">Add New Blog Post</h2>
+                    <p className="text-xs text-ink-soft">Create educational and clinical blog articles.</p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleAddBlog} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <TextField
+                      id="blog-title"
+                      label="Post Title"
+                      value={blogForm.title}
+                      onChange={(e) => {
+                        const title = e.target.value;
+                        const slug = title
+                          .toLowerCase()
+                          .replace(/[^a-z0-9]+/g, "-")
+                          .replace(/^-|-$/g, "");
+                        setBlogForm({ ...blogForm, title, slug: blogForm.slug ? blogForm.slug : slug });
+                      }}
+                      placeholder="e.g. Modern Preventive Dental Care"
+                      required
+                    />
+
+                    <TextField
+                      id="blog-slug"
+                      label="URL Slug"
+                      value={blogForm.slug}
+                      onChange={(e) => setBlogForm({ ...blogForm, slug: e.target.value })}
+                      placeholder="e.g. modern-preventive-dental-care"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="blog-excerpt" className="block text-xs font-medium text-ink mb-1.5">
+                      Excerpt / Summary
+                    </label>
+                    <textarea
+                      id="blog-excerpt"
+                      rows={2}
+                      value={blogForm.excerpt}
+                      onChange={(e) => setBlogForm({ ...blogForm, excerpt: e.target.value })}
+                      placeholder="Short synopsis shown in blog cards..."
+                      className="w-full rounded-[var(--radius-card)] border border-line bg-bone px-3.5 py-2.5 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-forest"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="blog-body" className="block text-xs font-medium text-ink mb-1.5">
+                      Article Body
+                    </label>
+                    <textarea
+                      id="blog-body"
+                      rows={6}
+                      value={blogForm.body}
+                      onChange={(e) => setBlogForm({ ...blogForm, body: e.target.value })}
+                      placeholder="Full article content..."
+                      className="w-full rounded-[var(--radius-card)] border border-line bg-bone px-3.5 py-2.5 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-forest"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-ink">
+                      <input
+                        type="checkbox"
+                        checked={blogForm.isPublished}
+                        onChange={(e) => setBlogForm({ ...blogForm, isPublished: e.target.checked })}
+                        className="rounded border-line text-forest focus:ring-forest"
+                      />
+                      <span>Publish immediately</span>
+                    </label>
+
+                    <Button type="submit" variant="primary" size="sm" disabled={isSaving}>
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      <span>{isSaving ? "Saving..." : "Add Blog Post"}</span>
+                    </Button>
+                  </div>
+                </form>
+              </Card>
+
+              {/* Blog Posts List */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-ink">Existing Blog Posts ({blogPosts.length})</h3>
+                {blogPosts.length === 0 ? (
+                  <p className="text-xs text-ink-soft py-4 text-center">No blog posts added yet.</p>
+                ) : (
+                  blogPosts.map((post) => (
+                    <Card
+                      key={post.id}
+                      surface={post.isPublished ? "cream" : "sand"}
+                      shadow="subtle"
+                      className="p-5 flex flex-col sm:flex-row sm:items-start justify-between gap-4"
+                      hoverLift={true}
+                    >
+                      <div className="space-y-1.5 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-medium text-sm text-ink">{post.title}</h4>
+                          <span className="font-mono text-[10px] text-ink-soft bg-muted px-2 py-0.5 rounded">
+                            /{post.slug}
+                          </span>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                              post.isPublished
+                                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                            }`}
+                          >
+                            {post.isPublished ? "Published" : "Draft"}
+                          </span>
+                        </div>
+                        {post.excerpt && <p className="text-xs text-ink-soft leading-relaxed">{post.excerpt}</p>}
+                      </div>
+
+                      <Button
+                        onClick={() => handleDeleteBlog(post.id)}
+                        variant="secondary"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-1" />
+                        <span>Delete</span>
+                      </Button>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 9. SOCIAL LINKS SECTION */}
+          {activeTab === "social-links" && (
+            <div className="space-y-6">
+              <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-5" hoverLift={false} index={9}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-display text-ink">Add Social Link</h2>
+                    <p className="text-xs text-ink-soft">Link clinic profiles (Instagram, Facebook, Google, etc.).</p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleAddSocial} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="social-platform" className="block text-xs font-medium text-ink mb-1.5">
+                        Platform Name
+                      </label>
+                      <select
+                        id="social-platform"
+                        value={socialForm.platform}
+                        onChange={(e) => setSocialForm({ ...socialForm, platform: e.target.value })}
+                        required
+                        className="w-full rounded-[var(--radius-card)] border border-line bg-bone px-3.5 py-2 text-xs text-ink"
+                      >
+                        <option value="">Select a platform...</option>
+                        <option value="google">Google</option>
+                        <option value="facebook">Facebook</option>
+                        <option value="instagram">Instagram</option>
+                        <option value="twitter">Twitter / X</option>
+                        <option value="linkedin">LinkedIn</option>
+                        <option value="youtube">YouTube</option>
+                        <option value="yelp">Yelp</option>
+                        <option value="tiktok">TikTok</option>
+                      </select>
+                    </div>
+
+                    <TextField
+                      id="social-url"
+                      label="URL (must start with https://)"
+                      value={socialForm.url}
+                      onChange={(e) => setSocialForm({ ...socialForm, url: e.target.value })}
+                      placeholder="https://instagram.com/yourclinic"
+                      required
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-ink">
+                      <input
+                        type="checkbox"
+                        checked={socialForm.isActive}
+                        onChange={(e) => setSocialForm({ ...socialForm, isActive: e.target.checked })}
+                        className="rounded border-line text-forest focus:ring-forest"
+                      />
+                      <span>Active on public website</span>
+                    </label>
+
+                    <Button type="submit" variant="primary" size="sm" disabled={isSaving}>
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      <span>{isSaving ? "Saving..." : "Add Social Link"}</span>
+                    </Button>
+                  </div>
+                </form>
+              </Card>
+
+              {/* Social Links List */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-ink">Existing Social Links ({socialLinks.length})</h3>
+                {socialLinks.length === 0 ? (
+                  <p className="text-xs text-ink-soft py-4 text-center">No social links configured yet.</p>
+                ) : (
+                  socialLinks.map((link) => (
+                    <Card
+                      key={link.id}
+                      surface={link.isActive ? "cream" : "sand"}
+                      shadow="subtle"
+                      className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                      hoverLift={true}
+                    >
+                      <div className="space-y-1 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-xs text-ink uppercase tracking-wider">
+                            {link.platform}
+                          </span>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                              link.isActive
+                                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                            }`}
+                          >
+                            {link.isActive ? "Active" : "Inactive"}
+                          </span>
+                        </div>
+                        <a
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-forest hover:underline break-all"
+                        >
+                          {link.url}
+                        </a>
+                      </div>
+
+                      <Button
+                        onClick={() => handleDeleteSocial(link.id)}
+                        variant="secondary"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-1" />
+                        <span>Delete</span>
+                      </Button>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 10. GALLERY SECTION */}
+          {activeTab === "gallery" && (
+            <div className="space-y-8">
+              {/* Add New Gallery Image Card */}
+              <Card surface="cream" shadow="subtle" className="p-6">
+                <div className="border-b border-line pb-4 mb-6">
+                  <h2 className="text-base font-semibold text-ink">Upload Clinic Gallery Photo</h2>
+                  <p className="text-xs text-ink-soft mt-1">
+                    Add modern photos of the clinic, equipment, operatory rooms, or smile suites to the public gallery.
+                  </p>
+                </div>
+
+                <form onSubmit={handleAddGalleryImage} className="space-y-6">
+                  {/* File Upload Field */}
+                  <div className="space-y-2">
+                    <label htmlFor="gallery-file-input" className="block text-xs font-medium text-ink">
+                      Clinic Photo <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                      <input
+                        id="gallery-file-input"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleUploadGalleryImage}
+                        disabled={isUploadingGallery || isSaving}
+                        className="block w-full sm:w-auto text-xs text-ink file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-sand/60 hover:file:bg-sand file:text-ink cursor-pointer border border-line rounded-lg"
+                      />
+                      {galleryForm.imageUrl && (
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={resolveMediaUrl(galleryForm.imageUrl) || galleryForm.imageUrl}
+                            alt="Preview"
+                            className="h-12 w-16 object-cover rounded-md border border-line shadow-sm"
+                          />
+                          <span className="text-[11px] text-ink-soft truncate max-w-[200px]">
+                            {galleryForm.imageUrl}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Caption/Description Input */}
+                  <TextField
+                    id="gallery-caption"
+                    label="Caption / Description"
+                    value={galleryForm.caption}
+                    onChange={(e) => setGalleryForm({ ...galleryForm, caption: e.target.value })}
+                    placeholder="e.g. Sterile Surgical Suite or Consultation Lounge"
+                  />
+
+                  {/* Submit Button */}
+                  <div className="flex justify-end pt-2">
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      size="sm"
+                      disabled={isSaving || isUploadingGallery || !galleryForm.imageUrl}
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      <span>{isSaving ? "Saving..." : "Add to Gallery"}</span>
+                    </Button>
+                  </div>
+                </form>
+              </Card>
+
+              {/* Gallery Images List */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-ink">
+                    Active Gallery Photos ({galleryImages.length})
+                  </h3>
+                </div>
+
+                {galleryImages.length === 0 ? (
+                  <Card surface="cream" shadow="subtle" className="p-8 text-center">
+                    <p className="text-xs text-ink-soft">
+                      No gallery images uploaded yet. Upload your first clinic photo above.
+                    </p>
+                  </Card>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    {galleryImages.map((image) => (
+                      <Card
+                        key={image.id}
+                        surface="cream"
+                        shadow="subtle"
+                        className="overflow-hidden flex flex-col justify-between"
+                      >
+                        <div className="relative aspect-video w-full bg-sand/30 overflow-hidden">
+                          <img
+                            src={resolveMediaUrl(image.imageUrl) || image.imageUrl}
+                            alt={image.caption || "Clinic photo"}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
+                          <div>
+                            <p className="text-xs font-semibold text-ink">
+                              {image.caption || <span className="text-ink-soft italic font-normal">No caption</span>}
+                            </p>
+                          </div>
+                          <div className="pt-2 border-t border-line/60 flex items-center justify-between">
+                            <span className="text-[10px] text-ink-soft">
+                              Order: {image.displayOrder}
+                            </span>
+                            <Button
+                              onClick={() => handleDeleteGalleryImage(image.id)}
+                              variant="secondary"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 text-xs py-1 px-2.5 h-auto"
+                            >
+                              <Trash2 className="h-3.5 w-3.5 mr-1" />
+                              <span>Delete</span>
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </AnimatedView>
       )}
     </div>
+  </AnimatedPage>
   );
 }

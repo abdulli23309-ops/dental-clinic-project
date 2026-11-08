@@ -27,11 +27,7 @@ export function ScrollProgress() {
   return (
     <div
       className="fixed top-0 left-0 right-0 z-[60] h-[2.5px] bg-transparent pointer-events-none"
-      role="progressbar"
-      aria-label="Page reading progress"
-      aria-valuenow={Math.round(progress)}
-      aria-valuemin={0}
-      aria-valuemax={100}
+      aria-hidden="true"
     >
       <div
         className="h-full bg-forest dark:bg-emerald-500 transition-all duration-75 ease-out"

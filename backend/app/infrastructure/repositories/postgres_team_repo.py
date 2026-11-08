@@ -44,6 +44,7 @@ class PostgresTeamMemberRepository(TeamMemberRepository):
             services_offered=orm.services_offered,
             display_order=orm.display_order,
             is_active=orm.is_active,
+            show_patients_treated=getattr(orm, "show_patients_treated", True),
             created_at=orm.created_at,
             updated_at=orm.updated_at,
         )
@@ -69,6 +70,7 @@ class PostgresTeamMemberRepository(TeamMemberRepository):
             services_offered=domain.services_offered,
             display_order=domain.display_order,
             is_active=domain.is_active,
+            show_patients_treated=domain.show_patients_treated,
             created_at=domain.created_at,
             updated_at=domain.updated_at,
         )
@@ -105,6 +107,7 @@ class PostgresTeamMemberRepository(TeamMemberRepository):
             existing.services_offered = member.services_offered
             existing.display_order = member.display_order
             existing.is_active = member.is_active
+            existing.show_patients_treated = member.show_patients_treated
             existing.updated_at = member.updated_at
             await self._session.flush()
             return self._to_domain(existing)

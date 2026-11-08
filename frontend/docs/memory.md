@@ -20,15 +20,15 @@
 
 5. **Removal of Fabricated Reviews and Statistics (September 2026)**
    - *Decision*: Removed invented quotes (Danielle R., Marcus T., Priya S.) and the unverified "4.9 · 412 reviews" metric from `hero.tsx` and the homepage.
-   - *Why*: A healthcare practice cannot ethically publish fake patient reviews or fabricated survey percentages. The content was replaced with genuine clinical commitments (direct doctor continuity, itemized written estimates, reserved emergency triage) and verified Illinois licensure (#019.029811).
+   - *Why*: A healthcare practice cannot ethically publish fake patient reviews or fabricated survey percentages. The content was replaced with genuine clinical commitments (direct doctor continuity, itemized written estimates, reserved emergency triage) and verified clinical practice licensure.
 
 6. **URL-Synced Booking Wizard State (September 2026)**
    - *Decision*: Bound `/book` wizard steps to the URL query string (`?step=0|1|2|3`).
    - *Why*: Previously, clicking the browser back button exited `/book` completely, and refreshing lost all entered data. URL syncing allows the browser history to navigate backward step-by-step and maintains progress on refresh.
 
 7. **Compliance & Legal Pages (September 2026)**
-   - *Decision*: Implemented real structured pages for `/privacy`, `/hipaa`, `/accessibility`, and `/terms`, with explicit code comments noting they require formal legal review before launch.
-   - *Why*: The footer previously contained dead links to `/hipaa` and `/accessibility`. Shipping dead links on a healthcare site degrades trust.
+   - *Decision*: Implemented real structured pages for `/privacy`, `/accessibility`, and `/terms`, with explicit code comments noting they require formal legal review before launch.
+   - *Why*: The footer previously contained dead links to uncreated policy pages. Shipping dead links on a healthcare site degrades trust.
 
 8. **FastAPI Backend Integration Boundary (September 2026)**
    - *Decision*: Centralized all asynchronous domain actions in `src/lib/api.ts`, connecting to `${NEXT_PUBLIC_API_URL}/api/v1/appointments`.
@@ -88,3 +88,7 @@
 22. **Centralized Public Content Provider & Elimination of Hardcoding (October 2026)**
     - *Decision*: Implemented `PublicContentProvider` wrapping the root application, caching and distributing organization metadata, locations, team roster, and CMS content to presentational components.
     - *Why*: Avoids duplicate network calls across components, eliminates hardcoded clinic copy across 15+ pages, and ensures instant synchronization when CMS content is updated.
+
+23. **Public Progressive Booking Flow on Live API (October 2026)**
+    - *Decision*: Rewrote `src/components/booking/progressive-booking-flow.tsx` from a mock prototype into the production public `/book` flow: 3 pages (Contact with lead capture, progressive disclosure waterfall of service/city/clinic/doctor/day/slot, summary with real `POST /api/v1/appointments` submission). Uses shared `Button`/`Card`/`TextField` primitives, `useReducedMotion` fallbacks, and the same best-effort lead capture/update contract as the call desk wizard.
+    - *Why*: The earlier version embedded mock datasets and a simulated `setTimeout` confirmation, violating rules §2/§3/§4/§6 of `frontend/docs/rules.md` and silently dropping real patient leads. The legacy `booking-wizard.tsx` remains untouched for the `/reception/call-desk` staff route. E2E suites (`booking-flow-roles-and-states`, `booking-flow-admin-integration`, `scripted-visit`, `dynamic-content`, `live-dynamic`, `frontend-accessibility-audit`) were re-authored to the new journey; call desk tests unchanged.

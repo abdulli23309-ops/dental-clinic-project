@@ -1,10 +1,12 @@
 "use client";
 
+import { motion } from "motion/react";
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Search, X, CornerDownLeft, ArrowUpDown } from "lucide-react";
 import { searchSite, buildDynamicSearchIndex } from "@/lib/search-index";
 import { usePublicContent } from "@/components/providers/public-content-provider";
+import { modalOverlay, modalContent } from "@/animations/variants";
 
 interface SearchDialogProps {
   isOpen: boolean;
@@ -108,14 +110,24 @@ export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
       aria-labelledby="search-dialog-title"
     >
       {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+      <motion.div
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+        variants={modalOverlay}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
         onClick={onClose}
         aria-hidden="true"
       />
 
       {/* Modal Surface */}
-      <div className="relative w-full max-w-2xl overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-2xl">
+      <motion.div
+        className="relative w-full max-w-2xl overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-2xl"
+        variants={modalContent}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
+      >
         {/* Search Header */}
         <div className="flex items-center border-b border-gray-200 dark:border-gray-800 px-4 py-3 sm:px-5">
           <Search className="h-5 w-5 text-gray-500 dark:text-gray-400 shrink-0" />
@@ -125,7 +137,7 @@ export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
             id="search-dialog-title"
             value={query}
             onChange={(e) => handleQueryChange(e.target.value)}
-            placeholder="Search procedures, cash fees, insurance, or doctor info..."
+            placeholder="Search procedures, fee schedule, doctor info..."
             className="ml-3.5 flex-1 bg-transparent text-[15px] sm:text-[16px] text-gray-900 dark:text-white outline-none placeholder:text-gray-400"
             autoComplete="off"
             spellCheck={false}
@@ -152,11 +164,11 @@ export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
               <p className="text-[13px] font-medium text-gray-600 dark:text-gray-400">Quick suggestions</p>
               <div className="mt-3 flex flex-wrap justify-center gap-2">
                 {[
-                  "Cash rates",
+                  "Fee schedule",
                   "Invisalign",
                   "Cleaning & exam",
                   "Root canals",
-                  "Insurance",
+                  "Crowns",
                   "Parking",
                 ].map((term) => (
                   <button
@@ -173,7 +185,7 @@ export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
             <div className="py-12 text-center">
               <p className="font-display text-lg text-gray-900 dark:text-white">No exact matches found</p>
               <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                Try searching for general terms like &ldquo;cleaning&rdquo;, &ldquo;crown&rdquo;, or &ldquo;insurance&rdquo;.
+                Try searching for general terms like &ldquo;cleaning&rdquo;, &ldquo;crown&rdquo;, or &ldquo;fillings&rdquo;.
               </p>
             </div>
           ) : (
@@ -226,11 +238,12 @@ export function SearchDialog({ isOpen, onClose }: SearchDialogProps) {
               <CornerDownLeft className="h-3 w-3" /> Select
             </span>
           </div>
-          <span>Lincoln Park, Chicago · Marlow Dental</span>
+          <span>Patient Search</span>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
 
 export default SearchDialog;
+

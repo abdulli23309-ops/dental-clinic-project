@@ -11,8 +11,10 @@ import {
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 
 import { useAuth } from "@/components/providers/auth-provider";
+import { usePublicContent } from "@/components/providers/public-content-provider";
 import { cn } from "@/lib/utils";
 
 export interface SidebarLink {
@@ -45,7 +47,10 @@ export function DashboardSidebar({
 }: DashboardSidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { organization } = usePublicContent();
+  const orgName = organization?.displayName || organization?.name || "Dental Clinic";
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const shouldReduceMotion = useReducedMotion();
 
   return (
     <aside
@@ -74,7 +79,7 @@ export function DashboardSidebar({
                 isCollapsed ? "opacity-0" : "group-hover:opacity-0"
               )}
             >
-              M
+              {orgName.charAt(0)}
             </span>
             <div
               className={cn(
@@ -97,7 +102,7 @@ export function DashboardSidebar({
             )}
           >
             <span className="font-display text-sm font-bold text-gray-900 dark:text-gray-100 block leading-tight tracking-tight hover:text-primary transition-colors">
-              Marlow Dental
+              {orgName}
             </span>
             <span className="text-[10px] font-mono text-gray-500 dark:text-gray-400 block uppercase tracking-wider">
               {roleLabel}
@@ -138,16 +143,26 @@ export function DashboardSidebar({
               href={item.href}
               title={itemText}
               className={cn(
-                "flex items-center rounded-full text-xs font-medium transition-all duration-200 ease-in-out",
+                "relative flex items-center rounded-full text-xs font-medium transition-all duration-200 ease-in-out",
                 isCollapsed
                   ? "h-12 w-12 justify-center p-0"
                   : "gap-3.5 px-4 py-3 w-full justify-between",
                 isActive
-                  ? "bg-primary text-white shadow-md font-semibold"
+                  ? "text-white font-semibold"
                   : "text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
               )}
             >
-              <div className="flex items-center gap-3.5 min-w-0">
+              {isActive && !shouldReduceMotion && (
+                <motion.span
+                  layoutId="sidebar-active-indicator"
+                  className="absolute inset-0 rounded-full bg-primary shadow-md"
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                />
+              )}
+              {isActive && shouldReduceMotion && (
+                <span className="absolute inset-0 rounded-full bg-primary shadow-md" />
+              )}
+              <div className="relative z-10 flex items-center gap-3.5 min-w-0">
                 <Icon
                   className={cn(
                     "h-5 w-5 shrink-0 transition-colors",
@@ -166,7 +181,7 @@ export function DashboardSidebar({
               {!isCollapsed && item.badge !== undefined && (
                 <span
                   className={cn(
-                    "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold",
+                    "relative z-10 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold",
                     isActive
                       ? "bg-white/20 text-white"
                       : "bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300"

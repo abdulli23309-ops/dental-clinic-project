@@ -1,7 +1,11 @@
+import secrets
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from typing import Optional
 from uuid import UUID, uuid4
+
+from app.domain.models.booking_flow import LeadStatus
+from app.domain.models.phone_utils import normalize_pakistan_phone
 
 
 @dataclass
@@ -17,25 +21,48 @@ class Patient:
     clinic_id: Optional[UUID] = None
     date_of_birth: Optional[date] = None
     notes: Optional[str] = None
+    medical_history_status: str = "not_asked"  # not_asked | none_known | recorded
     is_active: bool = True
+    file_number: Optional[str] = None
+    guardian_name: Optional[str] = None
+    guardian_phone: Optional[str] = None
+    guardian_relationship: Optional[str] = None
+    emergency_contact_name: Optional[str] = None
+    emergency_contact_phone: Optional[str] = None
+    emergency_contact_relationship: Optional[str] = None
+    messaging_opt_out: bool = False
+    preferred_channel: str = "sms"  # sms | whatsapp | none
+    phone_normalized: str = ""
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
+    def __post_init__(self):
+        if not self.phone_normalized and self.phone:
+            self.phone_normalized = normalize_pakistan_phone(self.phone)
+
+    @property
+    def full_name(self) -> str:
+        return f"{self.first_name} {self.last_name}".strip()
+
 
 @dataclass
-class Slot:
+class PatientMedicalAlert:
     """
-    Pure domain representation of an appointment operatory time slot.
+    Pure domain representation of a medical alert (allergy, condition, medication, other).
     """
-    start_time: datetime
-    end_time: datetime
-    clinic_id: Optional[UUID] = None
-    team_member_id: Optional[UUID] = None
-    is_booked: bool = False
+    patient_id: UUID
+    type: str  # allergy | condition | medication | other
+    description: str
+    severity: Optional[str] = None  # mild | moderate | severe | life_threatening
+    recorded_by_user_id: Optional[UUID] = None
+    recorded_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    last_reviewed_at: Optional[datetime] = None
     is_active: bool = True
+    is_confirmed: bool = True
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 @dataclass
@@ -62,13 +89,27 @@ class Lead:
     clinic_id: Optional[UUID] = None
     patient_id: Optional[UUID] = None
     lead_source_id: Optional[UUID] = None
-    status: str = "new"
+    service_id: Optional[str] = None
+    team_member_id: Optional[UUID] = None
+    status: str = LeadStatus.UNCONVERTED.value
     notes: Optional[str] = None
     utm_source: Optional[str] = None
     utm_campaign: Optional[str] = None
+    attempts: int = 0
+    last_contacted_at: Optional[datetime] = None
+    next_attempt_at: Optional[datetime] = None
+    cold_at: Optional[datetime] = None
+    last_activity_at: Optional[datetime] = None
+    capture_token: str = field(default_factory=lambda: secrets.token_urlsafe(32))
+    consent_notice_version: Optional[str] = None
+    phone_normalized: str = ""
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+    def __post_init__(self):
+        if not self.phone_normalized and self.phone:
+            self.phone_normalized = normalize_pakistan_phone(self.phone)
 
 
 @dataclass
@@ -81,20 +122,39 @@ class Booking:
     preferred_time: str
     patient_full_name: str
     patient_phone: str
-    patient_email: str
+    patient_email: Optional[str] = None
     clinic_id: Optional[UUID] = None
     patient_id: Optional[UUID] = None
     service_id: Optional[str] = None
     team_member_id: Optional[UUID] = None
     slot_id: Optional[UUID] = None
+    lead_id: Optional[UUID] = None
+    source: str = "reception"
     status: str = "requested"
     notes: Optional[str] = None
     utm_source: Optional[str] = None
     utm_campaign: Optional[str] = None
     staff_notes: Optional[str] = None
+    arrived_at: Optional[datetime] = None
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    cancellation_reason: Optional[str] = None
+    cancelled_by_user_id: Optional[UUID] = None
+    reminded_at: Optional[datetime] = None
+    reminded_by_user_id: Optional[UUID] = None
+    category_id: Optional[UUID] = None
+    approval_required: bool = False
+    approved_by_user_id: Optional[UUID] = None
+    approved_at: Optional[datetime] = None
+    rejection_reason: Optional[str] = None
+    phone_normalized: str = ""
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+    def __post_init__(self):
+        if not self.phone_normalized and self.patient_phone:
+            self.phone_normalized = normalize_pakistan_phone(self.patient_phone)
 
 
 @dataclass
@@ -105,6 +165,9 @@ class Task:
     title: str
     clinic_id: Optional[UUID] = None
     assigned_to_user_id: Optional[UUID] = None
+    created_by_user_id: Optional[UUID] = None
+    patient_id: Optional[UUID] = None
+    booking_id: Optional[UUID] = None
     description: Optional[str] = None
     due_date: Optional[datetime] = None
     status: str = "pending"
@@ -122,12 +185,30 @@ class Message:
     content: str
     sender_id: Optional[UUID] = None
     recipient_id: Optional[UUID] = None
+    patient_id: Optional[UUID] = None
+    lead_id: Optional[UUID] = None
     phone: Optional[str] = None
+    phone_normalized: Optional[str] = None
     email: Optional[str] = None
     channel: str = "sms"
-    status: str = "sent"
+    status: str = "logged"
+    direction: str = "outbound"
+    purpose: str = "manual"
+    booking_id: Optional[UUID] = None
+    delivery_status: str = "simulated"  # "simulated" | "queued" | "sent" | "delivered" | "failed" | "opted_out" | "quiet_hours_held" | "cancelled"
+    error_detail: Optional[str] = None
+    provider: str = "simulated"  # "simulated" | "twilio" | "whatsapp"
+    provider_message_id: Optional[str] = None
+    attempts: int = 0
+    scheduled_for: Optional[datetime] = None
+    sent_at: Optional[datetime] = None
+    reminder_type: Optional[str] = None  # "reminder_24h" | "reminder_2h" | "manual"
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+    def __post_init__(self):
+        if not self.phone_normalized and self.phone:
+            self.phone_normalized = normalize_pakistan_phone(self.phone)
 
 
 @dataclass

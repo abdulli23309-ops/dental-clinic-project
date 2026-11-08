@@ -21,8 +21,21 @@ import {
   updateReceptionBookingConfirmation,
   updateReceptionBookingStatus,
 } from "@/lib/api";
+import { WaitlistOfferModal } from "@/components/reception/waitlist-offer-modal";
+import { RecordPaymentModal } from "@/components/reception/record-payment-modal";
+import { TabNav } from "@/components/ui/tab-nav";
+import { AnimatedView } from "@/components/ui/animated-view";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useDirectory } from "@/lib/directory";
+import { AnimatedPage } from "@/components/ui/animated-page";
+import {
+  isExpected,
+  isWaiting,
+  isInProgress,
+  isCompleted,
+  isCancelled,
+  APPOINTMENT_STATUS,
+} from "@/lib/statuses";
 
 export default function ReceptionAppointmentsPage() {
   const { accessToken } = useAuth();
@@ -32,6 +45,8 @@ export default function ReceptionAppointmentsPage() {
   const [bookings, setBookings] = useState<ReceptionBooking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [waitlistModalBookingId, setWaitlistModalBookingId] = useState<string | null>(null);
+  const [selectedPaymentBooking, setSelectedPaymentBooking] = useState<{ id: string; patientName: string } | null>(null);
 
   const loadBookings = async () => {
     setIsLoading(true);
@@ -61,13 +76,26 @@ export default function ReceptionAppointmentsPage() {
   };
 
   useEffect(() => {
-    loadBookings();
+    queueMicrotask(() => {
+      loadBookings();
+    });
   }, [activeTab, accessToken]);
 
   const handleStatusChange = async (bookingId: string, status: string) => {
     try {
-      await updateReceptionBookingStatus(bookingId, status, undefined, accessToken);
+      let cancellationReason: string | undefined;
+      if (status === "cancelled") {
+        const reason = window.prompt("Please provide a reason for cancellation:");
+        if (!reason || !reason.trim()) {
+          return;
+        }
+        cancellationReason = reason.trim();
+      }
+      await updateReceptionBookingStatus(bookingId, status, undefined, accessToken, cancellationReason);
       await loadBookings();
+      if (status === "cancelled") {
+        setWaitlistModalBookingId(bookingId);
+      }
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Failed to update appointment.");
     }
@@ -83,6 +111,7 @@ export default function ReceptionAppointmentsPage() {
   };
 
   return (
+  <AnimatedPage>
     <div className="space-y-6">
       {/* Header with Submodule Links */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -124,21 +153,13 @@ export default function ReceptionAppointmentsPage() {
 
       {/* Tabs & Search */}
       <div className="p-2 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-xs flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1">
-          {(["all", "today", "completed", "cancelled"] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-medium capitalize transition-all cursor-pointer ${
-                activeTab === tab
-                  ? "bg-primary text-white font-semibold shadow-xs"
-                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
+        <TabNav
+          tabs={["all", "today", "completed", "cancelled"]}
+          activeTab={activeTab}
+          onSelect={(tab) => setActiveTab(tab as typeof activeTab)}
+          layoutId="receptionAppointmentsTabPill"
+          pillClassName="bg-primary text-white shadow-xs"
+        />
 
         <div className="relative">
           <Search className="h-3.5 w-3.5 text-gray-400 absolute left-3 top-2.5" />
@@ -154,7 +175,8 @@ export default function ReceptionAppointmentsPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden shadow-xs">
+      <AnimatedView viewKey={activeTab}>
+        <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden shadow-xs">
         {isLoading ? (
           <div className="p-12 text-center text-xs text-gray-500 font-mono">
             Loading appointments queue...
@@ -189,15 +211,27 @@ export default function ReceptionAppointmentsPage() {
                       <span className="text-gray-500">{b.bookingTime}</span>
                     </td>
                     <td className="px-5 py-4">
-                      <Link
-                        href={`/reception/patients/${b.patientId}`}
-                        className="font-medium text-primary hover:underline flex items-center gap-1"
-                      >
-                        <User className="h-3 w-3" />
-                        <span>{b.patientName || "Patient"}</span>
-                      </Link>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Link
+                          href={`/reception/patients/${b.patientId}`}
+                          className="font-medium text-primary hover:underline flex items-center gap-1"
+                        >
+                          <User className="h-3 w-3" />
+                          <span>{b.patientName || "Patient"}</span>
+                        </Link>
+                        {b.source && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400">
+                            {b.source}
+                          </span>
+                        )}
+                        {b.leadStatus && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-semibold border border-amber-200">
+                            {b.leadStatus}
+                          </span>
+                        )}
+                      </div>
                       {b.patientPhone && (
-                        <span className="text-[11px] text-gray-400 block">{b.patientPhone}</span>
+                        <span className="text-[11px] text-gray-400 block mt-0.5">{b.patientPhone}</span>
                       )}
                     </td>
                     <td className="px-5 py-4 text-gray-700 dark:text-gray-300">
@@ -211,13 +245,13 @@ export default function ReceptionAppointmentsPage() {
                         className={`
                           px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold uppercase
                           ${
-                            b.status === "scheduled"
+                            isExpected(b.status)
                               ? "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-                              : b.status === "arrived"
+                              : isWaiting(b.status)
                               ? "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
-                              : b.status === "in_progress"
+                              : isInProgress(b.status)
                               ? "bg-clay/10 text-clay"
-                              : b.status === "completed"
+                              : isCompleted(b.status)
                               ? "bg-primary/10 text-primary font-bold"
                               : "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
                           }
@@ -251,30 +285,50 @@ export default function ReceptionAppointmentsPage() {
                           </button>
                         )}
 
-                        {(b.status === "confirmed" || b.status === "scheduled") && (
+                        {isExpected(b.status) && (
                           <button
-                            onClick={() => handleStatusChange(b.id, "arrived")}
+                            onClick={() => handleStatusChange(b.id, APPOINTMENT_STATUS.ARRIVED)}
                             className="px-3 py-1 rounded-full bg-blue-600 text-white text-[11px] font-medium hover:bg-blue-700 transition-colors cursor-pointer"
                           >
                             Check In
                           </button>
                         )}
 
-                        {(b.status === "arrived" || b.status === "checked_in" || b.status === "waiting") && (
+                        {isWaiting(b.status) && (
                           <button
-                            onClick={() => handleStatusChange(b.id, "in_progress")}
+                            onClick={() => handleStatusChange(b.id, APPOINTMENT_STATUS.IN_PROGRESS)}
                             className="px-3 py-1 rounded-full bg-clay text-white text-[11px] font-medium hover:bg-clay/90 transition-colors cursor-pointer"
                           >
                             With Doctor
                           </button>
                         )}
 
-                        {b.status === "in_progress" && (
+                        {isInProgress(b.status) && (
                           <button
-                            onClick={() => handleStatusChange(b.id, "completed")}
+                            onClick={() => handleStatusChange(b.id, APPOINTMENT_STATUS.COMPLETED)}
                             className="px-3 py-1 rounded-full bg-primary text-white text-[11px] font-medium hover:bg-primary/90 transition-colors cursor-pointer"
                           >
                             Complete
+                          </button>
+                        )}
+
+                        {!isCancelled(b.status) && (
+                          <button
+                            onClick={() => {
+                              setSelectedPaymentBooking({ id: b.id, patientName: b.patientName });
+                            }}
+                            className="px-3 py-1 rounded-full border border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-[11px] font-medium hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors cursor-pointer"
+                          >
+                            Payment
+                          </button>
+                        )}
+
+                        {!isCancelled(b.status) && !isCompleted(b.status) && b.status !== APPOINTMENT_STATUS.WAITLIST && (
+                          <button
+                            onClick={() => handleStatusChange(b.id, APPOINTMENT_STATUS.WAITLIST)}
+                            className="px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-[11px] font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                          >
+                            Move to waitlist
                           </button>
                         )}
                       </div>
@@ -286,6 +340,21 @@ export default function ReceptionAppointmentsPage() {
           </div>
         )}
       </div>
+      </AnimatedView>
+
+      <WaitlistOfferModal
+        bookingId={waitlistModalBookingId}
+        isOpen={Boolean(waitlistModalBookingId)}
+        onClose={() => setWaitlistModalBookingId(null)}
+      />
+
+      <RecordPaymentModal
+        bookingId={selectedPaymentBooking?.id ?? null}
+        patientName={selectedPaymentBooking?.patientName}
+        isOpen={Boolean(selectedPaymentBooking)}
+        onClose={() => setSelectedPaymentBooking(null)}
+      />
     </div>
+  </AnimatedPage>
   );
 }

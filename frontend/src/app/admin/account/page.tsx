@@ -5,6 +5,7 @@ import { Check, Clock, LogOut, ShieldCheck, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/components/providers/auth-provider";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export default function AdminAccountPage() {
   const { user, logout, updateInactivity } = useAuth();
@@ -18,9 +19,11 @@ export default function AdminAccountPage() {
 
   useEffect(() => {
     if (user) {
-      setEnabled(user.inactivityEnabled !== false);
-      setTimeoutMinutes(user.inactivityTimeoutMinutes ?? 15);
-      setWarningSeconds(user.inactivityWarningSeconds ?? 60);
+      queueMicrotask(() => {
+        setEnabled(user.inactivityEnabled !== false);
+        setTimeoutMinutes(user.inactivityTimeoutMinutes ?? 15);
+        setWarningSeconds(user.inactivityWarningSeconds ?? 60);
+      });
     }
   }, [user]);
 
@@ -46,6 +49,7 @@ export default function AdminAccountPage() {
   };
 
   return (
+  <AnimatedPage>
     <div className="space-y-6 max-w-3xl">
       <div className="border-b border-line pb-4">
         <p className="eyebrow mb-1">Administrative Profile</p>
@@ -57,7 +61,7 @@ export default function AdminAccountPage() {
         </p>
       </div>
 
-      <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6">
+      <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={0}>
         <div className="flex items-center gap-4">
           <div className="h-16 w-16 rounded-full bg-forest text-[#FAF7F2] grid place-items-center text-xl font-display">
             {user?.fullName
@@ -118,13 +122,13 @@ export default function AdminAccountPage() {
       </Card>
 
       {/* Inactivity Security Configuration */}
-      <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6">
+      <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={1}>
         <div className="flex items-start justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-forest dark:text-emerald-400">
               <Timer className="h-5 w-5" />
               <h2 className="font-display text-lg text-ink font-semibold">
-                Inactivity &amp; HIPAA Auto-Lock
+                Inactivity &amp; Session Auto-Lock
               </h2>
             </div>
             <p className="text-xs text-ink-soft leading-relaxed max-w-xl">
@@ -217,5 +221,6 @@ export default function AdminAccountPage() {
         </form>
       </Card>
     </div>
+  </AnimatedPage>
   );
 }

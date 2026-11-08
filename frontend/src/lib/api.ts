@@ -19,6 +19,12 @@ export interface ServiceItem {
   highlight?: boolean;
   isActive?: boolean;
   displayOrder?: number;
+  bookableOnline?: boolean;
+  bufferMinutes?: number;
+  imageUrl?: string | null;
+  slug?: string;
+  providerIds?: string[];
+  clinicIds?: string[];
 }
 
 export interface DoctorProfile {
@@ -54,6 +60,19 @@ export interface TeamMember {
   servicesOffered?: string | null;
   displayOrder: number;
   isActive: boolean;
+  showPatientsTreated?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface RoleItem {
+  id: string;
+  name: string;
+  displayName: string;
+  description?: string | null;
+  displayOrder: number;
+  isActive: boolean;
+  isSystem?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -73,8 +92,10 @@ export interface BookingPayload {
   preferredTime: string;
   fullName: string;
   phone: string;
-  email: string;
+  email?: string;
   notes?: string;
+  clinicId?: string;
+  teamMemberId?: string;
   utmSource?: string;
   utmCampaign?: string;
 }
@@ -93,15 +114,19 @@ export interface User {
   role: string;
   isActive: boolean;
   clinicId?: string | null;
+  teamMemberId?: string | null;
   organizationId?: string | null;
+  requiresPasswordChange?: boolean;
   inactivityEnabled?: boolean;
   inactivityTimeoutMinutes?: number;
   inactivityWarningSeconds?: number;
 }
 
 export interface SiteContent {
+  status: "loading" | "ready" | "unavailable";
   general: {
     practiceName: string;
+    shortBrandName?: string;
     tagline: string;
     logoUrl?: string | null;
     faviconUrl?: string | null;
@@ -113,12 +138,17 @@ export interface SiteContent {
   homepage: {
     heroEyebrow: string;
     heroHeading: string;
+    heroHighlightWord?: string;
     heroDescription: string;
     heroCtaText: string;
     heroCtaLink: string;
     heroSecondaryCtaText: string;
     heroSecondaryCtaLink: string;
     heroImageUrl?: string | null;
+    startingFee?: string | null;
+    heroTicks?: Array<{ label: string }>;
+    heroBadges?: string[];
+    promises?: Array<{ num?: string; title: string; subtitle?: string; description: string }>;
   };
   about: {
     eyebrow: string;
@@ -141,6 +171,11 @@ export interface SiteContent {
     copyrightNotice: string;
     cancellationPolicy: string;
   };
+  legalPages: {
+    privacy: string;
+    terms: string;
+    accessibility: string;
+  };
   seo: {
     siteTitle: string;
     metaDescription: string;
@@ -161,10 +196,13 @@ export interface LocationItem {
   phone?: string | null;
   email?: string | null;
   hoursInfo?: string | null;
+  imageUrl?: string | null;
   isPrimary: boolean;
   isActive: boolean;
   displayOrder: number;
 }
+
+import { formatPrice } from "./currency";
 
 export interface Organization {
   id: string;
@@ -181,6 +219,9 @@ export interface Organization {
   backgroundColor?: string | null;
   primaryFont?: string | null;
   secondaryFont?: string | null;
+  currencyCode?: string;
+  currencySymbol?: string;
+  timezone?: string;
   isActive: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -195,9 +236,230 @@ export interface Announcement {
   updatedAt?: string;
 }
 
+export interface PublicBookingStatus {
+  mode: "open" | "paused" | "closed";
+  message?: string | null;
+  phone?: string | null;
+  resumeOn?: string | null;
+  leadCaptureNotice?: string | null;
+}
+
+export interface WorkingHoursItem {
+  id: string;
+  clinicId?: string | null;
+  dayOfWeek: number;
+  dayName: string;
+  openTime?: string | null;
+  closeTime?: string | null;
+  isClosed: boolean;
+  isOpen?: boolean | null;
+  is24Hours?: boolean;
+  periodsJson?: string | null;
+  breakStartTime?: string | null;
+  breakEndTime?: string | null;
+}
+
+export interface ClinicClosureItem {
+  id: string;
+  startDate: string;
+  endDate: string;
+  reason: string;
+  message?: string | null;
+  clinicId?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface BookingScheduleData {
+  status: PublicBookingStatus;
+  workingHours: WorkingHoursItem[];
+  closures: ClinicClosureItem[];
+  advanceBookingDays: number;
+  closedDays: number[];
+}
+
+export interface AdminBookingSettings {
+  id: string;
+  bookingMode: "open" | "paused" | "closed";
+  pauseMessage?: string | null;
+  pauseStartedAt?: string | null;
+  pauseStartedByUserId?: string | null;
+  resumeOn?: string | null;
+  advanceBookingDays: number;
+  minLeadTimeHours?: number;
+  slotIntervalMinutes: number;
+  reminderTemplate?: string | null;
+  fileNumberPrefix?: string | null;
+  paymentsEnabled?: boolean;
+  isResumePassed: boolean;
+}
+
+export interface ProviderAvailabilityItem {
+  id: string;
+  teamMemberId: string;
+  dayOfWeek: number;
+  dayName: string;
+  startTime: string;
+  endTime: string;
+  breakStartTime?: string | null;
+  breakEndTime?: string | null;
+  clinicId?: string | null;
+  isActive: boolean;
+}
+
+export interface ProviderTimeOffItem {
+  id: string;
+  teamMemberId: string;
+  startDate: string;
+  endDate: string;
+  reason: string;
+  isApproved: boolean;
+}
+
+export interface PublicAvailabilityData {
+  date: string;
+  serviceId?: string | null;
+  teamMemberId?: string | null;
+  timezone: string;
+  slots: string[];
+}
+
+export interface AffectedBookingItem {
+  id: string;
+  confirmationId: string;
+  preferredDate: string;
+  preferredTime: string;
+  patientFullName: string;
+  patientPhone: string;
+  patientEmail?: string | null;
+  status: string;
+}
+
 export type ClinicItem = LocationItem;
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+export interface ClinicMatrixClinic {
+  id: string;
+  name: string;
+  isPrimary: boolean;
+}
+
+export interface ClinicMatrixService {
+  id: string;
+  slug: string;
+  title: string;
+  category: string;
+  code?: string | null;
+  bookableOnline: boolean;
+  isActive: boolean;
+  clinicIds: string[];
+  providerIds: string[];
+}
+
+export interface ClinicMatrixResponse {
+  clinics: ClinicMatrixClinic[];
+  services: ClinicMatrixService[];
+}
+
+export interface BookingFlowSettingsDto {
+  id?: string;
+  organizationId?: string;
+  followupGapsMinutes: number[];
+  maxAttempts: number;
+  coldWaitHours: number;
+  holdMinutes: number;
+  fallbackOwnerUserId: string | null;
+  autoConfirmOnline: boolean;
+  daysShown: number;
+  showPatientsTreated: boolean;
+  leadCaptureNotice: string;
+}
+
+export interface StaffUserDto {
+  id: string;
+  fullName: string;
+  email: string;
+  role: string;
+  isActive: boolean;
+}
+
+export interface BookabilityCheckItem {
+  serviceId: string;
+  serviceTitle: string;
+  category: string;
+  bookableOnline: boolean;
+  isActive: boolean;
+  isEligible: boolean;
+  reasonCode: string | null;
+  message: string;
+  fixUrl: string;
+}
+
+export interface PublicBookingServiceItem {
+  id: string;
+  slug: string;
+  title: string;
+  category: string;
+  duration: string;
+  cashPrice: string;
+  shortDesc: string;
+}
+
+export interface PublicBookingClinicItem {
+  id: string;
+  name: string;
+  addressLine1: string;
+  city: string;
+  phone: string;
+  isPrimary: boolean;
+}
+
+export interface PublicBookingDoctorItem {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  displayName: string;
+  professionalTitle: string;
+  role?: string;
+  /** Live field name returned by GET /api/v1/public/booking/doctors. */
+  biography?: string | null;
+  bio?: string | null;
+  photoUrl?: string | null;
+  specialties?: string[];
+  patientsTreated: number | null;
+  /** Live field name returned by GET /api/v1/public/booking/doctors. */
+  weeklyScheduleSummary?: string | null;
+  workingDaysHours?: string;
+  slotsByDate: Record<string, string[]>;
+}
+
+export interface PublicLeadCaptureResponse {
+  success?: boolean;
+  captureToken: string;
+  leadCaptureNotice?: string | null;
+  noticeVersion?: string;
+}
+
+
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+
+/**
+ * Resolves a media/asset path (relative or absolute) to a full accessible URL.
+ * Handles backend media paths like "/media/..." by prepending API_BASE.
+ */
+export function resolveMediaUrl(url?: string | null): string | null {
+  if (!url) return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  if (/^(https?:|\/\/|data:)/i.test(trimmed)) {
+    return trimmed;
+  }
+  if (trimmed.startsWith("/images/")) {
+    return trimmed;
+  }
+  const cleanPath = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  const base = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  return `${base.replace(/\/+$/, "")}${cleanPath}`;
+}
 
 /* -------------------------------------------------------------
  * PUBLIC API METHODS
@@ -243,13 +505,15 @@ export async function getServices(): Promise<ServiceItem[]> {
         shortDesc: s.shortDesc,
         fullDesc: s.fullDesc || s.shortDesc,
         duration: s.duration,
-        cashPrice: typeof s.cashPrice === "number" ? `$${s.cashPrice}` : String(s.cashPrice),
+        cashPrice: formatPrice(s.cashPrice),
         insuranceNote: s.insuranceNote || "",
         code: s.code || "",
         recommendedInterval: s.recommendedInterval || "",
         highlight: s.isHighlighted,
         isActive: s.isActive,
         displayOrder: s.displayOrder,
+        imageUrl: (s as any).imageUrl || null,
+        slug: s.slug,
       };
     });
   } catch {
@@ -339,11 +603,80 @@ export async function submitBookingRequest(
     } catch {
       // Ignore parse failure; retain fallback
     }
-    throw new Error(errorDetail);
+    const error = new Error(errorDetail);
+    (error as any).status = response.status;
+    throw error;
   }
 
   return response.json();
 }
+
+/**
+ * Public Booking Flow 2.0 API methods
+ */
+export async function getPublicBookingServices(): Promise<PublicBookingServiceItem[]> {
+  const res = await fetch(`${API_BASE}/api/v1/public/booking/services`);
+  if (!res.ok) throw new Error("Failed to fetch bookable services.");
+  return res.json();
+}
+
+export async function getPublicBookingClinics(serviceId: string): Promise<PublicBookingClinicItem[]> {
+  const res = await fetch(`${API_BASE}/api/v1/public/booking/clinics?serviceId=${encodeURIComponent(serviceId)}`);
+  if (!res.ok) throw new Error("Failed to fetch clinics for service.");
+  return res.json();
+}
+
+export async function getPublicBookingDoctors(
+  serviceId: string,
+  clinicId: string,
+  days?: number
+): Promise<PublicBookingDoctorItem[]> {
+  const url = `${API_BASE}/api/v1/public/booking/doctors?serviceId=${encodeURIComponent(serviceId)}&clinicId=${encodeURIComponent(clinicId)}${days ? `&days=${days}` : ""}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Failed to fetch doctors for service and clinic.");
+  return res.json();
+}
+
+
+
+export async function publicLeadCapture(payload: {
+  fullName: string;
+  phone: string;
+  email?: string;
+}): Promise<PublicLeadCaptureResponse> {
+  const res = await fetch(`${API_BASE}/api/v1/public/leads`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to capture contact details.");
+  }
+  return res.json();
+}
+
+export async function publicLeadUpdate(payload: {
+  captureToken: string;
+  serviceId?: string;
+  clinicId?: string;
+  teamMemberId?: string;
+  notes?: string;
+  email?: string;
+}): Promise<{ success: boolean; captureToken: string }> {
+  const { captureToken, ...rest } = payload;
+  const res = await fetch(`${API_BASE}/api/v1/public/leads/${encodeURIComponent(captureToken)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(rest),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update lead progress.");
+  }
+  return res.json();
+}
+
 
 /* -------------------------------------------------------------
  * AUTHENTICATION & SINGLE-FLIGHT FIFO REQUEST QUEUE
@@ -538,6 +871,26 @@ export async function getMe(accessToken?: string): Promise<User> {
   return res.json();
 }
 
+/** Changes the authenticated user's own password. Satisfies requiresPasswordChange. */
+export async function changePassword(
+  payload: { oldPassword: string; newPassword: string },
+  token?: string
+): Promise<{ success: boolean; message: string }> {
+  const res = await authorizedFetch(
+    "/api/v1/auth/change-password",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to change password.");
+  }
+  return res.json();
+}
+
 export async function updateInactivitySettings(
   payload: {
     inactivityEnabled: boolean;
@@ -636,11 +989,141 @@ export async function adminToggleServiceStatus(id: string, isActive: boolean, to
   return res.json();
 }
 
+/** Persists the display order of services from an ordered list of IDs. */
+export async function adminReorderServices(orderedIds: string[], token?: string) {
+  const res = await authorizedFetch(
+    `/api/v1/admin/services/reorder`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ orderedIds }),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to reorder services.");
+  }
+  return res.json();
+}
+
+export async function adminGetClinicMatrix(token?: string): Promise<ClinicMatrixResponse> {
+  const res = await authorizedFetch(`/api/v1/admin/services/clinic-matrix`, {}, token);
+  if (!res.ok) throw new Error("Failed to load clinic matrix.");
+  return res.json();
+}
+
+export async function adminUpdateServiceClinics(
+  serviceId: string,
+  clinicIds: string[],
+  token?: string
+): Promise<{ success: boolean; serviceId: string; clinicIds: string[] }> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/services/${serviceId}/clinics`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ clinicIds }),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update service clinics.");
+  }
+  return res.json();
+}
+
+export async function adminUpdateServiceProviders(
+  serviceId: string,
+  providerIds: string[],
+  token?: string
+): Promise<{ success: boolean; serviceId: string; providerIds: string[] }> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/services/${serviceId}/providers`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ providerIds }),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update service providers.");
+  }
+  return res.json();
+}
+
+/** Persists the display order of team members from an ordered list of IDs. */
+export async function adminReorderTeam(orderedIds: string[], token?: string) {
+  const res = await authorizedFetch(
+    `/api/v1/admin/team/reorder`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ orderedIds }),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to reorder team members.");
+  }
+  return res.json();
+}
+
+/** Persists the display order of FAQ items from an ordered list of IDs. */
+export async function adminReorderFaqs(orderedIds: string[], token?: string) {
+  const res = await authorizedFetch(
+    `/api/v1/admin/faq/reorder`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ orderedIds }),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to reorder FAQs.");
+  }
+  return res.json();
+}
+
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 // Team
 export async function adminGetTeam(token?: string): Promise<TeamMember[]> {
   const res = await authorizedFetch(`/api/v1/admin/team`, {}, token);
   if (!res.ok) throw new Error("Failed to load team members.");
-  return res.json();
+  const data = await res.json();
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.items)) return data.items;
+  return [];
+}
+
+export async function adminGetPaginatedTeam(
+  page: number = 1,
+  limit: number = 20,
+  token?: string | null,
+  search?: string
+): Promise<PaginatedResult<TeamMember>> {
+  const q = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (search && search.trim()) q.append("search", search.trim());
+  const res = await authorizedFetch(`/api/v1/admin/team?${q.toString()}`, {}, token);
+  if (!res.ok) throw new Error("Failed to load team members.");
+  const data = await res.json();
+  if (data && Array.isArray(data.items)) return data as PaginatedResult<TeamMember>;
+  if (Array.isArray(data)) {
+    return {
+      items: data.slice((page - 1) * limit, page * limit),
+      total: data.length,
+      page,
+      limit,
+    };
+  }
+  return { items: [], total: 0, page, limit };
 }
 
 export async function adminCreateTeamMember(data: Record<string, unknown>, token?: string) {
@@ -685,6 +1168,80 @@ export async function adminToggleTeamMemberStatus(id: string, isActive: boolean,
     token
   );
   if (!res.ok) throw new Error("Failed to update team member status.");
+  return res.json();
+}
+
+// Roles
+export async function adminGetRoles(token?: string): Promise<RoleItem[]> {
+  const res = await authorizedFetch(`/api/v1/admin/roles`, {}, token);
+  if (!res.ok) throw new Error("Failed to load roles.");
+  return res.json();
+}
+
+export async function adminCreateRole(
+  data: {
+    name: string;
+    displayName?: string | null;
+    description?: string | null;
+    displayOrder?: number;
+    isActive?: boolean;
+  },
+  token?: string
+): Promise<RoleItem> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/roles`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to create role.");
+  }
+  return res.json();
+}
+
+export async function adminUpdateRole(
+  id: string,
+  data: Partial<RoleItem>,
+  token?: string
+): Promise<RoleItem> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/roles/${id}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update role.");
+  }
+  return res.json();
+}
+
+export async function adminDeleteRole(id: string, token?: string): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/roles/${id}`,
+    {
+      method: "DELETE",
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to delete role.");
+  }
+}
+
+export async function publicGetRoles(): Promise<RoleItem[]> {
+  const res = await fetch(`${API_BASE}/api/v1/public/roles`, {
+    headers: { Accept: "application/json" },
+  });
+  if (!res.ok) throw new Error("Failed to fetch public roles.");
   return res.json();
 }
 
@@ -794,6 +1351,63 @@ export async function fetchPublicClinics(): Promise<ClinicItem[]> {
   }
 }
 
+// Public Booking Availability Status
+export async function fetchPublicBookingStatus(): Promise<PublicBookingStatus> {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/public/booking-status`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return { mode: "open" };
+    return await res.json();
+  } catch {
+    return { mode: "open" };
+  }
+}
+
+export interface PublicBookingSettings {
+  leadCaptureNotice?: string;
+  daysShown?: number;
+  showPatientsTreated?: boolean;
+}
+
+export async function fetchPublicBookingSettings(): Promise<PublicBookingSettings> {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/public/booking/settings`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return {};
+    return await res.json();
+  } catch {
+    return {};
+  }
+}
+
+// Public Single Source of Truth Working Hours
+export async function fetchPublicWorkingHours(): Promise<WorkingHoursItem[]> {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/public/working-hours`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
+
+// Public Booking Consolidated Schedule (Hours, Closures, Window)
+export async function fetchPublicBookingSchedule(): Promise<BookingScheduleData | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/public/booking-schedule`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 // Admin Organization
 export async function adminGetOrganization(token?: string | null): Promise<Organization> {
   const res = await authorizedFetch(`/api/v1/admin/organization`, {}, token);
@@ -821,7 +1435,33 @@ export async function adminUpdateOrganization(data: Partial<Organization>, token
 export async function adminGetLocations(token?: string | null): Promise<LocationItem[]> {
   const res = await authorizedFetch(`/api/v1/admin/locations`, {}, token);
   if (!res.ok) throw new Error("Failed to load locations.");
-  return res.json();
+  const data = await res.json();
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.items)) return data.items;
+  return [];
+}
+
+export async function adminGetPaginatedLocations(
+  page: number = 1,
+  limit: number = 20,
+  token?: string | null,
+  search?: string
+): Promise<PaginatedResult<LocationItem>> {
+  const q = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (search && search.trim()) q.append("search", search.trim());
+  const res = await authorizedFetch(`/api/v1/admin/locations?${q.toString()}`, {}, token);
+  if (!res.ok) throw new Error("Failed to load locations.");
+  const data = await res.json();
+  if (data && Array.isArray(data.items)) return data as PaginatedResult<LocationItem>;
+  if (Array.isArray(data)) {
+    return {
+      items: data.slice((page - 1) * limit, page * limit),
+      total: data.length,
+      page,
+      limit,
+    };
+  }
+  return { items: [], total: 0, page, limit };
 }
 
 export async function adminCreateLocation(data: {
@@ -835,6 +1475,7 @@ export async function adminCreateLocation(data: {
   phone?: string | null;
   email?: string | null;
   hoursInfo?: string | null;
+  imageUrl?: string | null;
   isPrimary?: boolean;
   displayOrder?: number;
 }, token?: string | null): Promise<LocationItem> {
@@ -864,6 +1505,7 @@ export async function adminUpdateLocation(id: string, data: {
   phone?: string | null;
   email?: string | null;
   hoursInfo?: string | null;
+  imageUrl?: string | null;
   isPrimary?: boolean;
   displayOrder?: number;
 }, token?: string | null): Promise<LocationItem> {
@@ -947,6 +1589,357 @@ export async function adminDeleteAnnouncement(id: string, token?: string | null)
   }
 }
 
+// -------------------------------------------------------------
+// Admin Booking Operations, Emergency Pause & Calendar Closures
+// -------------------------------------------------------------
+
+export async function adminGetBookingSettings(token?: string | null): Promise<AdminBookingSettings> {
+  const res = await authorizedFetch(`/api/v1/admin/booking/settings`, {}, token);
+  if (!res.ok) throw new Error("Failed to load booking settings.");
+  return res.json();
+}
+
+export async function adminUpdateBookingMode(
+  data: { mode: "open" | "paused" | "closed"; message?: string; resumeOn?: string },
+  token?: string | null
+): Promise<{ settings: AdminBookingSettings; affectedBookings: AffectedBookingItem[] }> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/booking/mode`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update booking mode.");
+  }
+  return res.json();
+}
+
+export async function adminGetAffectedBookings(
+  startDate: string,
+  endDate?: string,
+  token?: string | null
+): Promise<AffectedBookingItem[]> {
+  const q = new URLSearchParams({ startDate });
+  if (endDate) q.append("endDate", endDate);
+  const res = await authorizedFetch(`/api/v1/admin/booking/affected-bookings?${q.toString()}`, {}, token);
+  if (!res.ok) throw new Error("Failed to load affected bookings.");
+  return res.json();
+}
+
+export async function adminCreateRescheduleTasks(
+  bookingIds: string[],
+  token?: string | null
+): Promise<{ tasksCreated: number; taskIds: string[] }> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/booking/reschedule-tasks`,
+    {
+      method: "POST",
+      body: JSON.stringify({ bookingIds }),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to create reschedule tasks.");
+  }
+  return res.json();
+}
+
+export async function adminGetClosures(token?: string | null): Promise<ClinicClosureItem[]> {
+  const res = await authorizedFetch(`/api/v1/admin/booking/closures`, {}, token);
+  if (!res.ok) throw new Error("Failed to load planned closures.");
+  return res.json();
+}
+
+export async function adminCreateClosure(
+  data: { startDate: string; endDate: string; reason: string; message?: string },
+  token?: string | null
+): Promise<{ closure: ClinicClosureItem; affectedBookings: AffectedBookingItem[] }> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/booking/closures`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to create calendar closure.");
+  }
+  return res.json();
+}
+
+export async function adminUpdateClosure(
+  id: string,
+  data: { startDate: string; endDate: string; reason: string; message?: string },
+  token?: string | null
+): Promise<ClinicClosureItem> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/booking/closures/${id}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update calendar closure.");
+  }
+  return res.json();
+}
+
+export async function adminDeleteClosure(id: string, token?: string | null): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/booking/closures/${id}`,
+    {
+      method: "DELETE",
+    },
+    token
+  );
+  if (!res.ok && res.status !== 204) {
+    throw new Error("Failed to delete calendar closure.");
+  }
+}
+
+export async function adminGetWorkingHours(token?: string | null): Promise<WorkingHoursItem[]> {
+  const res = await authorizedFetch(`/api/v1/admin/booking/working-hours`, {}, token);
+  if (!res.ok) throw new Error("Failed to load clinic working hours.");
+  return res.json();
+}
+
+export async function adminUpdateWorkingHours(
+  updates: Array<{ dayOfWeek: number; openTime?: string | null; closeTime?: string | null; isClosed: boolean }>,
+  token?: string | null
+): Promise<WorkingHoursItem[]> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/booking/working-hours`,
+    {
+      method: "PUT",
+      body: JSON.stringify(updates),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update working hours.");
+  }
+  return res.json();
+}
+
+export async function getPublicAvailability(params: {
+  date?: string;
+  serviceId?: string;
+  teamMemberId?: string;
+}): Promise<PublicAvailabilityData> {
+  const q = new URLSearchParams();
+  if (params.date) q.append("date", params.date);
+  if (params.serviceId) q.append("serviceId", params.serviceId);
+  if (params.teamMemberId) q.append("teamMemberId", params.teamMemberId);
+  const res = await fetch(`${API_BASE}/api/v1/public/availability?${q.toString()}`);
+  if (!res.ok) throw new Error("Failed to load appointment availability.");
+  return res.json();
+}
+
+export async function adminUpdateOnlineBookingRules(
+  data: {
+    slotIntervalMinutes: number;
+    minLeadTimeHours: number;
+    advanceBookingDays: number;
+    reminderTemplate?: string;
+    waitingThresholdMinutes?: number;
+    fileNumberPrefix?: string;
+    paymentsEnabled?: boolean;
+  },
+  token?: string | null
+): Promise<AdminBookingSettings> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/booking/rules`,
+    {
+      method: "PUT",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update online booking rules.");
+  }
+  return res.json();
+}
+
+export async function adminUpdateReminderTemplate(
+  template: string,
+  token?: string | null
+): Promise<AdminBookingSettings> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/booking/reminder-template`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ template }),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update reminder template.");
+  }
+  return res.json();
+}
+
+export async function adminGetProviderAvailabilities(
+  teamMemberId?: string,
+  clinicId?: string,
+  token?: string | null
+): Promise<ProviderAvailabilityItem[]> {
+  const q = new URLSearchParams();
+  if (teamMemberId) q.append("teamMemberId", teamMemberId);
+  if (clinicId) q.append("clinicId", clinicId);
+  const qs = q.toString() ? `?${q.toString()}` : "";
+  const res = await authorizedFetch(`/api/v1/admin/booking/provider-availability${qs}`, {}, token);
+  if (!res.ok) throw new Error("Failed to load clinician shifts.");
+  return res.json();
+}
+
+export async function adminSaveProviderAvailability(
+  data: {
+    teamMemberId: string;
+    dayOfWeek: number;
+    startTime: string;
+    endTime: string;
+    breakStartTime?: string | null;
+    breakEndTime?: string | null;
+    clinicId?: string | null;
+    isActive?: boolean;
+  },
+  token?: string | null
+): Promise<{ availability: ProviderAvailabilityItem; affectedBookings: AffectedBookingItem[] }> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/booking/provider-availability`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to save clinician schedule.");
+  }
+  return res.json();
+}
+
+export async function adminGetBookingFlowSettings(
+  token?: string | null
+): Promise<BookingFlowSettingsDto> {
+  const res = await authorizedFetch(`/api/v1/admin/booking/flow-settings`, {}, token);
+  if (!res.ok) throw new Error("Failed to load booking flow settings.");
+  return res.json();
+}
+
+export async function adminUpdateBookingFlowSettings(
+  data: BookingFlowSettingsDto,
+  token?: string | null
+): Promise<BookingFlowSettingsDto> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/booking/flow-settings`,
+    {
+      method: "PUT",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to update booking flow settings.");
+  }
+  return res.json();
+}
+
+export async function adminGetStaffUsers(
+  token?: string | null
+): Promise<StaffUserDto[]> {
+  const res = await authorizedFetch(`/api/v1/admin/booking/staff-users`, {}, token);
+  if (!res.ok) throw new Error("Failed to load staff users.");
+  return res.json();
+}
+
+export async function adminGetBookabilityCheck(
+  token?: string | null
+): Promise<BookabilityCheckItem[]> {
+  const res = await authorizedFetch(`/api/v1/admin/booking/bookability-check`, {}, token);
+  if (!res.ok) throw new Error("Failed to load bookability check.");
+  return res.json();
+}
+
+export async function adminDeleteProviderAvailability(
+  availId: string,
+  token?: string | null
+): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/booking/provider-availability/${availId}`,
+    { method: "DELETE" },
+    token
+  );
+  if (!res.ok && res.status !== 204) throw new Error("Failed to delete clinician schedule.");
+}
+
+export async function adminGetProviderTimeOff(
+  teamMemberId?: string,
+  futureOnly: boolean = false,
+  token?: string | null
+): Promise<ProviderTimeOffItem[]> {
+  const q = new URLSearchParams();
+  if (teamMemberId) q.append("teamMemberId", teamMemberId);
+  if (futureOnly) q.append("futureOnly", "true");
+  const res = await authorizedFetch(`/api/v1/admin/booking/provider-time-off?${q.toString()}`, {}, token);
+  if (!res.ok) throw new Error("Failed to load clinician time off.");
+  return res.json();
+}
+
+export async function adminSaveProviderTimeOff(
+  data: {
+    teamMemberId: string;
+    startDate: string;
+    endDate: string;
+    reason: string;
+    isApproved?: boolean;
+  },
+  token?: string | null
+): Promise<{ timeOff: ProviderTimeOffItem; affectedBookings: AffectedBookingItem[] }> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/booking/provider-time-off`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to save clinician time off.");
+  }
+  return res.json();
+}
+
+export async function adminDeleteProviderTimeOff(
+  timeOffId: string,
+  token?: string | null
+): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/booking/provider-time-off/${timeOffId}`,
+    { method: "DELETE" },
+    token
+  );
+  if (!res.ok && res.status !== 204) throw new Error("Failed to delete clinician time off.");
+}
+
+
 // Admin Permissions Matrix
 export interface PermissionMatrixItem {
   id: string;
@@ -1022,6 +2015,24 @@ interface RawBooking {
   slotId?: string | null;
   notes?: string | null;
   staffNotes?: string | null;
+  arrivedAt?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  cancellationReason?: string | null;
+  cancelledByUserId?: string | null;
+  remindedAt?: string | null;
+  remindedByUserId?: string | null;
+  remindedByName?: string | null;
+  clinicianName?: string | null;
+  serviceName?: string | null;
+  hasAlerts?: boolean;
+  paymentStatus?: "paid" | "unpaid" | "partial" | null;
+  source?: string;
+  leadId?: string | null;
+  leadStatus?: string | null;
+  isFirstVisit?: boolean | null;
+  utmSource?: string | null;
+  utmCampaign?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1033,6 +2044,13 @@ interface RawAttentionItem {
   subtitle: string;
   actionRoute: string;
   severity: string;
+  targetId?: string;
+  bookingId?: string | null;
+  taskId?: string | null;
+  patientId?: string | null;
+  patientName?: string | null;
+  patientPhone?: string | null;
+  availableActions?: ("confirm" | "check_in" | "snooze" | "create_task")[];
 }
 
 interface RawDashboardSummary {
@@ -1046,12 +2064,17 @@ interface RawDashboardSummary {
   cancelledCount: number;
   noShowCount: number;
   pendingRequestsCount: number;
+  unconfirmedTomorrowCount?: number;
+  waitingDelayedCount?: number;
+  overdueTasksCount?: number;
+  pastUnresolvedCount?: number;
   urgentTasksCount: number;
   newLeadsCount: number;
   recallsDueCount: number;
   needsAttentionCount: number;
   todayFlow: RawBooking[];
   needsAttentionItems: RawAttentionItem[];
+  needsActionQueue?: RawAttentionItem[];
 }
 
 interface RawPatient {
@@ -1065,6 +2088,17 @@ interface RawPatient {
   dateOfBirth?: string | null;
   notes?: string | null;
   isActive: boolean;
+  hasAlerts?: boolean;
+  medicalHistoryStatus?: string;
+  fileNumber?: string | null;
+  guardianName?: string | null;
+  guardianPhone?: string | null;
+  guardianRelationship?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
+  emergencyContactRelationship?: string | null;
+  messagingOptOut?: boolean;
+  preferredChannel?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -1096,9 +2130,15 @@ interface RawMessage {
   senderId?: string | null;
   recipientId?: string | null;
   phone?: string | null;
+  phoneNormalized?: string | null;
   email?: string | null;
   channel: string;
   status: string;
+  direction?: string;
+  purpose?: string;
+  deliveryStatus?: string;
+  patientId?: string | null;
+  leadId?: string | null;
   createdAt: string;
 }
 
@@ -1114,6 +2154,11 @@ interface RawLead {
   notes?: string | null;
   utmSource?: string | null;
   utmCampaign?: string | null;
+  attempts?: number;
+  lastContactedAt?: string | null;
+  nextAttemptAt?: string | null;
+  coldAt?: string | null;
+  lastActivityAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1131,6 +2176,10 @@ export interface ReceptionDashboardStats {
   cancelledCount: number;
   noShowCount: number;
   pendingRequestsCount: number;
+  unconfirmedTomorrowCount: number;
+  waitingDelayedCount: number;
+  overdueTasksCount: number;
+  pastUnresolvedCount: number;
   urgentTasksCount: number;
   newLeadsCount: number;
   recallsDueCount: number;
@@ -1160,6 +2209,14 @@ export interface ReceptionAttentionItem {
   description: string;
   link: string;
   priority: string;
+  severity?: string;
+  targetId?: string;
+  bookingId?: string | null;
+  taskId?: string | null;
+  patientId?: string | null;
+  patientName?: string | null;
+  patientPhone?: string | null;
+  availableActions?: ("confirm" | "check_in" | "snooze" | "create_task")[];
 }
 
 export interface ReceptionBooking {
@@ -1178,6 +2235,24 @@ export interface ReceptionBooking {
   confirmationStatus: "confirmed" | "unconfirmed";
   notes?: string | null;
   staffNotes?: string | null;
+  arrivedAt?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  cancellationReason?: string | null;
+  cancelledByUserId?: string | null;
+  remindedAt?: string | null;
+  remindedByUserId?: string | null;
+  remindedByName?: string | null;
+  clinicianName?: string | null;
+  serviceName?: string | null;
+  hasAlerts?: boolean;
+  paymentStatus?: "paid" | "unpaid" | "partial" | null;
+  source?: string;
+  leadId?: string | null;
+  leadStatus?: string | null;
+  isFirstVisit?: boolean | null;
+  utmSource?: string | null;
+  utmCampaign?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1194,6 +2269,17 @@ export interface ReceptionPatient {
   dateOfBirth?: string | null;
   notes?: string | null;
   isActive: boolean;
+  hasAlerts?: boolean;
+  medicalHistoryStatus?: string;
+  fileNumber?: string | null;
+  guardianName?: string | null;
+  guardianPhone?: string | null;
+  guardianRelationship?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
+  emergencyContactRelationship?: string | null;
+  messagingOptOut?: boolean;
+  preferredChannel?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -1226,6 +2312,13 @@ export interface ReceptionMessage {
   status: string;
   recipient?: string | null;
   senderId?: string | null;
+  direction: "inbound" | "outbound" | string;
+  purpose: "reminder" | "confirmation" | "lead_recovery" | "manual" | "inbound" | string;
+  deliveryStatus: "simulated" | "delivered" | "sent" | "failed" | string;
+  patientId?: string | null;
+  leadId?: string | null;
+  phone?: string | null;
+  phoneNormalized?: string | null;
   createdAt: string;
 }
 
@@ -1240,8 +2333,34 @@ export interface ReceptionLead {
   convertedPatientId?: string | null;
   utmSource?: string | null;
   utmCampaign?: string | null;
+  source?: string | null;
+  attempts: number;
+  lastContactedAt?: string | null;
+  nextAttemptAt?: string | null;
+  coldAt?: string | null;
+  lastActivityAt?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface LeadTimelineItem {
+  id: string;
+  type: "event" | "message" | "call" | "booking" | string;
+  timestamp?: string | null;
+  eventType?: string | null;
+  actorType?: string | null;
+  actorId?: string | null;
+  channel?: string | null;
+  direction?: string | null;
+  purpose?: string | null;
+  content?: string | null;
+  deliveryStatus?: string | null;
+  outcome?: string | null;
+  notes?: string | null;
+  confirmationId?: string | null;
+  status?: string | null;
+  source?: string | null;
+  payload?: Record<string, any> | null;
 }
 
 export interface ReceptionRequestItem {
@@ -1263,9 +2382,64 @@ export interface ReceptionRecall {
   phone: string;
   email?: string | null;
   lastVisitDate: string;
-  status: string;
   serviceId?: string | null;
+  serviceName?: string | null;
+  recallIntervalDays?: number;
+  dueDate: string;
+  status: string;
+  clinicId?: string | null;
+  hasOpenTask?: boolean;
+  taskId?: string | null;
 }
+
+export interface WaitlistOfferCandidate {
+  waitlistBookingId: string;
+  confirmationId: string;
+  patientId?: string | null;
+  patientName: string;
+  patientPhone: string;
+  patientEmail?: string | null;
+  preferredDate?: string | null;
+  preferredTime?: string | null;
+  serviceId?: string | null;
+  serviceName?: string | null;
+  notes?: string | null;
+  hasOpenOfferTask: boolean;
+  taskId?: string | null;
+}
+
+export interface VisitPayment {
+  id: string;
+  clinicId?: string | null;
+  bookingId?: string | null;
+  patientId?: string | null;
+  amountCents: number;
+  amountFormatted: string;
+  amountChargedCents?: number;
+  amountChargedFormatted?: string | null;
+  currency: string;
+  method: "cash" | "card" | "bank_transfer" | string;
+  notes?: string | null;
+  isVoided?: boolean;
+  voidReason?: string | null;
+  voidedAt?: string | null;
+  voidedByUserId?: string | null;
+  voidedByName?: string | null;
+  recordedByUserId?: string | null;
+  recordedByName?: string | null;
+  createdAt: string;
+}
+
+export interface EndOfDayPaymentsSummary {
+  targetDate: string;
+  totalCents: number;
+  cashCents: number;
+  cardCents: number;
+  transferCents: number;
+  paymentCount: number;
+  payments: VisitPayment[];
+}
+
 
 /* --- Mappers: backend DTO -> frontend shape --- */
 
@@ -1288,6 +2462,24 @@ function mapBooking(raw: RawBooking): ReceptionBooking {
     confirmationStatus: raw.status === "requested" ? "unconfirmed" : "confirmed",
     notes: raw.notes,
     staffNotes: raw.staffNotes,
+    arrivedAt: raw.arrivedAt,
+    startedAt: raw.startedAt,
+    completedAt: raw.completedAt,
+    cancellationReason: raw.cancellationReason,
+    cancelledByUserId: raw.cancelledByUserId,
+    remindedAt: raw.remindedAt,
+    remindedByUserId: raw.remindedByUserId,
+    remindedByName: raw.remindedByName,
+    clinicianName: raw.clinicianName,
+    serviceName: raw.serviceName,
+    hasAlerts: raw.hasAlerts ?? false,
+    paymentStatus: raw.paymentStatus ?? null,
+    source: raw.source || "reception",
+    leadId: raw.leadId,
+    leadStatus: raw.leadStatus,
+    isFirstVisit: raw.isFirstVisit,
+    utmSource: raw.utmSource,
+    utmCampaign: raw.utmCampaign,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
   };
@@ -1320,6 +2512,13 @@ function mapMessage(raw: RawMessage): ReceptionMessage {
     status: raw.status,
     recipient: raw.phone || raw.email || null,
     senderId: raw.senderId,
+    direction: raw.direction || "outbound",
+    purpose: raw.purpose || "manual",
+    deliveryStatus: raw.deliveryStatus || "simulated",
+    patientId: raw.patientId,
+    leadId: raw.leadId,
+    phone: raw.phone,
+    phoneNormalized: raw.phoneNormalized,
     createdAt: raw.createdAt,
   };
 }
@@ -1336,6 +2535,12 @@ function mapLead(raw: RawLead): ReceptionLead {
     convertedPatientId: raw.patientId,
     utmSource: raw.utmSource,
     utmCampaign: raw.utmCampaign,
+    source: raw.utmSource || "manual",
+    attempts: raw.attempts ?? 0,
+    lastContactedAt: raw.lastContactedAt,
+    nextAttemptAt: raw.nextAttemptAt,
+    coldAt: raw.coldAt,
+    lastActivityAt: raw.lastActivityAt,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
   };
@@ -1375,6 +2580,10 @@ export async function getReceptionDashboard(
     cancelledCount: raw.cancelledCount,
     noShowCount: raw.noShowCount,
     pendingRequestsCount: raw.pendingRequestsCount,
+    unconfirmedTomorrowCount: raw.unconfirmedTomorrowCount || 0,
+    waitingDelayedCount: raw.waitingDelayedCount || 0,
+    overdueTasksCount: raw.overdueTasksCount || 0,
+    pastUnresolvedCount: raw.pastUnresolvedCount || 0,
     urgentTasksCount: raw.urgentTasksCount,
     newLeadsCount: raw.newLeadsCount,
     recallsDueCount: raw.recallsDueCount,
@@ -1399,8 +2608,38 @@ export async function getReceptionDashboard(
       description: item.subtitle,
       link: item.actionRoute,
       priority: item.severity,
+      severity: item.severity,
+      targetId: item.targetId,
+      bookingId: item.bookingId,
+      taskId: item.taskId,
+      patientId: item.patientId,
+      patientName: item.patientName,
+      patientPhone: item.patientPhone,
+      availableActions: item.availableActions,
     })),
   };
+}
+
+export async function snoozeReceptionQueueItem(
+  itemType: "booking" | "task",
+  itemId: string,
+  durationHours = 24,
+  token?: string | null
+): Promise<{ success: boolean; itemId: string; snoozedUntil: string }> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/dashboard/snooze`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ itemType, itemId, durationHours }),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to snooze queue item.");
+  }
+  return res.json();
 }
 
 /* --- Schedule & appointments (backend: /reception/schedule, /appointments) --- */
@@ -1426,6 +2665,16 @@ export async function getReceptionBookings(
 }
 
 
+export async function getReceptionBookingById(
+  id: string,
+  token?: string | null
+): Promise<ReceptionBooking> {
+  const res = await authorizedFetch(`/api/v1/reception/appointments/${id}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to load appointment details.");
+  const raw: RawBooking = await res.json();
+  return mapBooking(raw);
+}
+
 export async function createReceptionBooking(
   data: {
     patientId?: string;
@@ -1438,6 +2687,10 @@ export async function createReceptionBooking(
     bookingDate: string;
     bookingTime: string;
     notes?: string;
+    staffNotes?: string;
+    status?: string;
+    source?: string;
+    leadId?: string | null;
   },
   token?: string | null
 ): Promise<ReceptionBooking> {
@@ -1451,6 +2704,9 @@ export async function createReceptionBooking(
     fullName = fullName || profile.fullName;
     phone = phone || profile.phone;
     email = email || profile.email || undefined;
+  }
+  if (!email && phone) {
+    email = `${phone.replace(/\D/g, "") || "patient"}@marlow.internal`;
   }
   if (!fullName || !phone || !email) {
     throw new Error("Patient name, phone and email are required to book an appointment.");
@@ -1471,7 +2727,10 @@ export async function createReceptionBooking(
         serviceId: data.serviceId ?? null,
         clinicId: data.clinicId ?? null,
         notes: data.notes ?? null,
-        status: "confirmed",
+        staffNotes: data.staffNotes ?? null,
+        status: data.status || "confirmed",
+        source: data.source || "reception",
+        leadId: data.leadId ?? null,
       }),
     },
     token
@@ -1484,13 +2743,18 @@ export async function updateReceptionBookingStatus(
   bookingId: string,
   status: string,
   staffNotes?: string,
-  token?: string | null
+  token?: string | null,
+  cancellationReason?: string
 ): Promise<ReceptionBooking> {
   const res = await authorizedFetch(
     `/api/v1/reception/appointments/${bookingId}/status`,
     {
       method: "PATCH",
-      body: JSON.stringify({ status, staffNotes: staffNotes ?? null }),
+      body: JSON.stringify({
+        status,
+        staffNotes: staffNotes ?? null,
+        cancellationReason: cancellationReason ?? null,
+      }),
     },
     token
   );
@@ -1522,7 +2786,15 @@ export async function updateReceptionBookingConfirmation(
 
 export async function rescheduleReceptionBooking(
   bookingId: string,
-  data: { bookingDate: string; bookingTime: string; teamMemberId?: string },
+  data: {
+    bookingDate: string;
+    bookingTime: string;
+    teamMemberId?: string | null;
+    serviceId?: string | null;
+    staffNotes?: string | null;
+    overrideDoubleBooking?: boolean;
+    overrideReason?: string | null;
+  },
   token?: string | null
 ): Promise<ReceptionBooking> {
   const res = await authorizedFetch(
@@ -1533,11 +2805,314 @@ export async function rescheduleReceptionBooking(
         preferredDate: data.bookingDate,
         preferredTime: data.bookingTime,
         teamMemberId: data.teamMemberId ?? null,
+        serviceId: data.serviceId ?? null,
+        staffNotes: data.staffNotes ?? null,
+        overrideDoubleBooking: data.overrideDoubleBooking ?? false,
+        overrideReason: data.overrideReason ?? null,
       }),
     },
     token
   );
   if (!res.ok) await apiError(res, "Failed to reschedule booking.");
+  return mapBooking(await res.json());
+}
+
+export async function cancelReceptionBooking(
+  bookingId: string,
+  reason: string,
+  staffNotes?: string,
+  token?: string | null
+): Promise<ReceptionBooking> {
+  return updateReceptionBookingStatus(bookingId, "cancelled", staffNotes, token, reason);
+}
+
+export async function markNoShowReceptionBooking(
+  bookingId: string,
+  staffNotes?: string,
+  token?: string | null
+): Promise<ReceptionBooking> {
+  return updateReceptionBookingStatus(bookingId, "no_show", staffNotes, token);
+}
+
+/* --- Reminders Worklist --- */
+
+export function normalizePakistanPhone(phone: string): string {
+  if (!phone) return "";
+  let digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("0092")) {
+    digits = digits.slice(2);
+  } else if (digits.startsWith("0")) {
+    digits = "92" + digits.slice(1);
+  } else if (digits.startsWith("3") && digits.length === 10) {
+    digits = "92" + digits;
+  } else if (!digits.startsWith("92") && digits.length >= 7) {
+    digits = "92" + digits;
+  }
+  return digits;
+}
+
+export interface ReceptionReminderItem {
+  id: string;
+  confirmationId: string;
+  preferredDate: string;
+  preferredTime: string;
+  patientFullName: string;
+  patientPhone: string;
+  patientEmail: string;
+  status: string;
+  clinicId?: string | null;
+  patientId?: string | null;
+  serviceId?: string | null;
+  serviceName?: string | null;
+  teamMemberId?: string | null;
+  clinicianName?: string | null;
+  remindedAt?: string | null;
+  remindedByUserId?: string | null;
+  remindedByName?: string | null;
+  optedOut?: boolean;
+  deliveryStatus?: string;
+  lastMessageAt?: string | null;
+}
+
+export interface ReceptionRemindersResponse {
+  targetDate: string;
+  template: string;
+  items: ReceptionReminderItem[];
+  providerMode?: string;
+  quietHoursActive?: boolean;
+  quietHoursStart?: string;
+  quietHoursEnd?: string;
+}
+
+export async function getReceptionReminders(
+  date?: string,
+  token?: string | null
+): Promise<ReceptionRemindersResponse> {
+  const q = date ? `?date=${date}` : "";
+  const res = await authorizedFetch(`/api/v1/reception/reminders${q}`, {}, token);
+  if (!res.ok) throw new Error("Failed to load appointment reminders.");
+  return res.json();
+}
+
+export async function markAppointmentReminded(
+  bookingId: string,
+  token?: string | null
+): Promise<ReceptionBooking> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/appointments/${bookingId}/remind`,
+    { method: "POST" },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to mark appointment reminded.");
+  return mapBooking(await res.json());
+}
+
+export async function togglePatientMessagingOptOut(
+  patientId: string,
+  optOut: boolean,
+  token?: string | null
+): Promise<Record<string, unknown>> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/patients/${patientId}/messaging-opt-out`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ optOut }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to update patient messaging opt-out status.");
+  return res.json();
+}
+
+export interface MessagingSettings {
+  quietHoursEnabled: boolean;
+  quietHoursStart: string;
+  quietHoursEnd: string;
+  messagingProviderMode: string;
+  reminderTemplate: string;
+  reminderTemplateUrdu?: string | null;
+  reminder24hEnabled: boolean;
+  reminder2hEnabled: boolean;
+}
+
+export interface MessagingSettingsUpdate {
+  quietHoursEnabled?: boolean;
+  quietHoursStart?: string;
+  quietHoursEnd?: string;
+  messagingProviderMode?: string;
+  reminderTemplate?: string;
+  reminderTemplateUrdu?: string | null;
+  reminder24hEnabled?: boolean;
+  reminder2hEnabled?: boolean;
+}
+
+export interface SendTestMessageResponse {
+  success: boolean;
+  status: string;
+  channel: string;
+  provider: string;
+  recipient: string;
+  details?: string | null;
+  error?: string | null;
+  providerMessageId?: string | null;
+}
+
+export interface MessageLogItem {
+  id: string;
+  recipientPhone?: string | null;
+  recipientEmail?: string | null;
+  content: string;
+  channel: string;
+  status: string;
+  deliveryStatus: string;
+  errorDetail?: string | null;
+  patientId?: string | null;
+  bookingId?: string | null;
+  senderId?: string | null;
+  createdAt: string;
+}
+
+export interface MessageLogsResponse {
+  items: MessageLogItem[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface RunSchedulerResponse {
+  dispatchedCount: number;
+  skippedOptOutCount: number;
+  skippedQuietHours: boolean;
+  message: string;
+  simulated: boolean;
+}
+
+export async function getMessagingSettings(token?: string | null): Promise<MessagingSettings> {
+  const res = await authorizedFetch("/api/v1/admin/messaging/settings", {}, token);
+  if (!res.ok) await apiError(res, "Failed to load messaging settings.");
+  return res.json();
+}
+
+export async function updateMessagingSettings(
+  payload: MessagingSettingsUpdate,
+  token?: string | null
+): Promise<MessagingSettings> {
+  const res = await authorizedFetch(
+    "/api/v1/admin/messaging/settings",
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to update messaging settings.");
+  return res.json();
+}
+
+export async function sendTestMessage(
+  payload: { recipient: string; message: string; channel?: string },
+  token?: string | null
+): Promise<SendTestMessageResponse> {
+  const res = await authorizedFetch(
+    "/api/v1/admin/messaging/send-test",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to send test message.");
+  return res.json();
+}
+
+export async function getMessageLogs(
+  limit: number = 50,
+  offset: number = 0,
+  token?: string | null
+): Promise<MessageLogsResponse> {
+  const res = await authorizedFetch(`/api/v1/admin/messaging/logs?limit=${limit}&offset=${offset}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to load message logs.");
+  return res.json();
+}
+
+export async function runReminderScheduler(
+  targetDate?: string,
+  forceQuietHours: boolean = false,
+  token?: string | null
+): Promise<RunSchedulerResponse> {
+  const params = new URLSearchParams();
+  if (targetDate) params.append("target_date", targetDate);
+  if (forceQuietHours) params.append("force_quiet_hours", "true");
+  const q = params.toString() ? `?${params.toString()}` : "";
+  const res = await authorizedFetch(
+    `/api/v1/admin/messaging/run-scheduler${q}`,
+    { method: "POST" },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to run reminder scheduler.");
+  return res.json();
+}
+
+/* --- End-of-Day Review --- */
+
+export interface ReceptionEndOfDayItem {
+  id: string;
+  confirmationId: string;
+  preferredDate: string;
+  preferredTime: string;
+  patientFullName: string;
+  patientPhone: string;
+  patientEmail: string;
+  status: string;
+  clinicId?: string | null;
+  patientId?: string | null;
+  serviceId?: string | null;
+  serviceName?: string | null;
+  teamMemberId?: string | null;
+  clinicianName?: string | null;
+  arrivedAt?: string | null;
+  notes?: string | null;
+  staffNotes?: string | null;
+}
+
+export interface ReceptionEndOfDayResponse {
+  targetDate: string;
+  todayCount: number;
+  pastCount: number;
+  totalUnresolved: number;
+  items: ReceptionEndOfDayItem[];
+}
+
+export async function getReceptionEndOfDayUnresolved(
+  date?: string,
+  token?: string | null
+): Promise<ReceptionEndOfDayResponse> {
+  const q = date ? `?date=${date}` : "";
+  const res = await authorizedFetch(`/api/v1/reception/end-of-day/unresolved${q}`, {}, token);
+  if (!res.ok) throw new Error("Failed to load unresolved end-of-day appointments.");
+  return res.json();
+}
+
+export async function resolveReceptionEndOfDay(
+  data: {
+    bookingId: string;
+    resolution: "completed" | "no_show" | "cancelled";
+    reason?: string;
+  },
+  token?: string | null
+): Promise<ReceptionBooking> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/end-of-day/resolve`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to resolve end-of-day appointment.");
   return mapBooking(await res.json());
 }
 
@@ -1605,6 +3180,7 @@ export async function triageReceptionRequest(
       body: JSON.stringify({
         status: action === "confirm" ? "confirmed" : "cancelled",
         staffNotes: notes ?? null,
+        cancellationReason: action === "decline" ? (notes || "Declined during intake request triage") : null,
       }),
     },
     token
@@ -1709,6 +3285,14 @@ export async function createReceptionPatient(
     email?: string;
     dateOfBirth?: string;
     notes?: string;
+    fileNumber?: string;
+    guardianName?: string;
+    guardianPhone?: string;
+    guardianRelationship?: string;
+    emergencyContactName?: string;
+    emergencyContactPhone?: string;
+    emergencyContactRelationship?: string;
+    preferredChannel?: string;
     bypassDuplicateCheck?: boolean;
   },
   token?: string | null
@@ -1727,6 +3311,14 @@ export async function createReceptionPatient(
         email: data.email ?? null,
         dateOfBirth: data.dateOfBirth ?? null,
         notes: data.notes ?? null,
+        preferredChannel: data.preferredChannel ?? "sms",
+        fileNumber: data.fileNumber ?? null,
+        guardianName: data.guardianName ?? null,
+        guardianPhone: data.guardianPhone ?? null,
+        guardianRelationship: data.guardianRelationship ?? null,
+        emergencyContactName: data.emergencyContactName ?? null,
+        emergencyContactPhone: data.emergencyContactPhone ?? null,
+        emergencyContactRelationship: data.emergencyContactRelationship ?? null,
       }),
     },
     token
@@ -1750,6 +3342,14 @@ export async function updateReceptionPatient(
     dateOfBirth: string;
     notes: string;
     isActive: boolean;
+    fileNumber: string;
+    guardianName: string;
+    guardianPhone: string;
+    guardianRelationship: string;
+    emergencyContactName: string;
+    emergencyContactPhone: string;
+    emergencyContactRelationship: string;
+    preferredChannel: string;
   }>,
   token?: string | null
 ): Promise<ReceptionPatient> {
@@ -1765,6 +3365,14 @@ export async function updateReceptionPatient(
         dateOfBirth: data.dateOfBirth ?? null,
         notes: data.notes ?? null,
         isActive: data.isActive ?? null,
+        preferredChannel: data.preferredChannel ?? null,
+        fileNumber: data.fileNumber ?? null,
+        guardianName: data.guardianName ?? null,
+        guardianPhone: data.guardianPhone ?? null,
+        guardianRelationship: data.guardianRelationship ?? null,
+        emergencyContactName: data.emergencyContactName ?? null,
+        emergencyContactPhone: data.emergencyContactPhone ?? null,
+        emergencyContactRelationship: data.emergencyContactRelationship ?? null,
       }),
     },
     token
@@ -1800,6 +3408,9 @@ export async function createReceptionTask(
     description?: string;
     priority?: "low" | "medium" | "high" | "urgent";
     dueDate?: string;
+    status?: string;
+    patientId?: string;
+    bookingId?: string;
   },
   token?: string | null
 ): Promise<ReceptionTask> {
@@ -1811,7 +3422,9 @@ export async function createReceptionTask(
         title: data.title,
         description: data.description ?? null,
         priority: data.priority ?? "medium",
-        status: "pending",
+        status: data.status ?? "pending",
+        patientId: data.patientId ?? null,
+        bookingId: data.bookingId ?? null,
         dueDate: data.dueDate ? `${data.dueDate}T00:00:00` : null,
       }),
     },
@@ -1857,10 +3470,13 @@ export async function updateReceptionTask(
  * filter is applied client-side on the returned records.
  */
 export async function getReceptionMessages(
-  params?: { channel?: string },
+  params?: { channel?: string; phone?: string },
   token?: string | null
 ): Promise<ReceptionMessage[]> {
-  const res = await authorizedFetch(`/api/v1/reception/messages`, {}, token);
+  const q = new URLSearchParams();
+  if (params?.phone) q.set("phone", params.phone);
+  const qs = q.toString() ? `?${q.toString()}` : "";
+  const res = await authorizedFetch(`/api/v1/reception/messages${qs}`, {}, token);
   if (!res.ok) throw new Error("Failed to load messages.");
   const raw: RawMessage[] = await res.json();
   const mapped = raw.map(mapMessage);
@@ -1879,6 +3495,10 @@ export async function sendReceptionMessage(
     channel: "sms" | "email" | "portal" | "whatsapp";
     recipient?: string;
     body: string;
+    patientId?: string;
+    leadId?: string;
+    direction?: string;
+    purpose?: string;
   },
   token?: string | null
 ): Promise<ReceptionMessage> {
@@ -1891,11 +3511,45 @@ export async function sendReceptionMessage(
         channel: data.channel,
         phone: data.channel === "email" ? null : data.recipient || null,
         email: data.channel === "email" ? data.recipient || null : null,
+        patientId: data.patientId || null,
+        leadId: data.leadId || null,
+        direction: data.direction || "outbound",
+        purpose: data.purpose || "manual",
       }),
     },
     token
   );
   if (!res.ok) await apiError(res, "Failed to log message.");
+  return mapMessage(await res.json());
+}
+
+export async function logInboundNote(
+  data: {
+    phone: string;
+    content: string;
+    channel?: string;
+    leadId?: string;
+    patientId?: string;
+  },
+  token?: string | null
+): Promise<ReceptionMessage> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/messages`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        phone: data.phone,
+        content: data.content,
+        direction: "inbound",
+        purpose: "inbound",
+        channel: data.channel || "whatsapp",
+        leadId: data.leadId || null,
+        patientId: data.patientId || null,
+      }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to log inbound note.");
   return mapMessage(await res.json());
 }
 
@@ -1920,6 +3574,7 @@ export async function createReceptionLead(
     phone: string;
     email?: string;
     notes?: string;
+    utmSource?: string;
   },
   token?: string | null
 ): Promise<ReceptionLead> {
@@ -1933,7 +3588,8 @@ export async function createReceptionLead(
         phone: data.phone,
         email: data.email || null,
         notes: data.notes || null,
-        status: "new",
+        utmSource: data.utmSource || "manual",
+        status: "unconverted",
       }),
     },
     token
@@ -1963,18 +3619,112 @@ export async function convertReceptionLead(
 export async function updateReceptionLeadStatus(
   leadId: string,
   status: string,
+  reason: string = "Reception manual status update",
   token?: string | null
 ): Promise<ReceptionLead> {
   const res = await authorizedFetch(
-    `/api/v1/reception/leads/${leadId}`,
+    `/api/v1/reception/leads/${leadId}/status`,
     {
       method: "PATCH",
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, reason: reason.trim() || "Manual update" }),
     },
     token
   );
   if (!res.ok) await apiError(res, "Failed to update lead status.");
   return mapLead(await res.json());
+}
+
+export async function logReceptionLeadAttempt(
+  leadId: string,
+  data: {
+    channel: string;
+    result: string;
+    note?: string;
+  },
+  token?: string | null
+): Promise<ReceptionLead> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/leads/${leadId}/attempt`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to log contact attempt.");
+  return mapLead(await res.json());
+}
+
+export async function getReceptionLeadTimeline(
+  leadId: string,
+  token?: string | null
+): Promise<LeadTimelineItem[]> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/leads/${leadId}/timeline`,
+    {},
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to load lead timeline.");
+  return await res.json();
+}
+
+export async function markReceptionLeadFailedConversion(
+  leadId: string,
+  reason?: string,
+  token?: string | null
+): Promise<ReceptionLead> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/leads/${leadId}/failed-conversion`,
+    {
+      method: "POST",
+      body: JSON.stringify({ reason: reason || "Automation reports all channels failed" }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to record failed conversion.");
+  return mapLead(await res.json());
+}
+
+/* --- Lead Funnel Report --- */
+
+export interface LeadFunnelMetrics {
+  captured: number;
+  unconverted: number;
+  converted: number;
+  patient: number;
+  cold: number;
+  failed: number;
+}
+
+export interface LeadSourcePerformance {
+  source: string;
+  totalLeads: number;
+  convertedLeads: number;
+  patientLeads: number;
+  coldLeads: number;
+  failedLeads: number;
+  conversionRatePercent: number;
+}
+
+export interface LeadFunnelReport {
+  startDate: string;
+  endDate: string;
+  funnel: LeadFunnelMetrics;
+  sources: LeadSourcePerformance[];
+}
+
+export async function getLeadFunnelReport(
+  startDate?: string,
+  endDate?: string,
+  token?: string | null
+): Promise<LeadFunnelReport> {
+  const params = new URLSearchParams();
+  if (startDate) params.set("start_date", startDate);
+  if (endDate) params.set("end_date", endDate);
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  const res = await authorizedFetch(`/api/v1/admin/reports/lead-funnel${qs}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to load lead funnel report.");
+  return await res.json();
 }
 
 /* --- Recalls & waitlist --- */
@@ -1995,7 +3745,13 @@ export async function getReceptionRecalls(
     email?: string | null;
     lastVisitDate: string;
     serviceId?: string | null;
+    serviceName?: string | null;
+    recallIntervalDays?: number;
+    dueDate: string;
     status: string;
+    clinicId?: string | null;
+    hasOpenTask?: boolean;
+    taskId?: string | null;
   }> = await res.json();
 
   return raw.map((r) => ({
@@ -2004,9 +3760,35 @@ export async function getReceptionRecalls(
     phone: r.phone,
     email: r.email,
     lastVisitDate: r.lastVisitDate,
-    status: r.status,
     serviceId: r.serviceId,
+    serviceName: r.serviceName,
+    recallIntervalDays: r.recallIntervalDays,
+    dueDate: r.dueDate,
+    status: r.status,
+    clinicId: r.clinicId,
+    hasOpenTask: r.hasOpenTask,
+    taskId: r.taskId,
   }));
+}
+
+export async function createReceptionRecallTask(
+  data: { patientId: string; serviceId?: string; dueDate?: string },
+  token?: string | null
+): Promise<ReceptionTask> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/recalls/tasks`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        patientId: data.patientId,
+        serviceId: data.serviceId || null,
+        dueDate: data.dueDate || null,
+      }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to create recall task.");
+  return mapTask(await res.json());
 }
 
 /**
@@ -2020,6 +3802,107 @@ export async function getReceptionWaitlist(
   const raw: RawBooking[] = await res.json();
   return raw.map(mapBooking);
 }
+
+export async function getWaitlistOffersForSlot(
+  bookingId: string,
+  token?: string | null
+): Promise<WaitlistOfferCandidate[]> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/appointments/${bookingId}/waitlist-offers`,
+    {},
+    token
+  );
+  if (!res.ok) throw new Error("Failed to load waitlist offer candidates.");
+  return res.json();
+}
+
+export async function createWaitlistOfferTask(
+  bookingId: string,
+  waitlistBookingId: string,
+  token?: string | null
+): Promise<ReceptionTask> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/appointments/${bookingId}/waitlist-offers/create-task`,
+    {
+      method: "POST",
+      body: JSON.stringify({ waitlistBookingId }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to create waitlist offer task.");
+  return mapTask(await res.json());
+}
+
+export async function getBookingPayments(
+  bookingId: string,
+  token?: string | null
+): Promise<VisitPayment[]> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/appointments/${bookingId}/payments`,
+    {},
+    token
+  );
+  if (!res.ok) throw new Error("Failed to load visit payments.");
+  return res.json();
+}
+
+export async function recordBookingPayment(
+  bookingId: string,
+  data: {
+    amountCents: number;
+    amountChargedCents?: number;
+    currency?: string;
+    method?: string;
+    notes?: string;
+    overrideReason?: string;
+    patientId?: string;
+  },
+  token?: string | null
+): Promise<VisitPayment> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/appointments/${bookingId}/payments`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to record payment.");
+  return res.json();
+}
+
+export async function voidBookingPayment(
+  bookingId: string,
+  paymentId: string,
+  reason: string,
+  token?: string | null
+): Promise<VisitPayment> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/appointments/${bookingId}/payments/${paymentId}/void`,
+    {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to void payment.");
+  return res.json();
+}
+
+export async function getEndOfDayPaymentsSummary(
+  date?: string,
+  token?: string | null
+): Promise<EndOfDayPaymentsSummary> {
+  const q = date ? `?date=${encodeURIComponent(date)}` : "";
+  const res = await authorizedFetch(
+    `/api/v1/reception/end-of-day/payments-summary${q}`,
+    {},
+    token
+  );
+  if (!res.ok) throw new Error("Failed to load end of day payments summary.");
+  return res.json();
+}
+
 
 
 /* --- Doctor workspace (backend: /doctor) --- */
@@ -2050,6 +3933,86 @@ export async function updateDoctorBookingNotes(
   );
   if (!res.ok) await apiError(res, "Failed to update clinical notes.");
   return mapBooking(await res.json());
+}
+
+export async function startDoctorAppointment(
+  bookingId: string,
+  token?: string | null
+): Promise<ReceptionBooking> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/appointments/${bookingId}/start`,
+    {
+      method: "POST",
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to start appointment.");
+  return mapBooking(await res.json());
+}
+
+export interface DoctorPatientSummary {
+  id: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  phone: string;
+  email?: string | null;
+  dateOfBirth?: string | null;
+  clinicId?: string | null;
+  createdAt?: string | null;
+}
+
+export interface DoctorPatientVisitHistory {
+  id: string;
+  bookingDate: string;
+  bookingTime: string;
+  serviceId?: string | null;
+  teamMemberId?: string | null;
+  status: string;
+}
+
+export interface DoctorPatientEncounterSummary {
+  id: string;
+  bookingId?: string | null;
+  clinicianId: string;
+  status: string;
+  startedAt: string;
+  endedAt?: string | null;
+}
+
+export interface DoctorPatientDetail {
+  id: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  phone: string;
+  email?: string | null;
+  fileNumber?: string | null;
+  dateOfBirth?: string | null;
+  notes?: string | null;
+  clinicId?: string | null;
+  createdAt?: string | null;
+  visits: DoctorPatientVisitHistory[];
+  encounters: DoctorPatientEncounterSummary[];
+}
+
+export async function searchDoctorPatients(
+  query?: string,
+  token?: string | null
+): Promise<DoctorPatientSummary[]> {
+  const qParam = query ? `?q=${encodeURIComponent(query)}` : "";
+  const res = await authorizedFetch(`/api/v1/doctor/patients${qParam}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to search patients.");
+  return res.json();
+}
+
+export async function getDoctorPatientDetail(
+  patientId: string,
+  token?: string | null
+): Promise<DoctorPatientDetail> {
+  const res = await authorizedFetch(`/api/v1/doctor/patients/${patientId}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to retrieve patient clinical summary.");
+  return res.json();
 }
 
 
@@ -2100,6 +4063,15 @@ export async function getActiveEncounterByBooking(
   const res = await authorizedFetch(`/api/v1/doctor/encounters/by-booking/${bookingId}`, {}, token);
   if (res.status === 404) return null;
   if (!res.ok) await apiError(res, "Failed to retrieve active encounter.");
+  return res.json();
+}
+
+export async function getClinicalEncounter(
+  id: string,
+  token?: string | null
+): Promise<ClinicalEncounter> {
+  const res = await authorizedFetch(`/api/v1/doctor/encounters/${id}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to retrieve clinical encounter.");
   return res.json();
 }
 
@@ -2365,5 +4337,2228 @@ export async function updateProcedureStatus(
     token
   );
   if (!res.ok) await apiError(res, "Failed to update procedure status.");
+  return res.json();
+}
+
+
+/* --- Clinical Medical Alerts & Safety Banner (Phase 1.1) --- */
+
+export interface MedicalAlertItem {
+  id: string;
+  patientId: string;
+  type: "allergy" | "condition" | "medication" | "other";
+  description: string;
+  severity?: string | null;
+  recordedByUserId?: string | null;
+  recordedAt: string;
+  lastReviewedAt?: string | null;
+  isActive: boolean;
+  isConfirmed: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MedicalAlertsSummary {
+  patientId: string;
+  medicalHistoryStatus: "not_asked" | "none_known" | "recorded";
+  confirmedAlerts: MedicalAlertItem[];
+  pendingAlerts: MedicalAlertItem[];
+  lastReviewedAt?: string | null;
+}
+
+export async function getPatientAlertsSummary(
+  patientId: string,
+  token?: string | null
+): Promise<MedicalAlertsSummary> {
+  const res = await authorizedFetch(`/api/v1/clinical/patients/${patientId}/alerts`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to load patient medical alerts.");
+  return res.json();
+}
+
+export async function recordDoctorAlert(
+  patientId: string,
+  data: { type: string; description: string; severity?: string },
+  token?: string | null
+): Promise<MedicalAlertItem> {
+  const res = await authorizedFetch(
+    `/api/v1/clinical/patients/${patientId}/alerts`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to record medical alert.");
+  return res.json();
+}
+
+export async function confirmDoctorAlert(
+  alertId: string,
+  token?: string | null
+): Promise<MedicalAlertItem> {
+  const res = await authorizedFetch(
+    `/api/v1/clinical/alerts/${alertId}/confirm`,
+    {
+      method: "POST",
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to confirm medical alert.");
+  return res.json();
+}
+
+export async function dismissDoctorAlert(
+  alertId: string,
+  token?: string | null
+): Promise<MedicalAlertItem> {
+  const res = await authorizedFetch(
+    `/api/v1/clinical/alerts/${alertId}/dismiss`,
+    {
+      method: "POST",
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to dismiss medical alert.");
+  return res.json();
+}
+
+export async function reviewPatientAlertsAtVisit(
+  patientId: string,
+  token?: string | null
+): Promise<{ patientId: string; lastReviewedAt: string; status: string }> {
+  const res = await authorizedFetch(
+    `/api/v1/clinical/patients/${patientId}/alerts/review`,
+    {
+      method: "POST",
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to record clinical review of alerts.");
+  return res.json();
+}
+
+export async function updateMedicalHistoryStatus(
+  patientId: string,
+  status: string,
+  token?: string | null
+): Promise<{ patientId: string; medicalHistoryStatus: string }> {
+  const res = await authorizedFetch(
+    `/api/v1/clinical/patients/${patientId}/medical-history-status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to update medical history status.");
+  return res.json();
+}
+
+export async function recordReceptionPendingAlert(
+  patientId: string,
+  data: { type: string; description: string },
+  token?: string | null
+): Promise<MedicalAlertItem> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/patients/${patientId}/pending-alerts`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to record pending medical alert.");
+  return res.json();
+}
+
+
+/* --- Unsigned Notes & Visit Completion (Phase 1.2 & 1.3) --- */
+
+export interface UnsignedNoteItem {
+  encounterId: string;
+  bookingId?: string | null;
+  patientId: string;
+  patientName: string;
+  date: string;
+  status: string;
+  chiefComplaint?: string | null;
+}
+
+export async function getDoctorUnsignedNotes(
+  token?: string | null
+): Promise<UnsignedNoteItem[]> {
+  const res = await authorizedFetch(`/api/v1/doctor/unsigned-notes`, {}, token);
+  if (!res.ok) throw new Error("Failed to load unsigned notes.");
+  return res.json();
+}
+
+export async function finishDoctorAppointment(
+  bookingId: string,
+  data?: { followUpDays?: number; followUpWeeks?: number; followUpNote?: string },
+  token?: string | null
+): Promise<ReceptionBooking> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/appointments/${bookingId}/finish`,
+    {
+      method: "POST",
+      body: JSON.stringify(data || {}),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to finish visit.");
+  return mapBooking(await res.json());
+}
+
+// --- Admin Staff Account Management ---
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  fullName: string;
+  role: string;
+  isActive: boolean;
+  clinicId?: string | null;
+  teamMemberId?: string | null;
+  requiresPasswordChange: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function adminGetUsers(token?: string | null): Promise<AdminUser[]> {
+  const res = await authorizedFetch(`/api/v1/admin/users`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to load staff accounts.");
+  return res.json();
+}
+
+export async function adminCreateUser(
+  data: {
+    fullName: string;
+    email: string;
+    role: string;
+    password: string;
+    teamMemberId?: string | null;
+    clinicId?: string | null;
+    requiresPasswordChange?: boolean;
+  },
+  token?: string | null
+): Promise<AdminUser> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/users`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to create staff account.");
+  return res.json();
+}
+
+export async function adminUpdateUserStatus(
+  id: string,
+  isActive: boolean,
+  token?: string | null
+): Promise<AdminUser> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/users/${id}/status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ isActive }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to update account status.");
+  return res.json();
+}
+
+export async function adminUpdateUserRole(
+  id: string,
+  role: string,
+  teamMemberId?: string | null,
+  token?: string | null
+): Promise<AdminUser> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/users/${id}/role`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ role, teamMemberId: teamMemberId || null }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to update account role.");
+  return res.json();
+}
+
+export async function adminResetUserPassword(
+  id: string,
+  password: string,
+  token?: string | null
+): Promise<{ message: string }> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/users/${id}/reset-password`,
+    {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to reset password.");
+  return res.json();
+}
+
+/* -------------------------------------------------------------
+ * PART B: CLINICAL DEPTH APIS
+ * ------------------------------------------------------------- */
+
+export interface DoctorTaskItem {
+  id: string;
+  title: string;
+  description?: string | null;
+  priority: "low" | "medium" | "high" | "urgent";
+  status: "pending" | "done";
+  patientId?: string | null;
+  patientName?: string | null;
+  dueDate?: string | null;
+  createdByUserId?: string | null;
+  createdByName?: string | null;
+  isCreatedByMe?: boolean;
+  createdAt?: string;
+  completedAt?: string | null;
+}
+
+export interface TreatmentPlanItem {
+  id: string;
+  patientId: string;
+  toothNumber?: number | null;
+  serviceId?: string | null;
+  procedureName: string;
+  status: "proposed" | "accepted" | "declined" | "completed";
+  estimatedCostCents: number;
+  estimatedCostFormatted: string;
+  decisionDate?: string | null;
+  notes?: string | null;
+  completedProcedureId?: string | null;
+  createdByUserId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TreatmentPlanResponse {
+  patientId: string;
+  items: TreatmentPlanItem[];
+  groupedByTooth: Record<string, TreatmentPlanItem[]>;
+  totalItems: number;
+  totalEstimatedCents: number;
+  totalEstimatedFormatted: string;
+  acceptedEstimatedCents: number;
+  acceptedEstimatedFormatted: string;
+}
+
+export interface ClinicalNoteTemplate {
+  id: string;
+  name: string;
+  subjective: string;
+  objective: string;
+  assessment: string;
+  plan: string;
+  active: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PatientAttachmentItem {
+  id: string;
+  patientId: string;
+  encounterId?: string | null;
+  category: "xray" | "photo" | "consent" | "referral" | "other";
+  originalFilename: string;
+  contentType: string;
+  size: number;
+  uploadedAt: string;
+  voided: boolean;
+  voidedAt?: string | null;
+  voidReason?: string | null;
+}
+
+export interface PatientConsentItem {
+  id: string;
+  patientId: string;
+  encounterId?: string | null;
+  procedureId?: string | null;
+  consentType: string;
+  consentTextVersion: string;
+  method: "typed" | "scanned";
+  signedName: string;
+  attachmentId?: string | null;
+  recordedAt: string;
+  voided: boolean;
+  voidedAt?: string | null;
+  voidReason?: string | null;
+}
+
+export interface PrescriptionItem {
+  id: string;
+  encounterId: string;
+  patientId: string;
+  doctorId: string;
+  items: Array<{
+    drug: string;
+    dose: string;
+    frequency: string;
+    duration: string;
+    instructions?: string;
+  }>;
+  notes?: string | null;
+  status: "draft" | "signed";
+  signedAt?: string | null;
+  createdAt: string;
+}
+
+export interface PrescriptionPrintView {
+  id: string;
+  encounterId: string;
+  patientId: string;
+  patientName: string;
+  patientPhone?: string;
+  patientDob?: string | null;
+  status: string;
+  items: Array<{
+    drug: string;
+    dose: string;
+    frequency: string;
+    duration: string;
+    instructions?: string;
+  }>;
+  notes?: string | null;
+  doctorName: string;
+  licenceNumber: string;
+  signedAt?: string | null;
+  clinicHeader: string;
+  watermark: string;
+  legalDisclaimer: string;
+}
+
+export interface ReferralLetterItem {
+  id: string;
+  encounterId: string;
+  patientId: string;
+  recipient: string;
+  reason: string;
+  summary: string;
+  status: "draft" | "signed";
+  signedAt?: string | null;
+  createdAt: string;
+}
+
+export interface ReferralLetterPrintView {
+  id: string;
+  encounterId: string;
+  patientId: string;
+  patientName: string;
+  patientPhone?: string;
+  patientDob?: string | null;
+  status: string;
+  recipient: string;
+  reason: string;
+  summary: string;
+  doctorName: string;
+  licenceNumber: string;
+  signedAt?: string | null;
+  clinicHeader: string;
+  watermark: string;
+  legalDisclaimer: string;
+}
+
+// B1: Doctor Tasks
+export async function getDoctorTasks(
+  clinicId?: string,
+  token?: string | null
+): Promise<{ items: DoctorTaskItem[]; total: number }> {
+  const q = clinicId ? `?clinicId=${clinicId}` : "";
+  const res = await authorizedFetch(`/api/v1/doctor/tasks${q}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to load doctor tasks.");
+  return res.json();
+}
+
+export async function createDoctorTask(
+  data: {
+    title: string;
+    patientId: string;
+    description?: string;
+    priority?: string;
+    dueDate?: string;
+  },
+  token?: string | null
+): Promise<DoctorTaskItem> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/tasks`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to create task for reception.");
+  return res.json();
+}
+
+export async function markDoctorTaskDone(
+  taskId: string,
+  token?: string | null
+): Promise<DoctorTaskItem> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/tasks/${taskId}/done`,
+    {
+      method: "POST",
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to mark task done.");
+  return res.json();
+}
+
+// B2: Treatment Plans
+export async function getPatientTreatmentPlan(
+  patientId: string,
+  token?: string | null
+): Promise<TreatmentPlanResponse> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/treatment-plans/patient/${patientId}`,
+    {},
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to load patient treatment plan.");
+  return res.json();
+}
+
+export async function addTreatmentPlanItem(
+  data: {
+    patientId: string;
+    procedureName: string;
+    toothNumber?: number | null;
+    serviceId?: string | null;
+    estimatedCostCents?: number | null;
+    notes?: string | null;
+  },
+  token?: string | null
+): Promise<TreatmentPlanItem> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/treatment-plans`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to add treatment plan item.");
+  return res.json();
+}
+
+export async function updateTreatmentPlanItemStatus(
+  itemId: string,
+  data: {
+    status: string;
+    decisionDate?: string | null;
+    completedProcedureId?: string | null;
+    notes?: string | null;
+  },
+  token?: string | null
+): Promise<TreatmentPlanItem> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/treatment-plans/${itemId}/status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to update treatment plan item status.");
+  return res.json();
+}
+
+// B3: Note Templates
+export async function getClinicalNoteTemplates(
+  activeOnly: boolean = true,
+  token?: string | null
+): Promise<ClinicalNoteTemplate[]> {
+  const q = activeOnly ? "" : "?include_inactive=true";
+  const res = await authorizedFetch(`/api/v1/clinical-note-templates${q}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to load clinical note templates.");
+  return res.json();
+}
+
+export async function createClinicalNoteTemplate(
+  data: {
+    name: string;
+    subjective?: string;
+    objective?: string;
+    assessment?: string;
+    plan?: string;
+    active?: boolean;
+  },
+  token?: string | null
+): Promise<ClinicalNoteTemplate> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/note-templates`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to create note template.");
+  return res.json();
+}
+
+export async function updateClinicalNoteTemplate(
+  templateId: string,
+  data: {
+    name?: string;
+    subjective?: string;
+    objective?: string;
+    assessment?: string;
+    plan?: string;
+    active?: boolean;
+  },
+  token?: string | null
+): Promise<ClinicalNoteTemplate> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/note-templates/${templateId}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to update note template.");
+  return res.json();
+}
+
+export async function applyTemplateToDraftNote(
+  noteId: string,
+  data: {
+    templateId: string;
+    overwriteConfirmed?: boolean;
+  },
+  token?: string | null
+): Promise<{
+  noteId: string;
+  templateName: string;
+  subjective: string;
+  objective: string;
+  assessment: string;
+  plan: string;
+}> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/clinical-notes/${noteId}/apply-template`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to apply template to note.");
+  return res.json();
+}
+
+// B4: Attachments & Consents
+export async function getPatientAttachments(
+  patientId: string,
+  category?: string,
+  token?: string | null
+): Promise<PatientAttachmentItem[]> {
+  const q = category ? `?category=${category}` : "";
+  const res = await authorizedFetch(`/api/v1/attachments/patient/${patientId}${q}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to load attachments.");
+  return res.json();
+}
+
+export async function uploadPatientAttachment(
+  formData: FormData,
+  token?: string | null
+): Promise<PatientAttachmentItem> {
+  const res = await authorizedFetch(
+    `/api/v1/attachments/upload`,
+    {
+      method: "POST",
+      body: formData,
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to upload attachment.");
+  return res.json();
+}
+
+export async function voidPatientAttachment(
+  attachmentId: string,
+  reason: string,
+  token?: string | null
+): Promise<{ voided: boolean }> {
+  const res = await authorizedFetch(
+    `/api/v1/attachments/${attachmentId}/void`,
+    {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to void attachment.");
+  return res.json();
+}
+
+export async function downloadPatientAttachmentBlob(
+  attachmentId: string,
+  token?: string | null
+): Promise<Blob> {
+  const res = await authorizedFetch(
+    `/api/v1/attachments/${attachmentId}/download`,
+    {},
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to download attachment.");
+  return res.blob();
+}
+
+export async function getPatientConsents(
+  patientId: string,
+  token?: string | null
+): Promise<PatientConsentItem[]> {
+  const res = await authorizedFetch(`/api/v1/consents/patient/${patientId}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to load consents.");
+  return res.json();
+}
+
+export async function recordPatientConsent(
+  data: {
+    patientId: string;
+    consentType: string;
+    method: "typed" | "scanned";
+    signedName: string;
+    encounterId?: string;
+    procedureId?: string;
+    attachmentId?: string;
+    consentTextVersion?: string;
+  },
+  token?: string | null
+): Promise<PatientConsentItem> {
+  const res = await authorizedFetch(
+    `/api/v1/consents`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to record patient consent.");
+  return res.json();
+}
+
+export async function voidPatientConsent(
+  consentId: string,
+  reason: string,
+  token?: string | null
+): Promise<{ voided: boolean }> {
+  const res = await authorizedFetch(
+    `/api/v1/consents/${consentId}/void`,
+    {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to void consent.");
+  return res.json();
+}
+
+// B5: Clinical Documents (Prescriptions & Referrals)
+export async function getEncounterPrescriptions(
+  encounterId: string,
+  token?: string | null
+): Promise<PrescriptionItem[]> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/documents/prescriptions/encounter/${encounterId}`,
+    {},
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to load prescriptions.");
+  return res.json();
+}
+
+export async function createPrescription(
+  data: {
+    encounterId: string;
+    patientId: string;
+    items: Array<{
+      drug: string;
+      dose: string;
+      frequency: string;
+      duration: string;
+      instructions?: string;
+    }>;
+    notes?: string;
+  },
+  token?: string | null
+): Promise<PrescriptionItem> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/documents/prescriptions`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to create prescription.");
+  return res.json();
+}
+
+export async function signPrescription(
+  id: string,
+  token?: string | null
+): Promise<PrescriptionItem> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/documents/prescriptions/${id}/sign`,
+    {
+      method: "POST",
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to sign prescription.");
+  return res.json();
+}
+
+export async function getPrescriptionPrintView(
+  id: string,
+  token?: string | null
+): Promise<PrescriptionPrintView> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/documents/prescriptions/${id}/print`,
+    {},
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to load prescription print view.");
+  return res.json();
+}
+
+export async function getEncounterReferrals(
+  encounterId: string,
+  token?: string | null
+): Promise<ReferralLetterItem[]> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/documents/referrals/encounter/${encounterId}`,
+    {},
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to load referrals.");
+  return res.json();
+}
+
+export async function createReferralLetter(
+  data: {
+    encounterId: string;
+    patientId: string;
+    recipient: string;
+    reason: string;
+    summary?: string;
+  },
+  token?: string | null
+): Promise<ReferralLetterItem> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/documents/referrals`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to create referral letter.");
+  return res.json();
+}
+
+export async function signReferralLetter(
+  id: string,
+  token?: string | null
+): Promise<ReferralLetterItem> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/documents/referrals/${id}/sign`,
+    {
+      method: "POST",
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to sign referral letter.");
+  return res.json();
+}
+
+export async function getReferralLetterPrintView(
+  id: string,
+  token?: string | null
+): Promise<ReferralLetterPrintView> {
+  const res = await authorizedFetch(
+    `/api/v1/doctor/documents/referrals/${id}/print`,
+    {},
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to load referral print view.");
+  return res.json();
+}
+
+/* -------------------------------------------------------------
+ * PART C: ADMIN AUDIT VIEWER & ADVANCED OPERATIONAL REPORTS
+ * ------------------------------------------------------------- */
+
+export interface ActivityLogItem {
+  id: string;
+  userId?: string | null;
+  userEmail?: string | null;
+  userFullName?: string | null;
+  userRole?: string | null;
+  action: string;
+  entityType: string;
+  entityId?: string | null;
+  details?: Record<string, unknown> | null;
+  ipAddress?: string | null;
+  createdAt?: string | null;
+}
+
+export interface PaginatedActivityLogsResponse {
+  items: ActivityLogItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface AuditLogFilters {
+  actor?: string;
+  action?: string;
+  entity?: string;
+  patient?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export async function getAuditLogs(
+  filters: AuditLogFilters = {},
+  token?: string | null
+): Promise<PaginatedActivityLogsResponse> {
+  const params = new URLSearchParams();
+  if (filters.page) params.set("page", String(filters.page));
+  if (filters.pageSize) params.set("pageSize", String(filters.pageSize));
+  if (filters.actor) params.set("actor", filters.actor);
+  if (filters.action) params.set("action", filters.action);
+  if (filters.entity) params.set("entity", filters.entity);
+  if (filters.patient) params.set("patient", filters.patient);
+  if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
+  if (filters.dateTo) params.set("dateTo", filters.dateTo);
+
+  const query = params.toString() ? `?${params.toString()}` : "";
+  const res = await authorizedFetch(`/api/v1/admin/audit${query}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to load audit logs.");
+  return res.json();
+}
+
+export async function downloadAuthorizedCsv(
+  endpoint: string,
+  defaultFilename: string,
+  token?: string | null
+): Promise<void> {
+  const res = await authorizedFetch(endpoint, {}, token);
+  if (!res.ok) {
+    await apiError(res, "Failed to download export file.");
+  }
+  const blob = await res.blob();
+  let filename = defaultFilename;
+  const disposition = res.headers.get("Content-Disposition");
+  if (disposition && disposition.includes("filename=")) {
+    const match = disposition.match(/filename="?([^";]+)"?/);
+    if (match && match[1]) {
+      filename = match[1];
+    }
+  }
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+}
+
+export interface AppointmentsReportData {
+  period: { dateFrom: string | null; dateTo: string | null };
+  summary: {
+    total: number;
+    completed: number;
+    cancelled: number;
+    noShow: number;
+    pending: number;
+    confirmed: number;
+    other: number;
+  };
+  byStatus: Array<{ status: string; count: number; percentage: number }>;
+  byClinician: Array<{
+    clinicianId: string;
+    clinicianName: string;
+    total: number;
+    statuses: Record<string, number>;
+  }>;
+  dailyTimeline: Array<{
+    date: string;
+    total: number;
+    completed: number;
+    cancelled: number;
+  }>;
+}
+
+interface AppointmentsReportResponse {
+  startDate: string | null;
+  endDate: string | null;
+  totalAppointments: number;
+  byStatus: Record<string, number>;
+  byClinician: AppointmentsReportData["byClinician"];
+  dailyCounts: AppointmentsReportData["dailyTimeline"];
+}
+
+export async function getAppointmentsReport(
+  filters: { dateFrom?: string; dateTo?: string; clinicianId?: string; status?: string } = {},
+  token?: string | null
+): Promise<AppointmentsReportData> {
+  const params = new URLSearchParams();
+  if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
+  if (filters.dateTo) params.set("dateTo", filters.dateTo);
+  if (filters.clinicianId) params.set("clinicianId", filters.clinicianId);
+  if (filters.status) params.set("status", filters.status);
+
+  const query = params.toString() ? `?${params.toString()}` : "";
+  const res = await authorizedFetch(`/api/v1/admin/reports/appointments${query}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to load appointments report.");
+  const payload: unknown = await res.json();
+  if (!payload || typeof payload !== "object") {
+    throw new Error("Appointments report returned an invalid response.");
+  }
+
+  const report = payload as Partial<AppointmentsReportResponse>;
+  if (
+    typeof report.totalAppointments !== "number" ||
+    !report.byStatus ||
+    typeof report.byStatus !== "object" ||
+    Array.isArray(report.byStatus) ||
+    !Array.isArray(report.byClinician) ||
+    !Array.isArray(report.dailyCounts)
+  ) {
+    throw new Error("Appointments report returned an invalid response.");
+  }
+
+  const total = report.totalAppointments;
+  const statusCounts = report.byStatus;
+  const statuses = Object.entries(statusCounts).map(([status, count]) => {
+    if (typeof count !== "number") {
+      throw new Error("Appointments report returned an invalid status count.");
+    }
+    return {
+      status,
+      count,
+      percentage: total > 0 ? Math.round((count / total) * 100) : 0,
+    };
+  });
+  const knownStatuses = ["completed", "cancelled", "no_show", "requested", "confirmed"];
+  const knownTotal = knownStatuses.reduce((sum, status) => sum + (statusCounts[status] ?? 0), 0);
+
+  return {
+    period: { dateFrom: report.startDate ?? null, dateTo: report.endDate ?? null },
+    summary: {
+      total,
+      completed: statusCounts.completed ?? 0,
+      cancelled: statusCounts.cancelled ?? 0,
+      noShow: statusCounts.no_show ?? 0,
+      pending: statusCounts.requested ?? statusCounts.pending ?? 0,
+      confirmed: statusCounts.confirmed ?? 0,
+      other: Math.max(0, total - knownTotal),
+    },
+    byStatus: statuses,
+    byClinician: report.byClinician,
+    dailyTimeline: report.dailyCounts,
+  };
+}
+
+export interface CancellationsReportData {
+  period: { dateFrom: string | null; dateTo: string | null };
+  summary: {
+    totalCancellations: number;
+    totalNoShows: number;
+    combinedLoss: number;
+    cancellationRatePercent: number;
+  };
+  cancellationReasons: Array<{ reason: string; count: number; percentage: number }>;
+  items: Array<{
+    bookingId: string;
+    appointmentDate: string;
+    appointmentTime: string;
+    patientName: string;
+    patientPhone: string;
+    clinicianName: string;
+    serviceName: string;
+    status: string;
+    reason: string;
+    cancelledAt: string | null;
+    cancelledBy: string;
+  }>;
+}
+
+export async function getCancellationsReport(
+  filters: { dateFrom?: string; dateTo?: string; clinicianId?: string } = {},
+  token?: string | null
+): Promise<CancellationsReportData> {
+  const params = new URLSearchParams();
+  if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
+  if (filters.dateTo) params.set("dateTo", filters.dateTo);
+  if (filters.clinicianId) params.set("clinicianId", filters.clinicianId);
+
+  const query = params.toString() ? `?${params.toString()}` : "";
+  const res = await authorizedFetch(`/api/v1/admin/reports/cancellations-no-shows${query}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to load cancellations and no-shows report.");
+  return res.json();
+}
+
+export interface RecallComplianceReportData {
+  period: { dateFrom: string | null; dateTo: string | null };
+  summary: {
+    totalRecalls: number;
+    completedRecalls: number;
+    duePending: number;
+    overdue: number;
+    complianceRatePercent: number;
+  };
+  byReason: Array<{ reason: string; total: number; completed: number; complianceRatePercent: number }>;
+  timeline: Array<{ month: string; scheduled: number; completed: number; complianceRatePercent: number }>;
+  records: Array<{
+    id: string;
+    patientName: string;
+    patientPhone: string;
+    reason: string;
+    intervalMonths: number;
+    dueDate: string;
+    status: string;
+    lastVisitDate: string | null;
+    completedAt: string | null;
+    isOverdue: boolean;
+  }>;
+}
+
+export async function getRecallComplianceReport(
+  filters: { dateFrom?: string; dateTo?: string; status?: string } = {},
+  token?: string | null
+): Promise<RecallComplianceReportData> {
+  const params = new URLSearchParams();
+  if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
+  if (filters.dateTo) params.set("dateTo", filters.dateTo);
+  if (filters.status) params.set("status", filters.status);
+
+  const query = params.toString() ? `?${params.toString()}` : "";
+  const res = await authorizedFetch(`/api/v1/admin/reports/recall-compliance${query}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to load recall compliance report.");
+  return res.json();
+}
+
+export interface OperationalTimingReportData {
+  period: { dateFrom: string | null; dateTo: string | null };
+  aggregate: {
+    totalCompletedVisits: number;
+    medianWaitMinutes: number | null;
+    averageWaitMinutes: number | null;
+    medianChairMinutes: number | null;
+    averageChairMinutes: number | null;
+    medianTotalCycleMinutes: number | null;
+    averageTotalCycleMinutes: number | null;
+  };
+  waitingTimeDistribution: Array<{ bracket: string; count: number; percentage: number }>;
+  chairTimeDistribution: Array<{ bracket: string; count: number; percentage: number }>;
+  dailyTrends: Array<{
+    date: string;
+    completedEncounters: number;
+    medianWaitMinutes: number | null;
+    medianChairMinutes: number | null;
+  }>;
+}
+
+export async function getOperationalTimingReport(
+  filters: { dateFrom?: string; dateTo?: string; clinicianId?: string } = {},
+  token?: string | null
+): Promise<OperationalTimingReportData> {
+  const params = new URLSearchParams();
+  if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
+  if (filters.dateTo) params.set("dateTo", filters.dateTo);
+  if (filters.clinicianId) params.set("clinicianId", filters.clinicianId);
+
+  const query = params.toString() ? `?${params.toString()}` : "";
+  const res = await authorizedFetch(`/api/v1/admin/reports/operational-timing${query}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to load operational timing report.");
+  return res.json();
+}
+
+/* --- Reception Call Desk Types & API --- */
+
+export interface CallDeskPatient {
+  id: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  phone: string;
+  phoneNormalized?: string;
+  email?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  clinicId?: string;
+  medicalAlertCount: number;
+}
+
+export interface CallDeskLeadEvent {
+  id: string;
+  leadId: string;
+  eventType: string;
+  actorType: string;
+  payload: Record<string, unknown>;
+  actorId?: string;
+  createdAt: string;
+}
+
+export interface CallDeskLead {
+  id: string;
+  fullName?: string;
+  phone?: string;
+  phoneNormalized?: string;
+  email?: string;
+  status: string;
+  source?: string;
+  attempts: number;
+  consentNoticeVersion?: string;
+  events: CallDeskLeadEvent[];
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface CallDeskBooking {
+  id: string;
+  confirmationId: string;
+  preferredDate: string;
+  preferredTime: string;
+  patientFullName: string;
+  patientPhone: string;
+  patientId?: string;
+  clinicId?: string;
+  clinicName?: string;
+  serviceId?: string;
+  serviceName?: string;
+  teamMemberId?: string;
+  doctorName?: string;
+  status: string;
+  source?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface CallDeskMessage {
+  id: string;
+  channel: string;
+  content: string;
+  direction: string;
+  purpose: string;
+  status: string;
+  deliveryStatus: string;
+  phone?: string;
+  createdAt: string;
+}
+
+export interface CallDeskHold {
+  id: string;
+  phoneNormalized: string;
+  heldUntil: string;
+  remainingSeconds: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CallDeskLookupData {
+  phoneNormalized: string;
+  phoneRaw: string;
+  patients: CallDeskPatient[];
+  leads: CallDeskLead[];
+  upcomingBookings: CallDeskBooking[];
+  recentMessages: CallDeskMessage[];
+  activeHold?: CallDeskHold | null;
+}
+
+export interface CallDeskOutcomePayload {
+  phone: string;
+  outcome: string;
+  notes?: string;
+  leadCapture?: {
+    name?: string;
+    email?: string;
+  };
+  leadId?: string;
+  patientId?: string;
+  bookingId?: string;
+  startedAt?: string;
+  endedAt?: string;
+}
+
+export interface CallDeskOutcomeResult {
+  callLog: {
+    id: string;
+    phoneNormalized: string;
+    leadId?: string;
+    patientId?: string;
+    bookingId?: string;
+    outcome: string;
+    notes?: string;
+    startedAt: string;
+    endedAt?: string;
+    recordedByUserId?: string;
+    createdAt: string;
+  };
+  leadCaptured: boolean;
+  capturedLeadId?: string;
+  holdReleased: boolean;
+}
+
+export async function lookupCallDesk(phone: string, token?: string | null): Promise<CallDeskLookupData> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/call-desk/lookup?phone=${encodeURIComponent(phone)}`,
+    {},
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to perform call desk lookup.");
+  return res.json();
+}
+
+export async function startCallDeskHold(
+  phone: string,
+  holdMinutes: number = 30,
+  reason: string = "call_desk",
+  token?: string | null
+): Promise<CallDeskHold> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/call-desk/holds`,
+    {
+      method: "POST",
+      body: JSON.stringify({ phone, holdMinutes, reason }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to start contact hold.");
+  return res.json();
+}
+
+export async function releaseCallDeskHold(
+  phone: string,
+  token?: string | null
+): Promise<{ released: boolean; count: number }> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/call-desk/holds?phone=${encodeURIComponent(phone)}`,
+    {
+      method: "DELETE",
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to release contact hold.");
+  return res.json();
+}
+
+export async function recordCallDeskOutcome(
+  payload: CallDeskOutcomePayload,
+  token?: string | null
+): Promise<CallDeskOutcomeResult> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/call-desk/outcomes`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to record call outcome.");
+  return res.json();
+}
+
+// ---------------------------------------------------------
+// Admin Integration Clients Management API
+// ---------------------------------------------------------
+
+export interface AdminIntegrationClient {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  scopes: string[];
+  isActive: boolean;
+  lastUsedAt?: string | null;
+  ipAllowlist?: string[] | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface AdminIntegrationClientCreated {
+  client: AdminIntegrationClient;
+  rawKey: string;
+  warning: string;
+}
+
+export interface AdminIntegrationClientRotate {
+  client: AdminIntegrationClient;
+  rawKey: string;
+  warning: string;
+}
+
+export async function getAdminIntegrationClients(token?: string | null): Promise<AdminIntegrationClient[]> {
+  const res = await authorizedFetch("/api/v1/admin/integrations", { method: "GET" }, token);
+  if (!res.ok) await apiError(res, "Failed to load integration clients.");
+  return res.json();
+}
+
+export async function createAdminIntegrationClient(
+  payload: { name: string; scopes: string[]; ipAllowlist?: string[] },
+  token?: string | null
+): Promise<AdminIntegrationClientCreated> {
+  const res = await authorizedFetch(
+    "/api/v1/admin/integrations",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to create integration client.");
+  return res.json();
+}
+
+export async function rotateAdminIntegrationClientKey(
+  clientId: string,
+  token?: string | null
+): Promise<AdminIntegrationClientRotate> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/integrations/${clientId}/rotate`,
+    {
+      method: "POST",
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to rotate integration client key.");
+  return res.json();
+}
+
+export async function revokeAdminIntegrationClient(
+  clientId: string,
+  token?: string | null
+): Promise<AdminIntegrationClient> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/integrations/${clientId}/revoke`,
+    {
+      method: "POST",
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to revoke integration client.");
+  return res.json();
+}
+
+export async function toggleAdminIntegrationClientActive(
+  clientId: string,
+  token?: string | null
+): Promise<AdminIntegrationClient> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/integrations/${clientId}/toggle-active`,
+    {
+      method: "POST",
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to update integration client status.");
+  return res.json();
+}
+
+
+// ---------------------------------------------------------------------------
+// Stage-2: Reviews, Blog Posts, Social Links
+// ---------------------------------------------------------------------------
+
+// --- Types ---
+
+export interface Review {
+  id: string;
+  authorName: string;
+  rating: number;
+  text: string;
+  reviewDate: string | null;
+  sourceLabel: string | null;
+  displayOrder: number;
+  isPublished: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BlogPost {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  body: string | null;
+  coverImageUrl: string | null;
+  publishedDate: string | null;
+  displayOrder: number;
+  isPublished: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SocialLink {
+  id: string;
+  platform: string;
+  url: string;
+  displayOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// --- Public endpoints ---
+
+export async function getPublicReviews(): Promise<Review[]> {
+  const res = await fetch(`${API_BASE}/api/v1/public/reviews`, {
+    cache: "no-store",
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function getPublicBlogs(): Promise<BlogPost[]> {
+  const res = await fetch(`${API_BASE}/api/v1/public/blogs`, {
+    cache: "no-store",
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function getPublicBlogPostBySlug(slug: string): Promise<BlogPost | null> {
+  const res = await fetch(`${API_BASE}/api/v1/public/blogs/${encodeURIComponent(slug)}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function getPublicSocialLinks(): Promise<SocialLink[]> {
+  const res = await fetch(`${API_BASE}/api/v1/public/social-links`, {
+    cache: "no-store",
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+// --- Admin endpoints: Reviews ---
+
+export async function adminListReviews(token?: string | null): Promise<Review[]> {
+  const res = await authorizedFetch("/api/v1/admin/reviews", {}, token);
+  if (!res.ok) await apiError(res, "Failed to fetch reviews.");
+  return res.json();
+}
+
+export async function adminCreateReview(
+  data: {
+    authorName: string;
+    rating: number;
+    text: string;
+    reviewDate?: string;
+    sourceLabel?: string;
+    displayOrder?: number;
+    isPublished?: boolean;
+  },
+  token?: string | null
+): Promise<Review> {
+  const res = await authorizedFetch(
+    "/api/v1/admin/reviews",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to create review.");
+  return res.json();
+}
+
+export async function adminUpdateReview(
+  id: string,
+  data: Partial<{
+    authorName: string;
+    rating: number;
+    text: string;
+    reviewDate: string;
+    sourceLabel: string;
+    displayOrder: number;
+    isPublished: boolean;
+  }>,
+  token?: string | null
+): Promise<Review> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/reviews/${id}`,
+    { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to update review.");
+  return res.json();
+}
+
+export async function adminDeleteReview(id: string, token?: string | null): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/reviews/${id}`,
+    { method: "DELETE" },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to delete review.");
+}
+
+// --- Admin endpoints: Blog Posts ---
+
+export async function adminListBlogPosts(token?: string | null): Promise<BlogPost[]> {
+  const res = await authorizedFetch("/api/v1/admin/blogs", {}, token);
+  if (!res.ok) await apiError(res, "Failed to fetch blog posts.");
+  return res.json();
+}
+
+export async function adminCreateBlogPost(
+  data: {
+    title: string;
+    slug: string;
+    excerpt?: string;
+    body?: string;
+    coverImageUrl?: string;
+    publishedDate?: string;
+    displayOrder?: number;
+    isPublished?: boolean;
+  },
+  token?: string | null
+): Promise<BlogPost> {
+  const res = await authorizedFetch(
+    "/api/v1/admin/blogs",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to create blog post.");
+  return res.json();
+}
+
+export async function adminUpdateBlogPost(
+  id: string,
+  data: Partial<{
+    title: string;
+    slug: string;
+    excerpt: string;
+    body: string;
+    coverImageUrl: string;
+    publishedDate: string;
+    displayOrder: number;
+    isPublished: boolean;
+  }>,
+  token?: string | null
+): Promise<BlogPost> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/blogs/${id}`,
+    { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to update blog post.");
+  return res.json();
+}
+
+export async function adminDeleteBlogPost(id: string, token?: string | null): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/blogs/${id}`,
+    { method: "DELETE" },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to delete blog post.");
+}
+
+// --- Admin endpoints: Social Links ---
+
+export async function adminListSocialLinks(token?: string | null): Promise<SocialLink[]> {
+  const res = await authorizedFetch("/api/v1/admin/social-links", {}, token);
+  if (!res.ok) await apiError(res, "Failed to fetch social links.");
+  return res.json();
+}
+
+export async function adminCreateSocialLink(
+  data: {
+    platform: string;
+    url: string;
+    displayOrder?: number;
+    isActive?: boolean;
+  },
+  token?: string | null
+): Promise<SocialLink> {
+  const res = await authorizedFetch(
+    "/api/v1/admin/social-links",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to create social link.");
+  return res.json();
+}
+
+export async function adminUpdateSocialLink(
+  id: string,
+  data: Partial<{
+    platform: string;
+    url: string;
+    displayOrder: number;
+    isActive: boolean;
+  }>,
+  token?: string | null
+): Promise<SocialLink> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/social-links/${id}`,
+    { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to update social link.");
+  return res.json();
+}
+
+export async function adminDeleteSocialLink(id: string, token?: string | null): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/social-links/${id}`,
+    { method: "DELETE" },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to delete social link.");
+}
+
+// --- Gallery endpoints ---
+
+export interface GalleryImageItem {
+  id: string;
+  imageUrl: string;
+  caption?: string | null;
+  displayOrder: number;
+  isActive: boolean;
+  createdAt?: string;
+}
+
+export async function publicGetGallery(): Promise<GalleryImageItem[]> {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/public/gallery`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
+
+export async function adminGetGallery(token?: string | null): Promise<GalleryImageItem[]> {
+  const res = await authorizedFetch("/api/v1/admin/cms/gallery", {}, token);
+  if (!res.ok) await apiError(res, "Failed to fetch gallery images.");
+  return res.json();
+}
+
+export async function adminCreateGalleryImage(
+  data: {
+    imageUrl: string;
+    caption?: string | null;
+    displayOrder?: number;
+    isActive?: boolean;
+  },
+  token?: string | null
+): Promise<GalleryImageItem> {
+  const res = await authorizedFetch(
+    "/api/v1/admin/cms/gallery",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to create gallery image.");
+  return res.json();
+}
+
+export async function adminDeleteGalleryImage(id: string, token?: string | null): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/cms/gallery/${id}`,
+    { method: "DELETE" },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to delete gallery image.");
+}
+
+// ---------------------------------------------------------------------------
+// Complete Scheduling, Booking, Overrides, Queues & Approvals API
+// ---------------------------------------------------------------------------
+
+export interface PublicReschedulePayload {
+  confirmationId: string;
+  requestedDate: string;
+  requestedTime: string;
+  reason?: string;
+}
+
+export interface PublicCancelPayload {
+  confirmationId: string;
+  reason?: string;
+}
+
+export interface DoctorBranchAssignment {
+  id: string;
+  clinicId: string;
+  clinicName: string;
+  teamMemberId: string;
+  doctorName: string;
+  isPrimary: boolean;
+  isActive: boolean;
+}
+
+export interface DoctorServiceAssignment {
+  id: string;
+  serviceId: string;
+  serviceTitle: string;
+  teamMemberId: string;
+  doctorName: string;
+  clinicId?: string | null;
+  clinicName?: string | null;
+  customDurationMinutes?: number | null;
+  bufferMinutes?: number | null;
+  isActive: boolean;
+}
+
+export interface DoctorScheduleOverride {
+  id: string;
+  teamMemberId: string;
+  doctorName?: string | null;
+  clinicId?: string | null;
+  clinicName?: string | null;
+  overrideDate: string;
+  overrideType: "unavailable" | "working" | "modified";
+  isDraft: boolean;
+  shiftsJson?: string | null;
+  breaksJson?: string | null;
+  reason?: string | null;
+  publishedAt?: string | null;
+}
+
+export interface ScheduleConflictBooking {
+  id: string;
+  confirmationId: string;
+  patientFullName: string;
+  patientPhone: string;
+  patientEmail?: string | null;
+  preferredDate: string;
+  preferredTime: string;
+  serviceId?: string | null;
+  status: string;
+}
+
+export interface PublishScheduleResult {
+  publishedAvailabilityCount: number;
+  publishedOverridesCount: number;
+  affectedBookingsCount: number;
+  affectedBookings: ScheduleConflictBooking[];
+  warningMessage?: string | null;
+}
+
+export interface AppointmentCategoryItem {
+  id: string;
+  name: string;
+  code: string;
+  description?: string | null;
+  requiresApproval: boolean;
+  isActive: boolean;
+}
+
+export interface PendingRescheduleItem {
+  id: string;
+  bookingId: string;
+  confirmationId: string;
+  patientFullName: string;
+  patientPhone: string;
+  serviceTitle: string;
+  originalDate: string;
+  originalTime: string;
+  requestedDate: string;
+  requestedTime: string;
+  status: string;
+  reason?: string | null;
+  staffNotes?: string | null;
+  createdAt: string;
+}
+
+export interface PendingCancellationItem {
+  id: string;
+  bookingId: string;
+  confirmationId: string;
+  patientFullName: string;
+  patientPhone: string;
+  serviceTitle: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  hoursBeforeAppointment?: number | null;
+  isAutoAccepted: boolean;
+  status: string;
+  reason?: string | null;
+  staffNotes?: string | null;
+  createdAt: string;
+}
+
+export interface FailedNotificationTaskItem {
+  id: string;
+  bookingId?: string | null;
+  patientId?: string | null;
+  title: string;
+  description: string;
+  priority: string;
+  status: string;
+  clinicId?: string | null;
+  createdAt?: string | null;
+}
+
+// 1. Patient Reschedule & Cancellation
+export async function submitPublicRescheduleRequest(
+  data: PublicReschedulePayload
+): Promise<{ success: boolean; requestId: string; message: string }> {
+  const res = await fetch(`${API_BASE}/api/v1/public/booking/reschedule-request`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) await apiError(res, "Failed to submit reschedule request.");
+  return res.json();
+}
+
+export async function submitPublicCancelRequest(
+  data: PublicCancelPayload
+): Promise<{ success: boolean; autoAccepted: boolean; message: string; bookingId: string }> {
+  const res = await fetch(`${API_BASE}/api/v1/public/booking/cancel-request`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) await apiError(res, "Failed to submit cancellation request.");
+  return res.json();
+}
+
+// 2. Receptionist Approvals & Queues
+export async function getPendingBookingApprovals(
+  clinicId?: string,
+  token?: string | null
+): Promise<ReceptionBooking[]> {
+  const params = new URLSearchParams();
+  if (clinicId) params.set("clinicId", clinicId);
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  const res = await authorizedFetch(`/api/v1/reception/approvals${qs}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to fetch pending booking approvals.");
+  const data = await res.json();
+  return Array.isArray(data) ? data.map(mapBooking) : [];
+}
+
+export async function approvePendingBooking(
+  bookingId: string,
+  token?: string | null
+): Promise<ReceptionBooking> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/approvals/${bookingId}/approve`,
+    { method: "POST" },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to approve booking.");
+  return mapBooking(await res.json());
+}
+
+export async function rejectPendingBooking(
+  bookingId: string,
+  reason: string,
+  token?: string | null
+): Promise<ReceptionBooking> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/approvals/${bookingId}/reject`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to reject booking.");
+  return mapBooking(await res.json());
+}
+
+export async function getPendingRescheduleRequests(
+  token?: string | null
+): Promise<PendingRescheduleItem[]> {
+  const res = await authorizedFetch("/api/v1/reception/reschedule-requests", {}, token);
+  if (!res.ok) await apiError(res, "Failed to fetch reschedule requests.");
+  return res.json();
+}
+
+export async function approveRescheduleRequest(
+  requestId: string,
+  token?: string | null
+): Promise<{ success: boolean; message: string }> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/reschedule-requests/${requestId}/approve`,
+    { method: "POST" },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to approve reschedule request.");
+  return res.json();
+}
+
+export async function rejectRescheduleRequest(
+  requestId: string,
+  staffNotes?: string,
+  token?: string | null
+): Promise<{ success: boolean; message: string }> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/reschedule-requests/${requestId}/reject`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ staffNotes }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to reject reschedule request.");
+  return res.json();
+}
+
+export async function getPendingCancellationRequests(
+  token?: string | null
+): Promise<PendingCancellationItem[]> {
+  const res = await authorizedFetch("/api/v1/reception/cancellation-requests", {}, token);
+  if (!res.ok) await apiError(res, "Failed to fetch cancellation review queue.");
+  return res.json();
+}
+
+export async function approveCancellationRequest(
+  requestId: string,
+  token?: string | null
+): Promise<{ success: boolean; message: string }> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/cancellation-requests/${requestId}/approve`,
+    { method: "POST" },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to approve cancellation request.");
+  return res.json();
+}
+
+export async function rejectCancellationRequest(
+  requestId: string,
+  staffNotes?: string,
+  token?: string | null
+): Promise<{ success: boolean; message: string }> {
+  const res = await authorizedFetch(
+    `/api/v1/reception/cancellation-requests/${requestId}/reject`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ staffNotes }),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to reject cancellation request.");
+  return res.json();
+}
+
+export async function getFailedNotificationTasks(
+  clinicId?: string,
+  token?: string | null
+): Promise<FailedNotificationTaskItem[]> {
+  const params = new URLSearchParams();
+  if (clinicId) params.set("clinicId", clinicId);
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  const res = await authorizedFetch(`/api/v1/reception/notification-failures${qs}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to fetch failed notification triage tasks.");
+  return res.json();
+}
+
+// 3. Admin Scheduling & Doctor Multi-branch
+export async function getDoctorBranches(
+  teamMemberId?: string,
+  clinicId?: string,
+  token?: string | null
+): Promise<DoctorBranchAssignment[]> {
+  const params = new URLSearchParams();
+  if (teamMemberId) params.set("teamMemberId", teamMemberId);
+  if (clinicId) params.set("clinicId", clinicId);
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  const res = await authorizedFetch(`/api/v1/admin/booking/doctor-branches${qs}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to fetch doctor branch assignments.");
+  return res.json();
+}
+
+export async function setDoctorBranches(
+  data: { teamMemberId: string; clinicIds: string[] },
+  token?: string | null
+): Promise<DoctorBranchAssignment[]> {
+  const res = await authorizedFetch(
+    "/api/v1/admin/booking/doctor-branches",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to update doctor branch assignments.");
+  return res.json();
+}
+
+export async function getDoctorServices(
+  teamMemberId?: string,
+  clinicId?: string,
+  token?: string | null
+): Promise<DoctorServiceAssignment[]> {
+  const params = new URLSearchParams();
+  if (teamMemberId) params.set("teamMemberId", teamMemberId);
+  if (clinicId) params.set("clinicId", clinicId);
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  const res = await authorizedFetch(`/api/v1/admin/booking/doctor-services${qs}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to fetch doctor service assignments.");
+  return res.json();
+}
+
+export async function saveDoctorServiceAssignment(
+  data: {
+    teamMemberId: string;
+    serviceId: string;
+    clinicId?: string | null;
+    customDurationMinutes?: number | null;
+    bufferMinutes?: number | null;
+    isActive?: boolean;
+  },
+  token?: string | null
+): Promise<DoctorServiceAssignment> {
+  const res = await authorizedFetch(
+    "/api/v1/admin/booking/doctor-services",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to save doctor service assignment.");
+  return res.json();
+}
+
+export async function getDoctorOverrides(
+  teamMemberId?: string,
+  clinicId?: string,
+  token?: string | null
+): Promise<DoctorScheduleOverride[]> {
+  const params = new URLSearchParams();
+  if (teamMemberId) params.set("teamMemberId", teamMemberId);
+  if (clinicId) params.set("clinicId", clinicId);
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  const res = await authorizedFetch(`/api/v1/admin/booking/doctor-overrides${qs}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to fetch doctor schedule overrides.");
+  return res.json();
+}
+
+export async function saveDoctorOverride(
+  data: {
+    teamMemberId: string;
+    overrideDate: string;
+    overrideType: "unavailable" | "working" | "modified";
+    clinicId?: string | null;
+    isDraft?: boolean;
+    shiftsJson?: string | null;
+    breaksJson?: string | null;
+    reason?: string | null;
+  },
+  token?: string | null
+): Promise<DoctorScheduleOverride> {
+  const res = await authorizedFetch(
+    "/api/v1/admin/booking/doctor-overrides",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to save schedule override.");
+  return res.json();
+}
+
+export async function deleteDoctorOverride(
+  overrideId: string,
+  token?: string | null
+): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/booking/doctor-overrides/${overrideId}`,
+    { method: "DELETE" },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to delete schedule override.");
+}
+
+export async function getScheduleConflicts(
+  teamMemberId?: string,
+  clinicId?: string,
+  token?: string | null
+): Promise<ScheduleConflictBooking[]> {
+  const params = new URLSearchParams();
+  if (teamMemberId) params.set("teamMemberId", teamMemberId);
+  if (clinicId) params.set("clinicId", clinicId);
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  const res = await authorizedFetch(`/api/v1/admin/booking/schedule-conflicts${qs}`, {}, token);
+  if (!res.ok) await apiError(res, "Failed to check schedule conflicts.");
+  return res.json();
+}
+
+export async function publishSchedule(
+  data: { teamMemberId?: string; clinicId?: string },
+  token?: string | null
+): Promise<PublishScheduleResult> {
+  const res = await authorizedFetch(
+    "/api/v1/admin/booking/publish-schedule",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to publish schedule.");
+  return res.json();
+}
+
+export async function getAppointmentCategories(
+  token?: string | null
+): Promise<AppointmentCategoryItem[]> {
+  const res = await authorizedFetch("/api/v1/admin/booking/appointment-categories", {}, token);
+  if (!res.ok) await apiError(res, "Failed to fetch appointment categories.");
+  return res.json();
+}
+
+export async function saveAppointmentCategory(
+  data: {
+    id?: string;
+    name: string;
+    code: string;
+    description?: string | null;
+    requiresApproval?: boolean;
+    isActive?: boolean;
+  },
+  token?: string | null
+): Promise<AppointmentCategoryItem> {
+  const res = await authorizedFetch(
+    "/api/v1/admin/booking/appointment-categories",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to save appointment category.");
   return res.json();
 }

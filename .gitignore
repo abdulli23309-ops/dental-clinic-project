@@ -9,6 +9,8 @@ desktop.ini
 .env
 .env.*
 !.env.example
+.local-credentials.json
+backend/.local-credentials.json
 
 # Editor and IDE directories
 .idea/
@@ -21,6 +23,12 @@ node_modules/
 .next/
 out/
 build/
+frontend/repro-error.mjs
+frontend/start-dev.bat
+frontend/.tsc-out.txt
+frontend/playwright-report/
+frontend/test-results/
+frontend/scripts/verify_stage1_mobile.mjs
 
 # Python / Backend artifacts
 __pycache__/
@@ -29,7 +37,34 @@ __pycache__/
 .pytest_cache/
 .coverage
 htmlcov/
+backend/_migcheck.py
+
+# Uploads & Storage
 backend/uploads/
 uploads/
+backend/storage/
+storage/
+attachments/
+backend/attachments/
 
+# Audit, log, and test artifacts
+FINAL_RELEASE_AUDIT_REPORT.md
+pytest_out.txt
+*.out
+*.out.txt
+*out.txt
+*.log
+
+# Documentation and Scratch files
+docs/*
+!docs/*.md
+!docs/screenshots/
+!docs/screenshots/*
+_scratch/
+
+# Archives and Database dumps
 *.zip
+*.sql
+*.dump
+*.tar.gz
+

@@ -14,7 +14,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { TextField } from "@/components/ui/text-field";
+import { StaggerList } from "@/components/ui/stagger-list";
 import { useAuth } from "@/components/providers/auth-provider";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import {
   adminGetOrganization,
   adminUpdateOrganization,
@@ -66,9 +68,11 @@ export default function AdminSettingsPage() {
 
   useEffect(() => {
     if (user) {
-      setInactivityEnabled(user.inactivityEnabled !== false);
-      setTimeoutMinutes(user.inactivityTimeoutMinutes ?? 15);
-      setWarningSeconds(user.inactivityWarningSeconds ?? 60);
+      queueMicrotask(() => {
+        setInactivityEnabled(user.inactivityEnabled !== false);
+        setTimeoutMinutes(user.inactivityTimeoutMinutes ?? 15);
+        setWarningSeconds(user.inactivityWarningSeconds ?? 60);
+      });
     }
   }, [user]);
 
@@ -168,6 +172,7 @@ export default function AdminSettingsPage() {
   };
 
   return (
+  <AnimatedPage>
     <div className="space-y-6 max-w-4xl">
       <div className="border-b border-line pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -212,7 +217,7 @@ export default function AdminSettingsPage() {
       {/* TAB 1: ACCOUNT & INACTIVITY SETTINGS */}
       {activeTab === "account" && (
         <div className="space-y-6">
-          <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6">
+          <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={0}>
             <div className="flex items-center gap-4">
               <div className="h-16 w-16 rounded-2xl bg-forest text-[#FAF7F2] grid place-items-center text-xl font-display font-bold shadow-subtle">
                 {user?.fullName
@@ -255,7 +260,7 @@ export default function AdminSettingsPage() {
           </Card>
 
           {/* Inactivity Form */}
-          <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6">
+          <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={1}>
             <div className="flex items-center gap-3 border-b border-line/60 pb-3">
               <Clock className="h-5 w-5 text-forest" />
               <div>
@@ -287,7 +292,7 @@ export default function AdminSettingsPage() {
               </label>
 
               {inactivityEnabled && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <StaggerList className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2" stagger={0.1}>
                   <TextField
                     id="timeout-minutes"
                     label="Idle Timeout (Minutes)"
@@ -308,7 +313,7 @@ export default function AdminSettingsPage() {
                     onChange={(e) => setWarningSeconds(Number(e.target.value))}
                     helpText="Duration countdown modal is visible before hard logout."
                   />
-                </div>
+                </StaggerList>
               )}
 
               {inactivityError && (
@@ -335,7 +340,7 @@ export default function AdminSettingsPage() {
       {/* TAB 2: APPEARANCE & THEMING */}
       {activeTab === "appearance" && (
         <div className="space-y-6">
-          <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6">
+          <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={2}>
             <div>
               <h2 className="text-lg font-display font-bold text-ink">
                 Global Organization Theming
@@ -508,10 +513,10 @@ export default function AdminSettingsPage() {
                   Live Preview Preview
                 </p>
                 <h4 className="text-xl font-bold" style={{ fontFamily: primaryFont, color: primaryColor }}>
-                  {org?.displayName || "Marlow Dental Complex"}
+                  {org?.displayName || "Your Clinic Name"}
                 </h4>
                 <p className="text-xs" style={{ fontFamily: secondaryFont, color: "#374151" }}>
-                  Comprehensive, unhurried dental care with direct doctor continuity and transparent fees.
+                  Your clinic tagline will appear here.
                 </p>
                 <div className="flex gap-2 pt-1">
                   <button
@@ -552,5 +557,6 @@ export default function AdminSettingsPage() {
         </div>
       )}
     </div>
+  </AnimatedPage>
   );
 }

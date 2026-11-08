@@ -63,6 +63,7 @@ class TeamService:
             services_offered=req.servicesOffered.strip() if req.servicesOffered else None,
             display_order=req.displayOrder,
             is_active=req.isActive,
+            show_patients_treated=req.showPatientsTreated,
         )
         return await self.team_repo.save(member)
 
@@ -101,6 +102,8 @@ class TeamService:
             member.display_order = req.displayOrder
         if req.isActive is not None:
             member.is_active = req.isActive
+        if req.showPatientsTreated is not None:
+            member.show_patients_treated = req.showPatientsTreated
 
         member.updated_at = datetime.now(timezone.utc)
         return await self.team_repo.save(member)

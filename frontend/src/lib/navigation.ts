@@ -16,6 +16,7 @@ import {
   Activity,
   Bell,
   Calendar,
+  CheckSquare,
   Clock,
   FileCheck,
   FileText,
@@ -28,6 +29,7 @@ import {
   PhoneCall,
   Settings,
   ShieldCheck,
+  User,
   UserCheck,
   Users,
   UserX,
@@ -52,12 +54,15 @@ const ADMIN_OPERATIONS: SidebarLink[] = [
 ];
 
 const ADMIN_MANAGEMENT: SidebarLink[] = [
+  { href: "/admin/booking", title: "Booking & Closures", icon: Clock },
   { href: "/admin/locations", title: "Clinics & Branches", icon: MapPin },
   { href: "/admin/services", title: "Services & Fees", icon: Layers },
   { href: "/admin/team", title: "Team Members", icon: Users },
+  { href: "/admin/roles", title: "Roles", icon: ShieldCheck },
+  { href: "/admin/users", title: "Staff Accounts", icon: User },
   { href: "/admin/announcements", title: "Announcements", icon: Bell },
   { href: "/admin/website", title: "Website CMS", icon: Globe },
-  { href: "/admin/permissions", title: "Role Permissions", icon: ShieldCheck },
+  { href: "/admin/integrations", title: "API Integrations", icon: Zap },
 ];
 
 const ADMIN_SYSTEM: SidebarLink[] = [
@@ -69,13 +74,16 @@ const RECEPTION_NAV: SidebarLink[] = [
   { href: "/reception", title: "Dashboard", icon: Activity, exact: true },
   { href: "/reception/schedule", title: "Schedule", icon: Calendar },
   { href: "/reception/appointments", title: "Appointments", icon: Clock },
+  { href: "/reception/reminders", title: "Reminders", icon: Bell },
   { href: "/reception/appointments/requests", title: "Requests", icon: Inbox },
   { href: "/reception/appointments/confirmations", title: "Confirmations", icon: FileCheck },
   { href: "/reception/check-in", title: "Check-In Flow", icon: UserCheck },
+  { href: "/reception/end-of-day", title: "End of Day", icon: CheckSquare },
   { href: "/reception/patients", title: "Patients", icon: Users },
   { href: "/reception/tasks", title: "Tasks", icon: ListTodo },
   { href: "/reception/messages", title: "Messages", icon: Mail },
   { href: "/reception/recalls", title: "Recalls", icon: PhoneCall },
+  { href: "/reception/call-desk", title: "Call Desk", icon: PhoneCall },
   { href: "/reception/waitlist", title: "Waitlist", icon: Zap },
   { href: "/reception/leads", title: "Leads", icon: UserX },
   { href: "/reception/account", title: "Account", icon: ShieldCheck },

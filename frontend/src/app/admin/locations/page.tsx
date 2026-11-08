@@ -1,14 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   Check,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Edit2,
   Mail,
   MapPin,
   Phone,
   Plus,
+  Search,
   ShieldCheck,
   X,
 } from "lucide-react";
@@ -17,11 +21,20 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { TextField } from "@/components/ui/text-field";
 import { useAuth } from "@/components/providers/auth-provider";
+import { AnimatedPage } from "@/components/ui/animated-page";
+import {
+  modalOverlay,
+  modalContent,
+  reducedVariant,
+} from "@/animations/variants";
 import {
   adminCreateLocation,
   adminGetLocations,
+  adminGetPaginatedLocations,
   adminToggleLocationStatus,
   adminUpdateLocation,
+  adminUploadMedia,
+  resolveMediaUrl,
   LocationItem,
 } from "@/lib/api";
 
@@ -30,8 +43,15 @@ export default function AdminLocationsPage() {
   const [locations, setLocations] = useState<LocationItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Pagination & Search State
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [total, setTotal] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Modal State
   const [modalOpen, setModalOpen] = useState(false);
@@ -41,23 +61,25 @@ export default function AdminLocationsPage() {
     name: "",
     addressLine1: "",
     addressLine2: "",
-    city: "Chicago",
-    state: "Illinois",
-    postalCode: "60614",
-    country: "US",
-    phone: "(312) 555-0147",
-    email: "care@marlowdental.com",
-    hoursInfo: "Monday – Thursday: 8:00 AM – 6:00 PM\nFriday: 8:00 AM – 2:00 PM\nSaturday – Sunday: Closed",
+    city: "",
+    state: "",
+    postalCode: "",
+    country: "",
+    phone: "",
+    email: "",
+    hoursInfo: "",
+    imageUrl: "",
     isPrimary: false,
     displayOrder: 0,
   });
 
-  const loadLocations = async () => {
+  const loadLocations = async (targetPage = page, targetSearch = searchQuery) => {
     setIsLoading(true);
     setErrorMsg(null);
     try {
-      const data = await adminGetLocations(accessToken);
-      setLocations(data);
+      const data = await adminGetPaginatedLocations(targetPage, limit, accessToken, targetSearch);
+      setLocations(data.items);
+      setTotal(data.total);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to load locations.";
       setErrorMsg(msg);
@@ -68,9 +90,38 @@ export default function AdminLocationsPage() {
 
   useEffect(() => {
     if (accessToken) {
-      loadLocations();
+      loadLocations(page, searchQuery);
     }
-  }, [accessToken]);
+  }, [accessToken, page]);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setSearchQuery(val);
+    setPage(1);
+    loadLocations(1, val);
+  };
+
+  const handleUploadPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !accessToken) return;
+    if (file.size > 20 * 1024 * 1024) {
+      setErrorMsg("File exceeds maximum allowed size of 20MB.");
+      return;
+    }
+    setIsUploadingPhoto(true);
+    setErrorMsg(null);
+    try {
+      const res = await adminUploadMedia(file, accessToken);
+      setForm((prev) => ({ ...prev, imageUrl: res.url }));
+      setSuccessMsg("Branch photo uploaded successfully.");
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to upload photo.";
+      setErrorMsg(msg);
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
 
   const handleOpenAdd = () => {
     setEditingLocation(null);
@@ -78,13 +129,14 @@ export default function AdminLocationsPage() {
       name: "",
       addressLine1: "",
       addressLine2: "",
-      city: "Chicago",
-      state: "Illinois",
-      postalCode: "60614",
-      country: "US",
-      phone: "(312) 555-0147",
-      email: "care@marlowdental.com",
-      hoursInfo: "Monday – Thursday: 8:00 AM – 6:00 PM\nFriday: 8:00 AM – 2:00 PM\nSaturday – Sunday: Closed",
+      city: "",
+      state: "",
+      postalCode: "",
+      country: "",
+      phone: "",
+      email: "",
+      hoursInfo: "",
+      imageUrl: "",
       isPrimary: locations.length === 0,
       displayOrder: locations.length,
     });
@@ -100,10 +152,11 @@ export default function AdminLocationsPage() {
       city: loc.city,
       state: loc.state,
       postalCode: loc.postalCode,
-      country: loc.country || "US",
+      country: loc.country || "",
       phone: loc.phone || "",
       email: loc.email || "",
       hoursInfo: loc.hoursInfo || "",
+      imageUrl: loc.imageUrl || "",
       isPrimary: loc.isPrimary,
       displayOrder: loc.displayOrder,
     });
@@ -136,6 +189,7 @@ export default function AdminLocationsPage() {
             phone: form.phone.trim() || null,
             email: form.email.trim() || null,
             hoursInfo: form.hoursInfo.trim() || null,
+            imageUrl: form.imageUrl.trim() || null,
             isPrimary: form.isPrimary,
             displayOrder: Number(form.displayOrder) || 0,
           },
@@ -155,6 +209,7 @@ export default function AdminLocationsPage() {
             phone: form.phone.trim() || null,
             email: form.email.trim() || null,
             hoursInfo: form.hoursInfo.trim() || null,
+            imageUrl: form.imageUrl.trim() || null,
             isPrimary: form.isPrimary,
             displayOrder: Number(form.displayOrder) || 0,
           },
@@ -189,6 +244,7 @@ export default function AdminLocationsPage() {
   };
 
   return (
+  <AnimatedPage>
     <div className="space-y-6 max-w-5xl">
       <div className="border-b border-line pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -233,13 +289,31 @@ export default function AdminLocationsPage() {
         </div>
       )}
 
+      {/* Search & Overview Bar */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-soft/60 pointer-events-none" />
+          <input
+            id="locations-search"
+            type="text"
+            placeholder="Search locations by name, city, or address..."
+            value={searchQuery}
+            onChange={handleSearchChange}
+            className="w-full rounded-2xl border border-line dark:border-gray-700 bg-cream/70 dark:bg-gray-800/80 pl-9 pr-4 py-2.5 text-xs text-ink dark:text-white placeholder:text-ink-soft/50 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+          />
+        </div>
+        <div className="text-xs text-ink-soft font-medium self-center">
+          Showing {locations.length} of {total} locations
+        </div>
+      </div>
+
       {isLoading ? (
         <div className="py-16 flex flex-col justify-center items-center gap-3">
           <div className="h-7 w-7 animate-spin rounded-full border-2 border-forest border-t-transparent" />
           <span className="text-xs text-ink-soft">Loading practice facilities...</span>
         </div>
       ) : locations.length === 0 ? (
-        <Card surface="cream" shadow="card" className="p-12 text-center space-y-4">
+        <Card surface="cream" shadow="card" className="p-12 text-center space-y-4" hoverLift={true} index={0}>
           <MapPin className="h-10 w-10 text-ink-soft/40 mx-auto" />
           <div>
             <h3 className="font-display text-lg text-ink">No facilities configured</h3>
@@ -254,9 +328,11 @@ export default function AdminLocationsPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-6">
-          {locations.map((loc) => (
+          {locations.map((loc, index) => (
             <Card
               key={loc.id}
+              index={index}
+              hoverLift
               surface={loc.isActive ? "cream" : "bone"}
               shadow="card"
               className={`p-6 sm:p-8 space-y-4 transition-opacity ${
@@ -305,6 +381,16 @@ export default function AdminLocationsPage() {
                 </div>
               </div>
 
+              {loc.imageUrl && (
+                <div className="relative w-full h-36 rounded-xl overflow-hidden mb-2 border border-line bg-sand/30">
+                  <img
+                    src={resolveMediaUrl(loc.imageUrl) || loc.imageUrl}
+                    alt={loc.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-ink-soft pt-1">
                 <div className="flex items-start gap-2.5">
                   <MapPin className="h-4 w-4 text-forest shrink-0 mt-0.5" />
@@ -314,7 +400,7 @@ export default function AdminLocationsPage() {
                     {loc.addressLine2 && <span>, {loc.addressLine2}</span>}
                     <br />
                     <span>
-                      {loc.city}, {loc.state} {loc.postalCode} ({loc.country || "US"})
+                      {loc.city}, {loc.state} {loc.postalCode} ({loc.country || ""})
                     </span>
                   </div>
                 </div>
@@ -347,7 +433,40 @@ export default function AdminLocationsPage() {
             </Card>
           ))}
 
-          <Card surface="bone" shadow="subtle" className="p-6">
+          {/* Pagination Controls */}
+          <div className="border-t border-line dark:border-gray-800 pt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p className="text-xs text-ink-soft font-medium">
+              Showing {locations.length} of {total} locations
+            </p>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1 || isLoading}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                <ChevronLeft className="h-3.5 w-3.5 mr-1" />
+                <span>Previous</span>
+              </Button>
+
+              <span className="text-xs text-ink-soft px-2">
+                Page {page} of {Math.max(1, Math.ceil(total / limit))}
+              </span>
+
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= Math.ceil(total / limit) || isLoading}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                <span>Next</span>
+                <ChevronRight className="h-3.5 w-3.5 ml-1" />
+              </Button>
+            </div>
+          </div>
+
+          <Card surface="bone" shadow="subtle" className="p-6" hoverLift={true} index={1}>
             <div className="flex items-center gap-2 text-ink text-sm font-medium mb-1">
               <ShieldCheck className="h-4 w-4 text-forest" />
               <span>Database-Backed Relational Persistence</span>
@@ -360,9 +479,22 @@ export default function AdminLocationsPage() {
       )}
 
       {/* Modal Dialog for Add/Edit Facility */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-6 sm:p-8 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+      <AnimatePresence>
+        {modalOpen && (
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            variants={reducedVariant(modalOverlay)}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+          >
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              variants={modalContent}
+              className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-6 sm:p-8 shadow-2xl"
+            >
             <div className="flex items-center justify-between border-b border-line dark:border-gray-800 pb-4 mb-6">
               <div>
                 <h3 className="font-display text-xl text-ink dark:text-white font-semibold">
@@ -417,7 +549,7 @@ export default function AdminLocationsPage() {
                     label="City *"
                     value={form.city}
                     onChange={(e) => setForm({ ...form, city: e.target.value })}
-                    placeholder="e.g. Chicago"
+                    placeholder="e.g. City Name"
                     required
                   />
                 </div>
@@ -427,7 +559,7 @@ export default function AdminLocationsPage() {
                     label="State / Province *"
                     value={form.state}
                     onChange={(e) => setForm({ ...form, state: e.target.value })}
-                    placeholder="e.g. Illinois"
+                    placeholder="e.g. State / Province"
                     required
                   />
                 </div>
@@ -460,17 +592,66 @@ export default function AdminLocationsPage() {
                   />
                 </div>
 
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-medium text-ink dark:text-gray-300 mb-1.5">
-                    Operating Hours Summary
+                {/* Branch Photo Upload */}
+                <div className="sm:col-span-2 space-y-2">
+                  <label htmlFor="branch-photo-input" className="block text-xs font-semibold text-ink dark:text-gray-300">
+                    Branch Photo
                   </label>
-                  <textarea
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-3.5 rounded-xl border border-line dark:border-gray-800 bg-sand/30 dark:bg-gray-800/40">
+                    <input
+                      id="branch-photo-input"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleUploadPhoto}
+                      disabled={isUploadingPhoto || isSaving}
+                      className="block w-full sm:w-auto text-xs text-ink file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-white hover:file:opacity-90 cursor-pointer border border-line dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900"
+                    />
+                    {isUploadingPhoto && (
+                      <span className="text-xs text-primary font-medium animate-pulse">Uploading photo...</span>
+                    )}
+                    {form.imageUrl && !isUploadingPhoto && (
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={resolveMediaUrl(form.imageUrl) || form.imageUrl}
+                          alt="Branch Preview"
+                          className="h-14 w-24 object-cover rounded-md border border-line shadow-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, imageUrl: "" })}
+                          className="text-xs text-red-500 hover:underline cursor-pointer font-medium"
+                        >
+                          Remove Photo
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-medium text-ink dark:text-gray-300">
+                      Operating Hours Summary (Legacy Fallback)
+                    </label>
+                    <a
+                      href="/admin/booking"
+                      className="text-[11px] text-primary hover:underline font-medium"
+                    >
+                      Edit single-source hours in Booking Settings →
+                    </a>
+                  </div>
+                  <TextField
+                    id="hours-info"
+                    label="Operating Hours Summary (Legacy Fallback)"
+                    multiline
                     rows={3}
                     value={form.hoursInfo}
                     onChange={(e) => setForm({ ...form, hoursInfo: e.target.value })}
-                    placeholder="Mon – Thu: 8:00 AM – 6:00 PM&#10;Fri: 8:00 AM – 2:00 PM&#10;Sat–Sun: Closed"
-                    className="w-full rounded-2xl border border-line dark:border-gray-700 bg-cream/70 dark:bg-gray-800/80 px-4 py-3 text-xs text-ink dark:text-white placeholder:text-ink-soft/40 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none"
+                    placeholder="Mon – Thu: 8:00 AM – 6:00 PM\nFri: 8:00 AM – 2:00 PM\nSat–Sun: Closed"
                   />
+                  <p className="text-[11px] text-ink-soft/60 dark:text-gray-400 mt-1">
+                    Standard clinic hours and closures are managed in <a href="/admin/booking" className="underline text-primary">Booking Settings</a> as the single source of truth. This field is preserved only as a fallback.
+                  </p>
                 </div>
 
                 <div className="flex items-center gap-3 pt-2">
@@ -513,9 +694,11 @@ export default function AdminLocationsPage() {
                 </Button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        </motion.div>
+        )}
+      </AnimatePresence>
     </div>
+  </AnimatedPage>
   );
 }

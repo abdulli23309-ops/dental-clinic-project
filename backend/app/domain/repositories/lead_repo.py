@@ -21,6 +21,26 @@ class LeadRepository(ABC):
         pass
 
     @abstractmethod
+    async def get_by_capture_token(self, token: str) -> Optional[Lead]:
+        """Retrieves a lead by its secure capture token."""
+        pass
+
+    @abstractmethod
+    async def issue_capture_token(self, lead_id: UUID, expires_in_hours: int = 24) -> str:
+        """Issues and stores a fresh hashed capture token for a lead, returning the plain token."""
+        pass
+
+    @abstractmethod
+    async def acquire_phone_lock(self, phone_normalized: str) -> None:
+        """Acquires a database transaction lock for the normalized phone number if supported."""
+        pass
+
+    @abstractmethod
+    async def list_by_phone(self, phone: str) -> List[Lead]:
+        """Retrieves leads matching a raw or normalized phone number."""
+        pass
+
+    @abstractmethod
     async def list_leads(
         self,
         clinic_id: Optional[UUID] = None,

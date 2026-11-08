@@ -7,6 +7,7 @@ from app.domain.models.booking_crm import Booking, Patient, Task
 from app.domain.models.team_member import TeamMember
 from app.domain.models.user import User, UserRole
 from app.infrastructure.repositories.postgres_booking_repo import PostgresBookingRepository
+from app.infrastructure.repositories.postgres_booking_settings_repo import PostgresBookingSettingsRepository
 from app.infrastructure.repositories.postgres_patient_repo import PostgresPatientRepository
 from app.infrastructure.repositories.postgres_task_repo import PostgresTaskRepository
 from app.infrastructure.repositories.postgres_team_repo import PostgresTeamMemberRepository
@@ -84,6 +85,18 @@ async def test_full_receptionist_to_doctor_lifecycle(client_with_db, test_sessio
         team_member_id=dr_vance_member.id,
     )
     await user_repo.save(dr_vance_user)
+
+    # Ensure clinic working hours for today are marked open so test can run on any day of the week
+    booking_settings_repo = PostgresBookingSettingsRepository(test_session)
+    working_hours = await booking_settings_repo.list_working_hours()
+    today_dow = date.today().weekday()
+    today_wh = next((h for h in working_hours if h.day_of_week == today_dow), None)
+    if today_wh and today_wh.is_closed:
+        today_wh.is_closed = False
+        today_wh.open_time = "08:00"
+        today_wh.close_time = "18:00"
+        await booking_settings_repo.update_working_hours([today_wh])
+
     await test_session.commit()
 
     # Log in Receptionist
@@ -314,13 +327,13 @@ async def test_appointment_status_transition_rules(receptionist_auth, test_sessi
     )
     assert resp_invalid.status_code == 422
 
-    # 2. Illegal jump from requested directly to completed -> 400
+    # 2. Illegal jump from requested directly to completed -> 409
     resp_illegal = await client.patch(
         f"/api/v1/reception/appointments/{booking.id}/status",
         json={"status": "completed"},
         headers=headers,
     )
-    assert resp_illegal.status_code == 400
+    assert resp_illegal.status_code == 409
     assert "Cannot transition appointment" in resp_illegal.json()["detail"]
 
     # 3. Valid transition: requested -> confirmed -> 200
@@ -412,7 +425,9 @@ async def test_unlinked_doctor_fails_closed_and_admin_has_oversight(client_with_
     assert note_resp.status_code == 403
     assert "not linked" in note_resp.json()["detail"]
 
-    # Admin oversight: Admin can view doctor schedule and update notes
+    # Admin oversight: Admin can still view the doctor schedule (read-only).
+    # Notes writes are doctor-only since the clinical-write tightening:
+    # admin is denied with 403 on PATCH /doctor/appointments/{id}/notes.
     admin_headers = admin_auth["headers"]
     admin_sched = await client_with_db.get(
         f"/api/v1/doctor/schedule?target_date={date.today().isoformat()}",
@@ -426,7 +441,7 @@ async def test_unlinked_doctor_fails_closed_and_admin_has_oversight(client_with_
         json={"staffNotes": "Admin oversight note update."},
         headers=admin_headers,
     )
-    assert admin_note.status_code == 200
-    assert admin_note.json()["staffNotes"] == "Admin oversight note update."
+    assert admin_note.status_code == 403
+    assert "Access forbidden" in admin_note.json()["detail"]
 
 

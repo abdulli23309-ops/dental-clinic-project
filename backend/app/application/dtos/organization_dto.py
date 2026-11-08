@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -20,6 +20,9 @@ class OrganizationResponse(BaseModel):
     backgroundColor: Optional[str] = None
     primaryFont: Optional[str] = None
     secondaryFont: Optional[str] = None
+    currencyCode: str = "PKR"
+    currencySymbol: str = "Rs"
+    timezone: str = "Asia/Karachi"
     isActive: bool
     createdAt: datetime
     updatedAt: datetime
@@ -42,6 +45,9 @@ class OrganizationUpdateRequest(BaseModel):
     backgroundColor: Optional[str] = None
     primaryFont: Optional[str] = None
     secondaryFont: Optional[str] = None
+    currencyCode: Optional[str] = None
+    currencySymbol: Optional[str] = None
+    timezone: Optional[str] = None
 
     model_config = ConfigDict(extra="ignore")
 
@@ -58,6 +64,7 @@ class LocationCreateRequest(BaseModel):
     phone: Optional[str] = None
     email: Optional[str] = None
     hoursInfo: Optional[str] = None
+    imageUrl: Optional[str] = None
     isPrimary: bool = False
     isActive: bool = True
     displayOrder: int = 0
@@ -77,6 +84,7 @@ class LocationUpdateRequest(BaseModel):
     phone: Optional[str] = None
     email: Optional[str] = None
     hoursInfo: Optional[str] = None
+    imageUrl: Optional[str] = None
     isPrimary: Optional[bool] = None
     isActive: Optional[bool] = None
     displayOrder: Optional[int] = None
@@ -98,6 +106,7 @@ class LocationResponse(BaseModel):
     phone: Optional[str] = None
     email: Optional[str] = None
     hoursInfo: Optional[str] = None
+    imageUrl: Optional[str] = None
     isPrimary: bool
     isActive: bool
     displayOrder: int
@@ -105,3 +114,11 @@ class LocationResponse(BaseModel):
     updatedAt: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PaginatedLocationResponse(BaseModel):
+    """Paginated list of clinic locations."""
+    items: List[LocationResponse]
+    total: int
+    page: int
+    limit: int

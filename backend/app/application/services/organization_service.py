@@ -24,24 +24,20 @@ class OrganizationService:
         self.org_repo = org_repo
         self.location_repo = location_repo
 
-    async def get_organization(self) -> Organization:
-        org = await self.org_repo.get_current()
-        if not org:
-            # Create default Marlow Dental organization if not exists
-            org = Organization(
-                name="Marlow Dental",
-                display_name="Marlow Dental Practice",
-                tagline="Comprehensive, unhurried dental care in Lincoln Park, Chicago.",
-                description="Independent dental practice focused on direct doctor continuity and upfront fee transparency.",
-                contact_email="care@marlowdental.com",
-                contact_phone="(312) 555-0147",
-                website_url="https://marlowdental.com",
-            )
-            org = await self.org_repo.save(org)
-        return org
+    async def get_organization(self) -> Optional[Organization]:
+        """Return the current organization, or None if none has been configured.
+
+        Never auto-creates a default organization: a fresh database starts empty
+        and the admin must configure the practice via the admin portal.
+        """
+        return await self.org_repo.get_current()
 
     async def update_organization(self, req: OrganizationUpdateRequest) -> Organization:
         org = await self.get_organization()
+        if org is None:
+            name = req.name.strip() if req.name else "Dental Practice"
+            display_name = req.displayName.strip() if req.displayName else name
+            org = Organization(name=name, display_name=display_name)
 
         if req.name is not None:
             org.name = req.name.strip()
@@ -69,6 +65,12 @@ class OrganizationService:
             org.primary_font = req.primaryFont.strip() or None
         if req.secondaryFont is not None:
             org.secondary_font = req.secondaryFont.strip() or None
+        if req.currencyCode is not None:
+            org.currency_code = req.currencyCode.strip() or "PKR"
+        if req.currencySymbol is not None:
+            org.currency_symbol = req.currencySymbol.strip() or "Rs"
+        if req.timezone is not None:
+            org.timezone = req.timezone.strip() or "Asia/Karachi"
 
         org.updated_at = datetime.now(timezone.utc)
         return await self.org_repo.save(org)
@@ -87,6 +89,11 @@ class OrganizationService:
 
     async def create_location(self, req: LocationCreateRequest) -> Location:
         org = await self.get_organization()
+        if org is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No organization configured. Create the organization profile before adding locations.",
+            )
         loc = Location(
             organization_id=org.id,
             name=req.name.strip(),
@@ -99,6 +106,7 @@ class OrganizationService:
             phone=req.phone.strip() if req.phone else None,
             email=req.email.strip() if req.email else None,
             hours_info=req.hoursInfo.strip() if req.hoursInfo else None,
+            image_url=req.imageUrl.strip() if req.imageUrl else None,
             is_primary=req.isPrimary,
             is_active=req.isActive,
             display_order=req.displayOrder,
@@ -128,6 +136,8 @@ class OrganizationService:
             loc.email = req.email.strip() or None
         if req.hoursInfo is not None:
             loc.hours_info = req.hoursInfo.strip() or None
+        if req.imageUrl is not None:
+            loc.image_url = req.imageUrl.strip() or None
         if req.isPrimary is not None:
             loc.is_primary = req.isPrimary
         if req.isActive is not None:
@@ -143,3 +153,22 @@ class OrganizationService:
         loc.is_active = is_active
         loc.updated_at = datetime.now(timezone.utc)
         return await self.location_repo.save(loc)
+
+
+    async def delete_organization(self, organization_id: UUID) -> None:
+        org = await self.org_repo.get_by_id(organization_id)
+        if org is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Organization not found.",
+            )
+        await self.org_repo.delete(org.id)
+
+    async def delete_location(self, location_id: UUID) -> None:
+        loc = await self.location_repo.get_by_id(location_id)
+        if loc is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Location not found.",
+            )
+        await self.location_repo.delete(loc.id)

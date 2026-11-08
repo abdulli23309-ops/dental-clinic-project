@@ -3933,7 +3933,6 @@ export async function updateDoctorBookingNotes(
   );
   if (!res.ok) await apiError(res, "Failed to update clinical notes.");
   return mapBooking(await res.json());
-
 }
 
 export async function startDoctorAppointment(
@@ -4065,7 +4064,6 @@ export async function getActiveEncounterByBooking(
   if (res.status === 404) return null;
   if (!res.ok) await apiError(res, "Failed to retrieve active encounter.");
   return res.json();
-
 }
 
 export async function getClinicalEncounter(

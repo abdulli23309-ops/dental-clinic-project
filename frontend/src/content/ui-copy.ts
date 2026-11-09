@@ -191,8 +191,9 @@ export const UI_COPY: Record<SupportedLocale, UiCopyDictionary> = {
     ],
     galleryCaptions: {
       "Sterile Surgical Suite": "Sterile Surgical Suite",
+      "Advanced Radiography & Consultation": "Advanced Radiography & Consultation",
       "Diagnostic & Preventive Station": "Diagnostic & Preventive Station",
-      "Endodontic Microsurgery Suite": "Endodontic Microsurgery Suite",
+      "General & Cosmetic Treatment Room": "General & Cosmetic Treatment Room",
       "Patient Comfort & Smile Lounge": "Patient Comfort & Smile Lounge",
     },
   },
@@ -297,8 +298,9 @@ export const UI_COPY: Record<SupportedLocale, UiCopyDictionary> = {
     ],
     galleryCaptions: {
       "Sterile Surgical Suite": "جراثیم سے پاک سرجیکل سویٹ",
+      "Advanced Radiography & Consultation": "ایڈوانس ریڈیوگرافی اور مشاورتی سویٹ",
       "Diagnostic & Preventive Station": "تشخیصی اور حفاظتی کیئر اسٹیشن",
-      "Endodontic Microsurgery Suite": "اینڈوڈونٹک مائیکرو سرجری سویٹ",
+      "General & Cosmetic Treatment Room": "عمومی اور کاسمیٹک ٹریٹمنٹ روم",
       "Patient Comfort & Smile Lounge": "مریضوں کے آرام اور مسکراہٹ کا لاؤنج",
     },
   },

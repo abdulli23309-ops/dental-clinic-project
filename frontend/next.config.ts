@@ -5,10 +5,19 @@ const nextConfig: NextConfig = {
   output: "standalone",
   reactCompiler: true,
   images: {
+    unoptimized: true,
     formats: ['image/avif', 'image/webp'],
     qualities: [70, 75, 80, 85, 90, 100],
     dangerouslyAllowLocalIP: true,
     remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**",
+      },
+      {
+        protocol: "http",
+        hostname: "**",
+      },
       {
         protocol: "http",
         hostname: "127.0.0.1",

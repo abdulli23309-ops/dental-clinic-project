@@ -266,6 +266,7 @@ export function Hero() {
             >
               <SafeImage
                 src={heroImage}
+                fallbackSrc="/images/treatment-operatory.jpg"
                 alt={heading || "Modern dental clinic treatment suite"}
                 fallbackInitials="DHDC"
                 fallbackSubtitle={practiceName}

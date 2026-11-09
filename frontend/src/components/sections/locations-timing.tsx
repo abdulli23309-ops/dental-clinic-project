@@ -22,6 +22,7 @@ import { usePublicContent } from "@/components/providers/public-content-provider
 import { getOfficeStatus } from "@/lib/utils";
 import { formatTimeRangeString } from "@/lib/currency";
 import { resolveMediaUrl } from "@/lib/api";
+import { resolveLocationImage } from "@/lib/clinical-media-fallback";
 
 export function LocationsTiming() {
   const {
@@ -234,9 +235,7 @@ export function LocationsTiming() {
             );
 
             const isExpanded = expandedLocationId === loc.id;
-            const photoSrc = loc.imageUrl
-              ? resolveMediaUrl(loc.imageUrl) || loc.imageUrl
-              : null;
+            const photoSrc = resolveLocationImage(loc);
 
             return (
               <div
@@ -252,6 +251,7 @@ export function LocationsTiming() {
                   <div className="relative w-full aspect-[16/9] overflow-hidden rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 group">
                     <SafeImage
                       src={photoSrc}
+                      fallbackSrc={photoSrc}
                       alt={loc.name}
                       fallbackInitials={
                         loc.name

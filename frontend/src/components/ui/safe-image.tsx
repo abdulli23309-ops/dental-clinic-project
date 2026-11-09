@@ -9,6 +9,7 @@ export interface SafeImageProps extends Omit<Partial<ImageProps>, "src" | "alt" 
   src?: string | null;
   alt: string;
   caption?: string | null;
+  fallbackSrc?: string | null;
   fallbackInitials?: string;
   fallbackSubtitle?: string;
   fallbackTitle?: string;
@@ -22,12 +23,13 @@ export interface SafeImageProps extends Omit<Partial<ImageProps>, "src" | "alt" 
 /**
  * SafeImage: Luxury Clinical Editorial Image Component
  * Gracefully handles CMS images, Next.js image optimization, fallback typography,
- * error boundaries, and optional facility figure/caption framing.
+ * error boundaries, automatic clinical photo fallback, and optional facility figure/caption framing.
  */
 export function SafeImage({
   src,
   alt,
   caption,
+  fallbackSrc,
   fallbackInitials = "DHDC",
   fallbackSubtitle,
   fallbackTitle = "Modern Dental Suite",
@@ -41,13 +43,28 @@ export function SafeImage({
   height,
   ...rest
 }: SafeImageProps) {
+  const initialUrl = src || fallbackSrc || null;
+  const [currentSrc, setCurrentSrc] = useState<string | null>(initialUrl);
+  const [hasTriedFallback, setHasTriedFallback] = useState<boolean>(!src && Boolean(fallbackSrc));
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
+    const nextUrl = src || fallbackSrc || null;
+    setCurrentSrc(nextUrl);
+    setHasTriedFallback(!src && Boolean(fallbackSrc));
     setHasError(false);
-  }, [src]);
+  }, [src, fallbackSrc]);
 
-  const resolvedUrl = src ? resolveMediaUrl(src) || src : null;
+  const handleImageError = () => {
+    if (fallbackSrc && !hasTriedFallback && currentSrc !== fallbackSrc) {
+      setHasTriedFallback(true);
+      setCurrentSrc(fallbackSrc);
+    } else {
+      setHasError(true);
+    }
+  };
+
+  const resolvedUrl = currentSrc ? resolveMediaUrl(currentSrc) || currentSrc : null;
 
   // Case 1: Standalone Editorial Facility Figure with Caption
   if (caption || aspectRatio) {
@@ -66,7 +83,7 @@ export function SafeImage({
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 40vw"
               priority={priority}
-              onError={() => setHasError(true)}
+              onError={handleImageError}
               className={`object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03] ${imgClassName}`}
             />
           ) : (
@@ -156,7 +173,7 @@ export function SafeImage({
         alt={alt}
         fill
         priority={priority}
-        onError={() => setHasError(true)}
+        onError={handleImageError}
         className={className}
         {...rest}
       />
@@ -170,7 +187,7 @@ export function SafeImage({
       width={width || 400}
       height={height || 300}
       priority={priority}
-      onError={() => setHasError(true)}
+      onError={handleImageError}
       className={className}
       {...rest}
     />

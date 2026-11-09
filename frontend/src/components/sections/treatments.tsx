@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SafeImage } from "@/components/ui/safe-image";
 import { getServices, resolveMediaUrl, ServiceItem } from "@/lib/api";
 import { usePublicContent } from "@/components/providers/public-content-provider";
+import { resolveTreatmentImage } from "@/lib/clinical-media-fallback";
 
 type CategoryFilter = "all" | string;
 
@@ -209,7 +210,9 @@ export function Treatments() {
               className="flex overflow-x-auto snap-x snap-mandatory gap-6 pb-6 px-1 scrollbar-hide items-stretch scroll-smooth"
               style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
             >
-              {filtered.map((service) => (
+              {filtered.map((service) => {
+                const treatmentPhoto = resolveTreatmentImage(service);
+                return (
                 <div
                   key={service.id}
                   className="w-[85%] md:w-[45%] lg:w-[31%] min-w-[85%] md:min-w-[45%] lg:min-w-[31%] shrink-0 snap-start bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden shadow-xs p-4 sm:p-5 flex flex-col justify-between space-y-4 hover:border-emerald-600/40 hover:shadow-md transition-all self-stretch group"
@@ -218,7 +221,8 @@ export function Treatments() {
                     {/* Treatment Card Photo with SafeImage */}
                     <div className="w-full aspect-[4/3] relative overflow-hidden rounded-xl bg-[#FAF9F5] dark:bg-gray-800/60 shadow-inner">
                       <SafeImage
-                        src={service.imageUrl}
+                        src={treatmentPhoto}
+                        fallbackSrc={treatmentPhoto}
                         alt={service.title}
                         fallbackInitials={
                           service.title
@@ -279,7 +283,8 @@ export function Treatments() {
                     </Button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

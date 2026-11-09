@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { CheckCircle2, Sparkles } from "lucide-react";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 import { SafeImage } from "@/components/ui/safe-image";
+import { resolveWhyChooseUsImage } from "@/lib/clinical-media-fallback";
 
 export function WhyChooseUs() {
   const { content, organization, copy } = usePublicContent();
@@ -11,9 +12,7 @@ export function WhyChooseUs() {
   const promises = content.homepage?.promises || [];
   const practiceName =
     content.general?.practiceName || organization?.displayName || "";
-  const whyChooseUsImage = content.homepage?.whyChooseUsImage;
-  const whyChooseUsCaption =
-    content.homepage?.whyChooseUsCaption || "Modern Dental Suite - DHDC Islamabad";
+  const { src: facilityImageSrc, caption: facilityCaption } = resolveWhyChooseUsImage(content);
 
   return (
     <section
@@ -129,9 +128,10 @@ export function WhyChooseUs() {
           {/* Right Column: Luxury Clinical Facility Feature Image with Caption */}
           <div className="lg:col-span-5 sticky top-28 space-y-4">
             <SafeImage
-              src={whyChooseUsImage}
-              alt={whyChooseUsCaption}
-              caption={whyChooseUsCaption}
+              src={facilityImageSrc}
+              fallbackSrc={facilityImageSrc}
+              alt={facilityCaption}
+              caption={facilityCaption}
               aspectRatio="aspect-[4/3]"
               fallbackTitle="Modern Dental Suite"
               fallbackSubtitle="DHDC Islamabad Clinical Facility"

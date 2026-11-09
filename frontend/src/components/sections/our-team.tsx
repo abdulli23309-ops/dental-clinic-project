@@ -17,35 +17,31 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SafeImage } from "@/components/ui/safe-image";
 import { usePublicContent } from "@/components/providers/public-content-provider";
-import { resolveMediaUrl } from "@/lib/api";
+import { resolveDoctorPhoto } from "@/lib/clinical-media-fallback";
 
 // Helper for per-doctor portrait focal point framing
 function getDoctorFocalClass(name: string) {
   const lower = name.toLowerCase();
-  if (lower.includes("maral")) {
-    return "object-[50%_65%] scale-110";
+  if (lower.includes("maral") || lower.includes("meral")) {
+    return "object-[50%_45%] scale-105";
   }
   if (lower.includes("bilal")) {
     return "object-[50%_25%]";
   }
   if (lower.includes("sarah") || lower.includes("faraz")) {
-    return "object-[50%_15%]";
+    return "object-[50%_20%]";
   }
-  return "object-[50%_15%]";
+  return "object-[50%_20%]";
 }
 
 export function OurTeam() {
   const { team, locations, isLoading, copy, locale } = usePublicContent();
   const [selectedCity, setSelectedCity] = useState<string>("all");
   const [activeIndex, setActiveIndex] = useState<number>(0);
-  const [rotationAngle, setRotationAngle] = useState<number>(0);
   const [isDragging, setIsDragging] = useState<boolean>(false);
-  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
 
   const dragStartX = useRef<number>(0);
-  const dragStartAngle = useRef<number>(0);
   const hasDragged = useRef<boolean>(false);
-  const ringRef = useRef<HTMLDivElement>(null);
   const shouldReduceMotion = useReducedMotion();
 
   const isRtl = locale === "ur";
@@ -83,73 +79,31 @@ export function OurTeam() {
         );
 
   const n = filteredDoctors.length;
-  // Arc mode for n < 8 so cards never turn 90deg edge-on
-  const isArcMode = n < 8;
-  const cardWidth = 320;
-  const cardGap = 80;
 
-  // Geometry calculations:
-  // For n >= 8: 360deg cylinder ring
-  // For n < 8: 36deg open stage arc with ample clearance between cards
-  const stepAngle = isArcMode ? 36 : n > 0 ? 360 / n : 0;
-  const radius = isArcMode
-    ? 680
-    : n > 0
-    ? Math.max(620, Math.round((cardWidth + cardGap) / (2 * Math.tan(Math.PI / n))))
-    : 620;
-
-  // Reset active card and camera angle when city filter changes
+  // Reset active card when city filter changes
   useEffect(() => {
     setActiveIndex(0);
-    if (isArcMode && n > 0) {
-      const centerOffset = (n - 1) / 2;
-      setRotationAngle(-(0 - centerOffset) * stepAngle * (isRtl ? -1 : 1));
-    } else {
-      setRotationAngle(0);
-    }
-  }, [selectedCity, isArcMode, n, stepAngle, isRtl]);
+  }, [selectedCity]);
 
-  // Rotate ring to target doctor
+  // Navigate to specific doctor
   const rotateToDoctor = useCallback(
     (targetIndex: number) => {
       if (n === 0) return;
-      const safeIndex = isArcMode
-        ? Math.max(0, Math.min(n - 1, targetIndex))
-        : ((targetIndex % n) + n) % n;
+      const safeIndex = ((targetIndex % n) + n) % n;
       setActiveIndex(safeIndex);
-
-      if (isArcMode) {
-        const centerOffset = (n - 1) / 2;
-        const targetDeg = -(safeIndex - centerOffset) * stepAngle * (isRtl ? -1 : 1);
-        setRotationAngle(targetDeg);
-      } else {
-        const baseAngle = -safeIndex * stepAngle * (isRtl ? -1 : 1);
-        setRotationAngle((curr) => {
-          const diff = ((((baseAngle - curr) % 360) + 540) % 360) - 180;
-          return curr + diff;
-        });
-      }
     },
-    [n, isArcMode, stepAngle, isRtl]
+    [n]
   );
 
   const handleNext = useCallback(() => {
     if (n <= 1) return;
-    if (isArcMode) {
-      rotateToDoctor(activeIndex >= n - 1 ? 0 : activeIndex + 1);
-    } else {
-      rotateToDoctor(activeIndex + 1);
-    }
-  }, [activeIndex, n, isArcMode, rotateToDoctor]);
+    rotateToDoctor(activeIndex + 1);
+  }, [activeIndex, n, rotateToDoctor]);
 
   const handlePrev = useCallback(() => {
     if (n <= 1) return;
-    if (isArcMode) {
-      rotateToDoctor(activeIndex <= 0 ? n - 1 : activeIndex - 1);
-    } else {
-      rotateToDoctor(activeIndex - 1);
-    }
-  }, [activeIndex, n, isArcMode, rotateToDoctor]);
+    rotateToDoctor(activeIndex - 1);
+  }, [activeIndex, n, rotateToDoctor]);
 
   // Pointer drag & touch-swipe handlers
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -157,18 +111,15 @@ export function OurTeam() {
     setIsDragging(true);
     hasDragged.current = false;
     dragStartX.current = e.clientX;
-    dragStartAngle.current = rotationAngle;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isDragging) return;
     const deltaX = e.clientX - dragStartX.current;
-    if (Math.abs(deltaX) > 4) {
+    if (Math.abs(deltaX) > 10) {
       hasDragged.current = true;
     }
-    const angleDelta = deltaX * 0.28 * (isRtl ? -1 : 1);
-    setRotationAngle(dragStartAngle.current + angleDelta);
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -179,17 +130,13 @@ export function OurTeam() {
     } catch {}
 
     if (!hasDragged.current) return;
-
-    // Snap to nearest card
-    const effectiveAngle = isRtl ? -rotationAngle : rotationAngle;
-    if (isArcMode) {
-      const centerOffset = (n - 1) / 2;
-      const rawIndex = Math.round(-effectiveAngle / stepAngle + centerOffset);
-      const clampedIndex = Math.max(0, Math.min(n - 1, rawIndex));
-      rotateToDoctor(clampedIndex);
-    } else {
-      const rawIndex = Math.round(-effectiveAngle / stepAngle);
-      rotateToDoctor(rawIndex);
+    const deltaX = e.clientX - dragStartX.current;
+    if (Math.abs(deltaX) > 40) {
+      if (deltaX > 0) {
+        isRtl ? handleNext() : handlePrev();
+      } else {
+        isRtl ? handlePrev() : handleNext();
+      }
     }
   };
 
@@ -200,10 +147,6 @@ export function OurTeam() {
     } else if (e.key === "ArrowRight") {
       isRtl ? handlePrev() : handleNext();
     }
-  };
-
-  const handleImageError = (id: string) => {
-    setImageErrors((prev) => ({ ...prev, [id]: true }));
   };
 
   // If no doctors exist, return null
@@ -291,17 +234,17 @@ export function OurTeam() {
           </div>
         ) : (
           /* ============================================================== */
-          /* UNIFIED 3D COVERFLOW PERSPECTIVE STAGE (Desktop & Mobile)      */
+          /* 5-CARD VISIBLE 3D COVERFLOW PERSPECTIVE STAGE                  */
           /* ============================================================== */
           <div className="relative w-full overflow-visible py-4 md:py-8">
-            {/* Navigation Arrows */}
+            {/* Navigation Floating Arrow Buttons */}
             {n > 1 && (
               <>
                 <button
                   type="button"
                   onClick={handlePrev}
                   aria-label={copy.previousClinicians}
-                  className="absolute left-1 sm:left-2 top-1/2 -translate-y-1/2 z-30 h-10 w-10 sm:h-12 sm:w-12 rounded-full border border-gray-200 dark:border-gray-700 bg-white/90 dark:bg-gray-900/90 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-md flex items-center justify-center hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                  className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-md flex items-center justify-center hover:scale-105 active:scale-95 transition-all cursor-pointer"
                 >
                   <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6 rtl:rotate-180" />
                 </button>
@@ -309,59 +252,94 @@ export function OurTeam() {
                   type="button"
                   onClick={handleNext}
                   aria-label={copy.nextClinicians}
-                  className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 z-30 h-10 w-10 sm:h-12 sm:w-12 rounded-full border border-gray-200 dark:border-gray-700 bg-white/90 dark:bg-gray-900/90 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-md flex items-center justify-center hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                  className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-md flex items-center justify-center hover:scale-105 active:scale-95 transition-all cursor-pointer"
                 >
                   <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6 rtl:rotate-180" />
                 </button>
               </>
             )}
 
-            {/* 3D Perspective Coverflow Stage Container with touch-swipe & spring physics */}
+            {/* 3D Perspective Stage Container */}
             <div
-              className="relative w-full h-[540px] sm:h-[580px] md:h-[620px] flex items-center justify-center cursor-grab active:cursor-grabbing touch-pan-y overflow-visible"
-              style={{ perspective: "1400px" }}
+              className="relative w-full h-[560px] sm:h-[600px] flex items-center justify-center cursor-grab active:cursor-grabbing touch-pan-y overflow-visible"
+              style={{ perspective: "1200px" }}
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
               onPointerCancel={handlePointerUp}
             >
               <div
-                className="relative w-[280px] sm:w-[320px] h-[500px] sm:h-[540px] flex items-center justify-center"
+                className="relative w-[280px] sm:w-[320px] h-[520px] sm:h-[560px] flex items-center justify-center"
                 style={{ transformStyle: "preserve-3d" }}
               >
                 {filteredDoctors.map((doc, idx) => {
-                  const offset = isArcMode
-                    ? idx - activeIndex
-                    : ((((idx - activeIndex) % n) + n + Math.floor(n / 2)) % n) - Math.floor(n / 2);
+                  // Calculate relative offset with circular wrap-around
+                  let offset = idx - activeIndex;
+                  if (offset > n / 2) offset -= n;
+                  if (offset < -n / 2) offset += n;
 
                   const isCenter = offset === 0;
                   const distance = Math.abs(offset);
                   const isVisible = distance <= 2;
 
-                  // 3D Coverflow transforms with inward tilt
-                  const rotateY = isCenter ? 0 : offset < 0 ? 22 : -22;
-                  const translateZ = isCenter ? 0 : -60 * distance;
-                  const scale = isCenter ? 1.04 : Math.max(0.86, 0.94 - 0.04 * (distance - 1));
-                  const translateX = offset * (isRtl ? -250 : 250);
-                  const opacity = isCenter ? 1 : Math.max(0.3, 0.78 - 0.25 * (distance - 1));
-                  const zIndex = isCenter ? 30 : 20 - distance * 5;
+                  // PR #13 / PR #14 Exact 5-Card Geometry Specification:
+                  // Center Card (offset === 0): translateX(0%) translateZ(0px) rotateY(0deg) scale(1)
+                  // Immediate Neighbors (offset ±1): translateX(±55%) translateZ(-120px) rotateY(∓28deg) scale(0.88)
+                  // Outer Neighbors (offset ±2): translateX(±95%) translateZ(-240px) rotateY(∓38deg) scale(0.76)
+                  let translateX = 0;
+                  let translateZ = 0;
+                  let rotateY = 0;
+                  let scale = 1;
+                  let opacity = 0;
+                  let zIndex = 0;
 
-                  const docInitials =
-                    doc.displayName
-                      .split(" ")
-                      .filter((w) => !w.toLowerCase().includes("dr"))
-                      .slice(0, 2)
-                      .map((w) => w[0])
-                      .join("") || "HS";
+                  if (isCenter) {
+                    translateX = 0;
+                    translateZ = 0;
+                    rotateY = 0;
+                    scale = 1;
+                    opacity = 1;
+                    zIndex = 30;
+                  } else if (offset === -1) {
+                    translateX = isRtl ? 55 : -55;
+                    translateZ = -120;
+                    rotateY = isRtl ? -28 : 28;
+                    scale = 0.88;
+                    opacity = 0.85;
+                    zIndex = 20;
+                  } else if (offset === 1) {
+                    translateX = isRtl ? -55 : 55;
+                    translateZ = -120;
+                    rotateY = isRtl ? 28 : -28;
+                    scale = 0.88;
+                    opacity = 0.85;
+                    zIndex = 20;
+                  } else if (offset === -2) {
+                    translateX = isRtl ? 95 : -95;
+                    translateZ = -240;
+                    rotateY = isRtl ? -38 : 38;
+                    scale = 0.76;
+                    opacity = 0.55;
+                    zIndex = 10;
+                  } else if (offset === 2) {
+                    translateX = isRtl ? -95 : 95;
+                    translateZ = -240;
+                    rotateY = isRtl ? 38 : -38;
+                    scale = 0.76;
+                    opacity = 0.55;
+                    zIndex = 10;
+                  }
+
+                  const doctorPhoto = resolveDoctorPhoto(doc);
 
                   return (
                     <motion.div
                       key={doc.id}
                       initial={false}
                       animate={{
-                        x: translateX,
-                        rotateY: shouldReduceMotion ? 0 : rotateY,
+                        x: `${translateX}%`,
                         z: shouldReduceMotion ? 0 : translateZ,
+                        rotateY: shouldReduceMotion ? 0 : rotateY,
                         scale: shouldReduceMotion ? 1 : scale,
                         opacity: isVisible ? opacity : 0,
                       }}
@@ -386,73 +364,60 @@ export function OurTeam() {
                       className="cursor-pointer"
                     >
                       <div
-                        className={`w-full h-full rounded-3xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border p-4 sm:p-5 shadow-xl flex flex-col justify-between transition-all ${
+                        className={`w-full h-full rounded-3xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border shadow-xl flex flex-col justify-between overflow-hidden transition-all ${
                           isCenter
-                            ? "border-emerald-600 dark:border-emerald-400 ring-2 ring-emerald-500/30 shadow-2xl"
+                            ? "border-2 border-emerald-500 ring-2 ring-emerald-500/20 shadow-2xl scale-100"
                             : "border-gray-200/90 dark:border-gray-800/90 hover:border-emerald-500/40"
                         }`}
                       >
-                        <div>
-                          {/* Portrait Photo Container with luxury initials fallback */}
-                          <div className="w-full h-[220px] sm:h-[255px] rounded-2xl overflow-hidden bg-stone-100 dark:bg-gray-800 mb-3 relative shadow-inner">
-                            {doc.photoUrl && !imageErrors[doc.id] ? (
-                              <SafeImage
-                                src={doc.photoUrl}
-                                alt={doc.displayName}
-                                fallbackInitials={docInitials}
-                                fallbackSubtitle={doc.role || "Specialist"}
-                                fill
-                                sizes="(max-width: 640px) 280px, 320px"
-                                className={`w-full h-full object-cover pointer-events-none transition-transform duration-300 ${getDoctorFocalClass(
-                                  doc.displayName
-                                )}`}
-                              />
-                            ) : (
-                              <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#E8F3EE] via-[#D6EBE2] to-[#FAF9F5] dark:from-[#0E241C] dark:via-[#0B1E17] dark:to-[#070D0B] text-emerald-950 dark:text-emerald-100 select-none p-4 text-center">
-                                <div className="grid h-16 w-16 place-items-center rounded-2xl bg-white/80 dark:bg-emerald-950/60 border border-emerald-700/20 shadow-sm backdrop-blur-sm mb-2">
-                                  <span className="font-serif text-2xl font-bold tracking-wider text-emerald-900 dark:text-emerald-200">
-                                    {docInitials}
-                                  </span>
-                                </div>
-                                <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-800 dark:text-emerald-300 font-semibold mt-1">
-                                  {doc.role || "Clinical Specialist"}
-                                </span>
-                              </div>
-                            )}
+                        {/* Top 52% Height: Full-Bleed High-Resolution Clinician Portrait */}
+                        <div className="relative w-full h-[52%] min-h-[260px] sm:min-h-[285px] bg-stone-100 dark:bg-gray-800 overflow-hidden">
+                          <Image
+                            src={doctorPhoto}
+                            alt={doc.displayName}
+                            fill
+                            sizes="(max-width: 640px) 280px, 320px"
+                            priority={isCenter}
+                            className={`w-full h-full object-cover object-top pointer-events-none transition-transform duration-500 ${getDoctorFocalClass(
+                              doc.displayName
+                            )}`}
+                          />
 
-                            {/* Director / Role Badge */}
-                            {doc.role === "Director" && (
-                              <span className="absolute top-2.5 left-2.5 rounded-full btn-premium-emerald text-white px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm">
-                                <Award className="h-3 w-3" />
-                                <span>{copy.director}</span>
+                          {/* Director / Role Badge */}
+                          {doc.role === "Director" && (
+                            <span className="absolute top-3 left-3 rounded-full btn-premium-emerald text-white px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm z-10">
+                              <Award className="h-3 w-3" />
+                              <span>{copy.director}</span>
+                            </span>
+                          )}
+
+                          {/* Patients Treated Badge */}
+                          {(() => {
+                            const count =
+                              (doc as any).patientsTreated ??
+                              (doc as any).patientsTreatedCount;
+                            if (
+                              !doc.showPatientsTreated ||
+                              typeof count !== "number" ||
+                              count <= 0
+                            ) {
+                              return null;
+                            }
+                            return (
+                              <span className="absolute bottom-3 left-3 rounded-full bg-black/75 backdrop-blur-md text-white px-2.5 py-0.5 text-[10px] font-semibold flex items-center gap-1 shadow-sm z-10">
+                                <Users className="h-3 w-3 text-emerald-400" />
+                                <span>
+                                  {count.toLocaleString()}+ {copy.patientsTreatedSuffix}
+                                </span>
                               </span>
-                            )}
+                            );
+                          })()}
+                        </div>
 
-                            {/* Patients Treated Badge */}
-                            {(() => {
-                              const count =
-                                (doc as any).patientsTreated ??
-                                (doc as any).patientsTreatedCount;
-                              if (
-                                !doc.showPatientsTreated ||
-                                typeof count !== "number" ||
-                                count <= 0
-                              ) {
-                                return null;
-                              }
-                              return (
-                                <span className="absolute bottom-2.5 left-2.5 rounded-full bg-black/75 backdrop-blur-md text-white px-2.5 py-0.5 text-[10px] font-semibold flex items-center gap-1 shadow-sm">
-                                  <Users className="h-3 w-3 text-emerald-400" />
-                                  <span>
-                                    {count.toLocaleString()}+ {copy.patientsTreatedSuffix}
-                                  </span>
-                                </span>
-                              );
-                            })()}
-                          </div>
-
-                          {/* Name, Credentials, Title */}
-                          <div className="space-y-1">
+                        {/* Bottom 48% Height: Clinical Information & Booking CTA */}
+                        <div className="p-4 sm:p-5 flex flex-col justify-between flex-1 space-y-3">
+                          <div className="space-y-1.5">
+                            {/* Doctor Name + Credential */}
                             <div className="flex items-center justify-between gap-2">
                               <h3 className="font-display text-sm sm:text-base font-bold text-gray-950 dark:text-white leading-tight truncate">
                                 {doc.displayName}
@@ -464,32 +429,33 @@ export function OurTeam() {
                               )}
                             </div>
 
-                            {doc.professionalTitle && (
-                              <p className="text-[10.5px] sm:text-[11px] font-medium text-gray-600 dark:text-gray-300 truncate">
-                                {doc.professionalTitle}
-                              </p>
-                            )}
+                            {/* Green Role Subtitle & Professional Title */}
+                            <p className="text-[11px] sm:text-xs font-semibold text-emerald-700 dark:text-emerald-400 truncate">
+                              {doc.professionalTitle || doc.role || "Clinical Specialist"}
+                            </p>
 
+                            {/* 2-Line Biography */}
                             {doc.biography && (
-                              <p className="text-[10.5px] sm:text-[11px] leading-relaxed text-gray-500 dark:text-gray-400 line-clamp-2 pt-0.5">
+                              <p className="text-[10.5px] sm:text-[11px] leading-relaxed text-gray-500 dark:text-gray-400 line-clamp-2">
                                 {doc.biography}
                               </p>
                             )}
 
+                            {/* Clinic Branch Location */}
                             {doc.locationName && (
                               <div className="flex items-center gap-1 text-[10.5px] sm:text-[11px] text-gray-500 dark:text-gray-400 pt-0.5">
-                                <MapPin className="h-3 w-3 text-primary shrink-0" />
+                                <MapPin className="h-3 w-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
                                 <span className="truncate">{doc.locationName}</span>
                               </div>
                             )}
 
-                            {/* Specialties Tags */}
+                            {/* Specialties Pills */}
                             {doc.specialties && doc.specialties.length > 0 && (
                               <div className="flex flex-wrap gap-1 pt-1">
                                 {doc.specialties.slice(0, 3).map((spec, i) => (
                                   <span
                                     key={i}
-                                    className="rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-[9px] sm:text-[9.5px] text-gray-600 dark:text-gray-300"
+                                    className="rounded-full bg-stone-100 dark:bg-gray-800 px-2 py-0.5 text-[9px] sm:text-[9.5px] text-gray-600 dark:text-gray-300"
                                   >
                                     {spec}
                                   </span>
@@ -497,19 +463,23 @@ export function OurTeam() {
                               </div>
                             )}
                           </div>
-                        </div>
 
-                        {/* Book Consultation Button */}
-                        <div className="pt-2 border-t border-gray-100 dark:border-gray-800 mt-2">
-                          <Button
-                            href={`/book?doctor=${encodeURIComponent(doc.id)}`}
-                            variant="primary"
-                            size="sm"
-                            className="w-full justify-center text-xs font-semibold rounded-full py-2"
-                          >
-                            <Calendar className="h-3.5 w-3.5 mr-1.5" />
-                            <span>{copy.bookConsultation}</span>
-                          </Button>
+                          {/* Full-Width Book Consultation CTA Button */}
+                          <div className="pt-2 border-t border-gray-100 dark:border-gray-800 mt-auto">
+                            <Button
+                              href={`/book?doctor=${encodeURIComponent(doc.id)}`}
+                              variant="primary"
+                              size="sm"
+                              className={`w-full justify-center text-xs font-semibold rounded-full py-2.5 transition-all shadow-md ${
+                                isCenter
+                                  ? "btn-premium-emerald text-white"
+                                  : "bg-emerald-900/90 text-white hover:bg-emerald-800"
+                              }`}
+                            >
+                              <Calendar className="h-3.5 w-3.5 mr-1.5" />
+                              <span>{copy.bookConsultation}</span>
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </motion.div>
@@ -529,7 +499,7 @@ export function OurTeam() {
                     aria-label={`Go to clinician ${i + 1}`}
                     className={`h-2 rounded-full transition-all cursor-pointer ${
                       i === activeIndex
-                        ? "w-6 sm:w-7 bg-emerald-700 dark:bg-emerald-500"
+                        ? "w-7 bg-emerald-600 dark:bg-emerald-400"
                         : "w-2 bg-gray-300 dark:bg-gray-700 hover:bg-gray-400"
                     }`}
                   />

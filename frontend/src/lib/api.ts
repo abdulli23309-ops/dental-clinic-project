@@ -446,8 +446,31 @@ export interface PublicLeadCaptureResponse {
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 /**
+ * Returns the sanitized base URL of the backend API, stripped of any trailing /api/v1.
+ */
+export function getBackendBaseUrl(): string {
+  let base = process.env.NEXT_PUBLIC_API_URL || "";
+  if (typeof window !== "undefined") {
+    if (!base || base.includes("localhost") || base.includes("127.0.0.1")) {
+      const host = window.location.hostname;
+      if (host.includes("tweenova.online")) {
+        base = "https://hiraapi.tweenova.online";
+      } else if (base.includes("localhost") || base.includes("127.0.0.1")) {
+        base = "http://127.0.0.1:8000";
+      } else {
+        base = window.location.origin;
+      }
+    }
+  }
+  if (!base) {
+    base = "https://hiraapi.tweenova.online";
+  }
+  return base.replace(/\/api\/v1\/?$/i, "").replace(/\/api\/?$/i, "").replace(/\/+$/, "");
+}
+
+/**
  * Resolves a media/asset path (relative or absolute) to a full accessible URL.
- * Handles backend media paths like "/media/..." by prepending API_BASE.
+ * Handles backend media paths like "/media/..." by prepending the backend origin.
  */
 export function resolveMediaUrl(url?: string | null): string | null {
   if (!url) return null;
@@ -460,8 +483,8 @@ export function resolveMediaUrl(url?: string | null): string | null {
     return trimmed;
   }
   const cleanPath = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
-  const base = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-  return `${base.replace(/\/+$/, "")}${cleanPath}`;
+  const base = getBackendBaseUrl();
+  return `${base}${cleanPath}`;
 }
 
 /* -------------------------------------------------------------

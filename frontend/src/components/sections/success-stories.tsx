@@ -121,7 +121,7 @@ export function SuccessStories() {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, amount: 0.15 }}
                     transition={{ duration: 0.4, delay: idx * 0.06 }}
-                    className="rounded-3xl border border-gray-200/90 dark:border-gray-800/90 bg-white/80 dark:bg-[#070D0B]/85 backdrop-blur-md p-6 sm:p-7 shadow-xs hover:border-emerald-500/40 hover:shadow-xl transition-all flex flex-col justify-between space-y-6"
+                    className="rounded-3xl border border-gray-200/90 dark:border-gray-800/90 bg-white/80 dark:bg-stone-900/85 backdrop-blur-md p-6 sm:p-7 shadow-xs hover:border-primary/40 hover:shadow-xl transition-all flex flex-col justify-between space-y-6"
                   >
                     <div className="space-y-4">
                       {/* Top Bar: 5 Gold Stars & Verified Badge */}
@@ -139,7 +139,7 @@ export function SuccessStories() {
                               <span>Google Review</span>
                             </span>
                           )}
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 dark:bg-emerald-400/10 border border-emerald-600/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:text-emerald-300">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] font-semibold text-primary">
                             <CheckCircle2 className="h-3 w-3" />
                             <span>Verified</span>
                           </span>
@@ -155,7 +155,7 @@ export function SuccessStories() {
                     {/* Author & Date Footer */}
                     <div className="pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2.5">
-                        <div className="grid h-8 w-8 place-items-center rounded-full bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 font-bold text-xs uppercase">
+                        <div className="grid h-8 w-8 place-items-center rounded-full bg-primary/10 text-primary font-bold text-xs uppercase">
                           {rev.authorName ? rev.authorName.charAt(0) : "P"}
                         </div>
                         <div className="flex flex-col">

@@ -1,17 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { motion } from "motion/react";
-import { Maximize2, Sparkles } from "lucide-react";
+import { Maximize2, Sparkles, ImageOff } from "lucide-react";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 import { useLightbox } from "@/components/providers/lightbox-provider";
 import { publicGetGallery, GalleryImageItem, resolveMediaUrl } from "@/lib/api";
 
 const BENTO_LAYOUTS = [
-  { colSpanClass: "md:col-span-8", minHeightClass: "min-h-[360px] md:min-h-[460px]", defaultBadge: "CLINICAL SUITE" },
-  { colSpanClass: "md:col-span-4", minHeightClass: "min-h-[360px] md:min-h-[460px]", defaultBadge: "CLINIC ATMOSPHERE" },
+  { colSpanClass: "md:col-span-7", minHeightClass: "min-h-[360px] md:min-h-[460px]", defaultBadge: "CLINICAL SUITE" },
+  { colSpanClass: "md:col-span-5", minHeightClass: "min-h-[360px] md:min-h-[460px]", defaultBadge: "CLINIC ATMOSPHERE" },
   { colSpanClass: "md:col-span-4", minHeightClass: "min-h-[300px] md:min-h-[380px]", defaultBadge: "CLINIC ATMOSPHERE" },
   { colSpanClass: "md:col-span-4", minHeightClass: "min-h-[300px] md:min-h-[380px]", defaultBadge: "CLINICAL SUITE" },
   { colSpanClass: "md:col-span-4", minHeightClass: "min-h-[300px] md:min-h-[380px]", defaultBadge: "CLINICAL SUITE" },
@@ -73,9 +72,9 @@ export function Gallery() {
   return (
     <section
       id="gallery"
-      className="border-t border-gray-200 dark:border-gray-800 bg-[#FAF9F5] dark:bg-gray-900/50 py-28 md:py-36 overflow-hidden"
+      className="border-t border-gray-200 dark:border-gray-800 bg-[#FAF9F5] dark:bg-gray-900/50 py-24 md:py-32 overflow-hidden"
     >
-      <div className="container-x space-y-14 lg:space-y-16">
+      <div className="container-x space-y-12 lg:space-y-14">
         {/* Section Heading */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <SectionHeading
@@ -89,7 +88,7 @@ export function Gallery() {
           )}
         </div>
 
-        {/* Dynamic Bento Grid Stage populated from Database */}
+        {/* Dynamic Asymmetric Bento Grid (7/5 row 1, 4/4/4 row 2) */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
           {galleryItems.map((item, idx) => {
             const layout = BENTO_LAYOUTS[idx % BENTO_LAYOUTS.length];
@@ -101,6 +100,8 @@ export function Gallery() {
                 ? copy.clinicalSuite || "CLINICAL SUITE"
                 : copy.clinicAtmosphere || "CLINIC ATMOSPHERE";
 
+            const hasError = !resolvedUrl || imageErrors[item.id];
+
             return (
               <motion.div
                 key={item.id}
@@ -111,18 +112,20 @@ export function Gallery() {
                 className={`${layout.colSpanClass} relative`}
               >
                 <div
-                  onClick={() =>
-                    openLightbox({
-                      layoutId: `bento-gallery-${item.id}`,
-                      src: resolvedUrl,
-                      alt: title || fullCaption,
-                      caption: fullCaption,
-                    })
-                  }
+                  onClick={() => {
+                    if (resolvedUrl && !hasError) {
+                      openLightbox({
+                        layoutId: `bento-gallery-${item.id}`,
+                        src: resolvedUrl,
+                        alt: title || fullCaption,
+                        caption: fullCaption,
+                      });
+                    }
+                  }}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
+                    if ((e.key === "Enter" || e.key === " ") && resolvedUrl && !hasError) {
                       e.preventDefault();
                       openLightbox({
                         layoutId: `bento-gallery-${item.id}`,
@@ -132,43 +135,38 @@ export function Gallery() {
                       });
                     }
                   }}
-                  className={`relative w-full ${layout.minHeightClass} rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl border border-gray-200/80 dark:border-gray-800/80 bg-gray-100 dark:bg-gray-850 group cursor-pointer transition-all duration-300`}
-                  aria-label={`View full photo: ${title || fullCaption}`}
+                  className={`relative w-full ${layout.minHeightClass} rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl border border-gray-200/80 dark:border-gray-800/80 bg-slate-900 group cursor-pointer transition-all duration-300`}
+                  aria-label={`View clinical photograph: ${title || fullCaption}`}
                 >
-                  {/* High-Resolution Full-Bleed Photograph from DB */}
-                  {!imageErrors[item.id] ? (
-                    <Image
+                  {/* High-Resolution Full-Bleed Photograph with Direct Native <img> for Maximum Reliability */}
+                  {!hasError ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
                       src={resolvedUrl}
                       alt={title || fullCaption}
-                      fill
-                      sizes={
-                        layout.colSpanClass.includes("12")
-                          ? "100vw"
-                          : "(max-width: 768px) 100vw, 55vw"
-                      }
-                      priority={idx === 0}
+                      loading={idx < 2 ? "eager" : "lazy"}
                       onError={() => setImageErrors((prev) => ({ ...prev, [item.id]: true }))}
-                      className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
                     />
                   ) : (
-                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-950 via-slate-900 to-black flex items-center justify-center p-6 text-center">
-                      <span className="font-display text-emerald-200 text-lg font-bold">{title || fullCaption}</span>
+                    <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-black flex items-center justify-center p-6 text-center">
+                      <ImageOff className="h-10 w-10 text-white/20" />
                     </div>
                   )}
 
-                  {/* Restrained Gradient Overlay covering only bottom 35% for maximum photo visibility */}
-                  <div className="absolute inset-x-0 bottom-0 h-[38%] bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none" />
+                  {/* Restrained Gradient Scrim: covers only bottom 40% so photograph stays bright and clear */}
+                  <div className="absolute inset-x-0 bottom-0 h-[42%] bg-gradient-to-t from-black/85 via-black/40 to-transparent pointer-events-none" />
 
                   {/* Top Bar: Badge & Zoom Pill */}
                   <div className="absolute top-4 left-4 right-4 flex items-center justify-between gap-2 pointer-events-none z-10">
                     <span
                       className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider backdrop-blur-md shadow-sm border ${
                         layout.defaultBadge === "CLINICAL SUITE"
-                          ? "bg-emerald-600/90 text-white border-emerald-500/30"
+                          ? "bg-primary text-primary-foreground border-primary/30"
                           : "bg-black/50 text-white/95 border-white/15"
                       }`}
                     >
-                      <Sparkles className="h-3 w-3 text-emerald-300" />
+                      <Sparkles className="h-3 w-3 opacity-80" />
                       <span>{badgeLabel}</span>
                     </span>
 
@@ -177,10 +175,10 @@ export function Gallery() {
                     </span>
                   </div>
 
-                  {/* Sleek, Compact Bottom Typography (Title + optional Subtitle) */}
+                  {/* Clean Bottom Typography: 1-line serif title + 1-line muted sans subtitle (Zero Collisions) */}
                   {title && (
                     <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6 text-white pointer-events-none z-10 space-y-0.5">
-                      <h3 className="text-base sm:text-lg font-serif font-semibold text-white line-clamp-1 drop-shadow-sm group-hover:text-emerald-200 transition-colors">
+                      <h3 className="text-base sm:text-lg font-serif font-semibold text-white line-clamp-1 drop-shadow-sm group-hover:text-primary-foreground/90 transition-colors">
                         {title}
                       </h3>
                       {subtitle && (

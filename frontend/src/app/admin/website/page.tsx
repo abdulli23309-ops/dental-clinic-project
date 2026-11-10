@@ -88,6 +88,7 @@ export default function AdminWebsitePage() {
   const [activeTab, setActiveTab] = useState<SectionTab>("general");
 
   // Form states per section
+  const [logoPreviewError, setLogoPreviewError] = useState(false);
   const [generalData, setGeneralData] = useState<any>({
     practiceName: "",
     shortBrandName: "",
@@ -381,6 +382,7 @@ export default function AdminWebsitePage() {
     try {
       const { url } = await adminUploadMedia(file, accessToken);
       if (section === "general") {
+        if (field === "logoUrl") setLogoPreviewError(false);
         setGeneralData((prev: any) => ({ ...prev, [field]: url }));
       } else {
         setHomepageData((prev: any) => ({ ...prev, [field]: url }));
@@ -855,13 +857,11 @@ export default function AdminWebsitePage() {
                   Clinic Logo
                 </label>
                 <div className="flex items-center gap-3">
-                  {generalData.logoUrl && (
+                  {generalData.logoUrl && !logoPreviewError && (
                     <img
                       src={resolveMediaUrl(generalData.logoUrl) || generalData.logoUrl}
                       alt="Current logo"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLElement).style.display = "none";
-                      }}
+                      onError={() => setLogoPreviewError(true)}
                       className="h-10 w-10 object-contain rounded-lg border border-line bg-transparent p-0.5"
                     />
                   )}

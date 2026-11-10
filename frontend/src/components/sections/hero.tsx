@@ -33,7 +33,7 @@ function renderTwoToneHeadline(heading: string, highlightWord?: string) {
           part.toLowerCase() === highlightWord.toLowerCase() ? (
             <span
               key={i}
-              className="bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-700 dark:from-emerald-400 dark:via-teal-300 dark:to-emerald-500 bg-clip-text text-transparent italic"
+              className="text-primary italic"
             >
               {part}
             </span>
@@ -45,11 +45,11 @@ function renderTwoToneHeadline(heading: string, highlightWord?: string) {
     );
   }
 
-  // Split words into first half and last phrase with animated gradient
+  // Split words into first half and last phrase
   const words = heading.split(" ");
   if (words.length <= 1) {
     return (
-      <span className="bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-700 dark:from-emerald-400 dark:via-teal-300 dark:to-emerald-500 bg-clip-text text-transparent italic">
+      <span className="text-primary italic">
         {heading}
       </span>
     );
@@ -61,7 +61,7 @@ function renderTwoToneHeadline(heading: string, highlightWord?: string) {
   return (
     <>
       <span>{firstHalf} </span>
-      <span className="bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-700 dark:from-emerald-400 dark:via-teal-300 dark:to-emerald-500 bg-clip-text text-transparent italic">
+      <span className="text-primary italic">
         {secondHalf}
       </span>
     </>
@@ -227,7 +227,7 @@ export function Hero() {
               ) : null}
 
               {startingFee && (
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 dark:bg-emerald-400/15 border border-emerald-600/25 px-3.5 py-1.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300 shadow-xs">
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 dark:bg-primary/15 border border-primary/25 px-3.5 py-1.5 text-xs font-semibold text-primary shadow-xs">
                   <Sparkles className="h-3.5 w-3.5 text-primary" />
                   <span>
                     {copy.treatmentsFrom} {startingFee}
@@ -333,9 +333,8 @@ export function Hero() {
                           rotate: toothRotate,
                         }
                   }
-                  className="w-full h-full flex items-center justify-center relative"
+                  className="w-full h-full flex items-center justify-center relative filter drop-shadow-2xl"
                 >
-                  <div className="absolute inset-4 rounded-3xl bg-white/40 dark:bg-black/40 backdrop-blur-md border border-white/60 dark:border-white/10 shadow-xl" />
                   <Image
                     src="/images/tooth-hero.png"
                     alt="Professional anatomical tooth model illustrating dental care quality"

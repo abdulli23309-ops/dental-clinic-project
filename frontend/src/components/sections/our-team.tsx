@@ -243,7 +243,7 @@ export function OurTeam() {
               onClick={() => setSelectedCity("all")}
               className={`rounded-full px-4 sm:px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
                 selectedCity === "all"
-                  ? "btn-premium-emerald text-white font-semibold shadow-sm"
+                  ? "bg-primary text-primary-foreground font-semibold shadow-sm"
                   : "bg-white/80 dark:bg-gray-900/80 backdrop-blur-md text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200/80 dark:border-gray-800/80"
               }`}
             >
@@ -262,7 +262,7 @@ export function OurTeam() {
                   onClick={() => setSelectedCity(city)}
                   className={`rounded-full px-4 sm:px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
                     isSelected
-                      ? "btn-premium-emerald text-white font-semibold shadow-sm"
+                      ? "bg-primary text-primary-foreground font-semibold shadow-sm"
                       : "bg-white/80 dark:bg-gray-900/80 backdrop-blur-md text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200/80 dark:border-gray-800/80"
                   }`}
                 >
@@ -299,16 +299,16 @@ export function OurTeam() {
               className="absolute inset-0 flex items-center justify-center pointer-events-none"
               aria-hidden="true"
             >
-              <div className="w-[450px] h-[450px] sm:w-[650px] sm:h-[650px] rounded-full bg-emerald-500/10 dark:bg-emerald-400/10 blur-3xl" />
+              <div className="w-[450px] h-[450px] sm:w-[650px] sm:h-[650px] rounded-full bg-primary/15 blur-3xl" />
             </div>
 
             {/* Curved Glass Base Ring Pedestal */}
             <div
-              className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[340px] sm:w-[500px] h-12 rounded-[100%] bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent blur-md pointer-events-none"
+              className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[340px] sm:w-[500px] h-12 rounded-[100%] bg-gradient-to-r from-transparent via-primary/20 to-transparent blur-md pointer-events-none"
               aria-hidden="true"
             />
             <div
-              className="absolute bottom-8 left-1/2 -translate-x-1/2 w-[300px] sm:w-[440px] h-6 rounded-[100%] border border-emerald-500/20 dark:border-emerald-400/20 bg-emerald-500/5 backdrop-blur-sm pointer-events-none"
+              className="absolute bottom-8 left-1/2 -translate-x-1/2 w-[300px] sm:w-[440px] h-6 rounded-[100%] border border-primary/20 bg-primary/5 backdrop-blur-sm pointer-events-none"
               aria-hidden="true"
             />
 
@@ -319,7 +319,7 @@ export function OurTeam() {
                   type="button"
                   onClick={handlePrev}
                   aria-label={copy.previousClinicians}
-                  className="absolute left-1 sm:left-2 top-1/2 -translate-y-1/2 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-white/60 dark:border-white/15 bg-white/80 dark:bg-slate-900/80 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-xl flex items-center justify-center hover:scale-105 active:scale-95 hover:border-emerald-500/40 hover:ring-2 hover:ring-emerald-500/20 transition-all cursor-pointer"
+                  className="absolute left-1 sm:left-2 top-1/2 -translate-y-1/2 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-white/60 dark:border-white/15 bg-white/80 dark:bg-slate-900/80 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-xl flex items-center justify-center hover:scale-105 active:scale-95 hover:border-primary/40 hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer"
                 >
                   <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6 rtl:rotate-180" />
                 </button>
@@ -327,7 +327,7 @@ export function OurTeam() {
                   type="button"
                   onClick={handleNext}
                   aria-label={copy.nextClinicians}
-                  className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-white/60 dark:border-white/15 bg-white/80 dark:bg-slate-900/80 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-xl flex items-center justify-center hover:scale-105 active:scale-95 hover:border-emerald-500/40 hover:ring-2 hover:ring-emerald-500/20 transition-all cursor-pointer"
+                  className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-white/60 dark:border-white/15 bg-white/80 dark:bg-slate-900/80 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-xl flex items-center justify-center hover:scale-105 active:scale-95 hover:border-primary/40 hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer"
                 >
                   <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6 rtl:rotate-180" />
                 </button>
@@ -393,8 +393,8 @@ export function OurTeam() {
                       <div
                         className={`relative w-[280px] sm:w-[320px] h-[500px] sm:h-[540px] rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border p-3.5 sm:p-4 shadow-xl flex flex-col justify-between transition-all duration-300 ${
                           isFront
-                            ? "border-2 border-emerald-500 ring-2 ring-emerald-500/40 shadow-[0_20px_50px_rgba(16,185,129,0.22)] scale-[1.02]"
-                            : "border-white/50 dark:border-white/10 hover:border-emerald-500/40 shadow-lg"
+                            ? "border-2 border-primary ring-2 ring-primary/40 shadow-[0_25px_60px_-15px_hsl(var(--primary)/0.28)] scale-[1.02]"
+                            : "border-white/50 dark:border-white/10 hover:border-primary/40 shadow-lg"
                         }`}
                       >
                         {/* Specular top-edge glass highlight */}
@@ -420,7 +420,7 @@ export function OurTeam() {
                                 onError={() => handleImageError(doc.id)}
                               />
                             ) : (
-                              <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-stone-100 via-stone-200/70 to-stone-100 dark:from-gray-850 dark:via-gray-800 dark:to-gray-850 text-emerald-800 dark:text-emerald-300 select-none p-4 text-center">
+                              <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-stone-100 via-stone-200/70 to-stone-100 dark:from-gray-850 dark:via-gray-800 dark:to-gray-850 text-primary select-none p-4 text-center">
                                 <span className="font-display text-3xl font-bold tracking-wider">
                                   {doc.displayName
                                     .split(" ")
@@ -437,7 +437,7 @@ export function OurTeam() {
 
                             {/* Director / Role Badge */}
                             {doc.role === "Director" && (
-                              <span className="absolute top-2.5 left-2.5 rounded-full btn-premium-emerald text-white px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm z-10">
+                              <span className="absolute top-2.5 left-2.5 rounded-full bg-primary text-primary-foreground px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm z-10">
                                 <Award className="h-3 w-3" />
                                 <span>{copy.director}</span>
                               </span>
@@ -457,7 +457,7 @@ export function OurTeam() {
                               }
                               return (
                                 <span className="absolute bottom-2.5 left-2.5 rounded-full bg-black/75 backdrop-blur-md text-white px-2.5 py-0.5 text-[10px] font-semibold flex items-center gap-1 shadow-sm z-10">
-                                  <Users className="h-3 w-3 text-emerald-400" />
+                                  <Users className="h-3 w-3 text-primary" />
                                   <span>
                                     {count.toLocaleString()}+ {copy.patientsTreatedSuffix}
                                   </span>
@@ -473,14 +473,14 @@ export function OurTeam() {
                                 {doc.displayName}
                               </h3>
                               {doc.credentials && (
-                                <span className="text-[9.5px] sm:text-[10px] font-mono font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0">
+                                <span className="text-[9.5px] sm:text-[10px] font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0">
                                   {doc.credentials}
                                 </span>
                               )}
                             </div>
 
                             {doc.professionalTitle && (
-                              <p className="text-[10.5px] sm:text-[11px] font-medium text-emerald-700 dark:text-emerald-400 truncate">
+                              <p className="text-[10.5px] sm:text-[11px] font-medium text-primary truncate">
                                 {doc.professionalTitle}
                               </p>
                             )}
@@ -493,7 +493,7 @@ export function OurTeam() {
 
                             {doc.locationName && (
                               <div className="flex items-center gap-1 text-[10.5px] sm:text-[11px] text-gray-500 dark:text-gray-400 pt-0.5">
-                                <MapPin className="h-3 w-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                <MapPin className="h-3 w-3 text-primary shrink-0" />
                                 <span className="truncate">{doc.locationName}</span>
                               </div>
                             )}
@@ -522,8 +522,8 @@ export function OurTeam() {
                             size="sm"
                             className={`w-full justify-center text-xs font-semibold rounded-full py-2.5 transition-all shadow-md ${
                               isFront
-                                ? "btn-premium-emerald text-white"
-                                : "bg-emerald-900/90 text-white hover:bg-emerald-800"
+                                ? "bg-primary text-primary-foreground shadow-sm hover:opacity-95"
+                                : "bg-primary/90 text-primary-foreground hover:bg-primary shadow-xs"
                             }`}
                           >
                             <Calendar className="h-3.5 w-3.5 mr-1.5" />
@@ -548,7 +548,7 @@ export function OurTeam() {
                     aria-label={`Go to clinician ${i + 1}`}
                     className={`h-2 rounded-full transition-all cursor-pointer ${
                       i === activeIndex
-                        ? "w-6 sm:w-7 bg-emerald-600 dark:bg-emerald-400"
+                        ? "w-6 sm:w-7 bg-primary"
                         : "w-2 bg-gray-300 dark:bg-gray-700 hover:bg-gray-400"
                     }`}
                   />

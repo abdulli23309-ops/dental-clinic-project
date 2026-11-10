@@ -28,11 +28,13 @@ def test_production_rejects_insecure_default_secret(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_storage_service_reports_missing_magic_backend(monkeypatch, tmp_path):
+async def test_storage_service_works_without_magic_backend(monkeypatch, tmp_path):
     import app.infrastructure.storage.local_storage as storage_module
 
     monkeypatch.setattr(storage_module, "magic", None)
     service = storage_module.LocalStorageService(upload_dir=str(tmp_path))
 
-    with pytest.raises(Exception, match="Media validation backend is unavailable"):
-        await service.upload(b"%PDF-1.4 test", "sample.pdf", "application/pdf")
+    # Pure-python header inspection should handle valid files even if magic is None
+    uploaded = await service.upload(b"%PDF-1.4 test data", "sample.pdf", "application/pdf")
+    assert uploaded.endswith(".pdf")
+

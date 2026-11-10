@@ -117,7 +117,7 @@ export function Treatments() {
               {activeTab === "all" && (
                 <motion.div
                   layoutId="activeTreatmentCategory"
-                  className="absolute inset-0 rounded-full btn-premium-emerald"
+                  className="absolute inset-0 rounded-full bg-primary shadow-sm"
                   transition={{ type: "spring", stiffness: 350, damping: 30 }}
                 />
               )}
@@ -152,7 +152,7 @@ export function Treatments() {
                   {isActive && (
                     <motion.div
                       layoutId="activeTreatmentCategory"
-                      className="absolute inset-0 rounded-full btn-premium-emerald"
+                      className="absolute inset-0 rounded-full bg-primary shadow-sm"
                       transition={{ type: "spring", stiffness: 350, damping: 30 }}
                     />
                   )}
@@ -212,7 +212,7 @@ export function Treatments() {
               {filtered.map((service) => (
                 <div
                   key={service.id}
-                  className="w-[85%] md:w-[45%] lg:w-[31%] min-w-[85%] md:min-w-[45%] lg:min-w-[31%] shrink-0 snap-start bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden shadow-xs p-4 sm:p-5 flex flex-col justify-between space-y-4 hover:border-emerald-600/40 hover:shadow-md transition-all self-stretch group"
+                  className="w-[85%] md:w-[45%] lg:w-[31%] min-w-[85%] md:min-w-[45%] lg:min-w-[31%] shrink-0 snap-start bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden shadow-xs p-4 sm:p-5 flex flex-col justify-between space-y-4 hover:border-primary/40 hover:shadow-md transition-all self-stretch group"
                 >
                   <div className="space-y-3">
                     {/* Treatment Card Photo with SafeImage */}
@@ -235,7 +235,7 @@ export function Treatments() {
                     </div>
 
                     <div className="flex items-center justify-between text-xs pt-1">
-                      <span className="rounded-full bg-emerald-500/10 dark:bg-emerald-400/15 border border-emerald-600/20 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
+                      <span className="rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-[10px] font-semibold text-primary uppercase tracking-wider">
                         {service.category}
                       </span>
                       {service.duration && (
@@ -285,9 +285,9 @@ export function Treatments() {
         )}
 
         {/* Signature Checkup Banner */}
-        <div className="rounded-3xl border border-emerald-600/20 bg-gradient-to-r from-emerald-900/10 via-emerald-800/5 to-transparent p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="rounded-3xl border border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-xl">
-            <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+            <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
               <ShieldCheck className="h-4 w-4" />
               <span>{copy.signatureExam}</span>
             </div>

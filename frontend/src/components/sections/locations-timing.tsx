@@ -115,7 +115,7 @@ export function LocationsTiming() {
               onClick={() => setSelectedCity("all")}
               className={`rounded-full px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
                 selectedCity === "all"
-                  ? "btn-premium-emerald font-semibold text-white"
+                  ? "bg-primary font-semibold text-primary-foreground shadow-sm"
                   : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700"
               }`}
             >
@@ -134,7 +134,7 @@ export function LocationsTiming() {
                   onClick={() => setSelectedCity(city)}
                   className={`rounded-full px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
                     isSelected
-                      ? "btn-premium-emerald font-semibold text-white"
+                      ? "bg-primary font-semibold text-primary-foreground shadow-sm"
                       : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700"
                   }`}
                 >
@@ -280,7 +280,7 @@ export function LocationsTiming() {
                           <span
                             className={`rounded-full px-3 py-1 text-[11px] font-semibold flex items-center gap-1.5 backdrop-blur-md shadow-sm ${
                               officeStatus.isOpen
-                                ? "bg-emerald-950/80 text-emerald-300 border border-emerald-500/30"
+                                ? "bg-black/75 text-white border border-white/20"
                                 : "bg-black/60 text-gray-300 border border-white/20"
                             }`}
                           >

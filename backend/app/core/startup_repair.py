@@ -8,8 +8,8 @@ from sqlalchemy import select
 from app.core.config import settings
 from app.core.database import get_session_factory
 from app.core.logging import logger
-from app.infrastructure.database.models import (
-    DoctorORM,
+from app.infrastructure.database.orm_models import (
+    TeamMemberORM,
     ServiceORM,
     GalleryImageORM,
     LocationORM,
@@ -18,27 +18,47 @@ from app.infrastructure.database.models import (
 )
 
 DOCTOR_PHOTO_MAP = {
-    "dr. hira saleem": "https://images.unsplash.com/photo-1594824813598-1e433f48a0ff?auto=format&fit=crop&w=800&q=80",
-    "dr. carlos novakowski": "https://images.unsplash.com/photo-1622902046580-2b47f47f5471?auto=format&fit=crop&w=800&q=80",
-    "dr. yaser rasheed": "https://images.unsplash.com/photo-1612349317150-f437f4d47221?auto=format&fit=crop&w=800&q=80",
-    "dr. meral ozki": "https://images.unsplash.com/photo-1614608682850-e0d6ed316d47?auto=format&fit=crop&w=800&q=80",
-    "dr. sarah john": "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=800&q=80",
-    "dr. emily white": "https://images.unsplash.com/photo-1582750433449-648ed127bb54?auto=format&fit=crop&w=800&q=80",
-    "dr. michael brown": "https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&w=800&q=80",
-    "dr. jessica green": "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=800&q=80",
-    "dr. david black": "https://images.unsplash.com/photo-1584467735815-f778f274e296?auto=format&fit=crop&w=800&q=80",
-    "dr. laura wilson": "https://images.unsplash.com/photo-1651008376811-b90baee60c1f?auto=format&fit=crop&w=800&q=80",
-    "dr. james taylor": "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&q=80",
-    "dr. olivia anderson": "https://images.unsplash.com/photo-1527613426441-4da17471b66d?auto=format&fit=crop&w=800&q=80",
-    "dr. daniel thomas": "https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?auto=format&fit=crop&w=800&q=80",
-    "dr. sophia jackson": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=800&q=80",
-    "dr. matthew white": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80",
-    "dr. chloe harris": "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=800&q=80",
-    "dr. alexander martin": "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=800&q=80",
-    "dr. mia thompson": "https://images.unsplash.com/photo-1594824813598-1e433f48a0ff?auto=format&fit=crop&w=800&q=80",
+    "hira": "https://images.unsplash.com/photo-1594824813598-1e433f48a0ff?auto=format&fit=crop&w=800&q=80",
+    "carlos": "https://images.unsplash.com/photo-1622902046580-2b47f47f5471?auto=format&fit=crop&w=800&q=80",
+    "yaser": "https://images.unsplash.com/photo-1612349317150-f437f4d47221?auto=format&fit=crop&w=800&q=80",
+    "meral": "https://images.unsplash.com/photo-1614608682850-e0d6ed316d47?auto=format&fit=crop&w=800&q=80",
+    "sarah": "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=800&q=80",
+    "emily": "https://images.unsplash.com/photo-1582750433449-648ed127bb54?auto=format&fit=crop&w=800&q=80",
+    "michael": "https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&w=800&q=80",
+    "jessica": "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=800&q=80",
+    "david": "https://images.unsplash.com/photo-1584467735815-f778f274e296?auto=format&fit=crop&w=800&q=80",
+    "laura": "https://images.unsplash.com/photo-1651008376811-b90baee60c1f?auto=format&fit=crop&w=800&q=80",
+    "james": "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&q=80",
+    "olivia": "https://images.unsplash.com/photo-1527613426441-4da17471b66d?auto=format&fit=crop&w=800&q=80",
+    "daniel": "https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?auto=format&fit=crop&w=800&q=80",
+    "sophia": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=800&q=80",
+    "matthew": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80",
+    "chloe": "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=800&q=80",
+    "alexander": "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=800&q=80",
+    "mia": "https://images.unsplash.com/photo-1594824813598-1e433f48a0ff?auto=format&fit=crop&w=800&q=80",
+    "billo": "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=800&q=80",
 }
 
-DOCTOR_PHOTOS_LIST = list(DOCTOR_PHOTO_MAP.values())
+DOCTOR_PHOTOS_LIST = [
+    "https://images.unsplash.com/photo-1594824813598-1e433f48a0ff?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1622902046580-2b47f47f5471?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1612349317150-f437f4d47221?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1614608682850-e0d6ed316d47?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1582750433449-648ed127bb54?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1584467735815-f778f274e296?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1651008376811-b90baee60c1f?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1527613426441-4da17471b66d?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1594824813598-1e433f48a0ff?auto=format&fit=crop&w=800&q=80",
+]
 
 SERVICE_IMAGE_MAP = {
     "cleanings": "https://images.unsplash.com/photo-1606811841689-23dfddce3e95?auto=format&fit=crop&w=800&q=80",
@@ -52,27 +72,27 @@ SERVICE_IMAGE_MAP = {
 
 GALLERY_DEFAULTS = [
     {
-        "caption": "Sterile Surgical Suite",
+        "caption": "Sterile Surgical Suite — Ergonomic treatment station with digital monitoring and infection control",
         "image_url": "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1200&q=80",
         "display_order": 1,
     },
     {
-        "caption": "Advanced Radiography & Consultation",
+        "caption": "Advanced Radiography & Consultation — High-resolution 3D diagnostic imaging suite",
         "image_url": "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&w=1200&q=80",
         "display_order": 2,
     },
     {
-        "caption": "Diagnostic & Preventive Station",
+        "caption": "Diagnostic & Preventive Station — Comprehensive oral assessment and preventive care suite",
         "image_url": "https://images.unsplash.com/photo-1606811841689-23dfddce3e95?auto=format&fit=crop&w=1200&q=80",
         "display_order": 3,
     },
     {
-        "caption": "General & Cosmetic Treatment Room",
+        "caption": "General & Cosmetic Treatment Room — Dedicated restorative dentistry operatory",
         "image_url": "https://images.unsplash.com/photo-1598256989800-fe5f95da9787?auto=format&fit=crop&w=1200&q=80",
         "display_order": 4,
     },
     {
-        "caption": "Patient Comfort & Smile Lounge",
+        "caption": "Patient Comfort & Smile Lounge — Serene hotel-inspired reception sanctuary",
         "image_url": "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=1400&q=80",
         "display_order": 5,
     },
@@ -128,9 +148,9 @@ def is_broken_media_url(url: str | None, upload_dir: Path) -> bool:
 
 async def repair_production_database():
     """
-    Idempotent production database repair routine.
+    Self-contained, idempotent production database repair routine.
     Runs on every FastAPI startup to inspect existing rows in PostgreSQL:
-    if any doctors, services, gallery images, locations, or CMS sections have
+    if any team members, services, gallery images, locations, or CMS sections have
     broken /media/ URLs or empty URLs, repairs them immediately with verified
     high-resolution cloud assets.
     """
@@ -140,8 +160,8 @@ async def repair_production_database():
 
     session_factory = get_session_factory()
     async with session_factory() as session:
-        # 1. Doctors Repair
-        doc_res = await session.execute(select(DoctorORM))
+        # 1. Team Members (Doctors) Repair
+        doc_res = await session.execute(select(TeamMemberORM))
         doctors = doc_res.scalars().all()
         doc_repaired = 0
         for idx, doc in enumerate(doctors):
@@ -227,6 +247,8 @@ async def repair_production_database():
                 target_logo = upload_dir / "8d90adff4feb4e8db41f532aa3d630f1.png"
                 if target_logo.exists():
                     org.logo_url = "/media/8d90adff4feb4e8db41f532aa3d630f1.png"
+                else:
+                    org.logo_url = None
 
         # 6. Site Sections Repair
         sec_res = await session.execute(select(SiteSectionORM))
@@ -258,7 +280,9 @@ async def repair_production_database():
                         target_logo = upload_dir / "8d90adff4feb4e8db41f532aa3d630f1.png"
                         if target_logo.exists():
                             data["logoUrl"] = "/media/8d90adff4feb4e8db41f532aa3d630f1.png"
-                            changed = True
+                        else:
+                            data["logoUrl"] = None
+                        changed = True
 
                 elif sec.section_key == "seo":
                     if is_broken_media_url(data.get("ogImageUrl"), upload_dir) or data.get("ogImageUrl") == "/images/benyamin.jpg":
@@ -273,7 +297,6 @@ async def repair_production_database():
 
         await session.commit()
         logger.info(
-            "[STARTUP REPAIR SUCCESS] Repaired: %d doctors, %d services, %d gallery items, %d locations, %d site sections.",
+            "[STARTUP REPAIR SUCCESS] Repaired: %d team members, %d services, %d gallery items, %d locations, %d site sections.",
             doc_repaired, svc_repaired, gal_repaired, loc_repaired, sec_repaired,
         )
-

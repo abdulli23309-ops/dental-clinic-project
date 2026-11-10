@@ -37,6 +37,13 @@ async def lifespan(app: FastAPI):
     upload_path.mkdir(parents=True, exist_ok=True)
     await init_db()
 
+    # Automatically repair dead /media/ URLs or missing assets on startup
+    try:
+        from app.core.startup_repair import repair_production_database
+        await repair_production_database()
+    except Exception as e:
+        logger.warning("[STARTUP REPAIR WARNING] Startup repair encountered non-fatal error: %s", e)
+
     scheduler_task = None
     if getattr(settings, "SCHEDULER_ENABLED", False):
         async def reminder_scheduler_loop():

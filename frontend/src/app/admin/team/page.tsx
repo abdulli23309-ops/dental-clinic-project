@@ -1127,16 +1127,20 @@ export default function AdminTeamPage() {
                       {/* Top Row: Avatar & Status */}
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-full overflow-hidden border border-border shrink-0 bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
-                            {member.photoUrl ? (
+                          <div className="w-12 h-12 rounded-full overflow-hidden border border-border shrink-0 bg-primary/10 flex items-center justify-center text-primary font-bold text-lg relative">
+                            <span className="select-none pointer-events-none">
+                              {member.displayName.charAt(0)}
+                            </span>
+                            {member.photoUrl && (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img
                                 src={resolveMediaUrl(member.photoUrl) || undefined}
                                 alt={member.displayName}
-                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLElement).style.display = "none";
+                                }}
+                                className="w-full h-full object-cover absolute inset-0"
                               />
-                            ) : (
-                              member.displayName.charAt(0)
                             )}
                           </div>
                           <div>
@@ -1389,6 +1393,9 @@ export default function AdminTeamPage() {
                               <img
                                 src={resolveMediaUrl(profileForm.photoUrl) || undefined}
                                 alt="Doctor"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLElement).style.display = "none";
+                                }}
                                 className="w-full h-full object-cover"
                               />
                               <button
@@ -2155,6 +2162,9 @@ export default function AdminTeamPage() {
                       <img
                         src={resolveMediaUrl(createForm.photoUrl) || undefined}
                         alt="Profile preview"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLElement).style.display = "none";
+                        }}
                         className="w-full h-full object-cover"
                       />
                       <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity">

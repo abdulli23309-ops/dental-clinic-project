@@ -615,20 +615,20 @@ export default function AdminServicesPage() {
                       </div>
 
                       <div className="flex items-start gap-3">
-                        {service.imageUrl ? (
-                          <div className="w-12 h-12 rounded-xl overflow-hidden border border-border/50 shrink-0 bg-muted">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <div className="w-12 h-12 rounded-xl overflow-hidden border border-border/50 shrink-0 bg-primary/10 text-primary flex items-center justify-center relative">
+                          <Layers className="w-5 h-5 absolute inset-0 m-auto text-primary pointer-events-none" />
+                          {service.imageUrl && (
+                            // eslint-disable-next-line @next/next/no-img-element
                             <img
                               src={resolveMediaUrl(service.imageUrl) || undefined}
                               alt={service.title}
-                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.currentTarget as HTMLElement).style.display = "none";
+                              }}
+                              className="w-full h-full object-cover relative z-10"
                             />
-                          </div>
-                        ) : (
-                          <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                            <Layers className="w-5 h-5" />
-                          </div>
-                        )}
+                          )}
+                        </div>
                         <div className="flex-1 min-w-0">
                           <h3 className="font-bold text-base text-foreground line-clamp-1">{service.title}</h3>
                           <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
@@ -891,6 +891,9 @@ export default function AdminServicesPage() {
                             <img
                               src={resolveMediaUrl(form.imageUrl) || undefined}
                               alt={form.title}
+                              onError={(e) => {
+                                (e.currentTarget as HTMLElement).style.display = "none";
+                              }}
                               className="w-full h-full object-cover"
                             />
                           </div>

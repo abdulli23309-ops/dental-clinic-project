@@ -22,6 +22,7 @@ export function Gallery() {
   const { openLightbox } = useLightbox();
   const [galleryItems, setGalleryItems] = useState<GalleryImageItem[]>([]);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     let isMounted = true;
@@ -119,18 +120,25 @@ export function Gallery() {
                   aria-label={`View full photo: ${caption}`}
                 >
                   {/* High-Resolution Full-Bleed Photograph from DB */}
-                  <Image
-                    src={resolvedUrl}
-                    alt={caption}
-                    fill
-                    sizes={
-                      layout.colSpanClass.includes("12")
-                        ? "100vw"
-                        : "(max-width: 768px) 100vw, 55vw"
-                    }
-                    priority={idx === 0}
-                    className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
-                  />
+                  {!imageErrors[item.id] ? (
+                    <Image
+                      src={resolvedUrl}
+                      alt={caption}
+                      fill
+                      sizes={
+                        layout.colSpanClass.includes("12")
+                          ? "100vw"
+                          : "(max-width: 768px) 100vw, 55vw"
+                      }
+                      priority={idx === 0}
+                      onError={() => setImageErrors((prev) => ({ ...prev, [item.id]: true }))}
+                      className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-950 via-slate-900 to-black flex items-center justify-center p-6 text-center">
+                      <span className="font-display text-emerald-200 text-lg font-bold">{caption}</span>
+                    </div>
+                  )}
 
                   {/* Gradient Overlay for Typography Contrast */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent pointer-events-none" />

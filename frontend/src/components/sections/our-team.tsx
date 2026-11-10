@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { motion, useReducedMotion } from "motion/react";
+import Image from "next/image";
+import { useReducedMotion } from "motion/react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -10,12 +11,10 @@ import {
   Calendar,
   Award,
   Users,
-  Sparkles,
 } from "lucide-react";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SafeImage } from "@/components/ui/safe-image";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 import { resolveMediaUrl } from "@/lib/api";
 
@@ -23,25 +22,29 @@ import { resolveMediaUrl } from "@/lib/api";
 function getDoctorFocalClass(name: string) {
   const lower = name.toLowerCase();
   if (lower.includes("maral") || lower.includes("meral")) {
-    return "object-[50%_45%] scale-105";
+    return "object-[50%_65%] scale-110";
   }
   if (lower.includes("bilal")) {
     return "object-[50%_25%]";
   }
   if (lower.includes("sarah") || lower.includes("faraz")) {
-    return "object-[50%_20%]";
+    return "object-[50%_15%]";
   }
-  return "object-[50%_20%]";
+  return "object-[50%_15%]";
 }
 
 export function OurTeam() {
   const { team, locations, isLoading, copy, locale } = usePublicContent();
   const [selectedCity, setSelectedCity] = useState<string>("all");
   const [activeIndex, setActiveIndex] = useState<number>(0);
+  const [rotationAngle, setRotationAngle] = useState<number>(0);
   const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
 
   const dragStartX = useRef<number>(0);
+  const dragStartAngle = useRef<number>(0);
   const hasDragged = useRef<boolean>(false);
+  const ringRef = useRef<HTMLDivElement>(null);
   const shouldReduceMotion = useReducedMotion();
 
   const isRtl = locale === "ur";
@@ -79,31 +82,73 @@ export function OurTeam() {
         );
 
   const n = filteredDoctors.length;
+  // Arc mode for n < 8 so cards never turn 90deg edge-on
+  const isArcMode = n < 8;
+  const cardWidth = 320;
+  const cardGap = 36;
 
-  // Reset active card when city filter changes
+  // Geometry calculations:
+  // For n >= 8: 360deg cylinder ring
+  // For n < 8: 28deg open stage arc
+  const stepAngle = isArcMode ? 28 : n > 0 ? 360 / n : 0;
+  const radius = isArcMode
+    ? 580
+    : n > 0
+    ? Math.max(420, Math.round((cardWidth + cardGap) / (2 * Math.tan(Math.PI / n))))
+    : 450;
+
+  // Reset active card and camera angle when city filter changes
   useEffect(() => {
     setActiveIndex(0);
-  }, [selectedCity]);
+    if (isArcMode && n > 0) {
+      const centerOffset = (n - 1) / 2;
+      setRotationAngle(-(0 - centerOffset) * stepAngle * (isRtl ? -1 : 1));
+    } else {
+      setRotationAngle(0);
+    }
+  }, [selectedCity, isArcMode, n, stepAngle, isRtl]);
 
-  // Navigate to specific doctor
+  // Rotate ring to target doctor
   const rotateToDoctor = useCallback(
     (targetIndex: number) => {
       if (n === 0) return;
-      const safeIndex = ((targetIndex % n) + n) % n;
+      const safeIndex = isArcMode
+        ? Math.max(0, Math.min(n - 1, targetIndex))
+        : ((targetIndex % n) + n) % n;
       setActiveIndex(safeIndex);
+
+      if (isArcMode) {
+        const centerOffset = (n - 1) / 2;
+        const targetDeg = -(safeIndex - centerOffset) * stepAngle * (isRtl ? -1 : 1);
+        setRotationAngle(targetDeg);
+      } else {
+        const baseAngle = -safeIndex * stepAngle * (isRtl ? -1 : 1);
+        setRotationAngle((curr) => {
+          const diff = ((((baseAngle - curr) % 360) + 540) % 360) - 180;
+          return curr + diff;
+        });
+      }
     },
-    [n]
+    [n, isArcMode, stepAngle, isRtl]
   );
 
   const handleNext = useCallback(() => {
     if (n <= 1) return;
-    rotateToDoctor(activeIndex + 1);
-  }, [activeIndex, n, rotateToDoctor]);
+    if (isArcMode) {
+      rotateToDoctor(activeIndex >= n - 1 ? 0 : activeIndex + 1);
+    } else {
+      rotateToDoctor(activeIndex + 1);
+    }
+  }, [activeIndex, n, isArcMode, rotateToDoctor]);
 
   const handlePrev = useCallback(() => {
     if (n <= 1) return;
-    rotateToDoctor(activeIndex - 1);
-  }, [activeIndex, n, rotateToDoctor]);
+    if (isArcMode) {
+      rotateToDoctor(activeIndex <= 0 ? n - 1 : activeIndex - 1);
+    } else {
+      rotateToDoctor(activeIndex - 1);
+    }
+  }, [activeIndex, n, isArcMode, rotateToDoctor]);
 
   // Pointer drag & touch-swipe handlers
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -111,15 +156,19 @@ export function OurTeam() {
     setIsDragging(true);
     hasDragged.current = false;
     dragStartX.current = e.clientX;
+    dragStartAngle.current = rotationAngle;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isDragging) return;
     const deltaX = e.clientX - dragStartX.current;
-    if (Math.abs(deltaX) > 10) {
+    if (Math.abs(deltaX) > 8) {
       hasDragged.current = true;
     }
+    const degPerPx = 0.28;
+    const dragMultiplier = isRtl ? -1 : 1;
+    setRotationAngle(dragStartAngle.current + deltaX * degPerPx * dragMultiplier);
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -131,12 +180,16 @@ export function OurTeam() {
 
     if (!hasDragged.current) return;
     const deltaX = e.clientX - dragStartX.current;
-    if (Math.abs(deltaX) > 40) {
+    const threshold = 40;
+
+    if (Math.abs(deltaX) > threshold) {
       if (deltaX > 0) {
         isRtl ? handleNext() : handlePrev();
       } else {
         isRtl ? handlePrev() : handleNext();
       }
+    } else {
+      rotateToDoctor(activeIndex);
     }
   };
 
@@ -148,6 +201,10 @@ export function OurTeam() {
       isRtl ? handlePrev() : handleNext();
     }
   };
+
+  const handleImageError = useCallback((id: string) => {
+    setImageErrors((prev) => ({ ...prev, [id]: true }));
+  }, []);
 
   // If no doctors exist, return null
   if (!isLoading && activeTeam.length === 0) {
@@ -234,10 +291,10 @@ export function OurTeam() {
           </div>
         ) : (
           /* ============================================================== */
-          /* TRUE ROUND 3D GLASS EFFECT STAGE                               */
+          /* TRUE ROUND 3D GLASS CYLINDER STAGE (PR #13/#14 ARCHITECTURE)   */
           /* ============================================================== */
           <div className="relative w-full overflow-visible py-4 md:py-8">
-            {/* Ambient Round Glass Aura behind carousel */}
+            {/* Ambient Radial Round Glass Aura behind carousel */}
             <div
               className="absolute inset-0 flex items-center justify-center pointer-events-none"
               aria-hidden="true"
@@ -262,7 +319,7 @@ export function OurTeam() {
                   type="button"
                   onClick={handlePrev}
                   aria-label={copy.previousClinicians}
-                  className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-white/60 dark:border-white/15 bg-white/80 dark:bg-slate-900/80 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-xl flex items-center justify-center hover:scale-105 active:scale-95 hover:border-emerald-500/40 hover:ring-2 hover:ring-emerald-500/20 transition-all cursor-pointer"
+                  className="absolute left-1 sm:left-2 top-1/2 -translate-y-1/2 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-white/60 dark:border-white/15 bg-white/80 dark:bg-slate-900/80 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-xl flex items-center justify-center hover:scale-105 active:scale-95 hover:border-emerald-500/40 hover:ring-2 hover:ring-emerald-500/20 transition-all cursor-pointer"
                 >
                   <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6 rtl:rotate-180" />
                 </button>
@@ -270,187 +327,147 @@ export function OurTeam() {
                   type="button"
                   onClick={handleNext}
                   aria-label={copy.nextClinicians}
-                  className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-white/60 dark:border-white/15 bg-white/80 dark:bg-slate-900/80 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-xl flex items-center justify-center hover:scale-105 active:scale-95 hover:border-emerald-500/40 hover:ring-2 hover:ring-emerald-500/20 transition-all cursor-pointer"
+                  className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-white/60 dark:border-white/15 bg-white/80 dark:bg-slate-900/80 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-xl flex items-center justify-center hover:scale-105 active:scale-95 hover:border-emerald-500/40 hover:ring-2 hover:ring-emerald-500/20 transition-all cursor-pointer"
                 >
                   <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6 rtl:rotate-180" />
                 </button>
               </>
             )}
 
-            {/* 3D Cylindrical Arc Stage Container */}
+            {/* 3D Perspective Stage Container with touch-swipe */}
             <div
-              className="relative w-full h-[560px] sm:h-[600px] flex items-center justify-center cursor-grab active:cursor-grabbing touch-pan-y overflow-visible"
-              style={{ perspective: "1400px" }}
+              className="team-perspective-container relative w-full h-[540px] sm:h-[580px] md:h-[600px] flex items-center justify-center cursor-grab active:cursor-grabbing touch-pan-y"
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
               onPointerCancel={handlePointerUp}
             >
+              {/* 3D Cylindrical Ring */}
               <div
-                className="relative w-[280px] sm:w-[320px] h-[520px] sm:h-[560px] flex items-center justify-center"
-                style={{ transformStyle: "preserve-3d" }}
+                ref={ringRef}
+                className="team-3d-ring"
+                style={{
+                  ["--r" as any]: `${radius}px`,
+                  ["--ring-rotation" as any]: `${rotationAngle}deg`,
+                  transform: `translateZ(calc(${radius}px * -1)) rotateX(-2deg) rotateY(${rotationAngle}deg)`,
+                  transition: isDragging ? "none" : "transform 750ms cubic-bezier(0.22, 1, 0.36, 1)",
+                }}
               >
                 {filteredDoctors.map((doc, idx) => {
-                  // Calculate relative offset with circular wrap-around
-                  let offset = idx - activeIndex;
-                  if (offset > n / 2) offset -= n;
-                  if (offset < -n / 2) offset += n;
+                  const cardAngle = isArcMode
+                    ? (idx - (n - 1) / 2) * stepAngle * (isRtl ? -1 : 1)
+                    : idx * stepAngle * (isRtl ? -1 : 1);
 
-                  const isCenter = offset === 0;
-                  const distance = Math.abs(offset);
-                  const isVisible = distance <= 2;
+                  const distance = isArcMode
+                    ? Math.abs(idx - activeIndex)
+                    : Math.min(
+                        Math.abs(idx - activeIndex),
+                        n - Math.abs(idx - activeIndex)
+                      );
 
-                  // Cylindrical 5-Card Geometry
-                  let translateX = 0;
-                  let translateZ = 0;
-                  let rotateY = 0;
-                  let scale = 1;
-                  let opacity = 0;
-                  let zIndex = 0;
-
-                  if (isCenter) {
-                    translateX = 0;
-                    translateZ = 0;
-                    rotateY = 0;
-                    scale = 1;
-                    opacity = 1;
-                    zIndex = 30;
-                  } else if (offset === -1) {
-                    translateX = isRtl ? 56 : -56;
-                    translateZ = -120;
-                    rotateY = isRtl ? -26 : 26;
-                    scale = 0.90;
-                    opacity = 0.88;
-                    zIndex = 20;
-                  } else if (offset === 1) {
-                    translateX = isRtl ? -56 : 56;
-                    translateZ = -120;
-                    rotateY = isRtl ? 26 : -26;
-                    scale = 0.90;
-                    opacity = 0.88;
-                    zIndex = 20;
-                  } else if (offset === -2) {
-                    translateX = isRtl ? 98 : -98;
-                    translateZ = -250;
-                    rotateY = isRtl ? -38 : 38;
-                    scale = 0.78;
-                    opacity = 0.55;
-                    zIndex = 10;
-                  } else if (offset === 2) {
-                    translateX = isRtl ? -98 : 98;
-                    translateZ = -250;
-                    rotateY = isRtl ? 38 : -38;
-                    scale = 0.78;
-                    opacity = 0.55;
-                    zIndex = 10;
-                  }
-
-                  const doctorPhoto = resolveMediaUrl(doc.photoUrl) || doc.photoUrl || "";
+                  const isFront = distance === 0;
+                  const isVisible = isArcMode ? true : distance <= 2;
+                  const hasImage = Boolean(doc.photoUrl && !imageErrors[doc.id]);
 
                   return (
-                    <motion.div
+                    <div
                       key={doc.id}
-                      initial={false}
-                      animate={{
-                        x: `${translateX}%`,
-                        z: shouldReduceMotion ? 0 : translateZ,
-                        rotateY: shouldReduceMotion ? 0 : rotateY,
-                        scale: shouldReduceMotion ? 1 : scale,
-                        opacity: isVisible ? opacity : 0,
-                      }}
-                      transition={{
-                        type: "spring",
-                        stiffness: 280,
-                        damping: 28,
-                        mass: 0.8,
-                      }}
+                      className={`team-3d-card transition-all duration-350 ${
+                        isFront
+                          ? "opacity-100 filter-none z-10 pointer-events-auto"
+                          : isVisible
+                          ? "opacity-85 sm:opacity-90 filter brightness-[0.94] z-[5] cursor-pointer pointer-events-auto hover:opacity-100 hover:brightness-100"
+                          : "opacity-0 pointer-events-none z-0"
+                      }`}
                       style={{
-                        position: "absolute",
-                        inset: 0,
-                        zIndex,
-                        transformStyle: "preserve-3d",
-                        pointerEvents: isVisible ? "auto" : "none",
+                        transform: `rotateY(${cardAngle}deg) translateZ(${radius}px)`,
                       }}
-                      onClick={() => {
-                        if (!isCenter && !hasDragged.current) {
+                      onClick={(e) => {
+                        if (!isFront && isVisible && !hasDragged.current) {
+                          e.stopPropagation();
                           rotateToDoctor(idx);
                         }
                       }}
-                      className="cursor-pointer"
                     >
-                      {/* Frosted Glassmorphic Card Shell with Specular Top Highlight */}
+                      {/* Frosted Glass Card Shell with Specular Top Highlight */}
                       <div
-                        className={`relative w-full h-full rounded-3xl backdrop-blur-xl flex flex-col justify-between overflow-hidden transition-all duration-300 shadow-xl ${
-                          isCenter
-                            ? "bg-white/85 dark:bg-slate-900/80 border border-emerald-500/50 dark:border-emerald-400/50 shadow-[0_20px_50px_rgba(16,185,129,0.20)] ring-2 ring-emerald-500/60 scale-100"
-                            : "bg-white/70 dark:bg-slate-900/65 border border-white/60 dark:border-white/10 hover:border-emerald-500/30"
+                        className={`relative w-[280px] sm:w-[320px] h-[500px] sm:h-[540px] rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border p-3.5 sm:p-4 shadow-xl flex flex-col justify-between transition-all duration-300 ${
+                          isFront
+                            ? "border-2 border-emerald-500 ring-2 ring-emerald-500/40 shadow-[0_20px_50px_rgba(16,185,129,0.22)] scale-[1.02]"
+                            : "border-white/50 dark:border-white/10 hover:border-emerald-500/40 shadow-lg"
                         }`}
                       >
-                        {/* Specular top-edge glass reflection */}
+                        {/* Specular top-edge glass highlight */}
                         <div
-                          className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/80 dark:via-white/40 to-transparent pointer-events-none z-20"
+                          className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/80 dark:via-white/30 to-transparent pointer-events-none z-20"
                           aria-hidden="true"
                         />
 
-                        {/* Top 52% Height: Full-Bleed High-Resolution Clinician Portrait */}
-                        <div className="relative w-full h-[52%] min-h-[260px] sm:min-h-[285px] bg-stone-100 dark:bg-gray-800 overflow-hidden">
-                          <SafeImage
-                            src={doctorPhoto}
-                            alt={doc.displayName}
-                            fill
-                            priority={isCenter}
-                            fallbackInitials={
-                              doc.displayName
-                                ? doc.displayName
+                        <div>
+                          {/* Portrait Photo Container with branded fallback avatar */}
+                          <div className="w-full h-[220px] sm:h-[255px] rounded-2xl overflow-hidden bg-stone-100 dark:bg-gray-800 mb-2.5 relative shadow-inner">
+                            {hasImage ? (
+                              <Image
+                                src={resolveMediaUrl(doc.photoUrl) || doc.photoUrl!}
+                                alt={doc.displayName}
+                                width={320}
+                                height={320}
+                                priority={isFront}
+                                sizes="(max-width: 640px) 280px, 320px"
+                                className={`w-full h-full object-cover pointer-events-none transition-transform duration-300 ${getDoctorFocalClass(
+                                  doc.displayName
+                                )}`}
+                                onError={() => handleImageError(doc.id)}
+                              />
+                            ) : (
+                              <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-stone-100 via-stone-200/70 to-stone-100 dark:from-gray-850 dark:via-gray-800 dark:to-gray-850 text-emerald-800 dark:text-emerald-300 select-none p-4 text-center">
+                                <span className="font-display text-3xl font-bold tracking-wider">
+                                  {doc.displayName
                                     .split(" ")
-                                    .filter(Boolean)
+                                    .filter((w) => !w.toLowerCase().includes("dr"))
                                     .slice(0, 2)
-                                    .map((w: string) => w[0])
-                                    .join("")
-                                : "DR"
-                            }
-                            fallbackSubtitle={doc.professionalTitle || doc.role}
-                            sizes="(max-width: 640px) 280px, 320px"
-                            className={`w-full h-full object-cover object-top pointer-events-none transition-transform duration-500 ${getDoctorFocalClass(
-                              doc.displayName
-                            )}`}
-                          />
-
-                          {/* Director / Role Badge */}
-                          {doc.role === "Director" && (
-                            <span className="absolute top-3 left-3 rounded-full btn-premium-emerald text-white px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm z-10 backdrop-blur-md">
-                              <Award className="h-3 w-3" />
-                              <span>{copy.director}</span>
-                            </span>
-                          )}
-
-                          {/* Patients Treated Badge */}
-                          {(() => {
-                            const count =
-                              (doc as any).patientsTreated ??
-                              (doc as any).patientsTreatedCount;
-                            if (
-                              !doc.showPatientsTreated ||
-                              typeof count !== "number" ||
-                              count <= 0
-                            ) {
-                              return null;
-                            }
-                            return (
-                              <span className="absolute bottom-3 left-3 rounded-full bg-black/75 backdrop-blur-md text-white px-2.5 py-0.5 text-[10px] font-semibold flex items-center gap-1 shadow-sm z-10">
-                                <Users className="h-3 w-3 text-emerald-400" />
-                                <span>
-                                  {count.toLocaleString()}+ {copy.patientsTreatedSuffix}
+                                    .map((w) => w[0])
+                                    .join("") || "MD"}
                                 </span>
-                              </span>
-                            );
-                          })()}
-                        </div>
+                                <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500 dark:text-gray-400 mt-1">
+                                  {doc.role || "Clinical Specialist"}
+                                </span>
+                              </div>
+                            )}
 
-                        {/* Bottom 48% Height: Clinical Information & Booking CTA */}
-                        <div className="p-4 sm:p-5 flex flex-col justify-between flex-1 space-y-3">
-                          <div className="space-y-1.5">
-                            {/* Doctor Name + Credential */}
+                            {/* Director / Role Badge */}
+                            {doc.role === "Director" && (
+                              <span className="absolute top-2.5 left-2.5 rounded-full btn-premium-emerald text-white px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm z-10">
+                                <Award className="h-3 w-3" />
+                                <span>{copy.director}</span>
+                              </span>
+                            )}
+
+                            {/* Patients Treated Badge */}
+                            {(() => {
+                              const count =
+                                (doc as any).patientsTreated ??
+                                (doc as any).patientsTreatedCount;
+                              if (
+                                !doc.showPatientsTreated ||
+                                typeof count !== "number" ||
+                                count <= 0
+                              ) {
+                                return null;
+                              }
+                              return (
+                                <span className="absolute bottom-2.5 left-2.5 rounded-full bg-black/75 backdrop-blur-md text-white px-2.5 py-0.5 text-[10px] font-semibold flex items-center gap-1 shadow-sm z-10">
+                                  <Users className="h-3 w-3 text-emerald-400" />
+                                  <span>
+                                    {count.toLocaleString()}+ {copy.patientsTreatedSuffix}
+                                  </span>
+                                </span>
+                              );
+                            })()}
+                          </div>
+
+                          {/* Name, Credentials, Title */}
+                          <div className="space-y-1">
                             <div className="flex items-center justify-between gap-2">
                               <h3 className="font-display text-sm sm:text-base font-bold text-gray-950 dark:text-white leading-tight truncate">
                                 {doc.displayName}
@@ -462,19 +479,18 @@ export function OurTeam() {
                               )}
                             </div>
 
-                            {/* Role Subtitle & Professional Title */}
-                            <p className="text-[11px] sm:text-xs font-semibold text-emerald-700 dark:text-emerald-400 truncate">
-                              {doc.professionalTitle || doc.role || "Clinical Specialist"}
-                            </p>
+                            {doc.professionalTitle && (
+                              <p className="text-[10.5px] sm:text-[11px] font-medium text-emerald-700 dark:text-emerald-400 truncate">
+                                {doc.professionalTitle}
+                              </p>
+                            )}
 
-                            {/* 2-Line Biography */}
                             {doc.biography && (
-                              <p className="text-[10.5px] sm:text-[11px] leading-relaxed text-gray-500 dark:text-gray-400 line-clamp-2">
+                              <p className="text-[10.5px] sm:text-[11px] leading-relaxed text-gray-500 dark:text-gray-400 line-clamp-2 pt-0.5">
                                 {doc.biography}
                               </p>
                             )}
 
-                            {/* Clinic Branch Location */}
                             {doc.locationName && (
                               <div className="flex items-center gap-1 text-[10.5px] sm:text-[11px] text-gray-500 dark:text-gray-400 pt-0.5">
                                 <MapPin className="h-3 w-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
@@ -482,13 +498,13 @@ export function OurTeam() {
                               </div>
                             )}
 
-                            {/* Specialties Pills */}
+                            {/* Specialties Tags */}
                             {doc.specialties && doc.specialties.length > 0 && (
                               <div className="flex flex-wrap gap-1 pt-1">
                                 {doc.specialties.slice(0, 3).map((spec, i) => (
                                   <span
                                     key={i}
-                                    className="rounded-full bg-white/60 dark:bg-gray-800/60 backdrop-blur-xs px-2 py-0.5 text-[9px] sm:text-[9.5px] text-gray-600 dark:text-gray-300 border border-gray-200/50 dark:border-gray-700/50"
+                                    className="rounded-full bg-white/70 dark:bg-gray-800/70 border border-gray-200/60 dark:border-gray-700/60 px-2 py-0.5 text-[9px] sm:text-[9.5px] text-gray-600 dark:text-gray-300"
                                   >
                                     {spec}
                                   </span>
@@ -496,26 +512,26 @@ export function OurTeam() {
                               </div>
                             )}
                           </div>
+                        </div>
 
-                          {/* Full-Width Book Consultation CTA Button */}
-                          <div className="pt-2 border-t border-gray-100/80 dark:border-gray-800/80 mt-auto">
-                            <Button
-                              href={`/book?doctor=${encodeURIComponent(doc.id)}`}
-                              variant="primary"
-                              size="sm"
-                              className={`w-full justify-center text-xs font-semibold rounded-full py-2.5 transition-all shadow-md ${
-                                isCenter
-                                  ? "btn-premium-emerald text-white"
-                                  : "bg-emerald-900/90 text-white hover:bg-emerald-800"
-                              }`}
-                            >
-                              <Calendar className="h-3.5 w-3.5 mr-1.5" />
-                              <span>{copy.bookConsultation}</span>
-                            </Button>
-                          </div>
+                        {/* Book Consultation Button */}
+                        <div className="pt-2 border-t border-gray-100 dark:border-gray-800 mt-2">
+                          <Button
+                            href={`/book?doctor=${encodeURIComponent(doc.id)}`}
+                            variant="primary"
+                            size="sm"
+                            className={`w-full justify-center text-xs font-semibold rounded-full py-2.5 transition-all shadow-md ${
+                              isFront
+                                ? "btn-premium-emerald text-white"
+                                : "bg-emerald-900/90 text-white hover:bg-emerald-800"
+                            }`}
+                          >
+                            <Calendar className="h-3.5 w-3.5 mr-1.5" />
+                            <span>{copy.bookConsultation}</span>
+                          </Button>
                         </div>
                       </div>
-                    </motion.div>
+                    </div>
                   );
                 })}
               </div>
@@ -532,7 +548,7 @@ export function OurTeam() {
                     aria-label={`Go to clinician ${i + 1}`}
                     className={`h-2 rounded-full transition-all cursor-pointer ${
                       i === activeIndex
-                        ? "w-7 bg-emerald-600 dark:bg-emerald-400"
+                        ? "w-6 sm:w-7 bg-emerald-600 dark:bg-emerald-400"
                         : "w-2 bg-gray-300 dark:bg-gray-700 hover:bg-gray-400"
                     }`}
                   />

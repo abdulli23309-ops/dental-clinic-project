@@ -2,7 +2,7 @@
 # Forces Python 3.11 and sets up environment for FastAPI backend
 
 [phases.setup]
-nixPkgs = ["python311", "postgresql"]
+nixPkgs = ["python311", "postgresql", "file"]
 
 [phases.install]
 cmds = [

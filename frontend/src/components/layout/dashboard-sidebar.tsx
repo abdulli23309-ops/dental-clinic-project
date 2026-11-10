@@ -15,6 +15,7 @@ import { motion, useReducedMotion } from "motion/react";
 
 import { useAuth } from "@/components/providers/auth-provider";
 import { usePublicContent } from "@/components/providers/public-content-provider";
+import { resolveMediaUrl } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export interface SidebarLink {
@@ -49,6 +50,8 @@ export function DashboardSidebar({
   const { user, logout } = useAuth();
   const { organization } = usePublicContent();
   const orgName = organization?.displayName || organization?.name || "Dental Clinic";
+  const orgLogo = organization?.logoUrl ? resolveMediaUrl(organization.logoUrl) : null;
+  const [logoFailed, setLogoFailed] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const shouldReduceMotion = useReducedMotion();
 
@@ -70,17 +73,30 @@ export function DashboardSidebar({
         <div className="flex items-center gap-3 overflow-hidden">
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="h-11 w-11 shrink-0 rounded-2xl bg-primary text-white flex items-center justify-center font-display font-bold text-lg shadow-md transition-all hover:scale-105 relative group cursor-pointer"
+            className="h-11 w-11 shrink-0 rounded-2xl bg-primary text-white flex items-center justify-center font-display font-bold text-lg shadow-md transition-all hover:scale-105 relative group cursor-pointer overflow-hidden p-1.5"
             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            <span
-              className={cn(
-                "transition-opacity duration-200",
-                isCollapsed ? "opacity-0" : "group-hover:opacity-0"
-              )}
-            >
-              {orgName.charAt(0)}
-            </span>
+            {orgLogo && !logoFailed ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={orgLogo}
+                alt={orgName}
+                onError={() => setLogoFailed(true)}
+                className={cn(
+                  "h-8 w-8 object-contain dark:brightness-0 dark:invert transition-opacity duration-200",
+                  isCollapsed ? "opacity-0" : "group-hover:opacity-0"
+                )}
+              />
+            ) : (
+              <span
+                className={cn(
+                  "transition-opacity duration-200",
+                  isCollapsed ? "opacity-0" : "group-hover:opacity-0"
+                )}
+              >
+                {orgName.charAt(0)}
+              </span>
+            )}
             <div
               className={cn(
                 "absolute inset-0 flex items-center justify-center transition-opacity duration-200",

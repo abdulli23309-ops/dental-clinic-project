@@ -45,8 +45,9 @@ DEFAULT_SECTIONS = {
         "heroCtaLink": "#why-us",
         "heroSecondaryCtaText": "Call Clinic",
         "heroSecondaryCtaLink": "tel:0516102977",
-        "heroImageUrl": "/images/benyamin.jpg",
-        "image": "/images/benyamin.jpg",
+        "heroImageUrl": "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1200&q=80",
+        "image": "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1200&q=80",
+        "whyChooseUsImage": "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=1200&q=80",
         "startingFee": "Rs. 3,500",
         "heroBadges": [
             "Sterilization Protocols",
@@ -86,7 +87,7 @@ DEFAULT_SECTIONS = {
             "Founded by Dr. Hira, Hira Dental Clinic was established to elevate aesthetic, surgical, and restorative dentistry to international standards.",
             "Our multi-disciplinary team brings together board-certified specialists in endodontics, prosthodontics, periodontics, and implantology.",
         ],
-        "imageUrl": "/images/benyamin.jpg",
+        "imageUrl": "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&w=1200&q=80",
         "licensureText": "Licensed by the Pakistan Medical and Dental Council (PMDC)",
     },
     "contact": {
@@ -106,7 +107,7 @@ DEFAULT_SECTIONS = {
     "seo": {
         "siteTitle": "Hira Dental Clinic | Modern Dental Care in Islamabad",
         "metaDescription": "Leading dental clinic in Islamabad offering advanced cosmetic dentistry, dental implants, root canal therapy, and painless routine care.",
-        "ogImageUrl": "/images/benyamin.jpg",
+        "ogImageUrl": "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1200&q=80",
     },
 }
 

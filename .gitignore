@@ -43,7 +43,7 @@ backend/_migcheck.py
 backend/uploads/
 uploads/
 backend/storage/
-storage/
+/storage/
 attachments/
 backend/attachments/
 

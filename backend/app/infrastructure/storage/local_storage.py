@@ -1,11 +1,11 @@
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 from uuid import uuid4
 
 try:
     import magic
-except ImportError:  # pragma: no cover - handled at runtime with a clear error message
+except (ImportError, Exception):  # pragma: no cover
     magic = None
 
 from fastapi import HTTPException, status
@@ -16,19 +16,56 @@ from app.domain.services.storage_service import StorageService
 ALLOWED_MIME_SIGNATURES = {
     b"\xff\xd8\xff": ("image/jpeg", ".jpg"),
     b"\x89PNG\r\n\x1a\n": ("image/png", ".png"),
-    b"RIFF": ("image/webp", ".webp"),
-    b"GIF8": ("image/gif", ".gif"),
+    b"GIF87a": ("image/gif", ".gif"),
+    b"GIF89a": ("image/gif", ".gif"),
     b"%PDF-": ("application/pdf", ".pdf"),
 }
 
-# SVG is NOT allowed - it can contain script injection vectors
-ALLOWED_EXTENSIONS = {".jpg", ".png", ".webp", ".gif"}
+
+def detect_file_signature(file_bytes: bytes) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Pure-Python magic byte / file-header inspection.
+    Validates file formats without requiring the OS libmagic library.
+    Returns (mime_type, extension) or (None, None).
+    """
+    if len(file_bytes) < 4:
+        return None, None
+
+    # JPEG
+    if file_bytes.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg", ".jpg"
+
+    # PNG: \x89PNG\r\n\x1a\n
+    if file_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png", ".png"
+
+    # WebP: 'RIFF' .... 'WEBP'
+    if file_bytes.startswith(b"RIFF") and len(file_bytes) >= 12 and file_bytes[8:12] == b"WEBP":
+        return "image/webp", ".webp"
+
+    # GIF
+    if file_bytes.startswith(b"GIF87a") or file_bytes.startswith(b"GIF89a"):
+        return "image/gif", ".gif"
+
+    # PDF
+    if file_bytes.startswith(b"%PDF-"):
+        return "application/pdf", ".pdf"
+
+    # SVG: Check for <svg or <?xml ... <svg
+    prefix = file_bytes[:512].strip()
+    if prefix.startswith(b"<svg") or (prefix.startswith(b"<?xml") and b"<svg" in prefix):
+        lower_prefix = file_bytes[:2048].lower()
+        if b"<script" not in lower_prefix and b"javascript:" not in lower_prefix:
+            return "image/svg+xml", ".svg"
+
+    return None, None
 
 
 class LocalStorageService(StorageService):
     """
     Local filesystem implementation of StorageService.
-    Suitable for local development and non-distributed deployments.
+    Suitable for local development and container deployments.
+    Uses pure-Python file header validation with optional libmagic acceleration.
     """
 
     def __init__(self, upload_dir: Optional[str] = None):
@@ -37,12 +74,6 @@ class LocalStorageService(StorageService):
         self._magic = magic
 
     async def upload(self, file_bytes: bytes, original_filename: str, content_type: str) -> str:
-        if self._magic is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Media validation backend is unavailable. Install libmagic/python-magic (or python-magic-bin on Windows).",
-            )
-
         if len(file_bytes) > settings.MAX_UPLOAD_SIZE_BYTES:
             max_mb = settings.MAX_UPLOAD_SIZE_BYTES // (1024 * 1024)
             raise HTTPException(
@@ -50,28 +81,46 @@ class LocalStorageService(StorageService):
                 detail=f"File exceeds maximum allowed size of {max_mb}MB.",
             )
 
-        detected_mime = self._magic.from_buffer(file_bytes, mime=True)
-        detected_ext = None
-        for sig_bytes, (mime, ext) in ALLOWED_MIME_SIGNATURES.items():
-            if file_bytes.startswith(sig_bytes):
-                detected_mime = mime
-                detected_ext = ext
-                break
+        detected_mime, detected_ext = detect_file_signature(file_bytes)
 
-        if detected_mime is None:
+        # Fallback to libmagic if pure-python inspection didn't identify and libmagic is loaded
+        if not detected_mime and self._magic is not None:
+            try:
+                m_mime = self._magic.from_buffer(file_bytes, mime=True)
+                if m_mime:
+                    detected_mime = m_mime
+                    ext_map = {
+                        "image/jpeg": ".jpg",
+                        "image/png": ".png",
+                        "image/webp": ".webp",
+                        "image/gif": ".gif",
+                        "image/svg+xml": ".svg",
+                        "application/pdf": ".pdf",
+                    }
+                    detected_ext = ext_map.get(m_mime)
+            except Exception:
+                pass
+
+        if detected_mime is None or detected_ext is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="File content does not match any allowed media type; uploading may be a phishing or malware attempt.",
+                detail="File content does not match any allowed media type (JPEG, PNG, WebP, GIF, SVG, PDF).",
             )
 
-        if detected_mime != content_type.lower().split(";")[0].strip():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"File content type mismatch: expected {detected_mime}, got {content_type}. File may be a spoofed MIME type.",
-            )
+        # Normalize client content_type
+        client_type = (content_type or "").lower().split(";")[0].strip()
+        generic_types = {"application/octet-stream", "binary/octet-stream", ""}
 
-        ext = detected_ext
-        unique_filename = f"{uuid4().hex}{ext}"
+        if client_type and client_type not in generic_types and client_type != detected_mime:
+            # Allow common browser MIME aliases (e.g. image/jpg vs image/jpeg, or svg)
+            is_compat_image = client_type.startswith("image/") and detected_mime.startswith("image/")
+            if not is_compat_image:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"File content type mismatch: expected {detected_mime}, got {content_type}.",
+                )
+
+        unique_filename = f"{uuid4().hex}{detected_ext}"
         destination = self.upload_dir / unique_filename
 
         with open(destination, "wb") as f:

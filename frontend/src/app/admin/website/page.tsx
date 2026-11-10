@@ -810,6 +810,9 @@ export default function AdminWebsitePage() {
                     <img
                       src={resolveMediaUrl(generalData.logoUrl) || generalData.logoUrl}
                       alt="Current logo"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLElement).style.display = "none";
+                      }}
                       className="h-10 w-10 object-contain rounded-lg border border-line bg-transparent p-0.5"
                     />
                   )}
@@ -944,8 +947,11 @@ export default function AdminWebsitePage() {
                 <div className="flex items-center gap-3">
                   {(homepageData.heroImageUrl || homepageData.image) && (
                     <img
-                      src={homepageData.heroImageUrl || homepageData.image}
+                      src={resolveMediaUrl(homepageData.heroImageUrl || homepageData.image) || (homepageData.heroImageUrl || homepageData.image)}
                       alt="Current hero"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLElement).style.display = "none";
+                      }}
                       className="h-16 w-24 rounded-lg object-cover border border-line bg-bone"
                     />
                   )}
@@ -1081,8 +1087,11 @@ export default function AdminWebsitePage() {
                   <div className="flex items-center gap-3">
                     {homepageData.whyChooseUsImage && (
                       <img
-                        src={homepageData.whyChooseUsImage}
+                        src={resolveMediaUrl(homepageData.whyChooseUsImage) || homepageData.whyChooseUsImage}
                         alt="Why choose us facility"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLElement).style.display = "none";
+                        }}
                         className="h-16 w-24 rounded-lg object-cover border border-line bg-bone"
                       />
                     )}
@@ -1910,6 +1919,9 @@ export default function AdminWebsitePage() {
                           <img
                             src={resolveMediaUrl(galleryForm.imageUrl) || galleryForm.imageUrl}
                             alt="Preview"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLElement).style.display = "none";
+                            }}
                             className="h-12 w-16 object-cover rounded-md border border-line shadow-sm"
                           />
                           <span className="text-[11px] text-ink-soft truncate max-w-[200px]">
@@ -1971,6 +1983,9 @@ export default function AdminWebsitePage() {
                           <img
                             src={resolveMediaUrl(image.imageUrl) || image.imageUrl}
                             alt={image.caption || "Clinic photo"}
+                            onError={(e) => {
+                              (e.currentTarget as HTMLElement).style.display = "none";
+                            }}
                             className="w-full h-full object-cover"
                           />
                         </div>

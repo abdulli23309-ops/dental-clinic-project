@@ -35,7 +35,7 @@ DOCTOR_PHOTO_MAP = {
     "matthew": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80",
     "chloe": "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=800&q=80",
     "alexander": "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=800&q=80",
-    "mia": "https://images.unsplash.com/photo-1594824813598-1e433f48a0ff?auto=format&fit=crop&w=800&q=80",
+    "mia": "https://images.unsplash.com/photo-1594824476967-48c8b964273f?auto=format&fit=crop&w=900&q=85",
     "billo": "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=800&q=80",
 }
 
@@ -99,10 +99,10 @@ GALLERY_DEFAULTS = [
 ]
 
 BRANCH_IMAGE_MAP = {
-    "islamabad – main": "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1000&q=80",
-    "lahore – gulberg": "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=1000&q=80",
-    "islamabad – f-7 markaz": "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&w=1000&q=80",
-    "karachi – clifton": "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=1000&q=80",
+    "islamabad – main": "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1200&q=85",
+    "lahore – gulberg": "https://images.unsplash.com/photo-1629909615184-74f495363b67?auto=format&fit=crop&w=1200&q=85",
+    "islamabad – f-7 markaz": "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&w=1200&q=85",
+    "karachi – clifton": "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=1200&q=85",
 }
 
 
@@ -165,8 +165,14 @@ async def repair_production_database():
         doctors = doc_res.scalars().all()
         doc_repaired = 0
         for idx, doc in enumerate(doctors):
-            if is_broken_media_url(doc.photo_url, upload_dir):
-                name_clean = (doc.display_name or "").lower()
+            name_clean = (doc.display_name or "").lower()
+            needs_update = is_broken_media_url(doc.photo_url, upload_dir)
+            # If Dr. Mia Thompson has empty/broken photo or duplicate Dr. Hira photo, update to her dedicated portrait
+            if "mia" in name_clean and (needs_update or not doc.photo_url or "1594824813598" in (doc.photo_url or "")):
+                doc.photo_url = "https://images.unsplash.com/photo-1594824476967-48c8b964273f?auto=format&fit=crop&w=900&q=85"
+                doc_repaired += 1
+                continue
+            if needs_update:
                 matched_photo = None
                 for key_name, photo_url in DOCTOR_PHOTO_MAP.items():
                     if key_name in name_clean:
@@ -226,9 +232,16 @@ async def repair_production_database():
         loc_res = await session.execute(select(LocationORM))
         locations = loc_res.scalars().all()
         loc_repaired = 0
+        COMPETITOR_LOCATION_SUBSTRINGS = ["photo-1519494026892-80bbd2d6fd0d", "photo-1629909613654"]
         for idx, loc in enumerate(locations):
-            if is_broken_media_url(loc.image_url, upload_dir):
-                loc_clean = (loc.name or "").lower()
+            loc_clean = (loc.name or "").lower()
+            needs_update = is_broken_media_url(loc.image_url, upload_dir)
+            if not needs_update and loc.image_url:
+                for bad_sub in COMPETITOR_LOCATION_SUBSTRINGS:
+                    if bad_sub in loc.image_url and ("gulberg" in loc_clean or "islamabad – main" in loc_clean or "main" in loc_clean):
+                        needs_update = True
+                        break
+            if needs_update:
                 matched_img = None
                 for key_name, img_url in BRANCH_IMAGE_MAP.items():
                     if key_name in loc_clean:

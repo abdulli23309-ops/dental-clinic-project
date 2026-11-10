@@ -291,8 +291,23 @@ export function PublicContentProvider({
 
       let css = '';
       if (primary || secondary || bg || pFont || sFont) {
+        const hexToRgb = (hex: string) => {
+          const clean = hex.replace('#', '').trim();
+          if (clean.length === 3) {
+            return `${parseInt(clean[0] + clean[0], 16)}, ${parseInt(clean[1] + clean[1], 16)}, ${parseInt(clean[2] + clean[2], 16)}`;
+          }
+          if (clean.length === 6) {
+            return `${parseInt(clean.slice(0, 2), 16)}, ${parseInt(clean.slice(2, 4), 16)}, ${parseInt(clean.slice(4, 6), 16)}`;
+          }
+          return null;
+        };
+
         css += ':root:not(.dark) {\n';
-        if (primary) css += `--color-primary: ${primary}; --color-forest: ${primary};\n`;
+        if (primary) {
+          const rgb = hexToRgb(primary);
+          css += `--color-primary: ${primary}; --primary: ${primary}; --color-forest: ${primary};\n`;
+          if (rgb) css += `--color-primary-rgb: ${rgb};\n`;
+        }
         if (secondary) css += `--color-secondary: ${secondary}; --color-gold: ${secondary};\n`;
         if (bg) css += `--color-bg-base: ${bg};\n`;
         if (pFont) css += `--font-primary: '${pFont}', Georgia, serif;\n`;
@@ -300,7 +315,11 @@ export function PublicContentProvider({
         css += '}\n';
 
         css += '.dark {\n';
-        if (primary) css += `--color-primary: ${primary};\n`;
+        if (primary) {
+          const rgb = hexToRgb(primary);
+          css += `--color-primary: ${primary}; --primary: ${primary};\n`;
+          if (rgb) css += `--color-primary-rgb: ${rgb};\n`;
+        }
         if (secondary) css += `--color-secondary: ${secondary};\n`;
         if (pFont) css += `--font-primary: '${pFont}', Georgia, serif;\n`;
         if (sFont) css += `--font-secondary: '${sFont}', system-ui, sans-serif;\n`;

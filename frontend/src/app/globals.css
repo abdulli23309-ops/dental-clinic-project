@@ -36,7 +36,7 @@
 :root {
   --background: #FFFFFF;
   --foreground: #111827;
-  --primary: #1F3D34;
+  --primary: var(--color-primary, #1F3D34);
   --primary-foreground: #FFFFFF;
   --card: #FFFFFF;
   --card-foreground: #111827;
@@ -77,7 +77,7 @@
 .dark {
   --background: #0a0a0c;
   --foreground: #F9FAFB;
-  --primary: #2B5749;
+  --primary: var(--color-primary, #2B5749);
   --primary-foreground: #FFFFFF;
   --card: #121316;
   --card-foreground: #FFFFFF;

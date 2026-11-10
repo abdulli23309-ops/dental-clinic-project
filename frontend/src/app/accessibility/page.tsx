@@ -53,19 +53,19 @@ export default function AccessibilityPage() {
                 </p>
                 <ul className="space-y-2 text-xs sm:text-sm pt-1">
                   <li className="flex items-start gap-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-forest dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                     <span>
                       <strong>Level Entry:</strong> Clinical suites are designed for step-free access from the primary entrance.
                     </span>
                   </li>
                   <li className="flex items-start gap-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-forest dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                     <span>
                       <strong>Accessible Restrooms:</strong> Facilities accommodate mobility devices.
                     </span>
                   </li>
                   <li className="flex items-start gap-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-forest dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                     <span>
                       <strong>Wide Corridors:</strong> Hallways and operatories are designed for wheelchair clearance.
                     </span>

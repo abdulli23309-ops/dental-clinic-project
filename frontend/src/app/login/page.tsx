@@ -95,14 +95,14 @@ export default function LoginPage() {
     }
   };
 
-  const primaryColor = brandPrimaryColor || org?.primaryColor || "#107D52";
+  const primaryColor = brandPrimaryColor || org?.primaryColor || "#1F3D34";
   const orgName = fullBrandName || org?.displayName || org?.name || "Hira Dental Clinic";
   const orgTagline = clinicTagline || org?.tagline || "Comprehensive, Unhurried Dental Care";
 
   return (
     <div className="min-h-screen w-full grid grid-cols-1 lg:grid-cols-2 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans">
       {/* LEFT PANEL: Responsive Enterprise Showcase with High-Contrast Typography & Floating Cards */}
-      <div className="relative hidden lg:flex flex-col justify-between p-12 xl:p-16 bg-gradient-to-br from-slate-100 via-slate-50 to-emerald-50/30 dark:from-slate-900 dark:via-slate-950 dark:to-emerald-950/20 border-r border-slate-200 dark:border-slate-800 overflow-hidden">
+      <div className="relative hidden lg:flex flex-col justify-between p-12 xl:p-16 bg-gradient-to-br from-slate-100 via-slate-50 to-primary/[0.04] dark:from-slate-900 dark:via-slate-950 dark:to-primary/[0.08] border-r border-slate-200 dark:border-slate-800 overflow-hidden">
         {/* Soft Decorative Ambient Background */}
         <div 
           className="absolute -top-24 -left-24 w-96 h-96 rounded-full blur-3xl pointer-events-none opacity-20 dark:opacity-10"
@@ -213,11 +213,11 @@ export default function LoginPage() {
             className="w-10/12 mr-auto bg-white dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-xl rounded-xl p-3.5 backdrop-blur-xs"
           >
             <div className="flex items-center gap-3 text-xs text-slate-700 dark:text-slate-300">
-              <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0">
                 <Building2 className="w-4 h-4" />
               </div>
               <span className="font-semibold truncate">Active Clinical Branches Connected</span>
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 ml-auto shrink-0" />
+              <CheckCircle2 className="w-4 h-4 text-primary ml-auto shrink-0" />
             </div>
           </motion.div>
         </div>
@@ -246,7 +246,7 @@ export default function LoginPage() {
           </Link>
           <div className="flex items-center gap-2.5">
             <ThemeToggle />
-            <span className="text-[11px] font-mono uppercase tracking-wider text-emerald-800 dark:text-emerald-300 font-bold px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/80">
+            <span className="text-[11px] font-mono uppercase tracking-wider text-primary font-bold px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
               Staff Portal
             </span>
           </div>
@@ -347,7 +347,7 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full py-3.5 px-6 rounded-full bg-slate-900 hover:bg-slate-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
+                  className="w-full py-3.5 px-6 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2 shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
                 >
                   <span>{isSubmitting ? "Signing in..." : "Log in"}</span>
                   <ArrowRight className="w-4 h-4" />
@@ -357,7 +357,7 @@ export default function LoginPage() {
 
             {/* Security Assurance Badge */}
             <div className="pt-4 border-t border-slate-100 dark:border-slate-900 flex items-center justify-center gap-2 text-[11px] text-slate-400 dark:text-slate-500">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <ShieldCheck className="w-3.5 h-3.5 text-primary" />
               <span>Session protected with JWT and HttpOnly token rotation</span>
             </div>
           </div>

@@ -33,7 +33,7 @@ export default async function Image() {
     org?.tagline ||
     "Professional Dental Care";
 
-  const primaryColor = org?.primaryColor || "#0F766E";
+  const primaryColor = org?.primaryColor || "#1F3D34";
   const bgColor = org?.backgroundColor || "#FAF7F2";
 
   return new ImageResponse(

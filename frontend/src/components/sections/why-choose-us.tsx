@@ -3,7 +3,7 @@
 import { motion } from "motion/react";
 import { CheckCircle2, Sparkles } from "lucide-react";
 import { usePublicContent } from "@/components/providers/public-content-provider";
-import { SafeImage } from "@/components/ui/safe-image";
+import { resolveMediaUrl } from "@/lib/api";
 
 export function WhyChooseUs() {
   const { content, organization, copy } = usePublicContent();
@@ -11,7 +11,8 @@ export function WhyChooseUs() {
   const promises = content.homepage?.promises || [];
   const practiceName =
     content.general?.practiceName || organization?.displayName || "";
-  const whyChooseUsImage = content.homepage?.whyChooseUsImage;
+  const whyChooseUsImageRaw = content.homepage?.whyChooseUsImage;
+  const whyChooseUsImage = whyChooseUsImageRaw ? resolveMediaUrl(whyChooseUsImageRaw) : null;
   const whyChooseUsCaption = content.homepage?.whyChooseUsCaption;
 
   return (
@@ -125,17 +126,45 @@ export function WhyChooseUs() {
             </div>
           </div>
 
-          {/* Right Column: Luxury Clinical Facility Feature Image with Caption */}
-          <div className="lg:col-span-5 sticky top-28 space-y-4">
-            <SafeImage
-              src={whyChooseUsImage}
-              alt={whyChooseUsCaption || practiceName || "Modern Dental Suite"}
-              caption={whyChooseUsCaption}
-              aspectRatio="aspect-[4/3]"
-              fallbackTitle={practiceName || "Modern Dental Suite"}
-              fallbackSubtitle={organization?.displayName}
-              className="w-full"
-            />
+          {/* Right Column: Full-Height Balanced Architectural Image Card */}
+          <div className="lg:col-span-5 lg:sticky lg:top-28 h-full flex flex-col justify-between">
+            <div className="relative w-full h-[480px] sm:h-[520px] lg:h-[560px] rounded-3xl overflow-hidden shadow-2xl border border-gray-200/90 dark:border-gray-800/90 bg-slate-900 group">
+              {whyChooseUsImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={whyChooseUsImage}
+                  alt={whyChooseUsCaption || practiceName || "Modern Clinical Facility"}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+                />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center p-8 bg-slate-900 text-white text-center">
+                  <Sparkles className="h-10 w-10 text-primary mb-3" />
+                  <p className="font-display text-lg font-bold">{practiceName || "Modern Dental Suite"}</p>
+                </div>
+              )}
+
+              {/* Gradient Scrim */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent pointer-events-none" />
+
+              {/* Top Minimal Badge with Admin Theme Accent */}
+              <div className="absolute top-4 left-4 pointer-events-none z-10">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur-md px-3 py-1 text-xs font-semibold text-white shadow-sm border border-white/20">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                  <span>Clinical Excellence</span>
+                </span>
+              </div>
+
+              {/* Bottom Luxury Stats / Trust Glass Overlay Bar */}
+              <div className="absolute inset-x-4 bottom-4 p-4 rounded-2xl bg-black/60 backdrop-blur-md border border-white/20 text-white z-10 space-y-1.5">
+                <p className="text-xs sm:text-sm font-semibold tracking-tight leading-snug line-clamp-2">
+                  {whyChooseUsCaption || "Ergonomic treatment station equipped with chairside digital radiography and hospital-grade infection control"}
+                </p>
+                <div className="flex items-center gap-2 text-[10.5px] text-white/80 font-mono tracking-wider pt-1 border-t border-white/10">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                  <span>100% Hospital-Grade Sterilization • Digital Low-Dose Imaging</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

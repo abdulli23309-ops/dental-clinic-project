@@ -14,7 +14,7 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
   const description =
     org?.description || "Dental appointment booking and patient care.";
   const bgColor = org?.backgroundColor || "#FFFFFF";
-  const themeColor = org?.primaryColor || "#0F766E";
+  const themeColor = org?.primaryColor || "#1F3D34";
 
   return {
     name,

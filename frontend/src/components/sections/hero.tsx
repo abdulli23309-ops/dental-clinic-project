@@ -140,8 +140,17 @@ export function Hero() {
     : heroObj.heroTicks?.map((t: any) => t.label || t) || [];
 
   return (
-    <section className="relative overflow-hidden pt-16 pb-28 md:pt-24 md:pb-36 lg:pt-28 lg:pb-40 bg-[radial-gradient(ellipse_75%_50%_at_50%_-5%,rgba(var(--color-primary-rgb,16,125,82),0.08),transparent)] dark:bg-[radial-gradient(ellipse_75%_50%_at_50%_-5%,rgba(var(--color-primary-rgb,16,125,82),0.14),transparent)]">
-      <div className="container-x">
+    <section className="relative overflow-hidden pt-16 pb-28 md:pt-24 md:pb-36 lg:pt-28 lg:pb-40">
+      {/* Refined Luxury Top Ambient Theme Shade beneath Navbar (Dynamically reflects Admin's chosen theme color) */}
+      <div
+        className="absolute top-0 inset-x-0 h-80 bg-gradient-to-b from-primary/[0.08] via-primary/[0.03] to-transparent pointer-events-none z-0"
+        aria-hidden="true"
+      />
+      <div
+        className="absolute -top-24 left-1/2 -translate-x-1/2 w-[720px] h-[360px] rounded-full bg-primary/[0.09] dark:bg-primary/[0.14] blur-[110px] pointer-events-none z-0"
+        aria-hidden="true"
+      />
+      <div className="container-x relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
           {/* Left Column: Strict Single-Edge Alignment, Generous Spacing */}
           <div className="lg:col-span-7 flex flex-col items-start text-start space-y-8 sm:space-y-10">

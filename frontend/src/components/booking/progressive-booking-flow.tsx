@@ -1192,7 +1192,7 @@ export function ProgressiveBookingFlow() {
                                 }}
                               />
                             ) : (
-                              <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-stone-100 to-stone-200 dark:from-gray-850 dark:to-gray-800 text-emerald-800 dark:text-emerald-300 select-none p-2 text-center">
+                              <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-stone-100 to-stone-200 dark:from-gray-850 dark:to-gray-800 text-primary select-none p-2 text-center">
                                 <span className="font-display text-lg font-bold tracking-wider">
                                   {getDoctorInitials(doctors[0].displayName)}
                                 </span>
@@ -1302,7 +1302,7 @@ export function ProgressiveBookingFlow() {
                                         }}
                                       />
                                     ) : (
-                                      <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-stone-100 via-stone-200/60 to-stone-100 dark:from-gray-850 dark:via-gray-800 dark:to-gray-850 text-emerald-800 dark:text-emerald-300 select-none p-2 text-center">
+                                      <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-stone-100 via-stone-200/60 to-stone-100 dark:from-gray-850 dark:via-gray-800 dark:to-gray-850 text-primary select-none p-2 text-center">
                                         <span className="font-display text-2xl font-bold tracking-wider">
                                           {initials}
                                         </span>

@@ -31,7 +31,7 @@ export function PlanBadge({
         "inline-flex items-center gap-1.5 rounded-full font-mono font-bold uppercase tracking-wider select-none border transition-colors",
         size === "sm" ? "px-2.5 py-0.5 text-[10px]" : "px-3 py-1 text-xs",
         isEnterprise &&
-          "bg-gradient-to-r from-emerald-500/10 to-teal-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
+          "bg-primary/10 text-primary border-primary/20",
         isPro &&
           "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30",
         !isEnterprise &&
@@ -43,7 +43,7 @@ export function PlanBadge({
       {showIcon && (
         <>
           {isEnterprise ? (
-            <Crown className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+            <Crown className="w-3 h-3 text-primary" />
           ) : isPro ? (
             <Sparkles className="w-3 h-3 text-blue-600 dark:text-blue-400" />
           ) : (

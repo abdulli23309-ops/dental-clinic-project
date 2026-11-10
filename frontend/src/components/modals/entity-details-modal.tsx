@@ -855,14 +855,14 @@ function BranchScenario({
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/40 to-transparent" />
           </>
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-emerald-900/60 to-slate-900 flex items-center justify-center text-white/40">
+          <div className="w-full h-full bg-gradient-to-br from-primary/30 to-slate-900 flex items-center justify-center text-white/40">
             <Building2 className="w-16 h-16 opacity-30" />
           </div>
         )}
 
         <div className="absolute bottom-4 left-4 right-4 text-white">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-emerald-600/90 text-white">
+            <span className="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-primary text-white">
               {branch.isPrimary ? "Primary HQ Branch" : "Satellite Branch"}
             </span>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-black/40 backdrop-blur-sm text-white/90">

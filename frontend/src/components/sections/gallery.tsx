@@ -159,14 +159,8 @@ export function Gallery() {
 
                   {/* Top Bar: Badge & Zoom Pill */}
                   <div className="absolute top-4 left-4 right-4 flex items-center justify-between gap-2 pointer-events-none z-10">
-                    <span
-                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider backdrop-blur-md shadow-sm border ${
-                        layout.defaultBadge === "CLINICAL SUITE"
-                          ? "bg-primary text-primary-foreground border-primary/30"
-                          : "bg-black/50 text-white/95 border-white/15"
-                      }`}
-                    >
-                      <Sparkles className="h-3 w-3 opacity-80" />
+                    <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider backdrop-blur-md shadow-sm border bg-black/45 border-white/20 text-white">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
                       <span>{badgeLabel}</span>
                     </span>
 

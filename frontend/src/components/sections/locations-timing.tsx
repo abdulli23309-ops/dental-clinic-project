@@ -278,16 +278,12 @@ export function LocationsTiming() {
                         )}
                         {officeStatus && (
                           <span
-                            className={`rounded-full px-3 py-1 text-[11px] font-semibold flex items-center gap-1.5 backdrop-blur-md shadow-sm ${
-                              officeStatus.isOpen
-                                ? "bg-black/75 text-white border border-white/20"
-                                : "bg-black/60 text-gray-300 border border-white/20"
-                            }`}
+                            className="rounded-full px-3 py-1 text-[11px] font-semibold flex items-center gap-1.5 backdrop-blur-md shadow-sm bg-white/95 dark:bg-slate-900/90 text-slate-900 dark:text-white border border-slate-200/80 dark:border-white/10"
                           >
                             <span
-                              className={`h-2 w-2 rounded-full ${
+                              className={`w-2 h-2 rounded-full shrink-0 ${
                                 officeStatus.isOpen
-                                  ? "bg-emerald-400 animate-pulse"
+                                  ? "bg-emerald-500 animate-pulse"
                                   : "bg-gray-400"
                               }`}
                             />

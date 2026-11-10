@@ -37,17 +37,23 @@ export function OurTeam() {
   const { team, locations, isLoading, copy, locale } = usePublicContent();
   const [selectedCity, setSelectedCity] = useState<string>("all");
   const [activeIndex, setActiveIndex] = useState<number>(0);
-  const [rotationAngle, setRotationAngle] = useState<number>(0);
+  const [windowWidth, setWindowWidth] = useState<number>(1200);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
 
   const dragStartX = useRef<number>(0);
-  const dragStartAngle = useRef<number>(0);
   const hasDragged = useRef<boolean>(false);
-  const ringRef = useRef<HTMLDivElement>(null);
   const shouldReduceMotion = useReducedMotion();
 
   const isRtl = locale === "ur";
+
+  // Window resize listener for responsive 3D geometry
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // Filter only active team members
   const activeTeam = team.filter((m) => m.isActive !== false);
@@ -82,73 +88,46 @@ export function OurTeam() {
         );
 
   const n = filteredDoctors.length;
-  // Arc mode for n < 8 so cards never turn 90deg edge-on
-  const isArcMode = n < 8;
-  const cardWidth = 320;
-  const cardGap = 36;
+  // Always clamp safeIndex synchronously to prevent any out-of-bounds frame when switching city tabs
+  const safeIndex = n > 0 ? ((activeIndex % n) + n) % n : 0;
 
-  // Geometry calculations:
-  // For n >= 8: 360deg cylinder ring
-  // For n < 8: 28deg open stage arc
-  const stepAngle = isArcMode ? 28 : n > 0 ? 360 / n : 0;
-  const radius = isArcMode
-    ? 580
-    : n > 0
-    ? Math.max(420, Math.round((cardWidth + cardGap) / (2 * Math.tan(Math.PI / n))))
-    : 450;
-
-  // Reset active card and camera angle when city filter changes
+  // Reset active index when switching city tab
   useEffect(() => {
     setActiveIndex(0);
-    if (isArcMode && n > 0) {
-      const centerOffset = (n - 1) / 2;
-      setRotationAngle(-(0 - centerOffset) * stepAngle * (isRtl ? -1 : 1));
-    } else {
-      setRotationAngle(0);
+  }, [selectedCity]);
+
+  // Compute circular offset for each doctor in the filtered list
+  const getCardOffset = (idx: number): number => {
+    if (n <= 1) return 0;
+    if (n === 2) return idx === safeIndex ? 0 : 1;
+    if (n === 3) {
+      let diff = idx - safeIndex;
+      if (diff === 2) diff = -1;
+      if (diff === -2) diff = 1;
+      return diff;
     }
-  }, [selectedCity, isArcMode, n, stepAngle, isRtl]);
-
-  // Rotate ring to target doctor
-  const rotateToDoctor = useCallback(
-    (targetIndex: number) => {
-      if (n === 0) return;
-      const safeIndex = isArcMode
-        ? Math.max(0, Math.min(n - 1, targetIndex))
-        : ((targetIndex % n) + n) % n;
-      setActiveIndex(safeIndex);
-
-      if (isArcMode) {
-        const centerOffset = (n - 1) / 2;
-        const targetDeg = -(safeIndex - centerOffset) * stepAngle * (isRtl ? -1 : 1);
-        setRotationAngle(targetDeg);
-      } else {
-        const baseAngle = -safeIndex * stepAngle * (isRtl ? -1 : 1);
-        setRotationAngle((curr) => {
-          const diff = ((((baseAngle - curr) % 360) + 540) % 360) - 180;
-          return curr + diff;
-        });
-      }
-    },
-    [n, isArcMode, stepAngle, isRtl]
-  );
+    if (n === 4) {
+      let diff = idx - safeIndex;
+      if (diff > 2) diff -= 4;
+      if (diff < -1) diff += 4;
+      return diff;
+    }
+    // n >= 5
+    let diff = idx - safeIndex;
+    while (diff > n / 2) diff -= n;
+    while (diff < -n / 2) diff += n;
+    return diff;
+  };
 
   const handleNext = useCallback(() => {
     if (n <= 1) return;
-    if (isArcMode) {
-      rotateToDoctor(activeIndex >= n - 1 ? 0 : activeIndex + 1);
-    } else {
-      rotateToDoctor(activeIndex + 1);
-    }
-  }, [activeIndex, n, isArcMode, rotateToDoctor]);
+    setActiveIndex((prev) => (prev + 1) % n);
+  }, [n]);
 
   const handlePrev = useCallback(() => {
     if (n <= 1) return;
-    if (isArcMode) {
-      rotateToDoctor(activeIndex <= 0 ? n - 1 : activeIndex - 1);
-    } else {
-      rotateToDoctor(activeIndex - 1);
-    }
-  }, [activeIndex, n, isArcMode, rotateToDoctor]);
+    setActiveIndex((prev) => (prev - 1 + n) % n);
+  }, [n]);
 
   // Pointer drag & touch-swipe handlers
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -156,19 +135,17 @@ export function OurTeam() {
     setIsDragging(true);
     hasDragged.current = false;
     dragStartX.current = e.clientX;
-    dragStartAngle.current = rotationAngle;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {}
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isDragging) return;
     const deltaX = e.clientX - dragStartX.current;
-    if (Math.abs(deltaX) > 8) {
+    if (Math.abs(deltaX) > 10) {
       hasDragged.current = true;
     }
-    const degPerPx = 0.28;
-    const dragMultiplier = isRtl ? -1 : 1;
-    setRotationAngle(dragStartAngle.current + deltaX * degPerPx * dragMultiplier);
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -180,7 +157,7 @@ export function OurTeam() {
 
     if (!hasDragged.current) return;
     const deltaX = e.clientX - dragStartX.current;
-    const threshold = 40;
+    const threshold = 35;
 
     if (Math.abs(deltaX) > threshold) {
       if (deltaX > 0) {
@@ -188,8 +165,6 @@ export function OurTeam() {
       } else {
         isRtl ? handlePrev() : handleNext();
       }
-    } else {
-      rotateToDoctor(activeIndex);
     }
   };
 
@@ -206,6 +181,76 @@ export function OurTeam() {
     setImageErrors((prev) => ({ ...prev, [id]: true }));
   }, []);
 
+  // Responsive slot positioning calculation
+  const isMobile = windowWidth < 640;
+  const isTablet = windowWidth >= 640 && windowWidth < 1024;
+
+  const getSlotStyle = (offset: number) => {
+    const xStep1 = isMobile ? 150 : isTablet ? 220 : 310;
+    const xStep2 = isMobile ? 260 : isTablet ? 400 : 560;
+    const z1 = isMobile ? -75 : -60;
+    const z2 = isMobile ? -175 : -170;
+    const rot1 = isMobile ? 18 : 22;
+    const rot2 = isMobile ? 28 : 34;
+    const s1 = isMobile ? 0.86 : 0.90;
+    const s2 = isMobile ? 0.72 : 0.80;
+
+    const rtlSign = isRtl ? -1 : 1;
+
+    if (offset === 0) {
+      return {
+        transform: `translate3d(0px, 0px, 60px) rotateY(0deg) scale(1)`,
+        zIndex: 30,
+        opacity: 1,
+        pointerEvents: "auto" as const,
+        visibility: "visible" as const,
+      };
+    }
+    if (offset === -1) {
+      return {
+        transform: `translate3d(${-xStep1 * rtlSign}px, 0px, ${z1}px) rotateY(${rot1 * rtlSign}deg) scale(${s1})`,
+        zIndex: 20,
+        opacity: 0.92,
+        pointerEvents: "auto" as const,
+        visibility: "visible" as const,
+      };
+    }
+    if (offset === 1) {
+      return {
+        transform: `translate3d(${xStep1 * rtlSign}px, 0px, ${z1}px) rotateY(${-rot1 * rtlSign}deg) scale(${s1})`,
+        zIndex: 20,
+        opacity: 0.92,
+        pointerEvents: "auto" as const,
+        visibility: "visible" as const,
+      };
+    }
+    if (offset === -2) {
+      return {
+        transform: `translate3d(${-xStep2 * rtlSign}px, 0px, ${z2}px) rotateY(${rot2 * rtlSign}deg) scale(${s2})`,
+        zIndex: 10,
+        opacity: 0.70,
+        pointerEvents: "auto" as const,
+        visibility: "visible" as const,
+      };
+    }
+    if (offset === 2) {
+      return {
+        transform: `translate3d(${xStep2 * rtlSign}px, 0px, ${z2}px) rotateY(${-rot2 * rtlSign}deg) scale(${s2})`,
+        zIndex: 10,
+        opacity: 0.70,
+        pointerEvents: "auto" as const,
+        visibility: "visible" as const,
+      };
+    }
+    return {
+      transform: `translate3d(0px, 0px, -300px) scale(0.5)`,
+      zIndex: 0,
+      opacity: 0,
+      pointerEvents: "none" as const,
+      visibility: "hidden" as const,
+    };
+  };
+
   // If no doctors exist, return null
   if (!isLoading && activeTeam.length === 0) {
     return null;
@@ -214,12 +259,12 @@ export function OurTeam() {
   return (
     <section
       id="team"
-      className="border-t border-gray-200 dark:border-gray-800 bg-[#FAF9F6] dark:bg-gray-950 py-28 md:py-36 overflow-hidden select-none relative"
+      className="border-t border-gray-200 dark:border-gray-800 bg-[#FAF9F6] dark:bg-gray-950 py-24 md:py-32 overflow-hidden select-none relative"
       onKeyDown={handleKeyDown}
       tabIndex={0}
       aria-label="Our Clinical Specialists"
     >
-      <div className="container-x space-y-12 md:space-y-16 relative z-10">
+      <div className="container-x space-y-10 md:space-y-14 relative z-10">
         {/* Section Heading */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6">
           <SectionHeading
@@ -291,15 +336,15 @@ export function OurTeam() {
           </div>
         ) : (
           /* ============================================================== */
-          /* TRUE ROUND 3D GLASS CYLINDER STAGE (PR #13/#14 ARCHITECTURE)   */
+          /* NON-OVERLAPPING 3D CYLINDRICAL GLASS CAROUSEL STAGE            */
           /* ============================================================== */
-          <div className="relative w-full overflow-visible py-4 md:py-8">
+          <div className="relative w-full overflow-visible py-4 md:py-6">
             {/* Ambient Radial Round Glass Aura behind carousel */}
             <div
               className="absolute inset-0 flex items-center justify-center pointer-events-none"
               aria-hidden="true"
             >
-              <div className="w-[450px] h-[450px] sm:w-[650px] sm:h-[650px] rounded-full bg-primary/15 blur-3xl" />
+              <div className="w-[450px] h-[450px] sm:w-[650px] sm:h-[650px] rounded-full bg-primary/10 blur-3xl" />
             </div>
 
             {/* Curved Glass Base Ring Pedestal */}
@@ -319,7 +364,7 @@ export function OurTeam() {
                   type="button"
                   onClick={handlePrev}
                   aria-label={copy.previousClinicians}
-                  className="absolute left-1 sm:left-2 top-1/2 -translate-y-1/2 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-white/60 dark:border-white/15 bg-white/80 dark:bg-slate-900/80 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-xl flex items-center justify-center hover:scale-105 active:scale-95 hover:border-primary/40 hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer"
+                  className="absolute left-1 sm:left-4 top-1/2 -translate-y-1/2 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-white/60 dark:border-white/15 bg-white/90 dark:bg-slate-900/90 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-xl flex items-center justify-center hover:scale-105 active:scale-95 hover:border-primary/40 hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer"
                 >
                   <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6 rtl:rotate-180" />
                 </button>
@@ -327,7 +372,7 @@ export function OurTeam() {
                   type="button"
                   onClick={handleNext}
                   aria-label={copy.nextClinicians}
-                  className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-white/60 dark:border-white/15 bg-white/80 dark:bg-slate-900/80 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-xl flex items-center justify-center hover:scale-105 active:scale-95 hover:border-primary/40 hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer"
+                  className="absolute right-1 sm:right-4 top-1/2 -translate-y-1/2 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-white/60 dark:border-white/15 bg-white/90 dark:bg-slate-900/90 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-xl flex items-center justify-center hover:scale-105 active:scale-95 hover:border-primary/40 hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer"
                 >
                   <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6 rtl:rotate-180" />
                 </button>
@@ -336,65 +381,48 @@ export function OurTeam() {
 
             {/* 3D Perspective Stage Container with touch-swipe */}
             <div
-              className="team-perspective-container relative w-full h-[540px] sm:h-[580px] md:h-[600px] flex items-center justify-center cursor-grab active:cursor-grabbing touch-pan-y"
+              className="relative w-full h-[540px] sm:h-[570px] md:h-[590px] flex items-center justify-center cursor-grab active:cursor-grabbing touch-pan-y"
+              style={{ perspective: "1600px", perspectiveOrigin: "50% 50%" }}
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
               onPointerCancel={handlePointerUp}
             >
-              {/* 3D Cylindrical Ring */}
+              {/* Relative Slot-Based Cards (Zero Ring Overlap!) */}
               <div
-                ref={ringRef}
-                className="team-3d-ring"
-                style={{
-                  ["--r" as any]: `${radius}px`,
-                  ["--ring-rotation" as any]: `${rotationAngle}deg`,
-                  transform: `translateZ(calc(${radius}px * -1)) rotateX(-2deg) rotateY(${rotationAngle}deg)`,
-                  transition: isDragging ? "none" : "transform 750ms cubic-bezier(0.22, 1, 0.36, 1)",
-                }}
+                className="relative w-full h-full flex items-center justify-center"
+                style={{ transformStyle: "preserve-3d" }}
               >
                 {filteredDoctors.map((doc, idx) => {
-                  const cardAngle = isArcMode
-                    ? (idx - (n - 1) / 2) * stepAngle * (isRtl ? -1 : 1)
-                    : idx * stepAngle * (isRtl ? -1 : 1);
-
-                  const distance = isArcMode
-                    ? Math.abs(idx - activeIndex)
-                    : Math.min(
-                        Math.abs(idx - activeIndex),
-                        n - Math.abs(idx - activeIndex)
-                      );
-
-                  const isFront = distance === 0;
-                  const isVisible = isArcMode ? true : distance <= 2;
+                  const offset = getCardOffset(idx);
+                  const isFront = offset === 0;
+                  const isVisible = Math.abs(offset) <= 2;
                   const hasImage = Boolean(doc.photoUrl && !imageErrors[doc.id]);
+                  const slotStyle = getSlotStyle(offset);
 
                   return (
                     <div
                       key={doc.id}
-                      className={`team-3d-card transition-all duration-350 ${
-                        isFront
-                          ? "opacity-100 filter-none z-10 pointer-events-auto"
-                          : isVisible
-                          ? "opacity-85 sm:opacity-90 filter brightness-[0.94] z-[5] cursor-pointer pointer-events-auto hover:opacity-100 hover:brightness-100"
-                          : "opacity-0 pointer-events-none z-0"
-                      }`}
+                      className="absolute will-change-transform"
                       style={{
-                        transform: `rotateY(${cardAngle}deg) translateZ(${radius}px)`,
+                        ...slotStyle,
+                        transition: isDragging
+                          ? "none"
+                          : "transform 500ms cubic-bezier(0.22, 1, 0.36, 1), opacity 500ms ease",
                       }}
                       onClick={(e) => {
                         if (!isFront && isVisible && !hasDragged.current) {
                           e.stopPropagation();
-                          rotateToDoctor(idx);
+                          setActiveIndex(idx);
                         }
                       }}
                     >
                       {/* Frosted Glass Card Shell with Specular Top Highlight */}
                       <div
-                        className={`relative w-[280px] sm:w-[320px] h-[500px] sm:h-[540px] rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border p-3.5 sm:p-4 shadow-xl flex flex-col justify-between transition-all duration-300 ${
+                        className={`relative w-[280px] sm:w-[310px] md:w-[320px] h-[495px] sm:h-[525px] rounded-3xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border p-3.5 sm:p-4 shadow-[0_20px_50px_rgba(15,23,42,0.08)] flex flex-col justify-between transition-all duration-300 ${
                           isFront
-                            ? "border-2 border-primary ring-2 ring-primary/40 shadow-[0_25px_60px_-15px_hsl(var(--primary)/0.28)] scale-[1.02]"
-                            : "border-white/50 dark:border-white/10 hover:border-primary/40 shadow-lg"
+                            ? "ring-2 ring-primary border-primary shadow-[0_25px_60px_-15px_hsl(var(--primary)/0.25)] scale-[1.01]"
+                            : "border-slate-200/80 dark:border-white/10 hover:border-primary/40"
                         }`}
                       >
                         {/* Specular top-edge glass highlight */}
@@ -405,7 +433,7 @@ export function OurTeam() {
 
                         <div>
                           {/* Portrait Photo Container with branded fallback avatar */}
-                          <div className="w-full h-[220px] sm:h-[255px] rounded-2xl overflow-hidden bg-stone-100 dark:bg-gray-800 mb-2.5 relative shadow-inner">
+                          <div className="w-full h-[215px] sm:h-[245px] rounded-2xl overflow-hidden bg-stone-100 dark:bg-gray-800 mb-2.5 relative shadow-inner">
                             {hasImage ? (
                               <Image
                                 src={resolveMediaUrl(doc.photoUrl) || doc.photoUrl!}
@@ -544,10 +572,10 @@ export function OurTeam() {
                   <button
                     key={i}
                     type="button"
-                    onClick={() => rotateToDoctor(i)}
+                    onClick={() => setActiveIndex(i)}
                     aria-label={`Go to clinician ${i + 1}`}
                     className={`h-2 rounded-full transition-all cursor-pointer ${
-                      i === activeIndex
+                      i === safeIndex
                         ? "w-6 sm:w-7 bg-primary"
                         : "w-2 bg-gray-300 dark:bg-gray-700 hover:bg-gray-400"
                     }`}

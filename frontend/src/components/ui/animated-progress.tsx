@@ -53,7 +53,7 @@ export function AnimatedProgress({
         )}
         style={{ width: widthPercent }}
       >
-        <div className="h-full bg-[var(--color-primary)] dark:bg-emerald-400" />
+        <div className="h-full bg-primary" />
       </motion.div>
       {label && (
         <motion.span

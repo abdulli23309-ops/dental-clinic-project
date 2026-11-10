@@ -6291,6 +6291,25 @@ export async function adminDeleteGalleryImage(id: string, token?: string | null)
   if (!res.ok) await apiError(res, "Failed to delete gallery image.");
 }
 
+export async function adminUpdateGalleryImage(
+  id: string,
+  data: {
+    imageUrl?: string;
+    caption?: string | null;
+    displayOrder?: number;
+    isActive?: boolean;
+  },
+  token?: string | null
+): Promise<GalleryImageItem> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/cms/gallery/${id}`,
+    { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) },
+    token
+  );
+  if (!res.ok) await apiError(res, "Failed to update gallery image.");
+  return res.json();
+}
+
 // ---------------------------------------------------------------------------
 // Complete Scheduling, Booking, Overrides, Queues & Approvals API
 // ---------------------------------------------------------------------------

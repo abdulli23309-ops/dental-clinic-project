@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   Camera,
   Check,
+  Edit2,
   Globe,
   HelpCircle,
   Image as ImageIcon,
@@ -58,6 +59,7 @@ import {
   adminCreateGalleryImage,
   adminDeleteGalleryImage,
   adminGetGallery,
+  adminUpdateGalleryImage,
   GalleryImageItem,
 } from "@/lib/api";
 import { usePublicContent } from "@/components/providers/public-content-provider";
@@ -65,6 +67,7 @@ import { usePublicContent } from "@/components/providers/public-content-provider
 // Aliases matching user-specified signatures
 const adminCreateGallery = adminCreateGalleryImage;
 const adminDeleteGallery = adminDeleteGalleryImage;
+const adminUpdateGallery = adminUpdateGalleryImage;
 
 type SectionTab =
   | "general"
@@ -209,6 +212,12 @@ export default function AdminWebsitePage() {
     displayOrder: 0,
   });
   const [isUploadingGallery, setIsUploadingGallery] = useState(false);
+  const [editingGalleryId, setEditingGalleryId] = useState<string | null>(null);
+  const [editGalleryForm, setEditGalleryForm] = useState<{
+    caption: string;
+    displayOrder: number;
+  }>({ caption: "", displayOrder: 0 });
+  const [isUpdatingGallery, setIsUpdatingGallery] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -649,10 +658,50 @@ export default function AdminWebsitePage() {
       await adminDeleteGallery(id, accessToken);
       const updated = await adminGetGallery(accessToken);
       setGalleryImages(updated);
+      toast.success("Gallery image deleted successfully.");
       setSaveSuccess("Gallery image deleted successfully.");
       setTimeout(() => setSaveSuccess(null), 4000);
     } catch (err: any) {
+      toast.error(err.message || "Failed to delete gallery image.");
       setSaveError(err.message || "Failed to delete gallery image.");
+    }
+  };
+
+  const handleStartEditGallery = (item: GalleryImageItem) => {
+    setEditingGalleryId(item.id);
+    setEditGalleryForm({
+      caption: item.caption || "",
+      displayOrder: item.displayOrder ?? 0,
+    });
+  };
+
+  const handleCancelEditGallery = () => {
+    setEditingGalleryId(null);
+  };
+
+  const handleSaveEditGallery = async (id: string) => {
+    if (!accessToken) return;
+    setIsUpdatingGallery(true);
+    try {
+      await adminUpdateGallery(
+        id,
+        {
+          caption: editGalleryForm.caption.trim() || null,
+          displayOrder: Number(editGalleryForm.displayOrder) || 0,
+        },
+        accessToken
+      );
+      const updated = await adminGetGallery(accessToken);
+      setGalleryImages(updated);
+      setEditingGalleryId(null);
+      toast.success("Gallery photo updated successfully.");
+      setSaveSuccess("Gallery photo updated successfully.");
+      setTimeout(() => setSaveSuccess(null), 4000);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update gallery image.");
+      setSaveError(err.message || "Failed to update gallery image.");
+    } finally {
+      setIsUpdatingGallery(false);
     }
   };
 
@@ -1972,46 +2021,124 @@ export default function AdminWebsitePage() {
                   </Card>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                    {galleryImages.map((image) => (
-                      <Card
-                        key={image.id}
-                        surface="cream"
-                        shadow="subtle"
-                        className="overflow-hidden flex flex-col justify-between"
-                      >
-                        <div className="relative aspect-video w-full bg-sand/30 overflow-hidden">
-                          <img
-                            src={resolveMediaUrl(image.imageUrl) || image.imageUrl}
-                            alt={image.caption || "Clinic photo"}
-                            onError={(e) => {
-                              (e.currentTarget as HTMLElement).style.display = "none";
-                            }}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
-                          <div>
-                            <p className="text-xs font-semibold text-ink">
-                              {image.caption || <span className="text-ink-soft italic font-normal">No caption</span>}
-                            </p>
+                    {galleryImages.map((image) => {
+                      const isEditing = editingGalleryId === image.id;
+
+                      return (
+                        <Card
+                          key={image.id}
+                          surface="cream"
+                          shadow="subtle"
+                          className="overflow-hidden flex flex-col justify-between"
+                        >
+                          <div className="relative aspect-video w-full bg-sand/30 overflow-hidden">
+                            <img
+                              src={resolveMediaUrl(image.imageUrl) || image.imageUrl}
+                              alt={image.caption || "Clinic photo"}
+                              onError={(e) => {
+                                (e.currentTarget as HTMLElement).style.display = "none";
+                              }}
+                              className="w-full h-full object-cover"
+                            />
                           </div>
-                          <div className="pt-2 border-t border-line/60 flex items-center justify-between">
-                            <span className="text-[10px] text-ink-soft">
-                              Order: {image.displayOrder}
-                            </span>
-                            <Button
-                              onClick={() => handleDeleteGalleryImage(image.id)}
-                              variant="secondary"
-                              size="sm"
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 text-xs py-1 px-2.5 h-auto"
-                            >
-                              <Trash2 className="h-3.5 w-3.5 mr-1" />
-                              <span>Delete</span>
-                            </Button>
-                          </div>
-                        </div>
-                      </Card>
-                    ))}
+
+                          {isEditing ? (
+                            <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
+                              <div className="space-y-2">
+                                <div>
+                                  <label className="text-[10px] font-semibold text-ink-soft uppercase tracking-wider block mb-1">
+                                    Caption / Title
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={editGalleryForm.caption}
+                                    onChange={(e) =>
+                                      setEditGalleryForm({ ...editGalleryForm, caption: e.target.value })
+                                    }
+                                    className="w-full text-xs rounded-lg border border-line bg-white dark:bg-gray-900 px-2.5 py-1.5 text-ink focus:outline-none focus:ring-1 focus:ring-primary"
+                                    placeholder="e.g. Sterile Surgical Suite"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[10px] font-semibold text-ink-soft uppercase tracking-wider block mb-1">
+                                    Display Order
+                                  </label>
+                                  <input
+                                    type="number"
+                                    value={editGalleryForm.displayOrder}
+                                    onChange={(e) =>
+                                      setEditGalleryForm({
+                                        ...editGalleryForm,
+                                        displayOrder: parseInt(e.target.value) || 0,
+                                      })
+                                    }
+                                    className="w-24 text-xs rounded-lg border border-line bg-white dark:bg-gray-900 px-2.5 py-1.5 text-ink focus:outline-none focus:ring-1 focus:ring-primary"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="pt-2 border-t border-line/60 flex items-center justify-end gap-2">
+                                <Button
+                                  type="button"
+                                  onClick={handleCancelEditGallery}
+                                  variant="secondary"
+                                  size="sm"
+                                  disabled={isUpdatingGallery}
+                                  className="text-xs py-1 px-2.5 h-auto"
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  type="button"
+                                  onClick={() => handleSaveEditGallery(image.id)}
+                                  variant="primary"
+                                  size="sm"
+                                  disabled={isUpdatingGallery}
+                                  className="text-xs py-1 px-3 h-auto"
+                                >
+                                  {isUpdatingGallery ? "Saving..." : "Save"}
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
+                              <div>
+                                <p className="text-xs font-semibold text-ink">
+                                  {image.caption || <span className="text-ink-soft italic font-normal">No caption</span>}
+                                </p>
+                              </div>
+                              <div className="pt-2 border-t border-line/60 flex items-center justify-between">
+                                <span className="text-[10px] text-ink-soft">
+                                  Order: {image.displayOrder}
+                                </span>
+                                <div className="flex items-center gap-1.5">
+                                  <Button
+                                    type="button"
+                                    onClick={() => handleStartEditGallery(image)}
+                                    variant="secondary"
+                                    size="sm"
+                                    className="text-primary hover:text-primary-dark hover:bg-emerald-50 dark:hover:bg-emerald-950/30 text-xs py-1 px-2.5 h-auto"
+                                  >
+                                    <Edit2 className="h-3.5 w-3.5 mr-1" />
+                                    <span>Edit</span>
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    onClick={() => handleDeleteGalleryImage(image.id)}
+                                    variant="secondary"
+                                    size="sm"
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 text-xs py-1 px-2.5 h-auto"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5 mr-1" />
+                                    <span>Delete</span>
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </Card>
+                      );
+                    })}
                   </div>
                 )}
               </div>

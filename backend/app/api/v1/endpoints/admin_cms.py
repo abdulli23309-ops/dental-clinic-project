@@ -263,6 +263,8 @@ async def create_gallery_image(
 
 @router.put("/cms/gallery/{image_id}", response_model=GalleryImageResponse)
 @router.put("/gallery/{image_id}", response_model=GalleryImageResponse)
+@router.patch("/cms/gallery/{image_id}", response_model=GalleryImageResponse)
+@router.patch("/gallery/{image_id}", response_model=GalleryImageResponse)
 async def update_gallery_image(
     image_id: UUID,
     req: GalleryImageUpdateRequest,

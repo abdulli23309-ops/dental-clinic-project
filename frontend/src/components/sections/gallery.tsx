@@ -17,6 +17,21 @@ const BENTO_LAYOUTS = [
   { colSpanClass: "md:col-span-4", minHeightClass: "min-h-[300px] md:min-h-[380px]", defaultBadge: "CLINICAL SUITE" },
 ];
 
+function parseCaption(caption: string): { title: string; subtitle: string | null } {
+  if (!caption) return { title: "", subtitle: null };
+  const delimiters = [" — ", " – ", " - "];
+  for (const delim of delimiters) {
+    if (caption.includes(delim)) {
+      const [title, ...rest] = caption.split(delim);
+      return {
+        title: title.trim(),
+        subtitle: rest.join(delim).trim() || null,
+      };
+    }
+  }
+  return { title: caption.trim(), subtitle: null };
+}
+
 export function Gallery() {
   const { copy } = usePublicContent();
   const { openLightbox } = useLightbox();
@@ -79,7 +94,8 @@ export function Gallery() {
           {galleryItems.map((item, idx) => {
             const layout = BENTO_LAYOUTS[idx % BENTO_LAYOUTS.length];
             const resolvedUrl = resolveMediaUrl(item.imageUrl) || item.imageUrl;
-            const caption = item.caption || "";
+            const fullCaption = item.caption || "";
+            const { title, subtitle } = parseCaption(fullCaption);
             const badgeLabel =
               layout.defaultBadge === "CLINICAL SUITE"
                 ? copy.clinicalSuite || "CLINICAL SUITE"
@@ -99,8 +115,8 @@ export function Gallery() {
                     openLightbox({
                       layoutId: `bento-gallery-${item.id}`,
                       src: resolvedUrl,
-                      alt: caption,
-                      caption: caption,
+                      alt: title || fullCaption,
+                      caption: fullCaption,
                     })
                   }
                   role="button"
@@ -111,19 +127,19 @@ export function Gallery() {
                       openLightbox({
                         layoutId: `bento-gallery-${item.id}`,
                         src: resolvedUrl,
-                        alt: caption,
-                        caption: caption,
+                        alt: title || fullCaption,
+                        caption: fullCaption,
                       });
                     }
                   }}
                   className={`relative w-full ${layout.minHeightClass} rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl border border-gray-200/80 dark:border-gray-800/80 bg-gray-100 dark:bg-gray-850 group cursor-pointer transition-all duration-300`}
-                  aria-label={`View full photo: ${caption}`}
+                  aria-label={`View full photo: ${title || fullCaption}`}
                 >
                   {/* High-Resolution Full-Bleed Photograph from DB */}
                   {!imageErrors[item.id] ? (
                     <Image
                       src={resolvedUrl}
-                      alt={caption}
+                      alt={title || fullCaption}
                       fill
                       sizes={
                         layout.colSpanClass.includes("12")
@@ -136,12 +152,12 @@ export function Gallery() {
                     />
                   ) : (
                     <div className="absolute inset-0 bg-gradient-to-br from-emerald-950 via-slate-900 to-black flex items-center justify-center p-6 text-center">
-                      <span className="font-display text-emerald-200 text-lg font-bold">{caption}</span>
+                      <span className="font-display text-emerald-200 text-lg font-bold">{title || fullCaption}</span>
                     </div>
                   )}
 
-                  {/* Gradient Overlay for Typography Contrast */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent pointer-events-none" />
+                  {/* Restrained Gradient Overlay covering only bottom 35% for maximum photo visibility */}
+                  <div className="absolute inset-x-0 bottom-0 h-[38%] bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none" />
 
                   {/* Top Bar: Badge & Zoom Pill */}
                   <div className="absolute top-4 left-4 right-4 flex items-center justify-between gap-2 pointer-events-none z-10">
@@ -161,12 +177,17 @@ export function Gallery() {
                     </span>
                   </div>
 
-                  {/* Bottom Text Overlay with Caption */}
-                  {caption && (
-                    <div className="absolute inset-x-0 bottom-0 p-6 sm:p-7 text-white pointer-events-none z-10 space-y-1">
-                      <h3 className="font-display text-lg sm:text-xl md:text-2xl font-bold leading-tight drop-shadow-sm group-hover:text-emerald-200 transition-colors">
-                        {caption}
+                  {/* Sleek, Compact Bottom Typography (Title + optional Subtitle) */}
+                  {title && (
+                    <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6 text-white pointer-events-none z-10 space-y-0.5">
+                      <h3 className="text-base sm:text-lg font-serif font-semibold text-white line-clamp-1 drop-shadow-sm group-hover:text-emerald-200 transition-colors">
+                        {title}
                       </h3>
+                      {subtitle && (
+                        <p className="text-xs text-white/80 line-clamp-1 font-sans font-normal drop-shadow-xs">
+                          {subtitle}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>

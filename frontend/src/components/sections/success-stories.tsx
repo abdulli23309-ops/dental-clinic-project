@@ -117,10 +117,11 @@ export function SuccessStories() {
                 return (
                   <motion.div
                     key={rev.id || idx}
-                    initial={false}
+                    initial={{ opacity: 0, y: 16 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, amount: 0.15 }}
                     transition={{ duration: 0.4, delay: idx * 0.06 }}
+                    suppressHydrationWarning
                     className="rounded-3xl border border-gray-200/90 dark:border-gray-800/90 bg-white/80 dark:bg-stone-900/85 backdrop-blur-md p-6 sm:p-7 shadow-xs hover:border-primary/40 hover:shadow-xl transition-all flex flex-col justify-between space-y-6"
                   >
                     <div className="space-y-4">

@@ -251,17 +251,18 @@ export function Hero() {
           }
         >
           <motion.div
-            initial={false}
+            initial={{ y: 0 }}
             animate={shouldReduceMotion ? undefined : { y: [0, -10, 0] }}
             transition={{
               duration: 4,
               repeat: Infinity,
               ease: "easeInOut",
             }}
+            suppressHydrationWarning
             className="w-full h-full flex items-center justify-center filter drop-shadow-[0_20px_25px_rgba(0,0,0,0.3)]"
           >
             <motion.div
-              initial={false}
+              initial={{ rotate: 0, x: 0, y: 0 }}
               style={
                 shouldReduceMotion || isMobileVariant
                   ? undefined
@@ -271,6 +272,7 @@ export function Hero() {
                       rotate: toothRotate,
                     }
               }
+              suppressHydrationWarning
               className="w-full h-full flex items-center justify-center relative filter drop-shadow-2xl"
             >
               <Image

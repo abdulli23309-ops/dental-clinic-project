@@ -118,6 +118,7 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
         <div className="container-x max-w-7xl mx-auto px-4 sm:px-6 lg:px-4 xl:px-8 flex items-center justify-between gap-2 lg:gap-3 xl:gap-6 flex-nowrap">
           <Link
             href="/"
+            suppressHydrationWarning
             className="group flex items-center gap-2 transition-transform active:scale-[0.98] shrink-0"
             aria-label={brandName ? `${brandName} Homepage` : "Homepage"}
           >

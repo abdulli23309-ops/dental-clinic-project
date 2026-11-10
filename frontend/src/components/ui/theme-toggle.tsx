@@ -41,6 +41,8 @@ export function ThemeToggle({ className = "", size = "md" }: ThemeToggleProps) {
   return (
     <motion.button
       type="button"
+      tabIndex={0}
+      suppressHydrationWarning
       whileHover={shouldReduceMotion ? undefined : { scale: 1.05 }}
       whileTap={shouldReduceMotion ? undefined : { scale: 0.94 }}
       onClick={toggleTheme}

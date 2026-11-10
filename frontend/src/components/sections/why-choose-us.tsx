@@ -45,10 +45,11 @@ export function WhyChooseUs() {
                 promises.map((p, idx) => (
                   <motion.div
                     key={p.num || idx}
-                    initial={false}
+                    initial={{ opacity: 0, y: 16 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, amount: 0.2 }}
                     transition={{ duration: 0.4, delay: idx * 0.08 }}
+                    suppressHydrationWarning
                     className="rounded-2xl border border-gray-200/80 dark:border-gray-800/80 bg-white dark:bg-gray-950 p-5 shadow-xs hover:border-primary/40 transition-colors"
                   >
                     <div className="flex items-start gap-4">

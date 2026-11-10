@@ -107,6 +107,8 @@ export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, Bu
             href={href}
             target="_blank"
             rel="noopener noreferrer"
+            tabIndex={props.tabIndex ?? 0}
+            suppressHydrationWarning
             className={combinedClassName}
             whileTap={tapAnimation}
             transition={{ type: "spring", stiffness: 500, damping: 25 }}
@@ -120,6 +122,8 @@ export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, Bu
       return (
         <MotionLink
           href={href}
+          tabIndex={props.tabIndex ?? 0}
+          suppressHydrationWarning
           className={combinedClassName}
           whileTap={tapAnimation}
           transition={{ type: "spring", stiffness: 500, damping: 25 }}
@@ -134,6 +138,8 @@ export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, Bu
     return (
       <motion.button
         ref={ref as React.Ref<HTMLButtonElement>}
+        tabIndex={props.tabIndex ?? 0}
+        suppressHydrationWarning
         className={combinedClassName}
         disabled={disabled || isLoading}
         whileTap={disabled || isLoading ? undefined : tapAnimation}

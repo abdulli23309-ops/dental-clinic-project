@@ -35,6 +35,7 @@ export function AnimatedPage({
       animate="animate"
       exit="exit"
       variants={pageTransition}
+      suppressHydrationWarning
       className={cn("min-h-screen flex flex-col", className)}
       {...props}
     >

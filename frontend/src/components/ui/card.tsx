@@ -65,7 +65,7 @@ export function Card({
 
   return (
     <motion.div
-      initial={false}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
         delay: Math.min(index * 0.05, 0.35),
@@ -73,6 +73,7 @@ export function Card({
         ease: [0.25, 0.1, 0.25, 1],
       }}
       whileHover={hoverLift ? { y: -3, transition: { duration: 0.2 } } : undefined}
+      suppressHydrationWarning
       className={baseClassName}
       {...(props as React.ComponentPropsWithoutRef<typeof motion.div>)}
     >

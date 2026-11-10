@@ -58,6 +58,7 @@ export function AnimatedCard({
       variants={variants}
       whileHover={hoverLift ? cardHover.whileHover : undefined}
       whileTap={hoverLift ? cardHover.whileTap : undefined}
+      suppressHydrationWarning
       className={cn("transition-shadow duration-200", className)}
       layoutId={layoutId}
       {...props}

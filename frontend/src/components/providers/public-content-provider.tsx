@@ -106,6 +106,9 @@ export interface PublicContentProviderProps {
   children: React.ReactNode;
   initialContent?: SiteContent | null;
   initialOrganization?: Organization | null;
+  initialAnnouncements?: Announcement[] | null;
+  initialTeam?: TeamMember[] | null;
+  initialLocations?: LocationItem[] | null;
   initialError?: boolean;
 }
 
@@ -113,6 +116,9 @@ export function PublicContentProvider({
   children,
   initialContent,
   initialOrganization,
+  initialAnnouncements,
+  initialTeam,
+  initialLocations,
   initialError = false,
 }: PublicContentProviderProps) {
   const [status, setStatus] = useState<PublicContentStatus>(
@@ -120,10 +126,10 @@ export function PublicContentProvider({
   );
   const [content, setContent] = useState<SiteContent>(initialContent || EMPTY_SITE_CONTENT);
   const [organization, setOrganization] = useState<Organization | null>(initialOrganization || null);
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [locations, setLocations] = useState<LocationItem[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>(initialAnnouncements || []);
+  const [locations, setLocations] = useState<LocationItem[]>(initialLocations || []);
   const [workingHours, setWorkingHours] = useState<WorkingHoursItem[]>([]);
-  const [team, setTeam] = useState<TeamMember[]>([]);
+  const [team, setTeam] = useState<TeamMember[]>(initialTeam || []);
   const [locale, setLocaleState] = useState<SupportedLocale>('en');
 
   const setLocale = (newLocale: SupportedLocale) => {

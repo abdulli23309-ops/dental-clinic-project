@@ -1,52 +1,98 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
 import {
   Sparkles,
   Check,
   ArrowRight,
-  Building2,
   Bell,
-  Stethoscope,
+  User as UserIcon,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/providers/auth-provider";
-import { usePublicContent } from "@/components/providers/public-content-provider";
+import { useClinicBranding } from "@/components/ui/clinic-logo";
+import { completeOnboarding } from "@/lib/api";
 import { toast } from "sonner";
 
 export function OnboardingWizardModal() {
-  const { user } = useAuth();
-  const { locations } = usePublicContent();
+  const { user, refresh } = useAuth();
+  const branding = useClinicBranding();
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [displayName, setDisplayName] = useState("");
-  const [selectedBranch, setSelectedBranch] = useState("");
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Admin users, superusers, and platform owners are STRICTLY EXEMPT from user onboarding
+  const isAdminRole =
+    !user ||
+    user.role === "admin" ||
+    user.role === "Platform Owner" ||
+    user.role === "Super Admin" ||
+    Boolean(user.is_superuser);
 
   useEffect(() => {
-    if (!user) return;
-    const storageKey = `marlow_onboarding_completed_${user.id}`;
-    const completed = localStorage.getItem(storageKey);
-    if (!completed) {
-      setDisplayName(user.fullName || "");
-      if (locations.length > 0) {
-        setSelectedBranch(locations[0].id || "");
-      }
-      setIsOpen(true);
+    if (!user || isAdminRole) {
+      setIsOpen(false);
+      return;
     }
-  }, [user, locations]);
 
-  const handleComplete = () => {
+    // Only render if user has not completed onboarding
+    if (user.hasCompletedOnboarding) {
+      setIsOpen(false);
+      return;
+    }
+
+    // Check client storage guard
+    const storageKey = `marlow_onboarding_completed_${user.id}`;
+    const completedLocal = localStorage.getItem(storageKey);
+    if (completedLocal === "true") {
+      setIsOpen(false);
+      return;
+    }
+
+    setDisplayName(user.fullName || "");
+    setIsOpen(true);
+  }, [user, isAdminRole]);
+
+  const brandTitle = branding?.fullBrandName || branding?.shortBrandName || "Practice";
+
+  const handleDismiss = async () => {
+    // Dismissal marks onboarding complete so it is never shown again
     if (user) {
       localStorage.setItem(`marlow_onboarding_completed_${user.id}`, "true");
+      try {
+        await completeOnboarding(displayName || user.fullName);
+        if (typeof refresh === "function") {
+          await refresh();
+        }
+      } catch {
+        // Suppress on dismiss
+      }
     }
     setIsOpen(false);
-    toast.success("Welcome aboard! Workspace preferences saved.");
   };
 
-  if (!isOpen) return null;
+  const handleComplete = async () => {
+    setIsSubmitting(true);
+    if (user) {
+      localStorage.setItem(`marlow_onboarding_completed_${user.id}`, "true");
+      try {
+        await completeOnboarding(displayName || user.fullName);
+        if (typeof refresh === "function") {
+          await refresh();
+        }
+      } catch (err: unknown) {
+        console.error("Failed to persist onboarding state:", err);
+      }
+    }
+    setIsSubmitting(false);
+    setIsOpen(false);
+    toast.success("Welcome aboard! Your workspace preferences have been saved.");
+  };
+
+  if (!isOpen || isAdminRole) return null;
 
   return (
     <div
@@ -59,7 +105,7 @@ export function OnboardingWizardModal() {
         <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800">
           <div
             className="h-full bg-primary transition-all duration-300"
-            style={{ width: `${(step / 3) * 100}%` }}
+            style={{ width: `${(step / 2) * 100}%` }}
           />
         </div>
 
@@ -67,11 +113,12 @@ export function OnboardingWizardModal() {
           <div className="flex items-center justify-between">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono uppercase font-bold tracking-wider bg-primary/10 text-primary">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Step {step} of 3: Welcome</span>
+              <span>Step {step} of 2: {step === 1 ? "Profile & Alerts" : "All Set"}</span>
             </div>
             <button
-              onClick={() => setIsOpen(false)}
+              onClick={handleDismiss}
               className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1 rounded-lg cursor-pointer"
+              aria-label="Close onboarding modal"
             >
               <X className="w-5 h-5" />
             </button>
@@ -81,24 +128,45 @@ export function OnboardingWizardModal() {
             <div className="space-y-4">
               <div className="space-y-1.5">
                 <h3 className="text-xl font-bold tracking-tight">
-                  Welcome to Marlow Clinical SaaS
+                  Welcome to {brandTitle}
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
-                  Let&apos;s confirm your practitioner profile and clinical display name.
+                  Confirm your practitioner profile display name and communication alerts.
                 </p>
               </div>
 
               <div className="space-y-2 pt-2">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Full Display Name
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <UserIcon className="w-4 h-4 text-primary" />
+                  <span>Full Clinical Display Name</span>
                 </label>
                 <input
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="e.g. Dr. Hira Saleem"
+                  placeholder="e.g. Dr. Hira Babar"
                 />
+              </div>
+
+              <div className="pt-2">
+                <label className="flex items-center gap-3 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={notificationsEnabled}
+                    onChange={(e) => setNotificationsEnabled(e.target.checked)}
+                    className="rounded border-slate-300 text-primary focus:ring-primary h-4 w-4"
+                  />
+                  <div className="text-xs">
+                    <p className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                      <Bell className="w-3.5 h-3.5 text-primary" />
+                      <span>Enable Clinical Appointment Alerts</span>
+                    </p>
+                    <p className="text-slate-500">
+                      Receive notifications when appointments are scheduled or updated.
+                    </p>
+                  </div>
+                </label>
               </div>
 
               <div className="flex justify-end pt-4">
@@ -118,66 +186,6 @@ export function OnboardingWizardModal() {
             <div className="space-y-4">
               <div className="space-y-1.5">
                 <h3 className="text-xl font-bold tracking-tight">
-                  Workspace & Branch Selection
-                </h3>
-                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
-                  Select your primary clinical operatory branch and communication preferences.
-                </p>
-              </div>
-
-              <div className="space-y-2 pt-2">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <Building2 className="w-4 h-4 text-primary" />
-                  <span>Primary Assigned Branch</span>
-                </label>
-                <select
-                  value={selectedBranch}
-                  onChange={(e) => setSelectedBranch(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
-                >
-                  {locations.map((loc) => (
-                    <option key={loc.id} value={loc.id}>
-                      {loc.name} {loc.city ? `(${loc.city})` : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="pt-2">
-                <label className="flex items-center gap-3 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={notificationsEnabled}
-                    onChange={(e) => setNotificationsEnabled(e.target.checked)}
-                    className="rounded border-slate-300 text-primary focus:ring-primary h-4 w-4"
-                  />
-                  <div className="text-xs">
-                    <p className="font-semibold text-slate-800 dark:text-slate-200">
-                      Enable Clinical Appointment Alerts
-                    </p>
-                    <p className="text-slate-500">
-                      Receive immediate alerts when appointments are booked or rescheduled.
-                    </p>
-                  </div>
-                </label>
-              </div>
-
-              <div className="flex justify-between pt-4">
-                <Button variant="secondary" onClick={() => setStep(1)} className="rounded-xl">
-                  Back
-                </Button>
-                <Button variant="primary" onClick={() => setStep(3)} className="gap-2 rounded-xl">
-                  <span>Next</span>
-                  <ArrowRight className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {step === 3 && (
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <h3 className="text-xl font-bold tracking-tight">
                   You&apos;re All Set!
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
@@ -191,18 +199,26 @@ export function OnboardingWizardModal() {
                   <span>Onboarding Verified</span>
                 </div>
                 <p>
-                  Profile registered under <strong>{displayName}</strong>. You have full access to patient records, chair schedules, and clinical documentation.
+                  Profile registered under <strong>{displayName || user?.fullName}</strong>. Your workspace preferences have been initialized.
                 </p>
               </div>
 
-              <div className="flex justify-end pt-4">
+              <div className="flex justify-between pt-4">
+                <Button
+                  variant="secondary"
+                  onClick={() => setStep(1)}
+                  className="rounded-xl"
+                >
+                  Back
+                </Button>
                 <Button
                   variant="primary"
                   onClick={handleComplete}
+                  disabled={isSubmitting}
                   className="gap-2 rounded-xl shadow-xs"
                 >
                   <Check className="w-4 h-4" />
-                  <span>Enter Dashboard</span>
+                  <span>{isSubmitting ? "Saving..." : "Enter Dashboard"}</span>
                 </Button>
               </div>
             </div>
@@ -213,3 +229,4 @@ export function OnboardingWizardModal() {
   );
 }
 
+export default OnboardingWizardModal;

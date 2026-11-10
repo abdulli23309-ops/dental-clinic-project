@@ -115,10 +115,10 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
             : "border-transparent bg-white/40 dark:bg-gray-950/40 backdrop-blur-sm py-4"
         }`}
       >
-        <div className="container-x max-w-7xl mx-auto px-4 sm:px-6 lg:px-6 xl:px-8 flex items-center justify-between gap-3 xl:gap-6 flex-nowrap">
+        <div className="container-x max-w-7xl mx-auto px-4 sm:px-6 lg:px-4 xl:px-8 flex items-center justify-between gap-2 lg:gap-3 xl:gap-6 flex-nowrap">
           <Link
             href="/"
-            className="group flex items-center gap-2 transition-transform active:scale-[0.98] shrink min-w-0"
+            className="group flex items-center gap-2 transition-transform active:scale-[0.98] shrink-0"
             aria-label={brandName ? `${brandName} Homepage` : "Homepage"}
           >
             {logoUrl && !logoError ? (
@@ -150,7 +150,7 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
               </span>
             )}
             {brandName ? (
-              <span className="font-display text-[15px] sm:text-[18px] tracking-tight text-gray-900 dark:text-white leading-none truncate max-w-[120px] xs:max-w-none">
+              <span className="font-display text-[15px] sm:text-[18px] tracking-tight text-gray-900 dark:text-white leading-none shrink-0 whitespace-nowrap">
                 {brandName}
               </span>
             ) : null}
@@ -174,7 +174,7 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
             <>
               {!isMinimal && (
                 <nav
-                  className="hidden items-center gap-2 lg:gap-3 xl:gap-5 lg:flex flex-nowrap shrink-0"
+                  className="hidden items-center gap-2 lg:gap-2.5 xl:gap-5 lg:flex flex-nowrap shrink-0"
                   aria-label="Main Navigation"
                 >
                   <div className="relative shrink-0">
@@ -182,7 +182,7 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
                       onClick={() => setServicesMenuOpen((prev) => !prev)}
                       aria-expanded={servicesMenuOpen}
                       aria-haspopup="true"
-                      className="inline-flex items-center gap-1 text-[14px] font-medium text-gray-600 dark:text-gray-300 transition-colors hover:text-primary dark:hover:text-primary py-1 whitespace-nowrap shrink-0 cursor-pointer"
+                      className="inline-flex items-center gap-1 text-[13px] xl:text-[14px] font-medium text-gray-600 dark:text-gray-300 transition-colors hover:text-primary dark:hover:text-primary py-1 whitespace-nowrap shrink-0 cursor-pointer"
                     >
                       <span>{copy.treatments}</span>
                       <ChevronDown
@@ -221,49 +221,49 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
 
                   <Link
                     href="/#why-us"
-                    className="text-[14px] font-medium text-gray-600 dark:text-gray-300 transition-colors hover:text-primary dark:hover:text-primary py-1 whitespace-nowrap shrink-0"
+                    className="text-[13px] xl:text-[14px] font-medium text-gray-600 dark:text-gray-300 transition-colors hover:text-primary dark:hover:text-primary py-1 whitespace-nowrap shrink-0"
                   >
                     {copy.whyUs || "Why Choose Us"}
                   </Link>
 
                   <Link
                     href="/#reviews"
-                    className="text-[14px] font-medium text-gray-600 dark:text-gray-300 transition-colors hover:text-primary dark:hover:text-primary py-1 whitespace-nowrap shrink-0"
+                    className="text-[13px] xl:text-[14px] font-medium text-gray-600 dark:text-gray-300 transition-colors hover:text-primary dark:hover:text-primary py-1 whitespace-nowrap shrink-0"
                   >
                     {copy.successStories}
                   </Link>
 
                   <Link
                     href="/#team"
-                    className="text-[14px] font-medium text-gray-600 dark:text-gray-300 transition-colors hover:text-primary dark:hover:text-primary py-1 whitespace-nowrap shrink-0"
+                    className="text-[13px] xl:text-[14px] font-medium text-gray-600 dark:text-gray-300 transition-colors hover:text-primary dark:hover:text-primary py-1 whitespace-nowrap shrink-0"
                   >
                     {copy.team}
                   </Link>
 
                   <Link
                     href="/#locations"
-                    className="text-[14px] font-medium text-gray-600 dark:text-gray-300 transition-colors hover:text-primary dark:hover:text-primary py-1 whitespace-nowrap shrink-0"
+                    className="text-[13px] xl:text-[14px] font-medium text-gray-600 dark:text-gray-300 transition-colors hover:text-primary dark:hover:text-primary py-1 whitespace-nowrap shrink-0"
                   >
                     {copy.locationsAndTiming}
                   </Link>
 
                   <Link
                     href="/#faq"
-                    className="text-[14px] font-medium text-gray-600 dark:text-gray-300 transition-colors hover:text-primary dark:hover:text-primary py-1 whitespace-nowrap shrink-0"
+                    className="text-[13px] xl:text-[14px] font-medium text-gray-600 dark:text-gray-300 transition-colors hover:text-primary dark:hover:text-primary py-1 whitespace-nowrap shrink-0"
                   >
                     {copy.faqs}
                   </Link>
 
                   <Link
                     href="/blog"
-                    className="text-[14px] font-medium text-gray-600 dark:text-gray-300 transition-colors hover:text-primary dark:hover:text-primary py-1 whitespace-nowrap shrink-0"
+                    className="text-[13px] xl:text-[14px] font-medium text-gray-600 dark:text-gray-300 transition-colors hover:text-primary dark:hover:text-primary py-1 whitespace-nowrap shrink-0"
                   >
                     {copy.blogs}
                   </Link>
                 </nav>
               )}
 
-              <div className="flex items-center gap-1 min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                 {!isMinimal && (
                   <button
                     onClick={() => setSearchOpen(true)}
@@ -295,10 +295,13 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
                   variant="primary"
                   size="sm"
                   aria-label={copy.book}
-                  className="rounded-full px-3 text-sm sm:px-4 sm:text-xs py-1.5 font-semibold shrink whitespace-nowrap"
+                  className="rounded-full px-3 text-sm sm:px-3.5 xl:px-4 sm:text-xs py-1.5 font-semibold shrink-0 whitespace-nowrap"
                 >
                   <Calendar className="h-3.5 w-3.5 sm:mr-1 shrink-0" />
-                  <span className="hidden xs:inline whitespace-nowrap">{copy.book}</span>
+                  <span className="hidden xs:inline whitespace-nowrap">
+                    <span className="inline xl:hidden">Book</span>
+                    <span className="hidden xl:inline">{copy.book}</span>
+                  </span>
                 </Button>
 
                 {!isMinimal && (

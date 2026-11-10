@@ -28,6 +28,7 @@ from app.api.v1.endpoints import (
     public_content,
     reception,
     treatment_plans,
+    users,
 )
 
 api_v1_router = APIRouter()
@@ -36,6 +37,7 @@ api_v1_router = APIRouter()
 api_v1_router.include_router(health.router, tags=["Health"])
 api_v1_router.include_router(appointments.router, tags=["Appointments"])
 api_v1_router.include_router(auth.router, tags=["Authentication"])
+api_v1_router.include_router(users.router, tags=["Users"])
 api_v1_router.include_router(public_content.router, tags=["Public Content"])
 api_v1_router.include_router(integration.router, tags=["Integration API"])
 

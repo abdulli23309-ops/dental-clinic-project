@@ -37,6 +37,7 @@ class User:
     clinic_id: Optional[UUID] = None
     team_member_id: Optional[UUID] = None
     requires_password_change: bool = False
+    has_completed_onboarding: bool = False
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))

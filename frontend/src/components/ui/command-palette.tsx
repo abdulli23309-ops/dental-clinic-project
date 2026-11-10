@@ -20,6 +20,7 @@ import {
   Stethoscope,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
+import { useClinicBranding } from "@/components/ui/clinic-logo";
 import { Kbd } from "@/components/ui/kbd";
 import { cn } from "@/lib/utils";
 
@@ -45,6 +46,16 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  let brandTitle = "Command Palette";
+  try {
+    const branding = useClinicBranding();
+    if (branding?.shortBrandName || branding?.fullBrandName) {
+      brandTitle = `${branding.shortBrandName || branding.fullBrandName} Command`;
+    }
+  } catch {
+    // Context may not be mounted in non-public tree
+  }
 
   // Focus input on open
   useEffect(() => {
@@ -322,7 +333,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
               <Kbd size="sm">↵</Kbd> Open
             </span>
           </div>
-          <span>Marlow Clinical Command</span>
+          <span>{brandTitle}</span>
         </div>
       </div>
     </div>

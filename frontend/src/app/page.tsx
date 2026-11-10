@@ -21,7 +21,7 @@ import { getServerSiteContent } from '@/lib/server-content';
 export const dynamic = 'force-dynamic';
 
 export default async function Home() {
-  const { content, organization, error } = await getServerSiteContent();
+  const { content, organization, announcements, team, locations, error } = await getServerSiteContent();
 
   if (error || !content) {
     return (
@@ -34,7 +34,13 @@ export default async function Home() {
   }
 
   return (
-    <PublicContentProvider initialContent={content} initialOrganization={organization}>
+    <PublicContentProvider
+      initialContent={content}
+      initialOrganization={organization}
+      initialAnnouncements={announcements}
+      initialTeam={team}
+      initialLocations={locations}
+    >
       <div className="min-h-screen flex flex-col">
         <>
           <ScrollProgress />

@@ -1,0 +1,92 @@
+[
+  {
+    "viewport": "320x640 (mobile_320)",
+    "phoneText": "Call 051-6102977",
+    "phoneVisibleComplete": true,
+    "hasCopyButton": true,
+    "horizontalOverflow": "PASS (No overflow)",
+    "archImageInFirstViewport": "PASS (top at 51px < 640px)",
+    "marqueePresent": "PASS (Present)",
+    "screenshot": "E:\\dental clinic project\\docs\\screenshots\\verification\\mobile_320_above_fold.png"
+  },
+  {
+    "viewport": "360x780 (mobile_360)",
+    "phoneText": "Call 051-6102977",
+    "phoneVisibleComplete": true,
+    "hasCopyButton": true,
+    "horizontalOverflow": "PASS (No overflow)",
+    "archImageInFirstViewport": "PASS (top at 51px < 780px)",
+    "marqueePresent": "PASS (Present)",
+    "screenshot": "E:\\dental clinic project\\docs\\screenshots\\verification\\mobile_360_above_fold.png"
+  },
+  {
+    "viewport": "375x812 (mobile_375)",
+    "phoneText": "Call 051-6102977",
+    "phoneVisibleComplete": true,
+    "hasCopyButton": true,
+    "horizontalOverflow": "PASS (No overflow)",
+    "archImageInFirstViewport": "PASS (top at 51px < 812px)",
+    "marqueePresent": "PASS (Present)",
+    "screenshot": "E:\\dental clinic project\\docs\\screenshots\\verification\\mobile_375_above_fold.png"
+  },
+  {
+    "viewport": "390x844 (mobile_390)",
+    "phoneText": "Call 051-6102977",
+    "phoneVisibleComplete": true,
+    "hasCopyButton": true,
+    "horizontalOverflow": "PASS (No overflow)",
+    "archImageInFirstViewport": "PASS (top at 51px < 844px)",
+    "marqueePresent": "PASS (Present)",
+    "screenshot": "E:\\dental clinic project\\docs\\screenshots\\verification\\mobile_390_above_fold.png"
+  },
+  {
+    "viewport": "412x915 (mobile_412)",
+    "phoneText": "Call 051-6102977",
+    "phoneVisibleComplete": true,
+    "hasCopyButton": true,
+    "horizontalOverflow": "PASS (No overflow)",
+    "archImageInFirstViewport": "PASS (top at 51px < 915px)",
+    "marqueePresent": "PASS (Present)",
+    "screenshot": "E:\\dental clinic project\\docs\\screenshots\\verification\\mobile_412_above_fold.png"
+  },
+  {
+    "viewport": "430x932 (mobile_430)",
+    "phoneText": "Call 051-6102977",
+    "phoneVisibleComplete": true,
+    "hasCopyButton": true,
+    "horizontalOverflow": "PASS (No overflow)",
+    "archImageInFirstViewport": "PASS (top at 51px < 932px)",
+    "marqueePresent": "PASS (Present)",
+    "screenshot": "E:\\dental clinic project\\docs\\screenshots\\verification\\mobile_430_above_fold.png"
+  },
+  {
+    "viewport": "768x1024 (tablet_768)",
+    "marqueePresent": "PASS (2 tracks, text: \"john bany ga donchal ja bhaijohn bany ga donchal ja bhaijohn bany ga donchal ja \")",
+    "heroScreenshot": "E:\\dental clinic project\\docs\\screenshots\\verification\\tablet_768_above_fold.png",
+    "teamScreenshot": "N/A"
+  },
+  {
+    "viewport": "1024x768 (desktop_1024)",
+    "marqueePresent": "PASS (2 tracks, text: \"john bany ga donchal ja bhaijohn bany ga donchal ja bhaijohn bany ga donchal ja \")",
+    "heroScreenshot": "E:\\dental clinic project\\docs\\screenshots\\verification\\desktop_1024_above_fold.png",
+    "teamScreenshot": "N/A"
+  },
+  {
+    "viewport": "1366x768 (laptop_1366)",
+    "marqueePresent": "PASS (2 tracks, text: \"john bany ga donchal ja bhaijohn bany ga donchal ja bhaijohn bany ga donchal ja \")",
+    "heroScreenshot": "E:\\dental clinic project\\docs\\screenshots\\verification\\laptop_1366_above_fold.png",
+    "teamScreenshot": "N/A"
+  },
+  {
+    "viewport": "1440x900 (desktop_1440)",
+    "marqueePresent": "PASS (2 tracks, text: \"john bany ga donchal ja bhaijohn bany ga donchal ja bhaijohn bany ga donchal ja \")",
+    "heroScreenshot": "E:\\dental clinic project\\docs\\screenshots\\verification\\desktop_1440_above_fold.png",
+    "teamScreenshot": "N/A"
+  },
+  {
+    "viewport": "1920x1080 (desktop_1920)",
+    "marqueePresent": "PASS (2 tracks, text: \"john bany ga donchal ja bhaijohn bany ga donchal ja bhaijohn bany ga donchal ja \")",
+    "heroScreenshot": "E:\\dental clinic project\\docs\\screenshots\\verification\\desktop_1920_above_fold.png",
+    "teamScreenshot": "N/A"
+  }
+]

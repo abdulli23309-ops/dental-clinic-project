@@ -113,10 +113,12 @@ export interface User {
   fullName: string;
   role: string;
   isActive: boolean;
+  is_superuser?: boolean;
   clinicId?: string | null;
   teamMemberId?: string | null;
   organizationId?: string | null;
   requiresPasswordChange?: boolean;
+  hasCompletedOnboarding?: boolean;
   inactivityEnabled?: boolean;
   inactivityTimeoutMinutes?: number;
   inactivityWarningSeconds?: number;
@@ -383,6 +385,7 @@ export interface StaffUserDto {
   email: string;
   role: string;
   isActive: boolean;
+  is_superuser?: boolean;
 }
 
 export interface BookabilityCheckItem {
@@ -949,6 +952,26 @@ export async function updateInactivitySettings(
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Failed to update inactivity settings.");
+  }
+  return res.json();
+}
+
+/** Marks onboarding permanently completed for the authenticated user and updates display name */
+export async function completeOnboarding(
+  displayName?: string,
+  token?: string
+): Promise<User> {
+  const res = await authorizedFetch(
+    "/api/v1/users/me/onboarding",
+    {
+      method: "PATCH",
+      body: JSON.stringify({ displayName }),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to complete onboarding.");
   }
   return res.json();
 }
@@ -4615,6 +4638,7 @@ export interface AdminUser {
   fullName: string;
   role: string;
   isActive: boolean;
+  is_superuser?: boolean;
   clinicId?: string | null;
   teamMemberId?: string | null;
   requiresPasswordChange: boolean;

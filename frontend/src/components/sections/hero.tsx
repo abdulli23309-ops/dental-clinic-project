@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import Image from "next/image";
 import {
   motion,
@@ -71,7 +72,7 @@ function renderTwoToneHeadline(heading: string, highlightWord?: string) {
 export function Hero() {
   const shouldReduceMotion = useReducedMotion();
 
-  // Option D: Subtle premium pointer parallax with smooth spring dampening
+  // Pointer parallax with smooth spring dampening for desktop
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
 
@@ -139,8 +140,177 @@ export function Hero() {
     ? heroObj.heroBadges
     : heroObj.heroTicks?.map((t: any) => t.label || t) || [];
 
+  /**
+   * Helper component to render the premium arch visual frame.
+   * On mobile, it is compact and fits above the fold.
+   * On desktop, it renders the spacious luxury cylinder composition.
+   */
+  const renderArchVisual = (variant: "mobile" | "desktop") => {
+    const isMobileVariant = variant === "mobile";
+    const sealCurveId = isMobileVariant ? "seal-curve-mobile" : "seal-curve-desktop";
+
+    return (
+      <div
+        className={
+          isMobileVariant
+            ? "relative w-full flex items-center justify-center py-2 select-none"
+            : "relative w-full flex items-center justify-center select-none"
+        }
+      >
+        {/* Visual Background Glow */}
+        <div
+          className={
+            isMobileVariant
+              ? "absolute -inset-2 rounded-full bg-gradient-to-tr from-primary/15 via-amber-200/10 to-transparent blur-2xl pointer-events-none"
+              : "absolute -inset-4 rounded-full bg-gradient-to-tr from-primary/15 via-amber-200/10 to-transparent blur-3xl pointer-events-none"
+          }
+          aria-hidden="true"
+        />
+
+        {/* Arch-shaped Photo Frame */}
+        <div
+          onPointerMove={!isMobileVariant ? handlePointerMove : undefined}
+          onPointerLeave={!isMobileVariant ? handlePointerLeave : undefined}
+          className={
+            isMobileVariant
+              ? "relative w-full max-w-[270px] xs:max-w-[310px] aspect-[4/5] rounded-t-[135px] xs:rounded-t-[155px] rounded-b-2xl overflow-hidden shadow-xl border-3 xs:border-4 border-white dark:border-gray-800 bg-gray-100 dark:bg-gray-800 group"
+              : "relative w-full max-w-[340px] sm:max-w-[420px] min-h-[360px] sm:min-h-[420px] aspect-[4/5] rounded-t-[170px] sm:rounded-t-[200px] rounded-b-3xl overflow-hidden shadow-2xl border-4 border-white dark:border-gray-800 bg-gray-100 dark:bg-gray-800 group"
+          }
+        >
+          <SafeImage
+            src={heroImage}
+            alt={heading || practiceName || "Modern dental clinic treatment suite"}
+            fallbackInitials={practiceName ? practiceName.slice(0, 2).toUpperCase() : "DC"}
+            fallbackSubtitle={practiceName}
+            priority={true}
+            width={isMobileVariant ? 320 : 420}
+            height={isMobileVariant ? 400 : 525}
+            sizes={
+              isMobileVariant
+                ? "(max-width: 480px) 310px, 340px"
+                : "(max-width: 640px) 340px, (max-width: 1024px) 50vw, 420px"
+            }
+            className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent pointer-events-none" />
+
+          {/* Rotating Dental Seal Badge */}
+          {heroSealText ? (
+            <div
+              className={
+                isMobileVariant
+                  ? "absolute top-2.5 right-2.5 z-20 pointer-events-none select-none"
+                  : "absolute top-3 right-3 sm:top-4 sm:right-4 z-20 pointer-events-none select-none"
+              }
+              aria-hidden="true"
+            >
+              <div
+                className={
+                  isMobileVariant
+                    ? "relative w-16 h-16 xs:w-18 xs:h-18"
+                    : "relative w-20 h-20 sm:w-24 sm:h-24"
+                }
+              >
+                <svg
+                  viewBox="0 0 120 120"
+                  className="w-full h-full animate-[spin_24s_linear_infinite]"
+                >
+                  <path
+                    id={sealCurveId}
+                    d="M 60, 60 m -45, 0 a 45,45 0 1,1 90,0 a 45,45 0 1,1 -90,0"
+                    fill="none"
+                  />
+                  <text className="text-[10.5px] uppercase font-bold tracking-[0.22em] fill-white dark:fill-gray-200 drop-shadow-sm">
+                    <textPath href={`#${sealCurveId}`} startOffset="0%">
+                      {heroSealText}
+                    </textPath>
+                  </text>
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div
+                    className={
+                      isMobileVariant
+                        ? "w-7 h-7 xs:w-8 xs:h-8 rounded-full bg-white/90 dark:bg-gray-900/90 shadow-md border border-amber-300/60 dark:border-amber-400/30 flex items-center justify-center text-primary backdrop-blur-sm"
+                        : "w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/90 dark:bg-gray-900/90 shadow-md border border-amber-300/60 dark:border-amber-400/30 flex items-center justify-center text-primary backdrop-blur-sm"
+                    }
+                  >
+                    <ShieldCheck className={isMobileVariant ? "h-3.5 w-3.5" : "h-4 w-4 sm:h-5 sm:w-5"} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        {/* The Floating Tooth with glass badge */}
+        <div
+          className={
+            isMobileVariant
+              ? "absolute -bottom-3 -left-2 xs:-left-3 w-28 h-28 xs:w-34 xs:h-34 z-30 pointer-events-none"
+              : "absolute -bottom-4 -left-2 sm:-bottom-6 sm:-left-8 w-36 h-36 sm:w-52 sm:h-52 z-30 pointer-events-none"
+          }
+        >
+          <motion.div
+            initial={false}
+            animate={shouldReduceMotion ? undefined : { y: [0, -10, 0] }}
+            transition={{
+              duration: 4,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            className="w-full h-full flex items-center justify-center filter drop-shadow-[0_20px_25px_rgba(0,0,0,0.3)]"
+          >
+            <motion.div
+              initial={false}
+              style={
+                shouldReduceMotion || isMobileVariant
+                  ? undefined
+                  : {
+                      x: toothX,
+                      y: toothY,
+                      rotate: toothRotate,
+                    }
+              }
+              className="w-full h-full flex items-center justify-center relative filter drop-shadow-2xl"
+            >
+              <Image
+                src="/images/tooth-hero.png"
+                alt="Professional anatomical tooth model illustrating dental care quality"
+                width={isMobileVariant ? 140 : 220}
+                height={isMobileVariant ? 140 : 220}
+                className="w-full h-full object-contain select-none pointer-events-none relative z-10"
+              />
+            </motion.div>
+          </motion.div>
+        </div>
+
+        {/* Trust Card: Next Available Appointment */}
+        <div
+          className={
+            isMobileVariant
+              ? "absolute bottom-1.5 right-1.5 xs:bottom-2 xs:right-2 z-30 max-w-[150px] xs:max-w-[165px] rounded-xl border border-white/80 dark:border-gray-800 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-2.5 py-1.5 xs:px-3 xs:py-2 shadow-lg flex items-center gap-1.5 xs:gap-2"
+              : "absolute bottom-2 right-2 sm:-bottom-4 sm:right-2 z-30 max-w-[170px] sm:max-w-none rounded-2xl border border-white/80 dark:border-gray-800 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-3 py-2 sm:px-3.5 sm:py-2.5 shadow-xl flex items-center gap-2"
+          }
+        >
+          <span className="relative flex h-2 w-2 xs:h-2.5 xs:w-2.5 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 xs:h-2.5 xs:w-2.5 bg-emerald-500"></span>
+          </span>
+          <div className="text-start min-w-0">
+            <p className="text-[9px] xs:text-[9.5px] sm:text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 leading-none mb-0.5 xs:mb-1 truncate">
+              {copy.nextAvailable}
+            </p>
+            <p className="text-[11px] xs:text-xs font-bold text-gray-950 dark:text-white leading-none whitespace-nowrap truncate">
+              {copy.todayTime}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <section className="relative overflow-hidden pt-8 pb-16 md:pt-24 md:pb-36 lg:pt-28 lg:pb-40">
+    <section className="relative overflow-hidden pt-4 pb-12 sm:pt-8 sm:pb-16 md:pt-24 md:pb-36 lg:pt-28 lg:pb-40">
       {/* Refined Luxury Top Ambient Theme Shade beneath Navbar (Dynamically reflects Admin's chosen theme color) */}
       <div
         className="absolute top-0 inset-x-0 h-80 bg-gradient-to-b from-primary/[0.08] via-primary/[0.03] to-transparent pointer-events-none z-0"
@@ -151,31 +321,35 @@ export function Hero() {
         aria-hidden="true"
       />
       <div className="container-x relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-center">
-          {/* Left Column: Strict Single-Edge Alignment, Generous Spacing */}
-          <div className="lg:col-span-7 flex flex-col items-start text-start space-y-5 sm:space-y-8 md:space-y-10">
-            {/* Practice / Eyebrow Badge (Subtle kicker text so it doesn't compete with dominant headline) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-16 items-center">
+          {/* Left Column: Strict Single-Edge Alignment, Generous Spacing on Desktop, Tight on Mobile */}
+          <div className="lg:col-span-7 flex flex-col items-start text-start space-y-3.5 xs:space-y-4 sm:space-y-6 md:space-y-10">
+            {/* Practice / Eyebrow Badge (Single line presentation, never wraps, visually secondary practice name) */}
             {(eyebrow || practiceName) ? (
               <div
-                className="inline-flex items-center gap-2 rounded-full border border-gray-200/70 dark:border-gray-800/70 bg-gray-50/90 dark:bg-gray-900/70 px-3.5 py-1 text-xs text-gray-600 dark:text-gray-400 backdrop-blur-md"
+                className="inline-flex items-center gap-1.5 xs:gap-2 rounded-full border border-gray-200/70 dark:border-gray-800/70 bg-gray-50/90 dark:bg-gray-900/70 px-2.5 xs:px-3.5 py-1 text-xs text-gray-600 dark:text-gray-400 backdrop-blur-md max-w-full"
               >
-                <span className="h-1.5 w-1.5 rounded-full bg-primary/80" />
+                <span className="h-1.5 w-1.5 rounded-full bg-primary/80 shrink-0" />
                 {eyebrow && (
-                  <span className="font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider text-[11px]">
+                  <span className="font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider text-[10px] xs:text-[11px] truncate">
                     {eyebrow}
                   </span>
                 )}
                 {eyebrow && practiceName && (
-                  <span className="text-gray-300 dark:text-gray-700">|</span>
+                  <span className="text-gray-300 dark:text-gray-700 shrink-0 select-none">|</span>
                 )}
-                {practiceName && <span className="font-medium text-gray-600 dark:text-gray-400">{practiceName}</span>}
+                {practiceName && (
+                  <span className="font-medium text-gray-500 dark:text-gray-400 text-[10px] xs:text-[11px] truncate">
+                    {practiceName}
+                  </span>
+                )}
               </div>
             ) : null}
 
             {/* Dominant Headline (One Strong Dominant Element with High Contrast) */}
             {heading ? (
               <h1
-                className="font-display text-3xl sm:text-5xl lg:text-6xl tracking-tight text-gray-950 dark:text-white leading-[1.14] sm:leading-[1.12] font-bold"
+                className="font-display text-[1.75rem] xs:text-3xl sm:text-5xl lg:text-6xl tracking-tight text-gray-950 dark:text-white leading-[1.15] sm:leading-[1.12] font-bold"
               >
                 {renderTwoToneHeadline(heading, highlightWord)}
               </h1>
@@ -184,15 +358,15 @@ export function Hero() {
             {/* Sub-headline description */}
             {description ? (
               <p
-                className="max-w-xl text-sm sm:text-lg leading-relaxed text-gray-600 dark:text-gray-300"
+                className="max-w-xl text-xs xs:text-sm sm:text-lg leading-relaxed text-gray-600 dark:text-gray-300 line-clamp-3 sm:line-clamp-none"
               >
                 {description}
               </p>
             ) : null}
 
-            {/* CTAs and Starting Fee Badge (Single Dominant Primary Button + Subtle Outline Secondary) */}
+            {/* CTAs and Starting Fee Badge */}
             <div
-              className="pt-1 sm:pt-2 flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 sm:gap-4 justify-start w-full sm:w-auto"
+              className="pt-0.5 sm:pt-2 flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2.5 sm:gap-4 justify-start w-full sm:w-auto"
             >
               <Button
                 onClick={(e) => {
@@ -206,14 +380,15 @@ export function Hero() {
                 }}
                 variant="primary"
                 size="lg"
-                className="w-full sm:w-auto rounded-full px-7 flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer py-3.5 sm:py-3 text-sm font-semibold"
+                className="w-full sm:w-auto rounded-full px-7 flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer h-12 xs:h-13 sm:h-auto py-3.5 sm:py-3 text-sm font-semibold"
               >
                 <span>{isUrdu ? copy.bookAppointment : (heroObj.heroCtaText || copy.bookAppointment || "Book an Appointment")}</span>
                 <ArrowRight className="h-4 w-4 rtl:rotate-180" />
               </Button>
 
+              {/* Secondary Call & Copy Phone Row: Phone Number is NEVER truncated at any mobile width */}
               {phone ? (
-                <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex sm:items-center sm:gap-1.5">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
                   <Button
                     onClick={() => {
                       if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -224,20 +399,24 @@ export function Hero() {
                     }}
                     variant="outline"
                     size="lg"
-                    className="w-full rounded-full px-3 sm:px-5 flex items-center justify-center gap-1.5 border-gray-300 dark:border-gray-700 bg-transparent text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer text-xs sm:text-sm"
+                    className="flex-1 sm:flex-initial rounded-full px-3 xs:px-4 sm:px-5 py-2.5 sm:py-3 text-[12px] xs:text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 xs:gap-2 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer whitespace-nowrap min-w-0 shadow-2xs"
                   >
                     <Phone className="h-3.5 w-3.5 text-primary shrink-0" />
-                    <span className="truncate">
+                    <span className="whitespace-nowrap font-medium">
                       {copy.call || "Call"} <bdi dir="ltr">{phone}</bdi>
                     </span>
                   </Button>
-                  <CopyButton text={phone} label={copy.copyPhone} className="w-full h-10 px-2.5 rounded-full justify-center text-xs" />
+                  <CopyButton
+                    text={phone}
+                    label={copy.copyPhone || "Copy"}
+                    className="shrink-0 h-10 sm:h-11 px-3 sm:px-3.5 rounded-full justify-center text-xs"
+                  />
                 </div>
               ) : null}
 
               {startingFee && (
                 <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 dark:bg-primary/15 border border-primary/25 px-3 py-1 sm:px-3.5 sm:py-1.5 text-xs font-semibold text-primary shadow-xs self-start sm:self-auto">
-                  <Sparkles className="h-3.5 w-3.5 text-primary" />
+                  <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
                   <span>
                     {copy.treatmentsFrom} {startingFee}
                   </span>
@@ -245,131 +424,36 @@ export function Hero() {
               )}
             </div>
 
-            {/* Trust Ticks: sleek horizontal wrap on mobile */}
+            {/* MOBILE ONLY: Compact Arch Image visibly present immediately after CTAs and price hint */}
+            <div className="lg:hidden w-full pt-1 pb-2">
+              {renderArchVisual("mobile")}
+            </div>
+
+            {/* Trust Ticks: sleek horizontal snap scroll on mobile, responsive 3-column grid on desktop */}
             {heroTicks.length > 0 && (
               <div
-                className="pt-4 sm:pt-8 border-t border-gray-200/80 dark:border-gray-800/80 w-full flex flex-wrap sm:grid sm:grid-cols-3 gap-2 sm:gap-3 text-xs text-gray-600 dark:text-gray-300"
+                className="pt-3 sm:pt-8 border-t border-gray-200/80 dark:border-gray-800/80 w-full"
               >
-                {heroTicks.map((tick: string, idx: number) => (
-                  <div key={idx} className="flex items-center gap-1.5 rounded-full bg-gray-100/70 dark:bg-gray-800/50 px-2.5 py-1 sm:p-0 sm:bg-transparent">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />
-                    <span className="text-[11px] sm:text-xs font-medium">{tick}</span>
-                  </div>
-                ))}
+                <div className="flex sm:grid sm:grid-cols-3 gap-2 sm:gap-3 overflow-x-auto hide-scrollbar snap-x snap-mandatory py-1 text-xs text-gray-600 dark:text-gray-300">
+                  {heroTicks.map((tick: string, idx: number) => (
+                    <div
+                      key={idx}
+                      className="snap-start shrink-0 sm:shrink flex items-center gap-1.5 rounded-full bg-gray-100/80 dark:bg-gray-800/60 px-3 py-1.5 sm:p-0 sm:bg-transparent border border-gray-200/60 dark:border-gray-700/50 sm:border-0"
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <span className="text-[11px] sm:text-xs font-medium text-gray-800 dark:text-gray-200 whitespace-nowrap">
+                        {tick}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
 
-          {/* Right Column: Arch-shaped Clinic Photo Frame with Floating Tooth & Trust Card */}
-          <div className="lg:col-span-5 relative flex items-center justify-center min-h-[380px] sm:min-h-[520px] mt-2 lg:mt-0">
-            {/* Visual Background Glow */}
-            <div
-              className="absolute -inset-4 rounded-full bg-gradient-to-tr from-primary/15 via-amber-200/10 to-transparent blur-3xl pointer-events-none"
-              aria-hidden="true"
-            />
-
-            {/* Arch-shaped Photo Frame */}
-            <div
-              onPointerMove={handlePointerMove}
-              onPointerLeave={handlePointerLeave}
-              className="relative w-full max-w-[340px] sm:max-w-[420px] min-h-[360px] sm:min-h-[420px] aspect-[4/5] rounded-t-[170px] sm:rounded-t-[200px] rounded-b-3xl overflow-hidden shadow-2xl border-4 border-white dark:border-gray-800 bg-gray-100 dark:bg-gray-800 group"
-            >
-              <SafeImage
-                src={heroImage}
-                alt={heading || practiceName || "Modern dental clinic treatment suite"}
-                fallbackInitials={practiceName ? practiceName.slice(0, 2).toUpperCase() : "DC"}
-                fallbackSubtitle={practiceName}
-                priority={true}
-                width={420}
-                height={525}
-                sizes="(max-width: 640px) 340px, (max-width: 1024px) 50vw, 420px"
-                className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent pointer-events-none" />
-
-              {/* Rotating Dental Seal Badge */}
-              {heroSealText ? (
-                <div
-                  className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 pointer-events-none select-none"
-                  aria-hidden="true"
-                >
-                  <div className="relative w-20 h-20 sm:w-24 sm:h-24">
-                    <svg
-                      viewBox="0 0 120 120"
-                      className="w-full h-full animate-[spin_24s_linear_infinite]"
-                    >
-                      <path
-                        id="seal-curve"
-                        d="M 60, 60 m -45, 0 a 45,45 0 1,1 90,0 a 45,45 0 1,1 -90,0"
-                        fill="none"
-                      />
-                      <text className="text-[10.5px] uppercase font-bold tracking-[0.22em] fill-white dark:fill-gray-200 drop-shadow-sm">
-                        <textPath href="#seal-curve" startOffset="0%">
-                          {heroSealText}
-                        </textPath>
-                      </text>
-                    </svg>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/90 dark:bg-gray-900/90 shadow-md border border-amber-300/60 dark:border-amber-400/30 flex items-center justify-center text-primary backdrop-blur-sm">
-                        <ShieldCheck className="h-4 w-4 sm:h-5 sm:w-5" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-
-            {/* The Floating Tooth with glass badge */}
-            <div className="absolute -bottom-4 -left-2 sm:-bottom-6 sm:-left-8 w-36 h-36 sm:w-52 sm:h-52 z-30 pointer-events-none">
-              <motion.div
-                initial={false}
-                animate={shouldReduceMotion ? undefined : { y: [0, -10, 0] }}
-                transition={{
-                  duration: 4,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
-                className="w-full h-full flex items-center justify-center filter drop-shadow-[0_20px_25px_rgba(0,0,0,0.3)]"
-              >
-                <motion.div
-                  initial={false}
-                  style={
-                    shouldReduceMotion
-                      ? undefined
-                      : {
-                          x: toothX,
-                          y: toothY,
-                          rotate: toothRotate,
-                        }
-                  }
-                  className="w-full h-full flex items-center justify-center relative filter drop-shadow-2xl"
-                >
-                  <Image
-                    src="/images/tooth-hero.png"
-                    alt="Professional anatomical tooth model illustrating dental care quality"
-                    width={220}
-                    height={220}
-                    className="w-full h-full object-contain select-none pointer-events-none relative z-10"
-                  />
-                </motion.div>
-              </motion.div>
-            </div>
-
-            {/* Trust Card: Next Available Appointment (safely positioned inside right corner on mobile) */}
-            <div className="absolute bottom-2 right-2 sm:-bottom-4 sm:right-2 z-30 max-w-[170px] sm:max-w-none rounded-2xl border border-white/80 dark:border-gray-800 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-3 py-2 sm:px-3.5 sm:py-2.5 shadow-xl flex items-center gap-2">
-              <span className="relative flex h-2.5 w-2.5 shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-              </span>
-              <div className="text-start min-w-0">
-                <p className="text-[9.5px] sm:text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 leading-none mb-1 truncate">
-                  {copy.nextAvailable}
-                </p>
-                <p className="text-xs font-bold text-gray-950 dark:text-white leading-none whitespace-nowrap truncate">
-                  {copy.todayTime}
-                </p>
-              </div>
-            </div>
+          {/* DESKTOP ONLY: Spacious Right Column Arch-shaped Frame with Floating Tooth & Trust Card */}
+          <div className="hidden lg:flex lg:col-span-5 relative items-center justify-center min-h-[520px] mt-0">
+            {renderArchVisual("desktop")}
           </div>
         </div>
       </div>

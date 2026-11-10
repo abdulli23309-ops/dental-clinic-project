@@ -1,8 +1,11 @@
-import { SiteContent, Organization } from "@/lib/api";
+import { SiteContent, Organization, Announcement, TeamMember, LocationItem } from "@/lib/api";
 
 export interface ServerSiteContentResult {
   content: SiteContent | null;
   organization?: Organization | null;
+  announcements?: Announcement[] | null;
+  team?: TeamMember[] | null;
+  locations?: LocationItem[] | null;
   error: boolean;
 }
 
@@ -30,7 +33,7 @@ export async function getServerSiteContent(): Promise<ServerSiteContentResult> {
       return { content: null, organization: null, error: true };
     }
 
-    const [contentRes, orgRes] = await Promise.all([
+    const [contentRes, orgRes, annRes, teamRes, locRes] = await Promise.all([
       fetch(`${baseUrl}/api/v1/public/content`, {
         cache: "force-cache",
         next: { revalidate: 60, tags: ["public-content"] },
@@ -41,28 +44,49 @@ export async function getServerSiteContent(): Promise<ServerSiteContentResult> {
         next: { revalidate: 60, tags: ["public-content"] },
         signal: controller.signal,
       }),
+      fetch(`${baseUrl}/api/v1/public/announcements`, {
+        cache: "force-cache",
+        next: { revalidate: 60, tags: ["public-content"] },
+        signal: controller.signal,
+      }).catch(() => null),
+      fetch(`${baseUrl}/api/v1/public/team`, {
+        cache: "force-cache",
+        next: { revalidate: 60, tags: ["public-content"] },
+        signal: controller.signal,
+      }).catch(() => null),
+      fetch(`${baseUrl}/api/v1/public/locations`, {
+        cache: "force-cache",
+        next: { revalidate: 60, tags: ["public-content"] },
+        signal: controller.signal,
+      }).catch(() => null),
     ]);
 
     clearTimeout(timeoutId);
 
     if (!contentRes.ok) {
-      return { content: null, organization: null, error: true };
+      return { content: null, organization: null, announcements: null, team: null, locations: null, error: true };
     }
 
     const contentData = await contentRes.json();
     const orgData = orgRes.ok ? await orgRes.json() : null;
+    const annData = annRes && annRes.ok ? await annRes.json() : [];
+    const teamData = teamRes && teamRes.ok ? await teamRes.json() : [];
+    const locData = locRes && locRes.ok ? await locRes.json() : [];
 
     if (!contentData) {
-      return { content: null, organization: null, error: true };
+      return { content: null, organization: null, announcements: null, team: null, locations: null, error: true };
     }
 
     return {
       content: { ...contentData, status: "ready" },
       organization: orgData,
+      announcements: annData,
+      team: Array.isArray(teamData) ? teamData : [],
+      locations: Array.isArray(locData) ? locData : [],
       error: false,
     };
   } catch {
     clearTimeout(timeoutId);
-    return { content: null, organization: null, error: true };
+    return { content: null, organization: null, announcements: null, team: null, locations: null, error: true };
   }
 }

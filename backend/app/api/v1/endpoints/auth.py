@@ -72,15 +72,20 @@ def _clear_refresh_cookie(response: Response) -> None:
 
 
 def _map_user_response(user: User) -> UserResponse:
+    raw_role = (user.role.value if hasattr(user.role, "value") else str(user.role)).strip().lower()
+    is_admin = raw_role in ["admin", "super admin", "super_admin", "platform owner", "platform_owner"]
+    has_completed = True if is_admin else getattr(user, "has_completed_onboarding", False)
+
     return UserResponse(
         id=user.id,
         email=user.email,
         fullName=user.full_name,
-        role=user.role.value,
+        role=user.role.value if hasattr(user.role, "value") else str(user.role),
         isActive=user.is_active,
         clinicId=user.clinic_id,
         teamMemberId=user.team_member_id,
         requiresPasswordChange=user.requires_password_change,
+        hasCompletedOnboarding=has_completed,
         inactivityEnabled=user.inactivity_enabled,
         inactivityTimeoutMinutes=user.inactivity_timeout_minutes,
         inactivityWarningSeconds=user.inactivity_warning_seconds,

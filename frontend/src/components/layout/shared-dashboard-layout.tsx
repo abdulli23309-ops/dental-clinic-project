@@ -446,7 +446,14 @@ export function SharedDashboardLayout({
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
       />
-      <OnboardingWizardModal />
+      {user &&
+        user.role !== "admin" &&
+        user.role !== "Platform Owner" &&
+        user.role !== "Super Admin" &&
+        !user.is_superuser &&
+        !user.hasCompletedOnboarding && (
+          <OnboardingWizardModal />
+        )}
     </div>
   );
 }

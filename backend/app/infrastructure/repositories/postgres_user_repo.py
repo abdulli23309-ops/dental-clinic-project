@@ -50,6 +50,7 @@ class PostgresUserRepository(UserRepository):
             clinic_id=orm.clinic_id if hasattr(orm, "clinic_id") else None,
             team_member_id=orm.team_member_id if hasattr(orm, "team_member_id") else None,
             requires_password_change=getattr(orm, "requires_password_change", False),
+            has_completed_onboarding=getattr(orm, "has_completed_onboarding", False),
             inactivity_enabled=orm.inactivity_enabled,
             inactivity_timeout_minutes=orm.inactivity_timeout_minutes,
             inactivity_warning_seconds=orm.inactivity_warning_seconds,
@@ -69,6 +70,7 @@ class PostgresUserRepository(UserRepository):
             team_member_id=domain.team_member_id,
             is_active=domain.is_active,
             requires_password_change=domain.requires_password_change,
+            has_completed_onboarding=domain.has_completed_onboarding,
             inactivity_enabled=domain.inactivity_enabled,
             inactivity_timeout_minutes=domain.inactivity_timeout_minutes,
             inactivity_warning_seconds=domain.inactivity_warning_seconds,
@@ -110,6 +112,7 @@ class PostgresUserRepository(UserRepository):
             existing.team_member_id = user.team_member_id
             existing.is_active = user.is_active
             existing.requires_password_change = user.requires_password_change
+            existing.has_completed_onboarding = user.has_completed_onboarding
             existing.inactivity_enabled = user.inactivity_enabled
             existing.inactivity_timeout_minutes = user.inactivity_timeout_minutes
             existing.inactivity_warning_seconds = user.inactivity_warning_seconds

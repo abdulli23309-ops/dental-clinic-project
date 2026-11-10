@@ -11,7 +11,7 @@ interface CopyButtonProps {
 
 /**
  * Renders a compact button that copies text (such as an address or phone number) to the visitor's clipboard.
- * It provides instant visual confirmation by changing into a green checkmark for two seconds after being clicked.
+ * Provides clear visual confirmation by changing into a green/primary checkmark after being clicked.
  */
 export function CopyButton({ text, label = "Copy", className = "" }: CopyButtonProps) {
   const [copied, setCopied] = useState(false);
@@ -38,20 +38,20 @@ export function CopyButton({ text, label = "Copy", className = "" }: CopyButtonP
     <button
       onClick={handleCopy}
       type="button"
-      className={`inline-flex items-center gap-1.5 rounded-md border border-line bg-cream/70 px-2 py-1 text-[11px] font-medium text-ink-soft transition-all hover:border-forest/40 hover:text-ink hover:bg-sand/50 active:scale-95 ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 px-3 py-2 text-xs font-semibold transition-all hover:bg-gray-100 dark:hover:bg-gray-800 hover:border-primary/50 hover:text-primary dark:hover:text-primary active:scale-95 cursor-pointer shadow-2xs ${className}`}
       aria-label={`${copied ? "Copied" : "Copy"} ${text}`}
       title={`Copy ${text}`}
     >
       {copied ? (
         <>
-          <Check className="h-3 w-3 text-forest" />
-          <span className="text-forest font-semibold" aria-live="polite">
+          <Check className="h-3.5 w-3.5 text-primary" />
+          <span className="text-primary font-semibold" aria-live="polite">
             Copied
           </span>
         </>
       ) : (
         <>
-          <Copy className="h-3 w-3 opacity-70" />
+          <Copy className="h-3.5 w-3.5 text-gray-600 dark:text-gray-400" />
           <span>{label}</span>
         </>
       )}

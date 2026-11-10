@@ -240,21 +240,30 @@
     top: 1.5rem;
   }
 
-  /* Marquee ticker animation */
+  /* Marquee ticker animation (dual-track seamless loop) */
   @keyframes marquee {
     0% {
-      transform: translateX(0%);
+      transform: translate3d(0%, 0, 0);
     }
 
     100% {
-      transform: translateX(-50%);
+      transform: translate3d(-100%, 0, 0);
     }
   }
 
   .animate-marquee {
     display: flex;
+    flex-shrink: 0;
     width: max-content;
-    animation: marquee 35s linear infinite;
+    will-change: transform;
+    animation: marquee var(--marquee-duration, 35s) linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-marquee {
+      animation: none !important;
+      transform: none !important;
+    }
   }
 
   /* Shimmer Keyframes for Global Skeletons */

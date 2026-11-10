@@ -461,6 +461,12 @@ class UserORM(Base):
         nullable=False,
         default=False,
     )
+    has_completed_onboarding: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=func.false(),
+    )
     inactivity_enabled: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,

@@ -4,7 +4,6 @@ import { motion } from "motion/react";
 import { CheckCircle2, Sparkles } from "lucide-react";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 import { SafeImage } from "@/components/ui/safe-image";
-import { resolveWhyChooseUsImage } from "@/lib/clinical-media-fallback";
 
 export function WhyChooseUs() {
   const { content, organization, copy } = usePublicContent();
@@ -12,7 +11,8 @@ export function WhyChooseUs() {
   const promises = content.homepage?.promises || [];
   const practiceName =
     content.general?.practiceName || organization?.displayName || "";
-  const { src: facilityImageSrc, caption: facilityCaption } = resolveWhyChooseUsImage(content);
+  const whyChooseUsImage = content.homepage?.whyChooseUsImage;
+  const whyChooseUsCaption = content.homepage?.whyChooseUsCaption;
 
   return (
     <section
@@ -128,13 +128,12 @@ export function WhyChooseUs() {
           {/* Right Column: Luxury Clinical Facility Feature Image with Caption */}
           <div className="lg:col-span-5 sticky top-28 space-y-4">
             <SafeImage
-              src={facilityImageSrc}
-              fallbackSrc={facilityImageSrc}
-              alt={facilityCaption}
-              caption={facilityCaption}
+              src={whyChooseUsImage}
+              alt={whyChooseUsCaption || practiceName || "Modern Dental Suite"}
+              caption={whyChooseUsCaption}
               aspectRatio="aspect-[4/3]"
-              fallbackTitle="Modern Dental Suite"
-              fallbackSubtitle="DHDC Islamabad Clinical Facility"
+              fallbackTitle={practiceName || "Modern Dental Suite"}
+              fallbackSubtitle={organization?.displayName}
               className="w-full"
             />
           </div>

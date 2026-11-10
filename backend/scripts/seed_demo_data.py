@@ -660,23 +660,11 @@ def sync_all_assets(dry_run: bool = False):
                         shutil.copy2(src, dest)
                     copied_uploads += 1
 
-    # 2. Sync doctor photos into backend/uploads if missing
+    # 2. Sync doctor photos into backend/uploads if missing (only local /media/ files)
     for doc in DOCTORS:
-        fname = doc["photo_url"].replace("/media/", "")
-        dest = uploads_target / fname
-        if not dest.exists():
-            for src_dir in fallback_src_dirs:
-                src_file = src_dir / fname
-                if src_file.exists():
-                    if not dry_run:
-                        shutil.copy2(src_file, dest)
-                    copied_uploads += 1
-                    break
-
-    # 3. Sync branch images into backend/uploads if missing
-    for b in BRANCHES:
-        if b.get("image_url"):
-            fname = b["image_url"].replace("/media/", "")
+        purl = doc.get("photo_url", "")
+        if purl.startswith("/media/"):
+            fname = purl.replace("/media/", "")
             dest = uploads_target / fname
             if not dest.exists():
                 for src_dir in fallback_src_dirs:
@@ -687,18 +675,35 @@ def sync_all_assets(dry_run: bool = False):
                         copied_uploads += 1
                         break
 
-    # 4. Sync gallery images into frontend/public/images
+    # 3. Sync branch images into backend/uploads if missing (only local /media/ files)
+    for b in BRANCHES:
+        iurl = b.get("image_url", "")
+        if iurl.startswith("/media/"):
+            fname = iurl.replace("/media/", "")
+            dest = uploads_target / fname
+            if not dest.exists():
+                for src_dir in fallback_src_dirs:
+                    src_file = src_dir / fname
+                    if src_file.exists():
+                        if not dry_run:
+                            shutil.copy2(src_file, dest)
+                        copied_uploads += 1
+                        break
+
+    # 4. Sync gallery images into frontend/public/images (only local /images/ files)
     for gal in GALLERY:
-        fname = gal["image_url"].replace("/images/", "")
-        dest = frontend_images_target / fname
-        if not dest.exists():
-            for src_dir in fallback_src_dirs:
-                src_file = src_dir / fname
-                if src_file.exists():
-                    if not dry_run:
-                        shutil.copy2(src_file, dest)
-                    copied_frontend += 1
-                    break
+        gurl = gal.get("image_url", "")
+        if gurl.startswith("/images/"):
+            fname = gurl.replace("/images/", "")
+            dest = frontend_images_target / fname
+            if not dest.exists():
+                for src_dir in fallback_src_dirs:
+                    src_file = src_dir / fname
+                    if src_file.exists():
+                        if not dry_run:
+                            shutil.copy2(src_file, dest)
+                        copied_frontend += 1
+                        break
 
     total_uploads = len(list(uploads_target.glob("*"))) if uploads_target.exists() else 0
     print(f"[ASSETS] Verified seed media: +{copied_uploads} uploads copied (+{copied_frontend} public images). Total in uploads/: {total_uploads}")

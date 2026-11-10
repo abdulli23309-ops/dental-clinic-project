@@ -8,50 +8,37 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 import { useLightbox } from "@/components/providers/lightbox-provider";
 import { publicGetGallery, GalleryImageItem, resolveMediaUrl } from "@/lib/api";
-import {
-  BENTO_GALLERY_ITEMS,
-  BentoGalleryItem,
-} from "@/lib/clinical-media-fallback";
+
+const BENTO_LAYOUTS = [
+  { colSpanClass: "md:col-span-8", minHeightClass: "min-h-[360px] md:min-h-[460px]", defaultBadge: "CLINICAL SUITE" },
+  { colSpanClass: "md:col-span-4", minHeightClass: "min-h-[360px] md:min-h-[460px]", defaultBadge: "CLINIC ATMOSPHERE" },
+  { colSpanClass: "md:col-span-4", minHeightClass: "min-h-[300px] md:min-h-[380px]", defaultBadge: "CLINIC ATMOSPHERE" },
+  { colSpanClass: "md:col-span-4", minHeightClass: "min-h-[300px] md:min-h-[380px]", defaultBadge: "CLINICAL SUITE" },
+  { colSpanClass: "md:col-span-4", minHeightClass: "min-h-[300px] md:min-h-[380px]", defaultBadge: "CLINICAL SUITE" },
+];
 
 export function Gallery() {
-  const { copy, locale } = usePublicContent();
+  const { copy } = usePublicContent();
   const { openLightbox } = useLightbox();
-  const [bentoItems, setBentoItems] = useState<BentoGalleryItem[]>(BENTO_GALLERY_ITEMS);
+  const [galleryItems, setGalleryItems] = useState<GalleryImageItem[]>([]);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
     publicGetGallery()
       .then((data: GalleryImageItem[]) => {
-        if (!isMounted || !Array.isArray(data) || data.length === 0) return;
-
-        // Merge API gallery items with fallback structure if valid URLs exist
-        const merged = BENTO_GALLERY_ITEMS.map((defaultItem, idx) => {
-          const apiItem = data[idx];
-          if (!apiItem || !apiItem.imageUrl) return defaultItem;
-
-          const trimmed = apiItem.imageUrl.trim();
-          // Prefer external or verified static image URLs over unmounted production media
-          const isUsable =
-            /^https?:\/\//i.test(trimmed) ||
-            trimmed.startsWith("/images/");
-
-          if (isUsable) {
-            return {
-              ...defaultItem,
-              id: apiItem.id || defaultItem.id,
-              imageUrl: resolveMediaUrl(trimmed) || trimmed,
-              caption: apiItem.caption || defaultItem.caption,
-            };
-          }
-          return defaultItem;
-        });
-
-        if (isMounted) {
-          setBentoItems(merged);
+        if (!isMounted) return;
+        if (Array.isArray(data)) {
+          setGalleryItems(
+            data
+              .filter((item) => item.isActive !== false && item.imageUrl)
+              .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
+          );
         }
+        setHasLoaded(true);
       })
       .catch(() => {
-        // Retain verified fallback bento gallery items on any network/API glitch
+        if (isMounted) setHasLoaded(true);
       });
 
     return () => {
@@ -59,12 +46,13 @@ export function Gallery() {
     };
   }, []);
 
-  const getLocalizedTitle = (title: string) => {
-    if (locale === "ur" && copy.galleryCaptions && copy.galleryCaptions[title]) {
-      return copy.galleryCaptions[title];
-    }
-    return title;
-  };
+  if (hasLoaded && galleryItems.length === 0) {
+    return null;
+  }
+
+  if (!hasLoaded && galleryItems.length === 0) {
+    return null;
+  }
 
   return (
     <section
@@ -78,19 +66,23 @@ export function Gallery() {
             eyebrow={copy.galleryEyebrow}
             title={copy.galleryTitle}
           />
-          <p className="max-w-md text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-            {copy.galleryDesc}
-          </p>
+          {copy.galleryDesc && (
+            <p className="max-w-md text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+              {copy.galleryDesc}
+            </p>
+          )}
         </div>
 
-        {/* 5-Card Asymmetric Bento Grid Stage */}
+        {/* Dynamic Bento Grid Stage populated from Database */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-          {bentoItems.map((item, idx) => {
-            const localizedTitle = getLocalizedTitle(item.title);
+          {galleryItems.map((item, idx) => {
+            const layout = BENTO_LAYOUTS[idx % BENTO_LAYOUTS.length];
+            const resolvedUrl = resolveMediaUrl(item.imageUrl) || item.imageUrl;
+            const caption = item.caption || "";
             const badgeLabel =
-              item.badge === "CLINICAL SUITE"
+              layout.defaultBadge === "CLINICAL SUITE"
                 ? copy.clinicalSuite || "CLINICAL SUITE"
-                : copy.clinicAtmosphere || "CLINICAL ATMOSPHERE";
+                : copy.clinicAtmosphere || "CLINIC ATMOSPHERE";
 
             return (
               <motion.div
@@ -99,15 +91,15 @@ export function Gallery() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.15 }}
                 transition={{ duration: 0.5, delay: idx * 0.08 }}
-                className={`${item.colSpanClass} relative`}
+                className={`${layout.colSpanClass} relative`}
               >
                 <div
                   onClick={() =>
                     openLightbox({
                       layoutId: `bento-gallery-${item.id}`,
-                      src: item.imageUrl,
-                      alt: localizedTitle,
-                      caption: localizedTitle,
+                      src: resolvedUrl,
+                      alt: caption,
+                      caption: caption,
                     })
                   }
                   role="button"
@@ -117,22 +109,22 @@ export function Gallery() {
                       e.preventDefault();
                       openLightbox({
                         layoutId: `bento-gallery-${item.id}`,
-                        src: item.imageUrl,
-                        alt: localizedTitle,
-                        caption: localizedTitle,
+                        src: resolvedUrl,
+                        alt: caption,
+                        caption: caption,
                       });
                     }
                   }}
-                  className={`relative w-full ${item.minHeightClass} rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl border border-gray-200/80 dark:border-gray-800/80 bg-gray-100 dark:bg-gray-850 group cursor-pointer transition-all duration-300`}
-                  aria-label={`View full photo: ${localizedTitle}`}
+                  className={`relative w-full ${layout.minHeightClass} rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl border border-gray-200/80 dark:border-gray-800/80 bg-gray-100 dark:bg-gray-850 group cursor-pointer transition-all duration-300`}
+                  aria-label={`View full photo: ${caption}`}
                 >
-                  {/* High-Resolution Full-Bleed Photograph */}
+                  {/* High-Resolution Full-Bleed Photograph from DB */}
                   <Image
-                    src={item.imageUrl}
-                    alt={localizedTitle}
+                    src={resolvedUrl}
+                    alt={caption}
                     fill
                     sizes={
-                      item.colSpanClass.includes("12")
+                      layout.colSpanClass.includes("12")
                         ? "100vw"
                         : "(max-width: 768px) 100vw, 55vw"
                     }
@@ -147,7 +139,7 @@ export function Gallery() {
                   <div className="absolute top-4 left-4 right-4 flex items-center justify-between gap-2 pointer-events-none z-10">
                     <span
                       className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider backdrop-blur-md shadow-sm border ${
-                        item.badge === "CLINICAL SUITE"
+                        layout.defaultBadge === "CLINICAL SUITE"
                           ? "bg-emerald-600/90 text-white border-emerald-500/30"
                           : "bg-black/50 text-white/95 border-white/15"
                       }`}
@@ -161,15 +153,14 @@ export function Gallery() {
                     </span>
                   </div>
 
-                  {/* Bottom Text Overlay with Title and Caption */}
-                  <div className="absolute inset-x-0 bottom-0 p-6 sm:p-7 text-white pointer-events-none z-10 space-y-1">
-                    <h3 className="font-display text-lg sm:text-xl md:text-2xl font-bold leading-tight drop-shadow-sm group-hover:text-emerald-200 transition-colors">
-                      {localizedTitle}
-                    </h3>
-                    <p className="text-xs sm:text-[13px] text-gray-200 line-clamp-2 max-w-xl font-normal leading-relaxed drop-shadow-xs">
-                      {item.caption}
-                    </p>
-                  </div>
+                  {/* Bottom Text Overlay with Caption */}
+                  {caption && (
+                    <div className="absolute inset-x-0 bottom-0 p-6 sm:p-7 text-white pointer-events-none z-10 space-y-1">
+                      <h3 className="font-display text-lg sm:text-xl md:text-2xl font-bold leading-tight drop-shadow-sm group-hover:text-emerald-200 transition-colors">
+                        {caption}
+                      </h3>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             );

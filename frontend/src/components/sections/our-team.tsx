@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import Image from "next/image";
 import { motion, useReducedMotion } from "motion/react";
 import {
   ChevronLeft,
@@ -11,13 +10,14 @@ import {
   Calendar,
   Award,
   Users,
+  Sparkles,
 } from "lucide-react";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SafeImage } from "@/components/ui/safe-image";
 import { usePublicContent } from "@/components/providers/public-content-provider";
-import { resolveDoctorPhoto } from "@/lib/clinical-media-fallback";
+import { resolveMediaUrl } from "@/lib/api";
 
 // Helper for per-doctor portrait focal point framing
 function getDoctorFocalClass(name: string) {
@@ -157,12 +157,12 @@ export function OurTeam() {
   return (
     <section
       id="team"
-      className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 py-28 md:py-36 overflow-hidden select-none"
+      className="border-t border-gray-200 dark:border-gray-800 bg-[#FAF9F6] dark:bg-gray-950 py-28 md:py-36 overflow-hidden select-none relative"
       onKeyDown={handleKeyDown}
       tabIndex={0}
       aria-label="Our Clinical Specialists"
     >
-      <div className="container-x space-y-12 md:space-y-16">
+      <div className="container-x space-y-12 md:space-y-16 relative z-10">
         {/* Section Heading */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6">
           <SectionHeading
@@ -186,8 +186,8 @@ export function OurTeam() {
               onClick={() => setSelectedCity("all")}
               className={`rounded-full px-4 sm:px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
                 selectedCity === "all"
-                  ? "btn-premium-emerald text-white font-semibold"
-                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700"
+                  ? "btn-premium-emerald text-white font-semibold shadow-sm"
+                  : "bg-white/80 dark:bg-gray-900/80 backdrop-blur-md text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200/80 dark:border-gray-800/80"
               }`}
             >
               {copy.allSpecialists} ({activeTeam.length})
@@ -205,8 +205,8 @@ export function OurTeam() {
                   onClick={() => setSelectedCity(city)}
                   className={`rounded-full px-4 sm:px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
                     isSelected
-                      ? "btn-premium-emerald text-white font-semibold"
-                      : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700"
+                      ? "btn-premium-emerald text-white font-semibold shadow-sm"
+                      : "bg-white/80 dark:bg-gray-900/80 backdrop-blur-md text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200/80 dark:border-gray-800/80"
                   }`}
                 >
                   {city} ({count})
@@ -234,17 +234,35 @@ export function OurTeam() {
           </div>
         ) : (
           /* ============================================================== */
-          /* 5-CARD VISIBLE 3D COVERFLOW PERSPECTIVE STAGE                  */
+          /* TRUE ROUND 3D GLASS EFFECT STAGE                               */
           /* ============================================================== */
           <div className="relative w-full overflow-visible py-4 md:py-8">
-            {/* Navigation Floating Arrow Buttons */}
+            {/* Ambient Round Glass Aura behind carousel */}
+            <div
+              className="absolute inset-0 flex items-center justify-center pointer-events-none"
+              aria-hidden="true"
+            >
+              <div className="w-[450px] h-[450px] sm:w-[650px] sm:h-[650px] rounded-full bg-emerald-500/10 dark:bg-emerald-400/10 blur-3xl" />
+            </div>
+
+            {/* Curved Glass Base Ring Pedestal */}
+            <div
+              className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[340px] sm:w-[500px] h-12 rounded-[100%] bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent blur-md pointer-events-none"
+              aria-hidden="true"
+            />
+            <div
+              className="absolute bottom-8 left-1/2 -translate-x-1/2 w-[300px] sm:w-[440px] h-6 rounded-[100%] border border-emerald-500/20 dark:border-emerald-400/20 bg-emerald-500/5 backdrop-blur-sm pointer-events-none"
+              aria-hidden="true"
+            />
+
+            {/* Floating Round Glass Navigation Controls */}
             {n > 1 && (
               <>
                 <button
                   type="button"
                   onClick={handlePrev}
                   aria-label={copy.previousClinicians}
-                  className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-md flex items-center justify-center hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                  className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-white/60 dark:border-white/15 bg-white/80 dark:bg-slate-900/80 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-xl flex items-center justify-center hover:scale-105 active:scale-95 hover:border-emerald-500/40 hover:ring-2 hover:ring-emerald-500/20 transition-all cursor-pointer"
                 >
                   <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6 rtl:rotate-180" />
                 </button>
@@ -252,17 +270,17 @@ export function OurTeam() {
                   type="button"
                   onClick={handleNext}
                   aria-label={copy.nextClinicians}
-                  className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-gray-200 dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-md flex items-center justify-center hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                  className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-white/60 dark:border-white/15 bg-white/80 dark:bg-slate-900/80 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-xl flex items-center justify-center hover:scale-105 active:scale-95 hover:border-emerald-500/40 hover:ring-2 hover:ring-emerald-500/20 transition-all cursor-pointer"
                 >
                   <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6 rtl:rotate-180" />
                 </button>
               </>
             )}
 
-            {/* 3D Perspective Stage Container */}
+            {/* 3D Cylindrical Arc Stage Container */}
             <div
               className="relative w-full h-[560px] sm:h-[600px] flex items-center justify-center cursor-grab active:cursor-grabbing touch-pan-y overflow-visible"
-              style={{ perspective: "1200px" }}
+              style={{ perspective: "1400px" }}
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
@@ -282,10 +300,7 @@ export function OurTeam() {
                   const distance = Math.abs(offset);
                   const isVisible = distance <= 2;
 
-                  // PR #13 / PR #14 Exact 5-Card Geometry Specification:
-                  // Center Card (offset === 0): translateX(0%) translateZ(0px) rotateY(0deg) scale(1)
-                  // Immediate Neighbors (offset ±1): translateX(±55%) translateZ(-120px) rotateY(∓28deg) scale(0.88)
-                  // Outer Neighbors (offset ±2): translateX(±95%) translateZ(-240px) rotateY(∓38deg) scale(0.76)
+                  // Cylindrical 5-Card Geometry
                   let translateX = 0;
                   let translateZ = 0;
                   let rotateY = 0;
@@ -301,36 +316,36 @@ export function OurTeam() {
                     opacity = 1;
                     zIndex = 30;
                   } else if (offset === -1) {
-                    translateX = isRtl ? 55 : -55;
+                    translateX = isRtl ? 56 : -56;
                     translateZ = -120;
-                    rotateY = isRtl ? -28 : 28;
-                    scale = 0.88;
-                    opacity = 0.85;
+                    rotateY = isRtl ? -26 : 26;
+                    scale = 0.90;
+                    opacity = 0.88;
                     zIndex = 20;
                   } else if (offset === 1) {
-                    translateX = isRtl ? -55 : 55;
+                    translateX = isRtl ? -56 : 56;
                     translateZ = -120;
-                    rotateY = isRtl ? 28 : -28;
-                    scale = 0.88;
-                    opacity = 0.85;
+                    rotateY = isRtl ? 26 : -26;
+                    scale = 0.90;
+                    opacity = 0.88;
                     zIndex = 20;
                   } else if (offset === -2) {
-                    translateX = isRtl ? 95 : -95;
-                    translateZ = -240;
+                    translateX = isRtl ? 98 : -98;
+                    translateZ = -250;
                     rotateY = isRtl ? -38 : 38;
-                    scale = 0.76;
+                    scale = 0.78;
                     opacity = 0.55;
                     zIndex = 10;
                   } else if (offset === 2) {
-                    translateX = isRtl ? -95 : 95;
-                    translateZ = -240;
+                    translateX = isRtl ? -98 : 98;
+                    translateZ = -250;
                     rotateY = isRtl ? 38 : -38;
-                    scale = 0.76;
+                    scale = 0.78;
                     opacity = 0.55;
                     zIndex = 10;
                   }
 
-                  const doctorPhoto = resolveDoctorPhoto(doc);
+                  const doctorPhoto = resolveMediaUrl(doc.photoUrl) || doc.photoUrl || "";
 
                   return (
                     <motion.div
@@ -363,21 +378,39 @@ export function OurTeam() {
                       }}
                       className="cursor-pointer"
                     >
+                      {/* Frosted Glassmorphic Card Shell with Specular Top Highlight */}
                       <div
-                        className={`w-full h-full rounded-3xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border shadow-xl flex flex-col justify-between overflow-hidden transition-all ${
+                        className={`relative w-full h-full rounded-3xl backdrop-blur-xl flex flex-col justify-between overflow-hidden transition-all duration-300 shadow-xl ${
                           isCenter
-                            ? "border-2 border-emerald-500 ring-2 ring-emerald-500/20 shadow-2xl scale-100"
-                            : "border-gray-200/90 dark:border-gray-800/90 hover:border-emerald-500/40"
+                            ? "bg-white/85 dark:bg-slate-900/80 border border-emerald-500/50 dark:border-emerald-400/50 shadow-[0_20px_50px_rgba(16,185,129,0.20)] ring-2 ring-emerald-500/60 scale-100"
+                            : "bg-white/70 dark:bg-slate-900/65 border border-white/60 dark:border-white/10 hover:border-emerald-500/30"
                         }`}
                       >
+                        {/* Specular top-edge glass reflection */}
+                        <div
+                          className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/80 dark:via-white/40 to-transparent pointer-events-none z-20"
+                          aria-hidden="true"
+                        />
+
                         {/* Top 52% Height: Full-Bleed High-Resolution Clinician Portrait */}
                         <div className="relative w-full h-[52%] min-h-[260px] sm:min-h-[285px] bg-stone-100 dark:bg-gray-800 overflow-hidden">
-                          <Image
+                          <SafeImage
                             src={doctorPhoto}
                             alt={doc.displayName}
                             fill
-                            sizes="(max-width: 640px) 280px, 320px"
                             priority={isCenter}
+                            fallbackInitials={
+                              doc.displayName
+                                ? doc.displayName
+                                    .split(" ")
+                                    .filter(Boolean)
+                                    .slice(0, 2)
+                                    .map((w: string) => w[0])
+                                    .join("")
+                                : "DR"
+                            }
+                            fallbackSubtitle={doc.professionalTitle || doc.role}
+                            sizes="(max-width: 640px) 280px, 320px"
                             className={`w-full h-full object-cover object-top pointer-events-none transition-transform duration-500 ${getDoctorFocalClass(
                               doc.displayName
                             )}`}
@@ -385,7 +418,7 @@ export function OurTeam() {
 
                           {/* Director / Role Badge */}
                           {doc.role === "Director" && (
-                            <span className="absolute top-3 left-3 rounded-full btn-premium-emerald text-white px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm z-10">
+                            <span className="absolute top-3 left-3 rounded-full btn-premium-emerald text-white px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm z-10 backdrop-blur-md">
                               <Award className="h-3 w-3" />
                               <span>{copy.director}</span>
                             </span>
@@ -429,7 +462,7 @@ export function OurTeam() {
                               )}
                             </div>
 
-                            {/* Green Role Subtitle & Professional Title */}
+                            {/* Role Subtitle & Professional Title */}
                             <p className="text-[11px] sm:text-xs font-semibold text-emerald-700 dark:text-emerald-400 truncate">
                               {doc.professionalTitle || doc.role || "Clinical Specialist"}
                             </p>
@@ -455,7 +488,7 @@ export function OurTeam() {
                                 {doc.specialties.slice(0, 3).map((spec, i) => (
                                   <span
                                     key={i}
-                                    className="rounded-full bg-stone-100 dark:bg-gray-800 px-2 py-0.5 text-[9px] sm:text-[9.5px] text-gray-600 dark:text-gray-300"
+                                    className="rounded-full bg-white/60 dark:bg-gray-800/60 backdrop-blur-xs px-2 py-0.5 text-[9px] sm:text-[9.5px] text-gray-600 dark:text-gray-300 border border-gray-200/50 dark:border-gray-700/50"
                                   >
                                     {spec}
                                   </span>
@@ -465,7 +498,7 @@ export function OurTeam() {
                           </div>
 
                           {/* Full-Width Book Consultation CTA Button */}
-                          <div className="pt-2 border-t border-gray-100 dark:border-gray-800 mt-auto">
+                          <div className="pt-2 border-t border-gray-100/80 dark:border-gray-800/80 mt-auto">
                             <Button
                               href={`/book?doctor=${encodeURIComponent(doc.id)}`}
                               variant="primary"

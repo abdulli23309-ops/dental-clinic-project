@@ -189,13 +189,7 @@ export const UI_COPY: Record<SupportedLocale, UiCopyDictionary> = {
       "Saturday",
       "Sunday",
     ],
-    galleryCaptions: {
-      "Sterile Surgical Suite": "Sterile Surgical Suite",
-      "Advanced Radiography & Consultation": "Advanced Radiography & Consultation",
-      "Diagnostic & Preventive Station": "Diagnostic & Preventive Station",
-      "General & Cosmetic Treatment Room": "General & Cosmetic Treatment Room",
-      "Patient Comfort & Smile Lounge": "Patient Comfort & Smile Lounge",
-    },
+    galleryCaptions: {},
   },
   ur: {
     book: "بک کریں",
@@ -296,13 +290,7 @@ export const UI_COPY: Record<SupportedLocale, UiCopyDictionary> = {
       "ہفتہ",
       "اتوار",
     ],
-    galleryCaptions: {
-      "Sterile Surgical Suite": "جراثیم سے پاک سرجیکل سویٹ",
-      "Advanced Radiography & Consultation": "ایڈوانس ریڈیوگرافی اور مشاورتی سویٹ",
-      "Diagnostic & Preventive Station": "تشخیصی اور حفاظتی کیئر اسٹیشن",
-      "General & Cosmetic Treatment Room": "عمومی اور کاسمیٹک ٹریٹمنٹ روم",
-      "Patient Comfort & Smile Lounge": "مریضوں کے آرام اور مسکراہٹ کا لاؤنج",
-    },
+    galleryCaptions: {},
   },
 };
 

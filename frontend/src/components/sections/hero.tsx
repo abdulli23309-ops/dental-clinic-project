@@ -123,7 +123,8 @@ export function Hero() {
     organization?.tagline ||
     ""
   ).trim();
-  const heroImage = heroObj.image || heroObj.heroImageUrl || "/images/benyamin.jpg";
+  const heroImageRaw = (heroObj.image || heroObj.heroImageUrl || "").trim();
+  const heroImage = heroImageRaw ? resolveMediaUrl(heroImageRaw) : "";
   const eyebrow = (heroObj.heroEyebrow || (heading ? practiceName : "")).trim();
   const highlightWord = (heroObj.heroHighlightWord || "").trim();
   const startingFee = (heroObj.startingFee || "").trim();
@@ -266,9 +267,8 @@ export function Hero() {
             >
               <SafeImage
                 src={heroImage}
-                fallbackSrc="/images/treatment-operatory.jpg"
-                alt={heading || "Modern dental clinic treatment suite"}
-                fallbackInitials="DHDC"
+                alt={heading || practiceName || "Modern dental clinic treatment suite"}
+                fallbackInitials={practiceName ? practiceName.slice(0, 2).toUpperCase() : "DC"}
                 fallbackSubtitle={practiceName}
                 priority={true}
                 width={420}

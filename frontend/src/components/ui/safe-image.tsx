@@ -9,7 +9,6 @@ export interface SafeImageProps extends Omit<Partial<ImageProps>, "src" | "alt" 
   src?: string | null;
   alt: string;
   caption?: string | null;
-  fallbackSrc?: string | null;
   fallbackInitials?: string;
   fallbackSubtitle?: string;
   fallbackTitle?: string;
@@ -21,18 +20,17 @@ export interface SafeImageProps extends Omit<Partial<ImageProps>, "src" | "alt" 
 }
 
 /**
- * SafeImage: Luxury Clinical Editorial Image Component
- * Gracefully handles CMS images, Next.js image optimization, fallback typography,
- * error boundaries, automatic clinical photo fallback, and optional facility figure/caption framing.
+ * SafeImage: Dynamic Luxury Clinical Editorial Image Component
+ * Gracefully handles dynamic CMS & database images, Next.js optimization,
+ * and elegant monogram/figure fallback states without hardcoded data.
  */
 export function SafeImage({
   src,
   alt,
   caption,
-  fallbackSrc,
-  fallbackInitials = "DHDC",
+  fallbackInitials = "",
   fallbackSubtitle,
-  fallbackTitle = "Modern Dental Suite",
+  fallbackTitle = "Clinical Facility",
   className = "",
   wrapperClassName = "",
   imgClassName = "",
@@ -43,28 +41,13 @@ export function SafeImage({
   height,
   ...rest
 }: SafeImageProps) {
-  const initialUrl = src || fallbackSrc || null;
-  const [currentSrc, setCurrentSrc] = useState<string | null>(initialUrl);
-  const [hasTriedFallback, setHasTriedFallback] = useState<boolean>(!src && Boolean(fallbackSrc));
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
-    const nextUrl = src || fallbackSrc || null;
-    setCurrentSrc(nextUrl);
-    setHasTriedFallback(!src && Boolean(fallbackSrc));
     setHasError(false);
-  }, [src, fallbackSrc]);
+  }, [src]);
 
-  const handleImageError = () => {
-    if (fallbackSrc && !hasTriedFallback && currentSrc !== fallbackSrc) {
-      setHasTriedFallback(true);
-      setCurrentSrc(fallbackSrc);
-    } else {
-      setHasError(true);
-    }
-  };
-
-  const resolvedUrl = currentSrc ? resolveMediaUrl(currentSrc) || currentSrc : null;
+  const resolvedUrl = src ? resolveMediaUrl(src) || src : null;
 
   // Case 1: Standalone Editorial Facility Figure with Caption
   if (caption || aspectRatio) {
@@ -83,7 +66,7 @@ export function SafeImage({
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 40vw"
               priority={priority}
-              onError={handleImageError}
+              onError={() => setHasError(true)}
               className={`object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03] ${imgClassName}`}
             />
           ) : (
@@ -94,9 +77,11 @@ export function SafeImage({
               <p className="font-display text-base font-bold text-gray-900 dark:text-white">
                 {fallbackTitle}
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-xs">
-                {fallbackSubtitle || "DHDC Islamabad Clinical Facility"}
-              </p>
+              {fallbackSubtitle && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-xs">
+                  {fallbackSubtitle}
+                </p>
+              )}
             </div>
           )}
 
@@ -124,7 +109,7 @@ export function SafeImage({
     );
   }
 
-  // Case 2: Standard Flexible Next.js Image with Initials Fallback (Used by OurTeam, Avatars, etc.)
+  // Case 2: Standard Flexible Next.js Image with Clean Monogram / Avatar Fallback
   if (!resolvedUrl || hasError) {
     return (
       <div
@@ -151,11 +136,13 @@ export function SafeImage({
         </svg>
 
         <div className="relative z-10 flex flex-col items-center justify-center p-4 text-center">
-          <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white/80 dark:bg-emerald-950/60 border border-emerald-700/20 shadow-sm backdrop-blur-sm mb-2">
-            <span className="font-serif text-lg font-bold tracking-wider text-emerald-900 dark:text-emerald-200">
-              {fallbackInitials}
-            </span>
-          </div>
+          {fallbackInitials && (
+            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white/80 dark:bg-emerald-950/60 border border-emerald-700/20 shadow-sm backdrop-blur-sm mb-2">
+              <span className="font-serif text-lg font-bold tracking-wider text-emerald-900 dark:text-emerald-200">
+                {fallbackInitials}
+              </span>
+            </div>
+          )}
           {fallbackSubtitle && (
             <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-800/80 dark:text-emerald-300/80 max-w-[90%] truncate">
               {fallbackSubtitle}
@@ -173,7 +160,7 @@ export function SafeImage({
         alt={alt}
         fill
         priority={priority}
-        onError={handleImageError}
+        onError={() => setHasError(true)}
         className={className}
         {...rest}
       />
@@ -187,7 +174,7 @@ export function SafeImage({
       width={width || 400}
       height={height || 300}
       priority={priority}
-      onError={handleImageError}
+      onError={() => setHasError(true)}
       className={className}
       {...rest}
     />

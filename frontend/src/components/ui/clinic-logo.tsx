@@ -114,7 +114,13 @@ export function ClinicLogo({
         <img
           src={logoUrl}
           alt={alt || `${fullBrandName} Logo`}
-          onError={() => setHasError(true)}
+          onError={(e) => {
+            if (e.currentTarget.src && !e.currentTarget.src.includes("/images/logo.png")) {
+              e.currentTarget.src = "/images/logo.png";
+            } else {
+              setHasError(true);
+            }
+          }}
           className={imgClassName}
           loading="eager"
         />

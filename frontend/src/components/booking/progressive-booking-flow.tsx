@@ -512,12 +512,12 @@ export function ProgressiveBookingFlow() {
       {/* -------------------------------------------------------------------- */}
       {submittedData ? (
         <Card surface="cream" shadow="subtle" className="p-8 sm:p-12 text-center space-y-6">
-          <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-600 text-white">
+          <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-primary text-white">
             <ShieldCheck className="h-7 w-7" />
           </div>
 
           <div className="space-y-2">
-            <span className="text-xs font-mono font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+            <span className="text-xs font-mono font-semibold uppercase tracking-wider text-primary">
               {progressiveBookingCopy.confirmation.eyebrow}
             </span>
             <h2 className="font-display text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white">
@@ -536,7 +536,7 @@ export function ProgressiveBookingFlow() {
             </span>
             <p
               data-testid="booking-confirmation-code"
-              className="font-mono text-xl font-bold tracking-wider text-emerald-700 dark:text-emerald-400"
+              className="font-mono text-xl font-bold tracking-wider text-primary"
             >
               {submittedData.confirmationId}
             </p>
@@ -574,7 +574,7 @@ export function ProgressiveBookingFlow() {
             </div>
             <div className="flex justify-between py-1">
               <span className="text-gray-400">{progressiveBookingCopy.confirmation.scheduleLabel}</span>
-              <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+              <span className="font-semibold text-primary">
                 {progressiveBookingCopy.scheduleAt(formatDayLabel(selectedDate), selectedTime)}
               </span>
             </div>
@@ -590,8 +590,8 @@ export function ProgressiveBookingFlow() {
         <>
           {/* Global Header & Step Progress Indicator */}
           <header className="mb-10 text-center space-y-3">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/80 text-[11px] font-semibold tracking-wider text-emerald-800 dark:text-emerald-300 uppercase">
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-[11px] font-semibold tracking-wider text-primary uppercase">
+              <ShieldCheck className="h-3.5 w-3.5 text-primary" />
               <span>{progressiveBookingCopy.header.badge}</span>
             </div>
 
@@ -607,7 +607,7 @@ export function ProgressiveBookingFlow() {
               <div className="flex items-center justify-between relative">
                 <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-gray-200 dark:bg-gray-800 -translate-y-1/2 z-0" />
                 <div
-                  className="absolute top-1/2 left-0 h-0.5 bg-emerald-600 transition-all duration-500 -translate-y-1/2 z-0"
+                  className="absolute top-1/2 left-0 h-0.5 bg-primary transition-all duration-500 -translate-y-1/2 z-0"
                   style={{
                     width: currentPage === 1 ? "0%" : currentPage === 2 ? "50%" : "100%",
                   }}
@@ -630,7 +630,7 @@ export function ProgressiveBookingFlow() {
                         aria-label={progressiveBookingCopy.header.stepAriaLabel(step, label)}
                         className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-300 cursor-pointer ${
                           isPast
-                            ? "bg-emerald-600 text-white shadow-sm ring-4 ring-emerald-100 dark:ring-emerald-950/60"
+                            ? "bg-primary text-white shadow-sm ring-4 ring-primary/20"
                             : isCurrent
                             ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-md ring-4 ring-gray-100 dark:ring-gray-800"
                             : "bg-white dark:bg-gray-900 text-gray-400 border border-gray-300 dark:border-gray-700"
@@ -668,7 +668,7 @@ export function ProgressiveBookingFlow() {
               >
                 <Card shadow="card" className="p-6 sm:p-8 md:p-10 space-y-8" animate={false}>
                   <div className="space-y-1 pb-4 border-b border-gray-100 dark:border-gray-800">
-                    <span className="text-xs font-mono font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                    <span className="text-xs font-mono font-semibold uppercase tracking-wider text-primary">
                       {progressiveBookingCopy.contact.pageLabel}
                     </span>
                     <h2 className="font-display text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">
@@ -741,7 +741,7 @@ export function ProgressiveBookingFlow() {
                           onChange={(e) =>
                             setContact({ ...contact, isForSomeoneElse: e.target.checked })
                           }
-                          className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                          className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
                         />
                         <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 font-medium">
                           {progressiveBookingCopy.contact.forSomeoneElseLabel}
@@ -817,7 +817,7 @@ export function ProgressiveBookingFlow() {
               >
                 <Card shadow="card" className="p-6 sm:p-8 space-y-6" animate={false}>
                   <div className="space-y-1">
-                    <span className="text-xs font-mono font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                    <span className="text-xs font-mono font-semibold uppercase tracking-wider text-primary">
                       {progressiveBookingCopy.waterfall.pageLabel}
                     </span>
                     <h2
@@ -938,7 +938,7 @@ export function ProgressiveBookingFlow() {
                           </Button>
                           <a
                             href="tel:051-6102977"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-white hover:bg-primary/90 transition"
                           >
                             Call Reception (051-6102977)
                           </a>
@@ -965,8 +965,8 @@ export function ProgressiveBookingFlow() {
                               onClick={() => handleSelectService(svc.id)}
                               className={`p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer ${
                                 isSelected
-                                  ? "border-emerald-600 dark:border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-md ring-2 ring-emerald-600/30"
-                                  : "border-gray-200 dark:border-gray-800 hover:border-emerald-300 dark:hover:border-emerald-800 bg-gray-50/40 dark:bg-gray-950/40 hover:bg-white dark:hover:bg-gray-900"
+                                  ? "border-primary bg-primary/5 shadow-md ring-2 ring-primary/20"
+                                  : "border-gray-200 dark:border-gray-800 hover:border-primary/40 bg-gray-50/40 dark:bg-gray-950/40 hover:bg-white dark:hover:bg-gray-900"
                               }`}
                             >
                               <div className="flex items-start justify-between gap-2">
@@ -974,13 +974,13 @@ export function ProgressiveBookingFlow() {
                                   <h4 className="font-display text-sm font-semibold text-gray-900 dark:text-white">
                                     {svc.title}
                                   </h4>
-                                  <p className="text-[11px] text-emerald-700 dark:text-emerald-400 font-medium mt-0.5">
+                                  <p className="text-[11px] text-primary font-medium mt-0.5">
                                     {svc.category}
                                   </p>
                                 </div>
                                 <div className="shrink-0 pt-0.5">
                                   {isSelected ? (
-                                    <span className="h-5 w-5 rounded-full bg-emerald-600 text-white flex items-center justify-center">
+                                    <span className="h-5 w-5 rounded-full bg-primary text-white flex items-center justify-center">
                                       <Check className="h-3 w-3" />
                                     </span>
                                   ) : (
@@ -1033,8 +1033,8 @@ export function ProgressiveBookingFlow() {
                               onClick={() => handleSelectCity(city)}
                               className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-semibold transition-all cursor-pointer ${
                                 isSelected
-                                  ? "border-emerald-600 bg-emerald-600 text-white"
-                                  : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:border-emerald-400"
+                                  ? "border-primary bg-primary text-white"
+                                  : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:border-primary/40"
                               }`}
                             >
                               <MapPin className="h-3 w-3" />
@@ -1061,7 +1061,7 @@ export function ProgressiveBookingFlow() {
                           data-testid="clinics-loading"
                           className="flex items-center justify-center gap-2 p-6 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-950/40"
                         >
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                           <span className="text-xs text-gray-500 dark:text-gray-400">
                             {progressiveBookingCopy.waterfall.loadingClinics}
                           </span>
@@ -1097,14 +1097,14 @@ export function ProgressiveBookingFlow() {
                                 onClick={() => handleSelectClinic(clinic.id)}
                                 className={`p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer ${
                                   isSelected
-                                    ? "border-emerald-600 dark:border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-md ring-2 ring-emerald-600/30"
-                                    : "border-gray-200 dark:border-gray-800 hover:border-emerald-300 dark:hover:border-emerald-800 bg-gray-50/40 dark:bg-gray-950/40 hover:bg-white dark:hover:bg-gray-900"
+                                    ? "border-primary bg-primary/5 shadow-md ring-2 ring-primary/20"
+                                    : "border-gray-200 dark:border-gray-800 hover:border-primary/40 bg-gray-50/40 dark:bg-gray-950/40 hover:bg-white dark:hover:bg-gray-900"
                                 }`}
                               >
                                 <div className="flex items-start justify-between gap-2">
                                   <div>
                                     <h4 className="font-display text-sm font-semibold text-gray-900 dark:text-white inline-flex items-center gap-2">
-                                      <Building2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                      <Building2 className="h-4 w-4 text-primary shrink-0" />
                                       <span>{clinic.name}</span>
                                     </h4>
                                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -1117,7 +1117,7 @@ export function ProgressiveBookingFlow() {
                                   <span
                                     className={`h-5 w-5 rounded-full border flex items-center justify-center shrink-0 ${
                                       isSelected
-                                        ? "border-emerald-600 bg-emerald-600 text-white"
+                                        ? "border-primary bg-primary text-white"
                                         : "border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800"
                                     }`}
                                   >
@@ -1125,7 +1125,7 @@ export function ProgressiveBookingFlow() {
                                   </span>
                                 </div>
                                 {clinic.isPrimary && (
-                                  <span className="mt-2 inline-block rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/80 px-2 py-0.5 text-[10px] uppercase font-semibold text-emerald-800 dark:text-emerald-300">
+                                  <span className="mt-2 inline-block rounded-full bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] uppercase font-semibold text-primary">
                                     {progressiveBookingCopy.waterfall.mainBranchBadge}
                                   </span>
                                 )}
@@ -1152,7 +1152,7 @@ export function ProgressiveBookingFlow() {
                           data-testid="doctors-loading"
                           className="flex items-center justify-center gap-2 p-6 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-950/40"
                         >
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                           <span className="text-xs text-gray-500 dark:text-gray-400">
                             {progressiveBookingCopy.waterfall.loadingClinicians}
                           </span>
@@ -1179,7 +1179,7 @@ export function ProgressiveBookingFlow() {
                       {!doctorsLoading && !doctorsError && doctors.length === 1 && (
                         <div
                           data-testid="single-doctor-intro"
-                          className="rounded-2xl border border-emerald-200 dark:border-emerald-800/80 bg-emerald-50/50 dark:bg-emerald-950/20 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4"
+                          className="rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4"
                         >
                           <div className="relative w-20 sm:w-24 aspect-4/5 rounded-xl overflow-hidden bg-stone-100 dark:bg-gray-800 shrink-0 shadow-xs">
                             {Boolean(doctors[0].photoUrl && !doctorImageErrors[doctors[0].id]) ? (
@@ -1212,7 +1212,7 @@ export function ProgressiveBookingFlow() {
                               {doctors[0].professionalTitle && (doctors[0].role || (Array.isArray(doctors[0].specialties) && doctors[0].specialties.length > 0)) && (
                                 <span className="text-gray-300 dark:text-gray-600" aria-hidden="true">•</span>
                               )}
-                              <span className="text-emerald-700 dark:text-emerald-400 font-medium">
+                              <span className="text-primary font-medium">
                                 {(Array.isArray(doctors[0].specialties) && doctors[0].specialties.length > 0
                                   ? doctors[0].specialties.join(", ")
                                   : doctors[0].role) || "Dentist"}
@@ -1227,14 +1227,14 @@ export function ProgressiveBookingFlow() {
                               {typeof doctors[0].patientsTreated === "number" && doctors[0].patientsTreated > 0 && (
                                 <span
                                   data-testid="patients-treated-badge"
-                                  className="inline-flex items-center gap-1 rounded-full bg-white dark:bg-gray-900 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 font-semibold text-emerald-700 dark:text-emerald-400"
+                                  className="inline-flex items-center gap-1 rounded-full bg-white dark:bg-gray-900 border border-primary/20 px-2 py-0.5 font-semibold text-primary"
                                 >
-                                  <Star className="h-3 w-3 fill-emerald-600 text-emerald-600" />
+                                  <Star className="h-3 w-3 fill-primary text-primary" />
                                   {progressiveBookingCopy.waterfall.patientsTreatedBadge(doctors[0].patientsTreated)}
                                 </span>
                               )}
                               <span className="inline-flex items-center gap-1 font-medium">
-                                <Calendar className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                                <Calendar className="h-3 w-3 text-primary" />
                                 {doctors[0].weeklyScheduleSummary || doctors[0].workingDaysHours}
                               </span>
                             </div>
@@ -1272,17 +1272,17 @@ export function ProgressiveBookingFlow() {
                                   onClick={() => handleSelectDoctor(doc.id)}
                                   variants={shouldReduceMotion ? undefined : fadeUp}
                                   whileHover={shouldReduceMotion ? undefined : { y: -4, transition: { duration: 0.2 } }}
-                                  className={`group relative rounded-2xl border p-2.5 sm:p-3 flex flex-col text-left transition-all duration-200 cursor-pointer focus:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 ${
+                                  className={`group relative rounded-2xl border p-2.5 sm:p-3 flex flex-col text-left transition-all duration-200 cursor-pointer focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
                                     isSelected
-                                      ? "border-emerald-600 dark:border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-md ring-2 ring-emerald-600/30"
-                                      : "border-stone-200/80 dark:border-gray-800 bg-[#FAF9F6] dark:bg-gray-900/90 hover:bg-white dark:hover:bg-gray-850 hover:shadow-lg hover:border-emerald-300 dark:hover:border-emerald-800"
+                                      ? "border-primary bg-primary/5 shadow-md ring-2 ring-primary/20"
+                                      : "border-stone-200/80 dark:border-gray-800 bg-[#FAF9F6] dark:bg-gray-900/90 hover:bg-white dark:hover:bg-gray-850 hover:shadow-lg hover:border-primary/40"
                                   }`}
                                 >
                                   {/* Top Right Selected Check Badge */}
                                   <span
                                     className={`absolute top-2.5 right-2.5 sm:top-3 sm:right-3 h-5 w-5 rounded-full border flex items-center justify-center transition-all duration-200 z-10 ${
                                       isSelected
-                                        ? "border-emerald-600 bg-emerald-600 text-white scale-100 shadow-xs"
+                                        ? "border-primary bg-primary text-white scale-100 shadow-xs"
                                         : "border-gray-300 dark:border-gray-600 bg-white/90 dark:bg-gray-850/90 text-transparent opacity-0 group-hover:opacity-100"
                                     }`}
                                   >
@@ -1331,7 +1331,7 @@ export function ProgressiveBookingFlow() {
                                           </span>
                                         )}
                                         {specialty && (
-                                          <span className="text-emerald-700 dark:text-emerald-400 font-medium line-clamp-1">
+                                          <span className="text-primary font-medium line-clamp-1">
                                             {specialty}
                                           </span>
                                         )}
@@ -1352,7 +1352,7 @@ export function ProgressiveBookingFlow() {
                               className="max-w-3xl flex flex-wrap items-center justify-between gap-2 text-xs text-gray-600 dark:text-gray-400 pt-2 border-t border-gray-100 dark:border-gray-800/80"
                             >
                               <div className="inline-flex items-center gap-1.5 font-medium">
-                                <Calendar className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                <Calendar className="h-3.5 w-3.5 text-primary shrink-0" />
                                 <span>
                                   Available {selectedDoctor.weeklyScheduleSummary || selectedDoctor.workingDaysHours || "Mon-Fri"}
                                 </span>
@@ -1360,9 +1360,9 @@ export function ProgressiveBookingFlow() {
                               {typeof selectedDoctor.patientsTreated === "number" && selectedDoctor.patientsTreated > 0 && (
                                 <span
                                   data-testid="patients-treated-badge"
-                                  className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300"
+                                  className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-[11px] font-semibold text-primary"
                                 >
-                                  <Star className="h-3 w-3 fill-emerald-600 text-emerald-600 dark:fill-emerald-400 dark:text-emerald-400" />
+                                  <Star className="h-3 w-3 fill-primary text-primary" />
                                   {progressiveBookingCopy.waterfall.patientsTreatedShortBadge(selectedDoctor.patientsTreated)}
                                 </span>
                               )}
@@ -1406,18 +1406,18 @@ export function ProgressiveBookingFlow() {
                                 onClick={() => handleSelectDay(day.date)}
                                 className={`w-full flex items-center justify-between rounded-xl border px-4 py-2.5 text-xs font-semibold transition-all cursor-pointer ${
                                   isDaySelected
-                                    ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300"
-                                    : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:border-emerald-400"
+                                    ? "border-primary bg-primary/10 text-primary"
+                                    : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:border-primary/40"
                                 }`}
                               >
                                 <span className="inline-flex items-center gap-2">
-                                  <Calendar className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                                  <Calendar className="h-3.5 w-3.5 text-primary" />
                                   {formatDayLabel(day.date)}
                                 </span>
                                 <span
                                   className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                                     isDaySelected
-                                      ? "bg-emerald-600 text-white"
+                                      ? "bg-primary text-white"
                                       : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
                                   }`}
                                 >
@@ -1446,8 +1446,8 @@ export function ProgressiveBookingFlow() {
                                             onClick={() => handleSelectSlot(slot)}
                                             className={`py-2.5 px-3 rounded-xl border text-xs font-mono font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                                               isSlotSelected
-                                                ? "border-emerald-600 bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-600/30"
-                                                : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-900 dark:text-white hover:border-emerald-400 hover:bg-emerald-50/30"
+                                                ? "border-primary bg-primary text-white shadow-sm ring-2 ring-primary/20"
+                                                : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-900 dark:text-white hover:border-primary/40 hover:bg-primary/5"
                                             }`}
                                           >
                                             <Clock className="h-3.5 w-3.5" />
@@ -1537,7 +1537,7 @@ export function ProgressiveBookingFlow() {
               >
                 <Card shadow="card" className="p-6 sm:p-8 md:p-10 space-y-8" animate={false}>
                   <div className="space-y-1 pb-4 border-b border-gray-100 dark:border-gray-800">
-                    <span className="text-xs font-mono font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                    <span className="text-xs font-mono font-semibold uppercase tracking-wider text-primary">
                       {progressiveBookingCopy.review.pageLabel}
                     </span>
                     <h2 className="font-display text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">
@@ -1608,7 +1608,7 @@ export function ProgressiveBookingFlow() {
                         <Calendar className="h-3.5 w-3.5" />
                         {progressiveBookingCopy.review.scheduleLabel}
                       </dt>
-                      <dd className="font-semibold text-emerald-700 dark:text-emerald-400">
+                      <dd className="font-semibold text-primary">
                         {progressiveBookingCopy.scheduleAt(formatDayLabel(selectedDate), selectedTime)}
                       </dd>
                     </div>
@@ -1624,7 +1624,7 @@ export function ProgressiveBookingFlow() {
                   )}
 
                   <p className="inline-flex items-center gap-2 text-[11px] text-gray-500 dark:text-gray-400">
-                    <Lock className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <Lock className="h-3.5 w-3.5 text-primary" />
                     {progressiveBookingCopy.review.privacyNotice}
                   </p>
 

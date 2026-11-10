@@ -128,6 +128,12 @@ def sync_seed_uploads_to_active():
                     dest_file = upload_dir / src_file.name
                     if not dest_file.exists():
                         shutil.copy2(src_file, dest_file)
+        
+        # Ensure legacy/alternate logo hash is also present on disk
+        target_legacy = upload_dir / "8d50adf4fe64e8eb47532cc63d30f1.png"
+        target_canonical = upload_dir / "8d90adff4feb4e8db41f532aa3d630f1.png"
+        if target_canonical.exists() and not target_legacy.exists():
+            shutil.copy2(target_canonical, target_legacy)
     except Exception as e:
         logger.warning("Could not sync seed uploads to upload dir: %s", e)
 
@@ -165,13 +171,16 @@ async def repair_production_database():
         doctors = doc_res.scalars().all()
         doc_repaired = 0
         for idx, doc in enumerate(doctors):
-            name_clean = (doc.display_name or "").lower()
-            needs_update = is_broken_media_url(doc.photo_url, upload_dir)
-            # If Dr. Mia Thompson has empty/broken photo or duplicate Dr. Hira photo, update to her dedicated portrait
-            if "mia" in name_clean and (needs_update or not doc.photo_url or "1594824813598" in (doc.photo_url or "")):
-                doc.photo_url = "https://images.unsplash.com/photo-1594824476967-48c8b964273f?auto=format&fit=crop&w=900&q=85"
-                doc_repaired += 1
+            name_clean = f"{(doc.first_name or '')} {(doc.last_name or '')} {(doc.display_name or '')}".lower()
+            # Force-update Dr. Mia Thompson unconditionally to verified high-resolution portrait
+            if "mia" in name_clean or "thompson" in name_clean:
+                target_mia_url = "https://images.unsplash.com/photo-1594824476967-48c8b964273f?auto=format&fit=crop&w=900&q=85"
+                if doc.photo_url != target_mia_url:
+                    doc.photo_url = target_mia_url
+                    doc_repaired += 1
                 continue
+
+            needs_update = is_broken_media_url(doc.photo_url, upload_dir)
             if needs_update:
                 matched_photo = None
                 for key_name, photo_url in DOCTOR_PHOTO_MAP.items():
@@ -232,19 +241,32 @@ async def repair_production_database():
         loc_res = await session.execute(select(LocationORM))
         locations = loc_res.scalars().all()
         loc_repaired = 0
-        COMPETITOR_LOCATION_SUBSTRINGS = ["photo-1519494026892-80bbd2d6fd0d", "photo-1629909613654"]
         for idx, loc in enumerate(locations):
-            loc_clean = (loc.name or "").lower()
-            needs_update = is_broken_media_url(loc.image_url, upload_dir)
-            if not needs_update and loc.image_url:
-                for bad_sub in COMPETITOR_LOCATION_SUBSTRINGS:
-                    if bad_sub in loc.image_url and ("gulberg" in loc_clean or "islamabad – main" in loc_clean or "main" in loc_clean):
-                        needs_update = True
-                        break
+            loc_clean = f"{(loc.name or '')} {(loc.city or '')}".lower()
+
+            # Unconditionally force-update DHDC Islamabad (Main) to clean unbranded clinic architecture
+            if "islamabad" in loc_clean and ("main" in loc_clean or loc.is_primary):
+                target_url = "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1200&q=85"
+                if loc.image_url != target_url:
+                    loc.image_url = target_url
+                    loc_repaired += 1
+                continue
+
+            # Unconditionally force-update DHDC Lahore (Gulberg) to clean unbranded clinic architecture
+            if "lahore" in loc_clean and "gulberg" in loc_clean:
+                target_url = "https://images.unsplash.com/photo-1629909615184-74f495363b67?auto=format&fit=crop&w=1200&q=85"
+                if loc.image_url != target_url:
+                    loc.image_url = target_url
+                    loc_repaired += 1
+                continue
+
+            # Any other location with broken media or old competitor placeholder
+            needs_update = is_broken_media_url(loc.image_url, upload_dir) or "photo-1519494026892-80bbd2d6fd0d" in (loc.image_url or "")
             if needs_update:
                 matched_img = None
                 for key_name, img_url in BRANCH_IMAGE_MAP.items():
-                    if key_name in loc_clean:
+                    words = [w.strip() for w in key_name.replace("–", " ").replace("-", " ").split()]
+                    if all(w in loc_clean for w in words):
                         matched_img = img_url
                         break
                 if not matched_img:
@@ -256,12 +278,8 @@ async def repair_production_database():
         org_res = await session.execute(select(OrganizationORM))
         orgs = org_res.scalars().all()
         for org in orgs:
-            if is_broken_media_url(org.logo_url, upload_dir):
-                target_logo = upload_dir / "8d90adff4feb4e8db41f532aa3d630f1.png"
-                if target_logo.exists():
-                    org.logo_url = "/media/8d90adff4feb4e8db41f532aa3d630f1.png"
-                else:
-                    org.logo_url = None
+            if is_broken_media_url(org.logo_url, upload_dir) or "8d50ad" in (org.logo_url or "") or not org.logo_url:
+                org.logo_url = "/media/8d90adff4feb4e8db41f532aa3d630f1.png"
 
         # 6. Site Sections Repair
         sec_res = await session.execute(select(SiteSectionORM))
@@ -289,12 +307,8 @@ async def repair_production_database():
                         changed = True
 
                 elif sec.section_key == "general":
-                    if is_broken_media_url(data.get("logoUrl"), upload_dir):
-                        target_logo = upload_dir / "8d90adff4feb4e8db41f532aa3d630f1.png"
-                        if target_logo.exists():
-                            data["logoUrl"] = "/media/8d90adff4feb4e8db41f532aa3d630f1.png"
-                        else:
-                            data["logoUrl"] = None
+                    if is_broken_media_url(data.get("logoUrl"), upload_dir) or "8d50ad" in (data.get("logoUrl") or "") or not data.get("logoUrl"):
+                        data["logoUrl"] = "/media/8d90adff4feb4e8db41f532aa3d630f1.png"
                         changed = True
 
                 elif sec.section_key == "seo":

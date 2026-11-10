@@ -9,11 +9,11 @@ import { useLightbox } from "@/components/providers/lightbox-provider";
 import { publicGetGallery, GalleryImageItem, resolveMediaUrl } from "@/lib/api";
 
 const BENTO_LAYOUTS = [
-  { colSpanClass: "md:col-span-7", minHeightClass: "min-h-[360px] md:min-h-[460px]", defaultBadge: "CLINICAL SUITE" },
-  { colSpanClass: "md:col-span-5", minHeightClass: "min-h-[360px] md:min-h-[460px]", defaultBadge: "CLINIC ATMOSPHERE" },
-  { colSpanClass: "md:col-span-4", minHeightClass: "min-h-[300px] md:min-h-[380px]", defaultBadge: "CLINIC ATMOSPHERE" },
-  { colSpanClass: "md:col-span-4", minHeightClass: "min-h-[300px] md:min-h-[380px]", defaultBadge: "CLINICAL SUITE" },
-  { colSpanClass: "md:col-span-4", minHeightClass: "min-h-[300px] md:min-h-[380px]", defaultBadge: "CLINICAL SUITE" },
+  { colSpanClass: "md:col-span-7", minHeightClass: "min-h-[260px] md:min-h-[460px]", defaultBadge: "CLINICAL SUITE" },
+  { colSpanClass: "md:col-span-5", minHeightClass: "min-h-[220px] md:min-h-[460px]", defaultBadge: "CLINIC ATMOSPHERE" },
+  { colSpanClass: "md:col-span-4", minHeightClass: "min-h-[200px] md:min-h-[380px]", defaultBadge: "CLINIC ATMOSPHERE" },
+  { colSpanClass: "md:col-span-4", minHeightClass: "min-h-[200px] md:min-h-[380px]", defaultBadge: "CLINICAL SUITE" },
+  { colSpanClass: "md:col-span-4", minHeightClass: "min-h-[200px] md:min-h-[380px]", defaultBadge: "CLINICAL SUITE" },
 ];
 
 function parseCaption(caption: string): { title: string; subtitle: string | null } {
@@ -169,14 +169,14 @@ export function Gallery() {
                     </span>
                   </div>
 
-                  {/* Clean Bottom Typography: 1-line serif title + 1-line muted sans subtitle (Zero Collisions) */}
+                  {/* Clean Bottom Typography: 1-line serif title + 1-2 line muted sans subtitle (Zero Collisions) */}
                   {title && (
-                    <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6 text-white pointer-events-none z-10 space-y-0.5">
-                      <h3 className="text-base sm:text-lg font-serif font-semibold text-white line-clamp-1 drop-shadow-sm group-hover:text-primary-foreground/90 transition-colors">
+                    <div className="absolute inset-x-0 bottom-0 p-4 sm:p-5 md:p-6 text-white pointer-events-none z-10 space-y-0.5">
+                      <h3 className="text-sm sm:text-base md:text-lg font-serif font-semibold text-white line-clamp-1 drop-shadow-sm group-hover:text-primary-foreground/90 transition-colors">
                         {title}
                       </h3>
                       {subtitle && (
-                        <p className="text-xs text-white/80 line-clamp-1 font-sans font-normal drop-shadow-xs">
+                        <p className="text-[11px] sm:text-xs text-white/80 line-clamp-2 font-sans font-normal drop-shadow-xs">
                           {subtitle}
                         </p>
                       )}

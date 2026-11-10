@@ -184,35 +184,35 @@ export function Treatments() {
           </div>
         ) : filtered.length === 0 ? null : (
           <div className="relative group/carousel">
-            {/* Absolute Left Arrow */}
+            {/* Absolute Left Arrow (Desktop / Laptop Only) */}
             <button
               type="button"
               onClick={() => scrollByCard("left")}
               aria-label={copy.previousTreatments}
-              className="absolute left-0 sm:-left-3 top-1/2 -translate-y-1/2 z-20 grid h-10 w-10 sm:h-12 sm:w-12 place-items-center rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 shadow-xl hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-primary transition-all cursor-pointer"
+              className="hidden md:grid absolute left-0 sm:-left-3 top-1/2 -translate-y-1/2 z-20 h-10 w-10 sm:h-12 sm:w-12 place-items-center rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 shadow-xl hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-primary transition-all cursor-pointer"
             >
               <ChevronLeft className="h-5 w-5 rtl:rotate-180" />
             </button>
 
-            {/* Absolute Right Arrow */}
+            {/* Absolute Right Arrow (Desktop / Laptop Only) */}
             <button
               type="button"
               onClick={() => scrollByCard("right")}
               aria-label={copy.nextTreatments}
-              className="absolute right-0 sm:-right-3 top-1/2 -translate-y-1/2 z-20 grid h-10 w-10 sm:h-12 sm:w-12 place-items-center rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 shadow-xl hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-primary transition-all cursor-pointer"
+              className="hidden md:grid absolute right-0 sm:-right-3 top-1/2 -translate-y-1/2 z-20 h-10 w-10 sm:h-12 sm:w-12 place-items-center rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 shadow-xl hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-primary transition-all cursor-pointer"
             >
               <ChevronRight className="h-5 w-5 rtl:rotate-180" />
             </button>
 
             <div
               ref={scrollContainerRef}
-              className="flex overflow-x-auto snap-x snap-mandatory gap-6 pb-6 px-1 scrollbar-hide items-stretch scroll-smooth"
+              className="flex overflow-x-auto snap-x snap-mandatory gap-6 pb-2 md:pb-6 px-1 scrollbar-hide items-stretch scroll-smooth"
               style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
             >
               {filtered.map((service) => (
                 <div
                   key={service.id}
-                  className="w-[85%] md:w-[45%] lg:w-[31%] min-w-[85%] md:min-w-[45%] lg:min-w-[31%] shrink-0 snap-start bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden shadow-xs p-4 sm:p-5 flex flex-col justify-between space-y-4 hover:border-primary/40 hover:shadow-md transition-all self-stretch group"
+                  className="w-[88vw] max-w-[350px] md:w-[45%] md:max-w-none lg:w-[31%] shrink-0 snap-center md:snap-start bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden shadow-xs p-4 sm:p-5 flex flex-col justify-between space-y-4 hover:border-primary/40 hover:shadow-md transition-all self-stretch group"
                 >
                   <div className="space-y-3">
                     {/* Treatment Card Photo with SafeImage */}
@@ -280,6 +280,33 @@ export function Treatments() {
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* Mobile Carousel Control Bar below card */}
+            <div className="flex md:hidden items-center justify-between pt-3 px-1">
+              <button
+                type="button"
+                onClick={() => scrollByCard("left")}
+                aria-label={copy.previousTreatments}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-xs font-medium text-gray-700 dark:text-gray-300 shadow-sm active:scale-95 transition-all cursor-pointer"
+              >
+                <ChevronLeft className="h-4 w-4 rtl:rotate-180" />
+                <span>Prev</span>
+              </button>
+
+              <span className="text-[11px] font-mono text-gray-400">
+                Swipe or tap to explore
+              </span>
+
+              <button
+                type="button"
+                onClick={() => scrollByCard("right")}
+                aria-label={copy.nextTreatments}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-xs font-medium text-gray-700 dark:text-gray-300 shadow-sm active:scale-95 transition-all cursor-pointer"
+              >
+                <span>Next</span>
+                <ChevronRight className="h-4 w-4 rtl:rotate-180" />
+              </button>
             </div>
           </div>
         )}

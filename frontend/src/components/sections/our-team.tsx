@@ -182,20 +182,59 @@ export function OurTeam() {
   }, []);
 
   // Responsive slot positioning calculation
-  const isMobile = windowWidth < 640;
-  const isTablet = windowWidth >= 640 && windowWidth < 1024;
+  const isMobile = windowWidth < 768;
+  const isTablet = windowWidth >= 768 && windowWidth < 1024;
 
   const getSlotStyle = (offset: number) => {
-    const xStep1 = isMobile ? 150 : isTablet ? 220 : 310;
-    const xStep2 = isMobile ? 260 : isTablet ? 400 : 560;
-    const z1 = isMobile ? -75 : -60;
-    const z2 = isMobile ? -175 : -170;
-    const rot1 = isMobile ? 18 : 22;
-    const rot2 = isMobile ? 28 : 34;
-    const s1 = isMobile ? 0.86 : 0.90;
-    const s2 = isMobile ? 0.72 : 0.80;
-
     const rtlSign = isRtl ? -1 : 1;
+
+    // Mobile Bespoke Tucked Glass Stack (< 768px)
+    if (isMobile) {
+      if (offset === 0) {
+        return {
+          transform: `translate3d(0px, 0px, 40px) scale(1)`,
+          zIndex: 30,
+          opacity: 1,
+          pointerEvents: "auto" as const,
+          visibility: "visible" as const,
+        };
+      }
+      if (offset === -1) {
+        return {
+          transform: `translate3d(${-42 * rtlSign}px, 14px, -60px) rotateY(${12 * rtlSign}deg) scale(0.91)`,
+          zIndex: 20,
+          opacity: 0.45,
+          pointerEvents: "auto" as const,
+          visibility: "visible" as const,
+        };
+      }
+      if (offset === 1) {
+        return {
+          transform: `translate3d(${42 * rtlSign}px, 14px, -60px) rotateY(${-12 * rtlSign}deg) scale(0.91)`,
+          zIndex: 20,
+          opacity: 0.45,
+          pointerEvents: "auto" as const,
+          visibility: "visible" as const,
+        };
+      }
+      return {
+        transform: `translate3d(0px, 0px, -150px) scale(0.8)`,
+        zIndex: 0,
+        opacity: 0,
+        pointerEvents: "none" as const,
+        visibility: "hidden" as const,
+      };
+    }
+
+    // Desktop & Laptop 5-Card Cylinder Arc (100% Preserved)
+    const xStep1 = isTablet ? 220 : 310;
+    const xStep2 = isTablet ? 400 : 560;
+    const z1 = -60;
+    const z2 = -170;
+    const rot1 = 22;
+    const rot2 = 34;
+    const s1 = 0.90;
+    const s2 = 0.80;
 
     if (offset === 0) {
       return {
@@ -357,14 +396,14 @@ export function OurTeam() {
               aria-hidden="true"
             />
 
-            {/* Floating Round Glass Navigation Controls */}
+            {/* Floating Round Glass Navigation Controls (Desktop/Tablet Only) */}
             {n > 1 && (
               <>
                 <button
                   type="button"
                   onClick={handlePrev}
                   aria-label={copy.previousClinicians}
-                  className="absolute left-1 sm:left-4 top-1/2 -translate-y-1/2 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-white/60 dark:border-white/15 bg-white/90 dark:bg-slate-900/90 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-xl flex items-center justify-center hover:scale-105 active:scale-95 hover:border-primary/40 hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer"
+                  className="hidden md:flex absolute left-1 sm:left-4 top-1/2 -translate-y-1/2 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-white/60 dark:border-white/15 bg-white/90 dark:bg-slate-900/90 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-xl items-center justify-center hover:scale-105 active:scale-95 hover:border-primary/40 hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer"
                 >
                   <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6 rtl:rotate-180" />
                 </button>
@@ -372,7 +411,7 @@ export function OurTeam() {
                   type="button"
                   onClick={handleNext}
                   aria-label={copy.nextClinicians}
-                  className="absolute right-1 sm:right-4 top-1/2 -translate-y-1/2 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-white/60 dark:border-white/15 bg-white/90 dark:bg-slate-900/90 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-xl flex items-center justify-center hover:scale-105 active:scale-95 hover:border-primary/40 hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer"
+                  className="hidden md:flex absolute right-1 sm:right-4 top-1/2 -translate-y-1/2 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-white/60 dark:border-white/15 bg-white/90 dark:bg-slate-900/90 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-xl items-center justify-center hover:scale-105 active:scale-95 hover:border-primary/40 hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer"
                 >
                   <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6 rtl:rotate-180" />
                 </button>
@@ -565,9 +604,36 @@ export function OurTeam() {
               </div>
             </div>
 
-            {/* Pagination Indicators */}
+            {/* Mobile Bottom Dock Navigation (Mobile Only) */}
             {n > 1 && (
-              <div className="flex items-center justify-center gap-1.5 pt-4 md:pt-6">
+              <div className="flex md:hidden items-center justify-center gap-4 pt-4 pb-2 z-40">
+                <button
+                  type="button"
+                  onClick={handlePrev}
+                  aria-label={copy.previousClinicians}
+                  className="grid h-10 w-10 place-items-center rounded-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 shadow-md active:scale-95 transition-all cursor-pointer"
+                >
+                  <ChevronLeft className="h-5 w-5 rtl:rotate-180" />
+                </button>
+
+                <div className="rounded-full border border-primary/20 bg-primary/10 px-4 py-1 text-xs font-mono font-bold text-primary">
+                  {String(safeIndex + 1).padStart(2, "0")} / {String(n).padStart(2, "0")}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  aria-label={copy.nextClinicians}
+                  className="grid h-10 w-10 place-items-center rounded-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 shadow-md active:scale-95 transition-all cursor-pointer"
+                >
+                  <ChevronRight className="h-5 w-5 rtl:rotate-180" />
+                </button>
+              </div>
+            )}
+
+            {/* Pagination Indicators (Desktop/Tablet Only) */}
+            {n > 1 && (
+              <div className="hidden md:flex items-center justify-center gap-1.5 pt-4 md:pt-6">
                 {filteredDoctors.map((_, i) => (
                   <button
                     key={i}

@@ -140,7 +140,7 @@ export function Hero() {
     : heroObj.heroTicks?.map((t: any) => t.label || t) || [];
 
   return (
-    <section className="relative overflow-hidden pt-16 pb-28 md:pt-24 md:pb-36 lg:pt-28 lg:pb-40">
+    <section className="relative overflow-hidden pt-8 pb-16 md:pt-24 md:pb-36 lg:pt-28 lg:pb-40">
       {/* Refined Luxury Top Ambient Theme Shade beneath Navbar (Dynamically reflects Admin's chosen theme color) */}
       <div
         className="absolute top-0 inset-x-0 h-80 bg-gradient-to-b from-primary/[0.08] via-primary/[0.03] to-transparent pointer-events-none z-0"
@@ -151,9 +151,9 @@ export function Hero() {
         aria-hidden="true"
       />
       <div className="container-x relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-center">
           {/* Left Column: Strict Single-Edge Alignment, Generous Spacing */}
-          <div className="lg:col-span-7 flex flex-col items-start text-start space-y-8 sm:space-y-10">
+          <div className="lg:col-span-7 flex flex-col items-start text-start space-y-5 sm:space-y-8 md:space-y-10">
             {/* Practice / Eyebrow Badge (Subtle kicker text so it doesn't compete with dominant headline) */}
             {(eyebrow || practiceName) ? (
               <div
@@ -175,7 +175,7 @@ export function Hero() {
             {/* Dominant Headline (One Strong Dominant Element with High Contrast) */}
             {heading ? (
               <h1
-                className="font-display text-4xl sm:text-5xl lg:text-6xl tracking-tight text-gray-950 dark:text-white leading-[1.12] font-bold"
+                className="font-display text-3xl sm:text-5xl lg:text-6xl tracking-tight text-gray-950 dark:text-white leading-[1.14] sm:leading-[1.12] font-bold"
               >
                 {renderTwoToneHeadline(heading, highlightWord)}
               </h1>
@@ -184,7 +184,7 @@ export function Hero() {
             {/* Sub-headline description */}
             {description ? (
               <p
-                className="max-w-xl text-base sm:text-lg leading-relaxed text-gray-600 dark:text-gray-300"
+                className="max-w-xl text-sm sm:text-lg leading-relaxed text-gray-600 dark:text-gray-300"
               >
                 {description}
               </p>
@@ -192,7 +192,7 @@ export function Hero() {
 
             {/* CTAs and Starting Fee Badge (Single Dominant Primary Button + Subtle Outline Secondary) */}
             <div
-              className="pt-2 flex flex-wrap items-center gap-4 justify-start min-h-[48px]"
+              className="pt-1 sm:pt-2 flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 sm:gap-4 justify-start w-full sm:w-auto"
             >
               <Button
                 onClick={(e) => {
@@ -206,14 +206,14 @@ export function Hero() {
                 }}
                 variant="primary"
                 size="lg"
-                className="rounded-full px-7 flex items-center gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer"
+                className="w-full sm:w-auto rounded-full px-7 flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer py-3.5 sm:py-3 text-sm font-semibold"
               >
                 <span>{isUrdu ? copy.bookAppointment : (heroObj.heroCtaText || copy.bookAppointment || "Book an Appointment")}</span>
                 <ArrowRight className="h-4 w-4 rtl:rotate-180" />
               </Button>
 
               {phone ? (
-                <div className="flex items-center gap-1.5">
+                <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex sm:items-center sm:gap-1.5">
                   <Button
                     onClick={() => {
                       if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -224,19 +224,19 @@ export function Hero() {
                     }}
                     variant="outline"
                     size="lg"
-                    className="rounded-full px-5 flex items-center gap-2 border-gray-300 dark:border-gray-700 bg-transparent text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
+                    className="w-full rounded-full px-3 sm:px-5 flex items-center justify-center gap-1.5 border-gray-300 dark:border-gray-700 bg-transparent text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer text-xs sm:text-sm"
                   >
-                    <Phone className="h-4 w-4 text-primary shrink-0" />
-                    <span>
+                    <Phone className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span className="truncate">
                       {copy.call || "Call"} <bdi dir="ltr">{phone}</bdi>
                     </span>
                   </Button>
-                  <CopyButton text={phone} label={copy.copyPhone} className="h-10 px-2.5 rounded-full" />
+                  <CopyButton text={phone} label={copy.copyPhone} className="w-full h-10 px-2.5 rounded-full justify-center text-xs" />
                 </div>
               ) : null}
 
               {startingFee && (
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 dark:bg-primary/15 border border-primary/25 px-3.5 py-1.5 text-xs font-semibold text-primary shadow-xs">
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 dark:bg-primary/15 border border-primary/25 px-3 py-1 sm:px-3.5 sm:py-1.5 text-xs font-semibold text-primary shadow-xs self-start sm:self-auto">
                   <Sparkles className="h-3.5 w-3.5 text-primary" />
                   <span>
                     {copy.treatmentsFrom} {startingFee}
@@ -245,15 +245,15 @@ export function Hero() {
               )}
             </div>
 
-            {/* Trust Ticks (Generous Top Spacing & Strict Single-Edge Left Alignment) */}
+            {/* Trust Ticks: sleek horizontal wrap on mobile */}
             {heroTicks.length > 0 && (
               <div
-                className="pt-8 border-t border-gray-200/80 dark:border-gray-800/80 w-full grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-gray-600 dark:text-gray-300"
+                className="pt-4 sm:pt-8 border-t border-gray-200/80 dark:border-gray-800/80 w-full flex flex-wrap sm:grid sm:grid-cols-3 gap-2 sm:gap-3 text-xs text-gray-600 dark:text-gray-300"
               >
                 {heroTicks.map((tick: string, idx: number) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-                    <span>{tick}</span>
+                  <div key={idx} className="flex items-center gap-1.5 rounded-full bg-gray-100/70 dark:bg-gray-800/50 px-2.5 py-1 sm:p-0 sm:bg-transparent">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span className="text-[11px] sm:text-xs font-medium">{tick}</span>
                   </div>
                 ))}
               </div>
@@ -261,7 +261,7 @@ export function Hero() {
           </div>
 
           {/* Right Column: Arch-shaped Clinic Photo Frame with Floating Tooth & Trust Card */}
-          <div className="lg:col-span-5 relative flex items-center justify-center min-h-[460px] sm:min-h-[520px] mt-8 lg:mt-0">
+          <div className="lg:col-span-5 relative flex items-center justify-center min-h-[380px] sm:min-h-[520px] mt-2 lg:mt-0">
             {/* Visual Background Glow */}
             <div
               className="absolute -inset-4 rounded-full bg-gradient-to-tr from-primary/15 via-amber-200/10 to-transparent blur-3xl pointer-events-none"
@@ -272,7 +272,7 @@ export function Hero() {
             <div
               onPointerMove={handlePointerMove}
               onPointerLeave={handlePointerLeave}
-              className="relative w-full max-w-[420px] min-h-[420px] aspect-[4/5] rounded-t-[200px] rounded-b-3xl overflow-hidden shadow-2xl border-4 border-white dark:border-gray-800 bg-gray-100 dark:bg-gray-800 group"
+              className="relative w-full max-w-[340px] sm:max-w-[420px] min-h-[360px] sm:min-h-[420px] aspect-[4/5] rounded-t-[170px] sm:rounded-t-[200px] rounded-b-3xl overflow-hidden shadow-2xl border-4 border-white dark:border-gray-800 bg-gray-100 dark:bg-gray-800 group"
             >
               <SafeImage
                 src={heroImage}
@@ -282,7 +282,7 @@ export function Hero() {
                 priority={true}
                 width={420}
                 height={525}
-                sizes="(max-width: 640px) 380px, (max-width: 1024px) 50vw, 420px"
+                sizes="(max-width: 640px) 340px, (max-width: 1024px) 50vw, 420px"
                 className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent pointer-events-none" />
@@ -290,10 +290,10 @@ export function Hero() {
               {/* Rotating Dental Seal Badge */}
               {heroSealText ? (
                 <div
-                  className="absolute top-4 right-4 z-20 pointer-events-none select-none"
+                  className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 pointer-events-none select-none"
                   aria-hidden="true"
                 >
-                  <div className="relative w-24 h-24">
+                  <div className="relative w-20 h-20 sm:w-24 sm:h-24">
                     <svg
                       viewBox="0 0 120 120"
                       className="w-full h-full animate-[spin_24s_linear_infinite]"
@@ -310,8 +310,8 @@ export function Hero() {
                       </text>
                     </svg>
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-10 h-10 rounded-full bg-white/90 dark:bg-gray-900/90 shadow-md border border-amber-300/60 dark:border-amber-400/30 flex items-center justify-center text-primary backdrop-blur-sm">
-                        <ShieldCheck className="h-5 w-5" />
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/90 dark:bg-gray-900/90 shadow-md border border-amber-300/60 dark:border-amber-400/30 flex items-center justify-center text-primary backdrop-blur-sm">
+                        <ShieldCheck className="h-4 w-4 sm:h-5 sm:w-5" />
                       </div>
                     </div>
                   </div>
@@ -320,7 +320,7 @@ export function Hero() {
             </div>
 
             {/* The Floating Tooth with glass badge */}
-            <div className="absolute -bottom-6 -left-4 sm:-left-8 w-44 h-44 sm:w-52 sm:h-52 z-30 pointer-events-none">
+            <div className="absolute -bottom-4 -left-2 sm:-bottom-6 sm:-left-8 w-36 h-36 sm:w-52 sm:h-52 z-30 pointer-events-none">
               <motion.div
                 initial={false}
                 animate={shouldReduceMotion ? undefined : { y: [0, -10, 0] }}
@@ -355,17 +355,17 @@ export function Hero() {
               </motion.div>
             </div>
 
-            {/* Trust Card: Next Available Appointment */}
-            <div className="absolute -bottom-4 right-2 sm:right-2 z-30 rounded-2xl border border-white/80 dark:border-gray-800 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-3.5 py-2.5 shadow-xl flex items-center gap-2.5">
+            {/* Trust Card: Next Available Appointment (safely positioned inside right corner on mobile) */}
+            <div className="absolute bottom-2 right-2 sm:-bottom-4 sm:right-2 z-30 max-w-[170px] sm:max-w-none rounded-2xl border border-white/80 dark:border-gray-800 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md px-3 py-2 sm:px-3.5 sm:py-2.5 shadow-xl flex items-center gap-2">
               <span className="relative flex h-2.5 w-2.5 shrink-0">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
               </span>
-              <div className="text-start">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 leading-none mb-1">
+              <div className="text-start min-w-0">
+                <p className="text-[9.5px] sm:text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 leading-none mb-1 truncate">
                   {copy.nextAvailable}
                 </p>
-                <p className="text-xs font-bold text-gray-950 dark:text-white leading-none whitespace-nowrap">
+                <p className="text-xs font-bold text-gray-950 dark:text-white leading-none whitespace-nowrap truncate">
                   {copy.todayTime}
                 </p>
               </div>

@@ -124,8 +124,14 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
             {logoUrl && !logoError ? (
               <img
                 src={logoUrl}
-                alt=""
-                onError={() => setLogoError(true)}
+                alt={practiceName || "Clinic Logo"}
+                onError={(e) => {
+                  if (e.currentTarget.src && !e.currentTarget.src.includes("/images/logo.png")) {
+                    e.currentTarget.src = "/images/logo.png";
+                  } else {
+                    setLogoError(true);
+                  }
+                }}
                 className="h-9 sm:h-10 w-auto object-contain dark:brightness-0 dark:invert shrink-0"
                 width="40"
                 height="40"

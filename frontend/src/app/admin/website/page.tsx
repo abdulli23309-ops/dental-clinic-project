@@ -861,7 +861,13 @@ export default function AdminWebsitePage() {
                     <img
                       src={resolveMediaUrl(generalData.logoUrl) || generalData.logoUrl}
                       alt="Current logo"
-                      onError={() => setLogoPreviewError(true)}
+                      onError={(e) => {
+                        if (e.currentTarget.src && !e.currentTarget.src.includes("/images/logo.png")) {
+                          e.currentTarget.src = "/images/logo.png";
+                        } else {
+                          setLogoPreviewError(true);
+                        }
+                      }}
                       className="h-10 w-10 object-contain rounded-lg border border-line bg-transparent p-0.5"
                     />
                   )}

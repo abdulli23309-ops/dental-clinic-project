@@ -128,7 +128,7 @@ export function MobileMenu({ isOpen, onClose, onOpenSearch }: MobileMenuProps) {
                   <Search className="h-4 w-4 text-gray-400 group-hover:text-primary transition-colors" />
                   <span className="font-medium">{copy.search}</span>
                 </span>
-                <span className="text-[11px] font-mono px-2 py-0.5 rounded-md border border-gray-200/60 dark:border-gray-700/60 bg-gray-100/60 dark:bg-gray-800/60 text-gray-400">
+                <span className="hidden md:inline-flex text-[11px] font-mono px-2 py-0.5 rounded-md border border-gray-200/60 dark:border-gray-700/60 bg-gray-100/60 dark:bg-gray-800/60 text-gray-400">
                   ⌘K
                 </span>
               </button>

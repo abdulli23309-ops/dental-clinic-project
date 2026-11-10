@@ -259,13 +259,6 @@
     animation: marquee var(--marquee-duration, 35s) linear infinite;
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    .animate-marquee {
-      animation: none !important;
-      transform: none !important;
-    }
-  }
-
   /* Shimmer Keyframes for Global Skeletons */
   @keyframes shimmer {
     0% {

@@ -76,7 +76,7 @@ describe("AnnouncementMarquee Component", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("renders active announcements in continuous dual tracks with accessible dismiss button", () => {
+  it("renders active announcements in a permanent continuous dual-track marquee without dismiss button", () => {
     const announcements: Announcement[] = [
       {
         id: "a1",
@@ -108,10 +108,8 @@ describe("AnnouncementMarquee Component", () => {
     const matches = screen.getAllByText("New Evening Clinic Hours: 5 PM - 9 PM");
     expect(matches.length).toBeGreaterThanOrEqual(2);
 
-    const dismissButton = screen.getByRole("button", { name: /Dismiss announcements/i });
-    expect(dismissButton).toBeInTheDocument();
-
-    fireEvent.click(dismissButton);
-    expect(screen.queryByRole("region", { name: /Practice Announcements/i })).toBeNull();
+    // Verify the bar is permanent and does not render a dismiss button
+    const dismissButton = screen.queryByRole("button", { name: /Dismiss announcements/i });
+    expect(dismissButton).toBeNull();
   });
 });

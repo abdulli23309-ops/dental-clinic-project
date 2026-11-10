@@ -1,32 +1,19 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import { X, Sparkles } from "lucide-react";
+import { useMemo } from "react";
+import { Sparkles } from "lucide-react";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 
+/**
+ * Permanent, Infinite-Scrolling Frosted Glass Announcement Marquee
+ * Features:
+ * - 100% seamless, continuous motor animation (translates 0% to -100% on dual synchronized tracks)
+ * - Zero dismiss/close button (permanently active for high-priority clinic updates)
+ * - Ultra-luxurious frosted glassmorphism: backdrop-blur-md, transparent border, subtle gradient edge scrims
+ * - Hover-to-pause for effortless readability
+ */
 export function AnnouncementMarquee() {
   const { announcements } = usePublicContent();
-  const [dismissed, setDismissed] = useState(false);
-
-  // Check session storage on mount
-  useEffect(() => {
-    try {
-      if (sessionStorage.getItem("hira_announcement_dismissed") === "true") {
-        setDismissed(true);
-      }
-    } catch {
-      // Storage access may be restricted
-    }
-  }, []);
-
-  const handleDismiss = () => {
-    setDismissed(true);
-    try {
-      sessionStorage.setItem("hira_announcement_dismissed", "true");
-    } catch {
-      // Ignore
-    }
-  };
 
   // Filter active, non-empty announcements sorted by displayOrder
   const activeAnnouncements = useMemo(() => {
@@ -35,10 +22,10 @@ export function AnnouncementMarquee() {
       .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
   }, [announcements]);
 
-  // Ensure each track has enough repeated items to comfortably exceed 2000px width on any screen
+  // Ensure each track has enough repeated items to comfortably exceed 4K display widths
   const trackItems = useMemo(() => {
     if (activeAnnouncements.length === 0) return [];
-    const minItems = 8;
+    const minItems = 6;
     const repeatCount = Math.max(2, Math.ceil(minItems / activeAnnouncements.length));
     const items: typeof activeAnnouncements = [];
     for (let i = 0; i < repeatCount; i++) {
@@ -47,72 +34,72 @@ export function AnnouncementMarquee() {
     return items;
   }, [activeAnnouncements]);
 
-  // If user dismissed it or there are no active announcements, render nothing (no empty container)
-  if (dismissed || activeAnnouncements.length === 0) {
+  // If there are no active announcements, render nothing
+  if (activeAnnouncements.length === 0) {
     return null;
   }
 
-  // Calculate duration so reading speed is comfortable (approx 3.5s per item, min 28s)
-  const durationSeconds = Math.max(28, trackItems.length * 4);
+  // Smooth, readable speed: ~6s per item, minimum 35s for continuous gentle glide
+  const durationSeconds = Math.max(35, trackItems.length * 6);
 
   return (
     <aside
       role="region"
       aria-label="Practice Announcements"
-      className="group relative z-30 w-full max-w-full overflow-hidden border-b border-gray-200/80 dark:border-gray-800/80 bg-white/95 dark:bg-gray-950/95 backdrop-blur-md py-2 select-none"
+      className="group relative z-30 w-full max-w-full overflow-hidden backdrop-blur-md bg-white/80 dark:bg-slate-950/80 border-b border-slate-200/50 dark:border-white/10 shadow-xs py-2.5 select-none"
       style={{ "--marquee-duration": `${durationSeconds}s` } as React.CSSProperties}
     >
-      {/* Edge gradient scrims for luxury editorial entrance/exit */}
+      {/* Edge gradient scrims for frosted luxury entrance/exit */}
       <div
-        className="pointer-events-none absolute left-0 top-0 bottom-0 w-8 sm:w-16 bg-gradient-to-r from-white dark:from-gray-950 to-transparent z-10"
+        className="pointer-events-none absolute left-0 top-0 bottom-0 w-12 sm:w-20 bg-gradient-to-r from-white/90 dark:from-slate-950/90 to-transparent z-10"
         aria-hidden="true"
       />
       <div
-        className="pointer-events-none absolute right-0 top-0 bottom-0 w-12 sm:w-20 bg-gradient-to-l from-white dark:from-gray-950 to-transparent z-10"
+        className="pointer-events-none absolute right-0 top-0 bottom-0 w-12 sm:w-20 bg-gradient-to-l from-white/90 dark:from-slate-950/90 to-transparent z-10"
         aria-hidden="true"
       />
 
       {/* Marquee Tracks Container */}
-      <div className="flex w-full overflow-hidden pr-10 sm:pr-12">
+      <div className="flex w-full overflow-hidden">
         {/* Track 1 (Primary) */}
-        <div className="flex shrink-0 items-center gap-8 sm:gap-12 animate-marquee group-hover:[animation-play-state:paused] motion-reduce:[animation:none]">
+        <div className="flex shrink-0 items-center gap-12 sm:gap-16 pr-12 sm:pr-16 animate-marquee group-hover:[animation-play-state:paused]">
           {trackItems.map((ann, idx) => (
             <div
               key={`t1-${ann.id || idx}-${idx}`}
-              className="inline-flex items-center gap-2.5 sm:gap-3 text-gray-900 dark:text-gray-100 text-[12px] sm:text-[12.5px] font-medium tracking-wide whitespace-nowrap"
+              className="inline-flex items-center gap-3 text-sm font-medium text-slate-800 dark:text-slate-200 tracking-wide whitespace-nowrap"
             >
-              <Sparkles className="h-3 w-3 text-primary shrink-0 select-none" aria-hidden="true" />
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary dark:bg-primary/20">
+                <Sparkles className="h-3 w-3 select-none" aria-hidden="true" />
+              </span>
               <span>{ann.content}</span>
+              <span className="text-slate-300 dark:text-slate-700 select-none ml-3" aria-hidden="true">
+                •
+              </span>
             </div>
           ))}
         </div>
 
         {/* Track 2 (Synchronized Duplicate for seamless infinite loop) */}
         <div
-          className="flex shrink-0 items-center gap-8 sm:gap-12 animate-marquee group-hover:[animation-play-state:paused] motion-reduce:[animation:none] motion-reduce:hidden"
+          className="flex shrink-0 items-center gap-12 sm:gap-16 pr-12 sm:pr-16 animate-marquee group-hover:[animation-play-state:paused]"
           aria-hidden="true"
         >
           {trackItems.map((ann, idx) => (
             <div
               key={`t2-${ann.id || idx}-${idx}`}
-              className="inline-flex items-center gap-2.5 sm:gap-3 text-gray-900 dark:text-gray-100 text-[12px] sm:text-[12.5px] font-medium tracking-wide whitespace-nowrap"
+              className="inline-flex items-center gap-3 text-sm font-medium text-slate-800 dark:text-slate-200 tracking-wide whitespace-nowrap"
             >
-              <Sparkles className="h-3 w-3 text-primary shrink-0 select-none" aria-hidden="true" />
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary dark:bg-primary/20">
+                <Sparkles className="h-3 w-3 select-none" aria-hidden="true" />
+              </span>
               <span>{ann.content}</span>
+              <span className="text-slate-300 dark:text-slate-700 select-none ml-3" aria-hidden="true">
+                •
+              </span>
             </div>
           ))}
         </div>
       </div>
-
-      {/* Dismiss Button */}
-      <button
-        onClick={handleDismiss}
-        aria-label="Dismiss announcements"
-        type="button"
-        className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 z-20 rounded-full p-1 text-gray-400 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
-      >
-        <X className="h-3.5 w-3.5" />
-      </button>
     </aside>
   );
 }

@@ -125,6 +125,7 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
               <img
                 src={logoUrl}
                 alt={practiceName || "Clinic Logo"}
+                suppressHydrationWarning
                 onError={(e) => {
                   if (e.currentTarget.src && !e.currentTarget.src.includes("/images/logo.png")) {
                     e.currentTarget.src = "/images/logo.png";

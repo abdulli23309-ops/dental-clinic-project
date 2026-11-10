@@ -64,6 +64,7 @@ export function SafeImage({
               src={resolvedUrl}
               alt={alt}
               fill
+              suppressHydrationWarning
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 40vw"
               priority={priority}
               onError={() => setHasError(true)}
@@ -160,6 +161,7 @@ export function SafeImage({
         alt={alt}
         fill
         priority={priority}
+        suppressHydrationWarning
         onError={() => setHasError(true)}
         className={className}
         {...rest}
@@ -174,6 +176,7 @@ export function SafeImage({
       width={width || 400}
       height={height || 300}
       priority={priority}
+      suppressHydrationWarning
       onError={() => setHasError(true)}
       className={className}
       {...rest}

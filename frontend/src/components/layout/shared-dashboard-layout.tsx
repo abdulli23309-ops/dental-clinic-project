@@ -174,6 +174,17 @@ export function SharedDashboardLayout({
           >
             <Menu className="h-5 w-5" />
           </button>
+          {pathname !== (basePath || "/admin") && (
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="p-1.5 rounded-xl border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:text-primary transition-colors cursor-pointer shrink-0"
+              aria-label="Go back"
+              title="Go back"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+          )}
           {logoUrl && (
             <div className="h-7 w-7 rounded-lg overflow-hidden bg-white dark:bg-gray-800 p-0.5 border border-gray-200 dark:border-gray-700 shrink-0 flex items-center justify-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -228,12 +239,14 @@ export function SharedDashboardLayout({
             }`}
         >
           <div className="flex items-center gap-3 overflow-hidden min-w-0">
-            {/* Real Uploaded Clinic Logo Anchor */}
+            {/* Real Uploaded Clinic Logo: Clicking directly toggles sidebar collapse */}
             <div className="shrink-0">
-              <Link
-                href={basePath || links[0]?.href || "/"}
-                className="h-11 w-11 rounded-2xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700/80 p-1 flex items-center justify-center shadow-xs overflow-hidden transition-all hover:scale-105 cursor-pointer block"
-                title={fullBrandName}
+              <button
+                type="button"
+                onClick={handleToggleCollapse}
+                className="h-11 w-11 rounded-2xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700/80 p-1 flex items-center justify-center shadow-xs overflow-hidden transition-all hover:scale-105 active:scale-95 cursor-pointer block"
+                title={isCollapsed ? `Expand sidebar (${fullBrandName})` : `Collapse sidebar (${fullBrandName})`}
+                aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               >
                 {logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -247,7 +260,7 @@ export function SharedDashboardLayout({
                     {shortBrandName.charAt(0)}
                   </span>
                 )}
-              </Link>
+              </button>
             </div>
 
             <Link
@@ -271,16 +284,6 @@ export function SharedDashboardLayout({
             aria-label="Close sidebar"
           >
             <X className="h-5 w-5" />
-          </button>
-
-          {/* Persistent collapse toggle on desktop */}
-          <button
-            onClick={handleToggleCollapse}
-            className="hidden md:flex p-1.5 rounded-xl border border-gray-200 dark:border-gray-800 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer shrink-0"
-            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </button>
         </div>
 
@@ -406,6 +409,18 @@ export function SharedDashboardLayout({
         {/* Desktop Sticky Header */}
         <header className="hidden md:flex sticky top-0 z-20 h-14 items-center justify-between border-b border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 px-8 backdrop-blur-md">
           <div className="flex items-center gap-3">
+            {pathname !== (basePath || "/admin") && (
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:text-primary hover:border-primary/40 dark:hover:border-primary/40 shadow-xs transition-all cursor-pointer mr-1"
+                title="Go back"
+                aria-label="Go back"
+              >
+                <ChevronLeft className="w-3.5 h-3.5 text-primary" />
+                <span>Back</span>
+              </button>
+            )}
             <span className="text-xs font-mono uppercase tracking-wider text-gray-500 dark:text-gray-400">
               {portalTitle || `${roleTitle} Portal`}
             </span>

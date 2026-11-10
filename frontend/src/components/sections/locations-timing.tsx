@@ -146,8 +146,29 @@ export function LocationsTiming() {
         )}
 
         {/* Locations Cards List */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-          {filteredLocations.map((loc) => {
+        {filteredLocations.length === 0 ? (
+          <div className="py-14 text-center rounded-2xl border border-dashed border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-gray-900/50 p-8">
+            <Building2 className="mx-auto h-10 w-10 text-gray-400 dark:text-gray-500 mb-3" />
+            <p className="text-base font-semibold text-gray-900 dark:text-white">
+              No active clinic locations found
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-sm mx-auto">
+              There are currently no active clinic branches available in this selection. Please choose another location or view all clinics.
+            </p>
+            {selectedCity !== "all" && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-4 rounded-full"
+                onClick={() => setSelectedCity("all")}
+              >
+                {copy.allClinics}
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+            {filteredLocations.map((loc) => {
             const isPrimary = loc.isPrimary || activeLocations.length === 1;
             const fullAddress =
               isPrimary && content.general?.address?.trim()
@@ -476,6 +497,7 @@ export function LocationsTiming() {
             );
           })}
         </div>
+        )}
       </div>
     </section>
   );

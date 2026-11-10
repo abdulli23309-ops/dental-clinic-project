@@ -452,22 +452,18 @@ export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:800
  * Returns the sanitized base URL of the backend API, stripped of any trailing /api/v1.
  */
 export function getBackendBaseUrl(): string {
-  let base = process.env.NEXT_PUBLIC_API_URL || "";
+  let base = process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_API_URL || "";
   if (typeof window !== "undefined") {
-    if (!base || base.includes("localhost") || base.includes("127.0.0.1")) {
-      const host = window.location.hostname;
-      if (host.includes("tweenova.online")) {
-        base = "https://hiraapi.tweenova.online";
-      } else if (base.includes("localhost") || base.includes("127.0.0.1")) {
-        base = "http://127.0.0.1:8000";
-      } else {
-        base = window.location.origin;
-      }
+    const host = window.location.hostname;
+    if (host.includes("tweenova.online")) {
+      base = "https://hiraapi.tweenova.online";
     }
   }
   if (!base) {
-    base = "https://hiraapi.tweenova.online";
+    base = "http://localhost:8000";
   }
+  // Standardize local development origin so SSR and Client hydration output identical URLs
+  base = base.replace(/127\.0\.0\.1:8000/g, "localhost:8000");
   return base.replace(/\/api\/v1\/?$/i, "").replace(/\/api\/?$/i, "").replace(/\/+$/, "");
 }
 
@@ -479,6 +475,11 @@ export function resolveMediaUrl(url?: string | null): string | null {
   if (!url) return null;
   const trimmed = url.trim();
   if (!trimmed) return null;
+  // Normalize any local absolute origin so SSR and Client hydration match 1:1
+  if (/^https?:\/\/(localhost|127\.0\.0\.1):8000/i.test(trimmed)) {
+    const base = getBackendBaseUrl();
+    return trimmed.replace(/^https?:\/\/(localhost|127\.0\.0\.1):8000/i, base);
+  }
   if (/^(https?:|\/\/|data:)/i.test(trimmed)) {
     return trimmed;
   }

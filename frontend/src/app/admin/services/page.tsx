@@ -2,9 +2,11 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion, Reorder } from "motion/react";
 import {
   ArrowDown,
+  ArrowLeft,
   ArrowUp,
   Building2,
   Check,
@@ -57,6 +59,7 @@ const CATEGORIES = [
 ];
 
 export default function AdminServicesPage() {
+  const router = useRouter();
   const { accessToken } = useAuth();
   const [services, setServices] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -350,17 +353,28 @@ export default function AdminServicesPage() {
     <AnimatedPage className="space-y-8 p-6 max-w-7xl mx-auto">
       {/* Top Banner / IA Breadcrumb */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-border/40 pb-6">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-semibold uppercase tracking-wider text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
-              Catalog Management
-            </span>
-            <span className="text-xs text-muted-foreground">WHAT we offer</span>
+        <div className="flex items-start gap-3.5">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="mt-1 h-9 w-9 rounded-full border border-border/80 bg-background hover:bg-muted/60 flex items-center justify-center text-foreground/80 hover:text-foreground transition-all shadow-xs cursor-pointer shrink-0"
+            title="Go Back"
+            aria-label="Go Back"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-semibold uppercase tracking-wider text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
+                Catalog Management
+              </span>
+              <span className="text-xs text-muted-foreground">WHAT we offer</span>
+            </div>
+            <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Services Catalog</h1>
+            <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
+              Central repository of dental procedures, standard fees, durations, and website visibility.
+            </p>
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Services Catalog</h1>
-          <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-            Central repository of dental procedures, standard fees, durations, and website visibility.
-          </p>
         </div>
 
         <div className="flex items-center gap-3">

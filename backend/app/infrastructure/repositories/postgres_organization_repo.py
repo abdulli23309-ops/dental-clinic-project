@@ -137,21 +137,26 @@ class PostgresLocationRepository(LocationRepository):
         )
 
     async def list_all(self, include_inactive: bool = False) -> List[Location]:
+        # 1. Fetch LocationORM records
         stmt = select(LocationORM)
         if not include_inactive:
             stmt = stmt.where(LocationORM.is_active.is_(True))
         stmt = stmt.order_by(LocationORM.display_order.asc(), LocationORM.name.asc())
         result = await self._session.execute(stmt)
         locations = [self._to_domain(orm) for orm in result.scalars().all()]
-        existing_ids = {loc.id for loc in locations}
 
+        # 2. Get ALL LocationORM ids (active and inactive) so an inactive LocationORM never falls back to ClinicORM
+        all_loc_ids_stmt = select(LocationORM.id)
+        all_loc_ids = set((await self._session.execute(all_loc_ids_stmt)).scalars().all())
+
+        # 3. Supplemental legacy clinics from ClinicORM (only those not tracked in LocationORM)
         from app.infrastructure.database.orm_models import ClinicORM
         c_stmt = select(ClinicORM)
         if not include_inactive:
             c_stmt = c_stmt.where(ClinicORM.is_active.is_(True))
         c_result = await self._session.execute(c_stmt)
         for c in c_result.scalars().all():
-            if c.id not in existing_ids and not c.name.startswith("Main Lahore Clinic"):
+            if c.id not in all_loc_ids and not c.name.startswith("Main Lahore Clinic"):
                 locations.append(Location(
                     id=c.id,
                     organization_id=c.organization_id,
@@ -221,6 +226,25 @@ class PostgresLocationRepository(LocationRepository):
             existing.is_active = location.is_active
             existing.display_order = location.display_order
             existing.updated_at = location.updated_at
+
+            # Keep corresponding ClinicORM in sync if present
+            from app.infrastructure.database.orm_models import ClinicORM
+            c_existing = await self._session.get(ClinicORM, location.id)
+            if c_existing:
+                c_existing.name = location.name
+                c_existing.address_line1 = location.address_line1
+                c_existing.address_line2 = location.address_line2
+                c_existing.city = location.city
+                c_existing.state = location.state
+                c_existing.postal_code = location.postal_code
+                c_existing.country = location.country
+                c_existing.phone = location.phone
+                c_existing.email = location.email
+                c_existing.is_primary = location.is_primary
+                c_existing.is_active = location.is_active
+                c_existing.display_order = location.display_order
+                c_existing.updated_at = location.updated_at
+
             await self._session.flush()
             return self._to_domain(existing)
         else:
@@ -245,6 +269,15 @@ class PostgresLocationRepository(LocationRepository):
                 updated_at=location.updated_at,
             )
             self._session.add(orm)
+
+            # Sync ClinicORM if present
+            from app.infrastructure.database.orm_models import ClinicORM
+            c_existing = await self._session.get(ClinicORM, location.id)
+            if c_existing:
+                c_existing.name = location.name
+                c_existing.is_active = location.is_active
+                c_existing.updated_at = location.updated_at
+
             await self._session.flush()
             return self._to_domain(orm)
     async def delete(self, location_id: UUID) -> None:

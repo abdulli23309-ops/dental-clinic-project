@@ -20,13 +20,13 @@ class AppointmentCreateRequest(BaseModel):
     preferredDate: str = Field(..., description="Target appointment date (YYYY-MM-DD)")
     preferredTime: str = Field(..., description="Requested time slot")
     fullName: str = Field(..., min_length=2, max_length=100, description="Full legal name")
-    phone: str = Field(..., min_length=10, max_length=30, description="Patient contact telephone")
+    phone: str = Field(..., min_length=7, max_length=30, description="Patient contact telephone")
     email: Optional[str] = Field(default=None, max_length=150, description="Optional patient email address")
     clinicId: Optional[UUID] = Field(default=None, description="Optional target clinic branch ID")
     teamMemberId: Optional[UUID] = Field(default=None, description="Optional selected clinician ID")
     leadToken: Optional[str] = Field(default=None, description="Optional capture token from previous booking steps")
     bookingFor: Optional[str] = Field(default="myself", max_length=100, description="Booking for myself or someone else")
-    notes: Optional[str] = Field(default=None, max_length=1000, description="Optional patient notes or symptoms")
+    notes: Optional[str] = Field(default=None, min_length=0, max_length=1000, description="Optional patient notes or symptoms")
     utmSource: Optional[str] = Field(default=None, max_length=100, description="Marketing source attribution")
     utmCampaign: Optional[str] = Field(default=None, max_length=100, description="Marketing campaign attribution")
 
@@ -97,11 +97,20 @@ class AppointmentCreateRequest(BaseModel):
     @field_validator("phone")
     @classmethod
     def validate_phone(cls, v: str) -> str:
-        """Ensures the phone number contains at least 10 numeric digits so staff can call the patient back."""
+        """Ensures the phone number contains at least 7 numeric digits so staff can call the patient back."""
         digits = re.sub(r"\D", "", v)
-        if len(digits) < 10:
-            raise ValueError("phone must contain at least 10 digits.")
+        if len(digits) < 7:
+            raise ValueError("phone must contain at least 7 digits.")
         return v.strip()
+
+    @field_validator("notes", mode="before")
+    @classmethod
+    def validate_notes(cls, v: Optional[str]) -> Optional[str]:
+        """Normalizes patient notes, allowing short notes (e.g. 'Pain', 'Checkup') or empty strings."""
+        if v is None:
+            return None
+        cleaned = str(v).strip()
+        return cleaned if cleaned else None
 
     @field_validator("email")
     @classmethod

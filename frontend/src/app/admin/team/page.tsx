@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
 import {
@@ -77,6 +78,7 @@ import {
 const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 export default function AdminTeamPage() {
+  const router = useRouter();
   const { accessToken } = useAuth();
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [locations, setLocations] = useState<LocationItem[]>([]);
@@ -883,17 +885,28 @@ export default function AdminTeamPage() {
     <AnimatedPage className="space-y-8 p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-border/40 pb-6">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-semibold uppercase tracking-wider text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
-              Team Management
-            </span>
-            <span className="text-xs text-muted-foreground">WHO performs care</span>
+        <div className="flex items-start gap-3.5">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="mt-1 h-9 w-9 rounded-full border border-border/80 bg-background hover:bg-muted/60 flex items-center justify-center text-foreground/80 hover:text-foreground transition-all shadow-xs cursor-pointer shrink-0"
+            title="Go Back"
+            aria-label="Go Back"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-semibold uppercase tracking-wider text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
+                Team Management
+              </span>
+              <span className="text-xs text-muted-foreground">WHO performs care</span>
+            </div>
+            <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Clinicians & Staff</h1>
+            <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
+              Manage doctor profiles, assigned branches, authorized clinical procedures, and weekly shift schedules.
+            </p>
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Clinicians & Staff</h1>
-          <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-            Manage doctor profiles, assigned branches, authorized clinical procedures, and weekly shift schedules.
-          </p>
         </div>
 
         <div className="flex items-center gap-3">

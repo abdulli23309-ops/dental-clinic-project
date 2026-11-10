@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
 import {
@@ -73,6 +74,7 @@ import {
 const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 export default function AdminLocationsPage() {
+  const router = useRouter();
   const { accessToken } = useAuth();
   const [locations, setLocations] = useState<LocationItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -733,17 +735,34 @@ export default function AdminLocationsPage() {
     <AnimatedPage className="space-y-8 p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-border/40 pb-6">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-semibold uppercase tracking-wider text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
-              Location Management
-            </span>
-            <span className="text-xs text-muted-foreground">WHERE care is delivered</span>
+        <div className="flex items-start gap-3.5">
+          <button
+            type="button"
+            onClick={() => {
+              if (selectedBranch) {
+                setSelectedBranch(null);
+              } else {
+                router.back();
+              }
+            }}
+            className="mt-1 h-9 w-9 rounded-full border border-border/80 bg-background hover:bg-muted/60 flex items-center justify-center text-foreground/80 hover:text-foreground transition-all shadow-xs cursor-pointer shrink-0"
+            title="Go Back"
+            aria-label="Go Back"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-semibold uppercase tracking-wider text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
+                Location Management
+              </span>
+              <span className="text-xs text-muted-foreground">WHERE care is delivered</span>
+            </div>
+            <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Clinic Branches</h1>
+            <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
+              Configure clinic physical branches, offered services, assigned clinicians, and operational hours.
+            </p>
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Clinic Branches</h1>
-          <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-            Configure clinic physical branches, offered services, assigned clinicians, and operational hours.
-          </p>
         </div>
 
         <div className="flex items-center gap-3">

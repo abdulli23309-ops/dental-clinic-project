@@ -82,33 +82,13 @@ export function DashboardSidebar({
                 src={orgLogo}
                 alt={orgName}
                 onError={() => setLogoFailed(true)}
-                className={cn(
-                  "h-8 w-8 object-contain dark:brightness-0 dark:invert transition-opacity duration-200",
-                  isCollapsed ? "opacity-0" : "group-hover:opacity-0"
-                )}
+                className="h-8 w-8 object-contain dark:brightness-0 dark:invert"
               />
             ) : (
-              <span
-                className={cn(
-                  "transition-opacity duration-200",
-                  isCollapsed ? "opacity-0" : "group-hover:opacity-0"
-                )}
-              >
+              <span>
                 {orgName.charAt(0)}
               </span>
             )}
-            <div
-              className={cn(
-                "absolute inset-0 flex items-center justify-center transition-opacity duration-200",
-                isCollapsed ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-              )}
-            >
-              {isCollapsed ? (
-                <ChevronRight className="h-5 w-5" />
-              ) : (
-                <ChevronLeft className="h-5 w-5" />
-              )}
-            </div>
           </button>
           <Link
             href={basePath}

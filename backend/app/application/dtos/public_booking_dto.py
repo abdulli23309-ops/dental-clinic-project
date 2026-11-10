@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class PublicLeadCaptureRequest(BaseModel):
     fullName: str = Field(..., min_length=2, max_length=100, description="Lead contact full name")
-    phone: str = Field(..., min_length=10, max_length=30, description="Lead contact phone number")
+    phone: str = Field(..., min_length=7, max_length=30, description="Lead contact phone number")
     email: Optional[str] = Field(default=None, max_length=150, description="Optional lead email address")
     noticeVersion: Optional[str] = Field(default=None, max_length=50, description="Consent notice version shown to lead")
     hp: Optional[str] = Field(default=None, max_length=100, description="Honeypot anti-spam trap")
@@ -29,8 +29,8 @@ class PublicLeadCaptureRequest(BaseModel):
     def validate_phone(cls, v: str) -> str:
         clean = v.strip()
         digits = "".join(c for c in clean if c.isdigit())
-        if len(digits) < 10:
-            raise ValueError("Phone number must contain at least 10 digits")
+        if len(digits) < 7:
+            raise ValueError("Phone number must contain at least 7 digits")
         return clean
 
 
@@ -49,7 +49,7 @@ class PublicLeadUpdateRequest(BaseModel):
     teamMemberId: Optional[UUID] = Field(default=None, description="Selected doctor / clinician ID")
     doctor: Optional[UUID] = Field(default=None, description="Selected doctor / clinician ID alias")
     doctorId: Optional[UUID] = Field(default=None, description="Selected doctor / clinician ID alias")
-    notes: Optional[str] = Field(default=None, max_length=1000, description="Patient notes or symptoms")
+    notes: Optional[str] = Field(default=None, min_length=0, max_length=1000, description="Patient notes or symptoms")
     email: Optional[str] = Field(default=None, max_length=150, description="Optional email address")
     name: Optional[str] = Field(default=None, max_length=255, description="Full name (filled only if currently empty)")
     fullName: Optional[str] = Field(default=None, max_length=255, description="Full name (filled only if currently empty)")
@@ -66,6 +66,14 @@ class PublicLeadUpdateRequest(BaseModel):
         if "@" not in clean or "." not in clean.split("@")[-1]:
             raise ValueError("Invalid email format")
         return clean
+
+    @field_validator("notes", mode="before")
+    @classmethod
+    def validate_notes(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        cleaned = str(v).strip()
+        return cleaned if cleaned else None
 
 
 class PublicLeadUpdateResponse(BaseModel):

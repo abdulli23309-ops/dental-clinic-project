@@ -195,6 +195,7 @@ export function OurTeam() {
           transform: `translate3d(0px, 0px, 40px) scale(1)`,
           zIndex: 30,
           opacity: 1,
+          filter: "blur(0px)",
           pointerEvents: "auto" as const,
           visibility: "visible" as const,
         };
@@ -203,7 +204,8 @@ export function OurTeam() {
         return {
           transform: `translate3d(${-42 * rtlSign}px, 14px, -60px) rotateY(${12 * rtlSign}deg) scale(0.91)`,
           zIndex: 20,
-          opacity: 0.45,
+          opacity: 0.55,
+          filter: "blur(2.5px)",
           pointerEvents: "auto" as const,
           visibility: "visible" as const,
         };
@@ -212,7 +214,8 @@ export function OurTeam() {
         return {
           transform: `translate3d(${42 * rtlSign}px, 14px, -60px) rotateY(${-12 * rtlSign}deg) scale(0.91)`,
           zIndex: 20,
-          opacity: 0.45,
+          opacity: 0.55,
+          filter: "blur(2.5px)",
           pointerEvents: "auto" as const,
           visibility: "visible" as const,
         };
@@ -221,12 +224,13 @@ export function OurTeam() {
         transform: `translate3d(0px, 0px, -150px) scale(0.8)`,
         zIndex: 0,
         opacity: 0,
+        filter: "blur(6px)",
         pointerEvents: "none" as const,
         visibility: "hidden" as const,
       };
     }
 
-    // Desktop & Laptop 5-Card Cylinder Arc (100% Preserved)
+    // Desktop & Laptop 5-Card Cylinder Arc with Cinematic Depth-of-Field Blur
     const xStep1 = isTablet ? 220 : 310;
     const xStep2 = isTablet ? 400 : 560;
     const z1 = -60;
@@ -241,6 +245,7 @@ export function OurTeam() {
         transform: `translate3d(0px, 0px, 60px) rotateY(0deg) scale(1)`,
         zIndex: 30,
         opacity: 1,
+        filter: "blur(0px)",
         pointerEvents: "auto" as const,
         visibility: "visible" as const,
       };
@@ -249,7 +254,8 @@ export function OurTeam() {
       return {
         transform: `translate3d(${-xStep1 * rtlSign}px, 0px, ${z1}px) rotateY(${rot1 * rtlSign}deg) scale(${s1})`,
         zIndex: 20,
-        opacity: 0.92,
+        opacity: 0.75,
+        filter: "blur(3px)",
         pointerEvents: "auto" as const,
         visibility: "visible" as const,
       };
@@ -258,7 +264,8 @@ export function OurTeam() {
       return {
         transform: `translate3d(${xStep1 * rtlSign}px, 0px, ${z1}px) rotateY(${-rot1 * rtlSign}deg) scale(${s1})`,
         zIndex: 20,
-        opacity: 0.92,
+        opacity: 0.75,
+        filter: "blur(3px)",
         pointerEvents: "auto" as const,
         visibility: "visible" as const,
       };
@@ -267,8 +274,9 @@ export function OurTeam() {
       return {
         transform: `translate3d(${-xStep2 * rtlSign}px, 0px, ${z2}px) rotateY(${rot2 * rtlSign}deg) scale(${s2})`,
         zIndex: 10,
-        opacity: 0.70,
-        pointerEvents: "auto" as const,
+        opacity: 0.40,
+        filter: "blur(5.5px)",
+        pointerEvents: "none" as const,
         visibility: "visible" as const,
       };
     }
@@ -276,8 +284,9 @@ export function OurTeam() {
       return {
         transform: `translate3d(${xStep2 * rtlSign}px, 0px, ${z2}px) rotateY(${-rot2 * rtlSign}deg) scale(${s2})`,
         zIndex: 10,
-        opacity: 0.70,
-        pointerEvents: "auto" as const,
+        opacity: 0.40,
+        filter: "blur(5.5px)",
+        pointerEvents: "none" as const,
         visibility: "visible" as const,
       };
     }
@@ -285,6 +294,7 @@ export function OurTeam() {
       transform: `translate3d(0px, 0px, -300px) scale(0.5)`,
       zIndex: 0,
       opacity: 0,
+      filter: "blur(8px)",
       pointerEvents: "none" as const,
       visibility: "hidden" as const,
     };
@@ -447,7 +457,7 @@ export function OurTeam() {
                         ...slotStyle,
                         transition: isDragging
                           ? "none"
-                          : "transform 500ms cubic-bezier(0.22, 1, 0.36, 1), opacity 500ms ease",
+                          : "transform 500ms cubic-bezier(0.22, 1, 0.36, 1), opacity 500ms ease, filter 500ms ease",
                       }}
                       onClick={(e) => {
                         if (!isFront && isVisible && !hasDragged.current) {
@@ -460,7 +470,7 @@ export function OurTeam() {
                       <div
                         className={`relative w-[280px] sm:w-[310px] md:w-[320px] h-[495px] sm:h-[525px] rounded-3xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border p-3.5 sm:p-4 shadow-[0_20px_50px_rgba(15,23,42,0.08)] flex flex-col justify-between transition-all duration-300 ${
                           isFront
-                            ? "ring-2 ring-primary border-primary shadow-[0_25px_60px_-15px_hsl(var(--primary)/0.25)] scale-[1.01]"
+                            ? "ring-2 ring-primary border-primary shadow-[0_25px_60px_-15px_hsl(var(--primary)/0.28)] scale-[1.01]"
                             : "border-slate-200/80 dark:border-white/10 hover:border-primary/40"
                         }`}
                       >

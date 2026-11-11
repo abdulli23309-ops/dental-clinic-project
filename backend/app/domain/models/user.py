@@ -13,6 +13,7 @@ class UserRole(str, Enum):
     ADMIN = "admin"
     DOCTOR = "doctor"
     RECEPTIONIST = "receptionist"
+    FRONT_DESK = "front_desk"
     NURSE = "nurse"
     DENTAL_ASSISTANT = "dental_assistant"
     CLEANER = "cleaner"
@@ -38,6 +39,8 @@ class User:
     team_member_id: Optional[UUID] = None
     requires_password_change: bool = False
     has_completed_onboarding: bool = False
+    avatar_url: Optional[str] = None
+    team_member_photo_url: Optional[str] = None
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))

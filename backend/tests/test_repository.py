@@ -96,3 +96,73 @@ async def test_repository_unique_constraint_enforcement(db_session: AsyncSession
     db_session.add(PostgresAppointmentRepository._to_orm(apt2))
     with pytest.raises(IntegrityError):
         await db_session.commit()
+
+
+def test_user_repository_role_mapping_and_fail_closed(caplog):
+    """
+    Verifies that PostgresUserRepository._to_domain correctly maps all canonical
+    role strings and aliases (including front_desk), while safely failing closed
+    to UserRole.PATIENT for any unrecognized, null, or empty string.
+    """
+    from uuid import uuid4
+    import logging
+    from app.domain.models.user import UserRole
+    from app.infrastructure.database.orm_models import UserORM
+    from app.infrastructure.repositories.postgres_user_repo import PostgresUserRepository
+
+    def create_mock_orm(role_str):
+        return UserORM(
+            id=uuid4(),
+            email="test@example.com",
+            hashed_password="hash",
+            full_name="Test User",
+            role=role_str,
+            is_active=True,
+        )
+
+    # 1. Canonical and alias mapping verification
+    expected_mappings = [
+        ("admin", UserRole.ADMIN),
+        ("Admin", UserRole.ADMIN),
+        ("practice manager", UserRole.PRACTICE_MANAGER),
+        ("practice_manager", UserRole.PRACTICE_MANAGER),
+        ("receptionist", UserRole.RECEPTIONIST),
+        ("front_desk", UserRole.FRONT_DESK),
+        ("front desk", UserRole.FRONT_DESK),
+        ("FRONT_DESK", UserRole.FRONT_DESK),
+        ("doctor", UserRole.DOCTOR),
+        ("DOCTOR", UserRole.DOCTOR),
+        ("nurse", UserRole.NURSE),
+        ("dental assistant", UserRole.DENTAL_ASSISTANT),
+        ("dental_assistant", UserRole.DENTAL_ASSISTANT),
+        ("cleaner", UserRole.CLEANER),
+        ("sterilization tech", UserRole.STERILIZATION_TECH),
+        ("sterilization_tech", UserRole.STERILIZATION_TECH),
+        ("patient", UserRole.PATIENT),
+        ("platform owner", UserRole.PLATFORM_OWNER),
+        ("platform_owner", UserRole.PLATFORM_OWNER),
+        ("super admin", UserRole.SUPER_ADMIN),
+        ("super_admin", UserRole.SUPER_ADMIN),
+        ("clinic branch manager", UserRole.CLINIC_BRANCH_MANAGER),
+        ("clinic_branch_manager", UserRole.CLINIC_BRANCH_MANAGER),
+    ]
+
+    for role_input, expected_role in expected_mappings:
+        orm = create_mock_orm(role_input)
+        domain = PostgresUserRepository._to_domain(orm)
+        assert domain.role == expected_role, f"Failed mapping for role '{role_input}'"
+
+    # 2. Fail closed verification for unrecognized roles -> MUST be PATIENT, never ADMIN
+    unrecognized_roles = ["attacker", "guest", "unknown_role", "owner", "dentist", "hygienist", "staff", "root"]
+    with caplog.at_level(logging.WARNING):
+        for unk in unrecognized_roles:
+            orm = create_mock_orm(unk)
+            domain = PostgresUserRepository._to_domain(orm)
+            assert domain.role == UserRole.PATIENT, f"Unrecognized role '{unk}' must fail closed to PATIENT"
+
+    # 3. Fail closed verification for None, empty, and whitespace
+    with caplog.at_level(logging.WARNING):
+        for empty_val in [None, "", "   ", "\t"]:
+            orm = create_mock_orm(empty_val)
+            domain = PostgresUserRepository._to_domain(orm)
+            assert domain.role == UserRole.PATIENT, f"Empty/null role '{empty_val}' must fail closed to PATIENT"

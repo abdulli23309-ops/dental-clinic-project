@@ -26,6 +26,9 @@ DOCTOR_ROLES: Set[str] = {
 
 RECEPTIONIST_ROLES: Set[str] = {
     "receptionist",
+    "reception",
+    "front_desk",
+    "front desk",
 }
 
 NURSE_ROLES: Set[str] = {

@@ -5,9 +5,10 @@ from uuid import UUID
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.logging import logger
 from app.domain.models.user import RefreshToken, User, UserRole, UserSession
 from app.domain.repositories.user_repo import RefreshTokenRepository, UserRepository, UserSessionRepository
-from app.infrastructure.database.orm_models import RefreshTokenORM, UserORM, UserSessionORM
+from app.infrastructure.database.orm_models import RefreshTokenORM, UserORM, UserSessionORM, TeamMemberORM
 
 
 class PostgresUserRepository(UserRepository):
@@ -17,13 +18,15 @@ class PostgresUserRepository(UserRepository):
         self._session = session
 
     @staticmethod
-    def _to_domain(orm: UserORM) -> User:
-        raw_role = (orm.role or "admin").strip().lower()
+    def _to_domain(orm: UserORM, team_photo: Optional[str] = None) -> User:
+        raw_role = (orm.role or "").strip().lower()
         role_map = {
             "admin": UserRole.ADMIN,
             "practice manager": UserRole.PRACTICE_MANAGER,
             "practice_manager": UserRole.PRACTICE_MANAGER,
             "receptionist": UserRole.RECEPTIONIST,
+            "front_desk": UserRole.FRONT_DESK,
+            "front desk": UserRole.FRONT_DESK,
             "doctor": UserRole.DOCTOR,
             "nurse": UserRole.NURSE,
             "dental assistant": UserRole.DENTAL_ASSISTANT,
@@ -39,7 +42,16 @@ class PostgresUserRepository(UserRepository):
             "clinic branch manager": UserRole.CLINIC_BRANCH_MANAGER,
             "clinic_branch_manager": UserRole.CLINIC_BRANCH_MANAGER,
         }
-        role = role_map.get(raw_role, UserRole.ADMIN)
+        if raw_role in role_map:
+            role = role_map[raw_role]
+        else:
+            logger.warning(
+                "Unrecognized or empty user role '%s' encountered for user %s; failing closed to least-privileged role (%s)",
+                raw_role,
+                getattr(orm, "id", "unknown"),
+                UserRole.PATIENT.value,
+            )
+            role = UserRole.PATIENT
         return User(
             id=orm.id,
             email=orm.email,
@@ -51,6 +63,8 @@ class PostgresUserRepository(UserRepository):
             team_member_id=orm.team_member_id if hasattr(orm, "team_member_id") else None,
             requires_password_change=getattr(orm, "requires_password_change", False),
             has_completed_onboarding=getattr(orm, "has_completed_onboarding", False),
+            avatar_url=getattr(orm, "avatar_url", None),
+            team_member_photo_url=team_photo,
             inactivity_enabled=orm.inactivity_enabled,
             inactivity_timeout_minutes=orm.inactivity_timeout_minutes,
             inactivity_warning_seconds=orm.inactivity_warning_seconds,
@@ -71,6 +85,7 @@ class PostgresUserRepository(UserRepository):
             is_active=domain.is_active,
             requires_password_change=domain.requires_password_change,
             has_completed_onboarding=domain.has_completed_onboarding,
+            avatar_url=domain.avatar_url,
             inactivity_enabled=domain.inactivity_enabled,
             inactivity_timeout_minutes=domain.inactivity_timeout_minutes,
             inactivity_warning_seconds=domain.inactivity_warning_seconds,
@@ -79,27 +94,47 @@ class PostgresUserRepository(UserRepository):
         )
 
     async def get_by_id(self, user_id: UUID) -> Optional[User]:
-        stmt = select(UserORM).where(UserORM.id == user_id)
+        stmt = (
+            select(UserORM, TeamMemberORM.photo_url)
+            .outerjoin(TeamMemberORM, UserORM.team_member_id == TeamMemberORM.id)
+            .where(UserORM.id == user_id)
+        )
         result = await self._session.execute(stmt)
-        orm = result.scalar_one_or_none()
-        return self._to_domain(orm) if orm else None
+        row = result.first()
+        if not row:
+            return None
+        orm, team_photo = row[0], row[1]
+        return self._to_domain(orm, team_photo)
 
     async def get_by_email(self, email: str) -> Optional[User]:
-        stmt = select(UserORM).where(UserORM.email == email.strip().lower())
+        clean_email = email.strip().lower()
+        stmt = (
+            select(UserORM, TeamMemberORM.photo_url)
+            .outerjoin(TeamMemberORM, UserORM.team_member_id == TeamMemberORM.id)
+            .where(UserORM.email == clean_email)
+        )
         result = await self._session.execute(stmt)
-        orm = result.scalar_one_or_none()
-        return self._to_domain(orm) if orm else None
+        row = result.first()
+        if not row:
+            return None
+        orm, team_photo = row[0], row[1]
+        return self._to_domain(orm, team_photo)
 
     async def list_users(
         self, role: Optional[str] = None, is_active: Optional[bool] = None
     ) -> List[User]:
-        stmt = select(UserORM).order_by(UserORM.created_at.desc())
+        stmt = (
+            select(UserORM, TeamMemberORM.photo_url)
+            .outerjoin(TeamMemberORM, UserORM.team_member_id == TeamMemberORM.id)
+            .order_by(UserORM.created_at.desc())
+        )
         if role:
             stmt = stmt.where(UserORM.role == role)
         if is_active is not None:
             stmt = stmt.where(UserORM.is_active == is_active)
         result = await self._session.execute(stmt)
-        return [self._to_domain(u) for u in result.scalars().all()]
+        rows = result.all()
+        return [self._to_domain(r[0], r[1]) for r in rows]
 
     async def save(self, user: User) -> User:
         existing = await self._session.get(UserORM, user.id)
@@ -113,17 +148,29 @@ class PostgresUserRepository(UserRepository):
             existing.is_active = user.is_active
             existing.requires_password_change = user.requires_password_change
             existing.has_completed_onboarding = user.has_completed_onboarding
+            existing.avatar_url = user.avatar_url
             existing.inactivity_enabled = user.inactivity_enabled
             existing.inactivity_timeout_minutes = user.inactivity_timeout_minutes
             existing.inactivity_warning_seconds = user.inactivity_warning_seconds
             existing.updated_at = datetime.now(timezone.utc)
             await self._session.flush()
-            return self._to_domain(existing)
+            # Fetch linked team photo if present
+            team_photo = None
+            if existing.team_member_id:
+                tm = await self._session.get(TeamMemberORM, existing.team_member_id)
+                if tm:
+                    team_photo = tm.photo_url
+            return self._to_domain(existing, team_photo)
         else:
             orm = self._to_orm(user)
             self._session.add(orm)
             await self._session.flush()
-            return self._to_domain(orm)
+            team_photo = None
+            if orm.team_member_id:
+                tm = await self._session.get(TeamMemberORM, orm.team_member_id)
+                if tm:
+                    team_photo = tm.photo_url
+            return self._to_domain(orm, team_photo)
 
     async def update_inactivity_settings(
         self,

@@ -76,6 +76,10 @@ def _map_user_response(user: User) -> UserResponse:
     is_admin = raw_role in ["admin", "super admin", "super_admin", "platform owner", "platform_owner"]
     has_completed = True if is_admin else getattr(user, "has_completed_onboarding", False)
 
+    personal_avatar = getattr(user, "avatar_url", None)
+    team_photo = getattr(user, "team_member_photo_url", None)
+    effective_avatar = personal_avatar or team_photo
+
     return UserResponse(
         id=user.id,
         email=user.email,
@@ -89,6 +93,8 @@ def _map_user_response(user: User) -> UserResponse:
         inactivityEnabled=user.inactivity_enabled,
         inactivityTimeoutMinutes=user.inactivity_timeout_minutes,
         inactivityWarningSeconds=user.inactivity_warning_seconds,
+        avatarUrl=effective_avatar,
+        personalAvatarUrl=personal_avatar,
     )
 
 

@@ -47,7 +47,14 @@ def get_session_factory() -> async_sessionmaker[AsyncSession]:
 async def init_db() -> None:
     """Initializes the database connection pool when the application first starts up."""
     get_engine()
-    get_session_factory()
+    factory = get_session_factory()
+    try:
+        from sqlalchemy import text
+        async with factory() as session:
+            await session.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(500);"))
+            await session.commit()
+    except Exception as e:
+        logger.warning("Safe schema column check encountered warning: %s", e)
     logger.info("Database engine initialized.")
 
 

@@ -72,27 +72,27 @@ SERVICE_IMAGE_MAP = {
 
 GALLERY_DEFAULTS = [
     {
-        "caption": "Sterile Surgical Suite — Ergonomic treatment station with digital monitoring and infection control",
+        "caption": "Sterile Surgical & Diagnostic Suite — Digital radiography, surgical lighting, and hospital-grade infection control.",
         "image_url": "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1200&q=80",
         "display_order": 1,
     },
     {
-        "caption": "Advanced Radiography & Consultation — High-resolution 3D diagnostic imaging suite",
+        "caption": "Precision Restorative & Endodontic Care — Advanced instrumentation for gentle, minimally invasive treatment.",
         "image_url": "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&w=1200&q=80",
         "display_order": 2,
     },
     {
-        "caption": "Diagnostic & Preventive Station — Comprehensive oral assessment and preventive care suite",
+        "caption": "Diagnostic & Preventive Station — Oral health assessments and preventive hygiene in a calm, patient-first setting.",
         "image_url": "https://images.unsplash.com/photo-1606811841689-23dfddce3e95?auto=format&fit=crop&w=1200&q=80",
         "display_order": 3,
     },
     {
-        "caption": "General & Cosmetic Treatment Room — Dedicated restorative dentistry operatory",
+        "caption": "General & Cosmetic Treatment Room — Aesthetic and restorative care with strict sterilization protocols.",
         "image_url": "https://images.unsplash.com/photo-1598256989800-fe5f95da9787?auto=format&fit=crop&w=1200&q=80",
         "display_order": 4,
     },
     {
-        "caption": "Patient Comfort & Smile Lounge — Serene hotel-inspired reception sanctuary",
+        "caption": "Patient Comfort & Smile Lounge — Hotel-inspired reception for calm, unhurried visits.",
         "image_url": "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=1400&q=80",
         "display_order": 5,
     },
@@ -210,7 +210,7 @@ async def repair_production_database():
                 svc_repaired += 1
 
         # 3. Gallery Images Repair
-        gal_res = await session.execute(select(GalleryImageORM))
+        gal_res = await session.execute(select(GalleryImageORM).order_by(GalleryImageORM.display_order))
         gallery = gal_res.scalars().all()
         gal_repaired = 0
         if len(gallery) == 0:
@@ -225,15 +225,13 @@ async def repair_production_database():
             gal_repaired += len(GALLERY_DEFAULTS)
         else:
             for idx, g in enumerate(gallery):
+                if idx < len(GALLERY_DEFAULTS):
+                    target_def = GALLERY_DEFAULTS[idx]
+                    if g.caption != target_def["caption"]:
+                        g.caption = target_def["caption"]
+                        gal_repaired += 1
                 if is_broken_media_url(g.image_url, upload_dir):
-                    matched_url = None
-                    caption_clean = (g.caption or "").lower()
-                    for g_def in GALLERY_DEFAULTS:
-                        if g_def["caption"].lower() in caption_clean or caption_clean in g_def["caption"].lower():
-                            matched_url = g_def["image_url"]
-                            break
-                    if not matched_url:
-                        matched_url = GALLERY_DEFAULTS[idx % len(GALLERY_DEFAULTS)]["image_url"]
+                    matched_url = GALLERY_DEFAULTS[idx % len(GALLERY_DEFAULTS)]["image_url"]
                     g.image_url = matched_url
                     gal_repaired += 1
 
@@ -255,6 +253,22 @@ async def repair_production_database():
             # Unconditionally force-update DHDC Lahore (Gulberg) to clean unbranded clinic architecture
             if "lahore" in loc_clean and "gulberg" in loc_clean:
                 target_url = "https://images.unsplash.com/photo-1629909615184-74f495363b67?auto=format&fit=crop&w=1200&q=85"
+                if loc.image_url != target_url:
+                    loc.image_url = target_url
+                    loc_repaired += 1
+                continue
+
+            # Unconditionally force-update DHDC Islamabad (F-7 Markaz) to clean unbranded clinic architecture (no competitor signs)
+            if "f-7" in loc_clean or "f7" in loc_clean or "markaz" in loc_clean:
+                target_url = "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&w=1200&q=85"
+                if loc.image_url != target_url:
+                    loc.image_url = target_url
+                    loc_repaired += 1
+                continue
+
+            # Unconditionally force-update DHDC Karachi (Clifton) to clean unbranded clinic architecture (no competitor signs)
+            if "karachi" in loc_clean or "clifton" in loc_clean:
+                target_url = "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=1200&q=85"
                 if loc.image_url != target_url:
                     loc.image_url = target_url
                     loc_repaired += 1

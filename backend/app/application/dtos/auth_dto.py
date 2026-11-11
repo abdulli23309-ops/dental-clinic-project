@@ -33,6 +33,8 @@ class UserResponse(BaseModel):
     inactivityEnabled: bool = True
     inactivityTimeoutMinutes: int = 15
     inactivityWarningSeconds: int = 60
+    avatarUrl: Optional[str] = None
+    personalAvatarUrl: Optional[str] = None
 
     model_config = ConfigDict(populate_by_name=True)
 

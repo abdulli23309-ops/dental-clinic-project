@@ -467,6 +467,10 @@ class UserORM(Base):
         default=False,
         server_default=func.false(),
     )
+    avatar_url: Mapped[Optional[str]] = mapped_column(
+        String(500),
+        nullable=True,
+    )
     inactivity_enabled: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,

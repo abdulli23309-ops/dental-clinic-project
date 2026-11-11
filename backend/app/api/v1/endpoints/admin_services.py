@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_db_session, get_service_service, require_admin
+from app.api.deps import get_db_session, get_service_service, require_admin, require_receptionist
 from app.application.dtos.service_dto import (
     ClinicMatrixClinicItem,
     ClinicMatrixResponse,
@@ -24,7 +24,7 @@ from app.application.services.service_service import ServiceService
 from app.domain.models.user import User
 from app.infrastructure.database.orm_models import ClinicORM
 
-router = APIRouter(prefix="/admin/services", tags=["Admin Services"], dependencies=[Depends(require_admin)])
+router = APIRouter(prefix="/admin/services", tags=["Admin Services"])
 
 
 async def _to_response(s, service_service: ServiceService) -> ServiceResponse:
@@ -56,7 +56,7 @@ async def _to_response(s, service_service: ServiceService) -> ServiceResponse:
     )
 
 
-@router.get("/clinic-matrix", response_model=ClinicMatrixResponse)
+@router.get("/clinic-matrix", response_model=ClinicMatrixResponse, dependencies=[Depends(require_receptionist)])
 async def get_clinic_services_matrix(
     service_service: ServiceService = Depends(get_service_service),
     db_session: AsyncSession = Depends(get_db_session),
@@ -106,7 +106,7 @@ async def get_clinic_services_matrix(
     return ClinicMatrixResponse(clinics=clinics, matrix=matrix, services=services_list)
 
 
-@router.get("", response_model=List[ServiceResponse])
+@router.get("", response_model=List[ServiceResponse], dependencies=[Depends(require_receptionist)])
 async def list_all_services(
     service_service: ServiceService = Depends(get_service_service),
 ) -> List[ServiceResponse]:
@@ -115,7 +115,7 @@ async def list_all_services(
     return [await _to_response(s, service_service) for s in services]
 
 
-@router.post("", response_model=ServiceResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ServiceResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_admin)])
 async def create_service(
     req: ServiceCreateRequest,
     service_service: ServiceService = Depends(get_service_service),
@@ -125,7 +125,7 @@ async def create_service(
     return await _to_response(s, service_service)
 
 
-@router.get("/{service_id}", response_model=ServiceResponse)
+@router.get("/{service_id}", response_model=ServiceResponse, dependencies=[Depends(require_receptionist)])
 async def get_service(
     service_id: UUID,
     service_service: ServiceService = Depends(get_service_service),
@@ -135,7 +135,7 @@ async def get_service(
     return await _to_response(s, service_service)
 
 
-@router.put("/{service_id}", response_model=ServiceResponse)
+@router.put("/{service_id}", response_model=ServiceResponse, dependencies=[Depends(require_admin)])
 async def update_service(
     service_id: UUID,
     req: ServiceUpdateRequest,
@@ -146,7 +146,7 @@ async def update_service(
     return await _to_response(s, service_service)
 
 
-@router.patch("/{service_id}/status", response_model=ServiceResponse)
+@router.patch("/{service_id}/status", response_model=ServiceResponse, dependencies=[Depends(require_admin)])
 async def toggle_service_status(
     service_id: UUID,
     req: ServiceStatusRequest,
@@ -157,7 +157,7 @@ async def toggle_service_status(
     return await _to_response(s, service_service)
 
 
-@router.patch("/reorder")
+@router.patch("/reorder", dependencies=[Depends(require_admin)])
 async def reorder_services(
     req: ReorderRequest,
     service_service: ServiceService = Depends(get_service_service),

@@ -584,11 +584,12 @@ def require_role(*allowed_roles: str) -> Callable:
     normalized_allowed = {r.strip().lower() for r in allowed_roles}
 
     async def role_checker(current_user: User = Depends(get_current_user)) -> User:
-        user_role_str = str(current_user.role.value).strip().lower()
+        user_role_raw = getattr(current_user.role, "value", current_user.role)
+        user_role_str = str(user_role_raw).strip().lower()
         if user_role_str not in normalized_allowed:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Access forbidden: user role '{current_user.role.value}' does not have required permissions.",
+                detail=f"Access forbidden: user role '{user_role_raw}' does not have required permissions.",
             )
         return current_user
 

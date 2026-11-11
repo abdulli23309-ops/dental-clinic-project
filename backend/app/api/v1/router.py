@@ -56,6 +56,7 @@ api_v1_router.include_router(clinical_documents.router, tags=["Clinical Document
 # Admin CMS & Clinic Management routes
 api_v1_router.include_router(admin_cms.router, tags=["Admin CMS"])
 api_v1_router.include_router(admin_announcements.router, tags=["Admin Announcements"])
+api_v1_router.include_router(admin_announcements.router, prefix="/admin/cms", tags=["Admin CMS Announcements"])
 api_v1_router.include_router(admin_team.router, tags=["Admin Team"])
 api_v1_router.include_router(admin_roles.router, tags=["Admin Roles"])
 api_v1_router.include_router(admin_services.router, tags=["Admin Services"])

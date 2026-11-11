@@ -70,3 +70,10 @@ _scratch/
 *.dump
 *.tar.gz
 
+# Carousel, e2e and test image artifacts
+frontend/carousel-artifacts/
+frontend/glass-carousel-artifacts/
+*_proof.png
+frontend/*_proof.png
+results.json
+

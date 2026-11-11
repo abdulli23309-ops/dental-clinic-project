@@ -33,7 +33,7 @@ export function SectionHeading({
       )}
     >
       {eyebrow && (
-        <p className={cn("text-[11px] font-semibold uppercase tracking-wider text-primary", isDark && "text-primary")}>
+        <p className={cn("text-[11px] font-semibold uppercase tracking-[0.14em] text-primary", isDark && "text-primary")}>
           {eyebrow}
         </p>
       )}
@@ -50,7 +50,7 @@ export function SectionHeading({
       {description && (
         <div
           className={cn(
-            "text-[15px] leading-relaxed pt-1 text-gray-600 dark:text-gray-400",
+            "max-w-[62ch] text-pretty text-[15px] leading-relaxed pt-1 text-gray-600 dark:text-gray-400",
             isDark && "text-gray-300"
           )}
         >

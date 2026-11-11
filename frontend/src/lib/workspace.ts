@@ -95,6 +95,9 @@ export function workspaceForRole(role: string | null | undefined): WorkspaceKey 
     case "doctor":
       return "doctor";
     case "receptionist":
+    case "reception":
+    case "front_desk":
+    case "front desk":
       return "receptionist";
     case "admin":
     case "super admin":
@@ -128,6 +131,9 @@ export function homePathForRole(role: string | null | undefined): string | null 
     case "doctor":
       return "/doctor/appointments";
     case "receptionist":
+    case "reception":
+    case "front_desk":
+    case "front desk":
       return "/receptionist/appointments";
     case "admin":
     case "super admin":
@@ -162,6 +168,9 @@ export function basePathForRole(role: string | null | undefined): string {
     case "doctor":
       return "/doctor";
     case "receptionist":
+    case "reception":
+    case "front_desk":
+    case "front desk":
       return "/receptionist";
     default:
       return "/admin";
@@ -187,6 +196,9 @@ export function canAccessWorkspace(role: string | null | undefined, workspace: W
     "clinic_branch_manager",
     "doctor",
     "receptionist",
+    "reception",
+    "front_desk",
+    "front desk",
     "nurse",
     "dental assistant",
     "dental_assistant",

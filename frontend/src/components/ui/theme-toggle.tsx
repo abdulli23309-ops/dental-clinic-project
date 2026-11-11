@@ -55,10 +55,10 @@ export function ThemeToggle({ className = "", size = "md" }: ThemeToggleProps) {
         {isDark ? (
           <motion.div
             key="dark-sun"
-            initial={shouldReduceMotion ? { opacity: 0 } : { rotate: -90, scale: 0.5, opacity: 0 }}
-            animate={shouldReduceMotion ? { opacity: 1 } : { rotate: 0, scale: 1, opacity: 1 }}
-            exit={shouldReduceMotion ? { opacity: 0 } : { rotate: 90, scale: 0.5, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 350, damping: 22 }}
+            initial={shouldReduceMotion ? { opacity: 0 } : { rotate: -90, scale: 0.6, filter: "blur(4px)", opacity: 0 }}
+            animate={shouldReduceMotion ? { opacity: 1 } : { rotate: 0, scale: 1, filter: "blur(0px)", opacity: 1 }}
+            exit={shouldReduceMotion ? { opacity: 0 } : { rotate: 90, scale: 0.6, filter: "blur(4px)", opacity: 0 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
             className="grid place-items-center"
           >
             <Sun className={`${iconClass} text-amber-400`} />
@@ -66,10 +66,10 @@ export function ThemeToggle({ className = "", size = "md" }: ThemeToggleProps) {
         ) : (
           <motion.div
             key="light-moon"
-            initial={shouldReduceMotion ? { opacity: 0 } : { rotate: 90, scale: 0.5, opacity: 0 }}
-            animate={shouldReduceMotion ? { opacity: 1 } : { rotate: 0, scale: 1, opacity: 1 }}
-            exit={shouldReduceMotion ? { opacity: 0 } : { rotate: 90, scale: 0.5, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 350, damping: 22 }}
+            initial={shouldReduceMotion ? { opacity: 0 } : { rotate: 90, scale: 0.6, filter: "blur(4px)", opacity: 0 }}
+            animate={shouldReduceMotion ? { opacity: 1 } : { rotate: 0, scale: 1, filter: "blur(0px)", opacity: 1 }}
+            exit={shouldReduceMotion ? { opacity: 0 } : { rotate: 90, scale: 0.6, filter: "blur(4px)", opacity: 0 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
             className="grid place-items-center"
           >
             <Moon className={`${iconClass} text-gray-700 dark:text-gray-300`} />

@@ -277,6 +277,7 @@ export function Hero() {
             >
               <Image
                 src="/images/tooth-hero.png"
+                priority
                 alt="Professional anatomical tooth model illustrating dental care quality"
                 width={isMobileVariant ? 140 : 220}
                 height={isMobileVariant ? 140 : 220}

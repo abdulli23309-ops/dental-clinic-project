@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { toast } from "sonner";
 
 export interface OptimisticMutationOptions<T, V> {
@@ -24,10 +24,12 @@ export function useOptimisticMutation<T, V>(
   const previousDataRef = useRef<T>(currentData);
 
   // Keep state in sync if parent passed updated external data while not pending
-  if (!isPending && currentData !== previousDataRef.current) {
-    previousDataRef.current = currentData;
-    setData(currentData);
-  }
+  useEffect(() => {
+    if (!isPending && currentData !== previousDataRef.current) {
+      previousDataRef.current = currentData;
+      setData(currentData);
+    }
+  }, [currentData, isPending]);
 
   const mutate = useCallback(
     async (variables: V) => {

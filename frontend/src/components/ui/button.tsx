@@ -18,7 +18,7 @@ const MotionLink = motion.create(Link);
 
 /**
  * Renders an interactive button or navigational link styled with the clinic's signature pill shape.
- * It supports multiple visual styles and Framer Motion sink & spring gesture on press (whileTap={{ scale: 0.95 }}).
+ * It supports multiple visual styles and reduced-motion-aware tactile press feedback.
  */
 export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonProps>(
   (
@@ -36,8 +36,7 @@ export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, Bu
     ref
   ) => {
     const shouldReduceMotion = useReducedMotion();
-    const isPrimaryAction = variant === "primary" || variant === "premium";
-    const tapAnimation = !shouldReduceMotion && isPrimaryAction ? { scale: 0.95 } : undefined;
+    const tapAnimation = !shouldReduceMotion ? { scale: 0.97 } : undefined;
 
     // Pill shape is an intentional editorial design choice for Marlow Dental
     const baseStyles =
@@ -45,17 +44,17 @@ export const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, Bu
 
     const variantStyles = {
       primary:
-        "bg-primary text-white shadow-md hover:bg-primary/90 hover:opacity-95 active:opacity-90 active:scale-[0.98] focus-visible:ring-primary focus-visible:ring-offset-2 transition-all duration-150",
+        "bg-primary text-white shadow-md hover:bg-primary/90 hover:opacity-95 active:opacity-90 active:scale-[0.97] focus-visible:ring-primary focus-visible:ring-offset-2 transition-all duration-150",
       premium:
-        "bg-primary text-white shadow-md hover:bg-primary/90 hover:opacity-95 active:opacity-90 active:scale-[0.98] focus-visible:ring-primary focus-visible:ring-offset-2 transition-all duration-150",
+        "bg-primary text-white shadow-md hover:bg-primary/90 hover:opacity-95 active:opacity-90 active:scale-[0.97] focus-visible:ring-primary focus-visible:ring-offset-2 transition-all duration-150",
       secondary:
         "btn-tactile-secondary focus-visible:ring-gray-400",
       "tactile-secondary":
         "btn-tactile-secondary focus-visible:ring-gray-400",
       outline:
-        "bg-transparent text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 hover:border-primary hover:text-primary dark:hover:border-primary dark:hover:text-primary hover:-translate-y-0.5 hover:shadow-subtle active:translate-y-0 active:scale-[0.98] focus-visible:ring-primary transition-all duration-200",
+        "bg-transparent text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 hover:border-primary hover:text-primary dark:hover:border-primary dark:hover:text-primary hover:-translate-y-0.5 hover:shadow-subtle active:translate-y-0 active:scale-[0.97] focus-visible:ring-primary transition-all duration-200",
       ghost:
-        "bg-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-[0.98] focus-visible:ring-primary transition-all duration-200",
+        "bg-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-[0.97] focus-visible:ring-primary transition-all duration-200",
     };
 
     const sizeStyles = {

@@ -111,7 +111,12 @@ function isRouteAllowedForRole(pathname: string, rawRole?: string | null): boole
   }
 
   // Receptionist: Appointments, Locations, My Schedule
-  if (role === "receptionist") {
+  if (
+    role === "receptionist" ||
+    role === "reception" ||
+    role === "front_desk" ||
+    role === "front desk"
+  ) {
     return (
       normalizedPath === "/admin/appointments" ||
       normalizedPath.startsWith("/admin/appointments/") ||
@@ -207,7 +212,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
 
     // Receptionist: Appointments, Locations, My Schedule, Account
-    if (role === "receptionist") {
+    if (
+      role === "receptionist" ||
+      role === "reception" ||
+      role === "front_desk" ||
+      role === "front desk"
+    ) {
       return [
         { href: `${rolePrefix}/appointments`, title: "Appointments", icon: Calendar },
         { href: `${rolePrefix}/locations`, title: "Clinics & Branches", icon: MapPin },
@@ -247,7 +257,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         badgeLabel: "Nurse",
       };
     }
-    if (role === "receptionist") {
+    if (
+      role === "receptionist" ||
+      role === "reception" ||
+      role === "front_desk" ||
+      role === "front desk"
+    ) {
       return {
         roleTitle: "FRONT OFFICE",
         portalTitle: "FRONT OFFICE & SCHEDULING PORTAL",

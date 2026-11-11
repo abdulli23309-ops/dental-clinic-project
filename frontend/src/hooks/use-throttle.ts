@@ -8,7 +8,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
  */
 export function useThrottle<T>(value: T, limit: number = 300): T {
   const [throttledValue, setThrottledValue] = useState<T>(value);
-  const lastRan = useRef<number>(Date.now());
+  const lastRan = useRef<number>(0);
 
   useEffect(() => {
     const handler = setTimeout(() => {

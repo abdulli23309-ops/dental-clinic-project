@@ -224,8 +224,8 @@ export default function AdminSettingsPage() {
                   : "text-gray-600 hover:text-gray-900 font-medium"
                 }`}
             >
-              <Shield className="h-4 w-4" />
-              <span>Account &amp; Security</span>
+              <Clock className="h-4 w-4" />
+              <span>Inactivity Policy</span>
             </button>
             <button
               type="button"
@@ -241,53 +241,11 @@ export default function AdminSettingsPage() {
           </div>
         </div>
 
-        {/* TAB 1: ACCOUNT & INACTIVITY SETTINGS */}
+        {/* TAB 1: INACTIVITY LOGOUT POLICY */}
         {activeTab === "account" && (
           <div className="space-y-6">
-            <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={0}>
-              <div className="flex items-center gap-4">
-                <div className="h-16 w-16 rounded-2xl bg-forest text-[#FAF7F2] grid place-items-center text-xl font-display font-bold shadow-subtle">
-                  {user?.fullName
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .slice(0, 2)
-                    .toUpperCase()}
-                </div>
-                <div>
-                  <h2 className="text-lg font-display font-bold text-ink">{user?.fullName}</h2>
-                  <p className="text-xs text-ink-soft">{user?.email}</p>
-                  <div className="mt-1 flex items-center gap-2">
-                    <span className="rounded-full bg-forest/10 px-2 py-0.5 text-[10px] font-semibold text-forest uppercase font-mono">
-                      {user?.role}
-                    </span>
-                    <span className="rounded-full bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:text-emerald-300">
-                      Active Session
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-3 pt-4 border-t border-line/60 text-xs text-ink-soft">
-                <div className="flex justify-between py-1 border-b border-line/40">
-                  <span>Account ID:</span>
-                  <span className="font-mono text-ink">{user?.id}</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-line/40">
-                  <span>Authentication Model:</span>
-                  <span className="font-medium text-ink">
-                    Strict Single Active Session (One PC at a time) + 7-Day In-Memory JWT
-                  </span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-line/40">
-                  <span>Silent Rotation Threshold:</span>
-                  <span className="text-ink">35 minutes with concurrency grace period &amp; FIFO request queue</span>
-                </div>
-              </div>
-            </Card>
-
             {/* Inactivity Form */}
-            <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={1}>
+            <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={0}>
               <div className="flex items-center gap-3 border-b border-line/60 pb-3">
                 <Clock className="h-5 w-5 text-forest" />
                 <div>

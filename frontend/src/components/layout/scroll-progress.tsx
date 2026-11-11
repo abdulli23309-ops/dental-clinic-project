@@ -30,7 +30,7 @@ export function ScrollProgress() {
       aria-hidden="true"
     >
       <div
-        className="h-full bg-forest dark:bg-emerald-500 transition-all duration-75 ease-out"
+        className="h-full bg-primary shadow-[0_0_12px_hsl(var(--primary)/0.7)] transition-all duration-75 ease-out"
         style={{ width: `${progress}%` }}
       />
     </div>

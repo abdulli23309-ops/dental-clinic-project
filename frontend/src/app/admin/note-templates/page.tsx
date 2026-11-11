@@ -135,7 +135,7 @@ export default function AdminNoteTemplatesPage() {
     const files = Array.from(fileList);
     const validImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
-    let remainingSlots = 5 - attachments.length;
+    const remainingSlots = 5 - attachments.length;
     if (remainingSlots <= 0) {
       toast.warning("Maximum of 5 image attachments reached.");
       return;

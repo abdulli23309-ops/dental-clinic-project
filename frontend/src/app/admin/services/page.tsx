@@ -354,15 +354,6 @@ export default function AdminServicesPage() {
       {/* Top Banner / IA Breadcrumb */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-border/40 pb-6">
         <div className="flex items-start gap-3.5">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="mt-1 h-9 w-9 rounded-full border border-border/80 bg-background hover:bg-muted/60 flex items-center justify-center text-foreground/80 hover:text-foreground transition-all shadow-xs cursor-pointer shrink-0"
-            title="Go Back"
-            aria-label="Go Back"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </button>
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-semibold uppercase tracking-wider text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
@@ -604,72 +595,80 @@ export default function AdminServicesPage() {
               >
                 <Card
                   onClick={() => setSelectedEntityModal({ type: "service", id: service.id, data: service })}
-                  className={`h-full overflow-hidden rounded-2xl border border-slate-200/70 dark:border-slate-800/60 bg-white dark:bg-slate-900 shadow-xs hover:shadow-md hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between cursor-pointer group/card ${service.isActive === false ? "opacity-60 bg-slate-50/50 dark:bg-slate-900/40" : ""
+                  className={`h-full overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between cursor-pointer group/card ${service.isActive === false ? "opacity-60 bg-slate-50/50 dark:bg-slate-900/40" : ""
                     }`}
                 >
                   <div>
-                    {/* Header & Badges */}
-                    <div className="p-5 pb-3">
-                      <div className="flex items-start justify-between gap-3 mb-2">
-                        <span className="text-[11px] font-semibold tracking-wide px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">
+                    {/* 2026 Luxury Panoramic Top-Banner Image Header (h-44, 16:9 full visibility) */}
+                    <div className="relative h-44 w-full overflow-hidden bg-slate-900 border-b border-border/40">
+                      {service.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={resolveMediaUrl(service.imageUrl) || undefined}
+                          alt={service.title}
+                          onError={(e) => {
+                            (e.currentTarget as HTMLElement).style.display = "none";
+                          }}
+                          className="w-full h-full object-cover object-center group-hover/card:scale-105 transition-transform duration-700 ease-out"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 text-white/40">
+                          <Layers className="w-10 h-10 mb-1 opacity-40" />
+                          <span className="text-[11px] font-mono uppercase tracking-wider">Clinical Procedure</span>
+                        </div>
+                      )}
+
+                      {/* Vignette Gradient Overlay */}
+                      <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none" />
+
+                      {/* Floating Frosted Badges Over Panoramic Header */}
+                      <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2 z-10">
+                        <span className="backdrop-blur-md bg-black/60 text-white border border-white/20 text-[11px] font-semibold px-3 py-1 rounded-full shadow-md tracking-wide uppercase">
                           {CATEGORIES.find((c) => c.id === service.category)?.label || service.category}
                         </span>
                         <div className="flex items-center gap-1.5">
                           {service.code && (
-                            <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-semibold">
+                            <span className="backdrop-blur-md bg-black/60 text-white/90 border border-white/20 text-[11px] font-mono font-bold px-2 py-0.5 rounded-md shadow-sm">
                               {service.code}
                             </span>
                           )}
                           {service.isHighlighted && (
-                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                            <span className="backdrop-blur-md bg-amber-500/85 text-white border border-amber-300/40 text-[11px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
                               <Sparkles className="w-3 h-3" /> Featured
                             </span>
                           )}
                         </div>
                       </div>
-
-                      <div className="flex items-start gap-3">
-                        <div className="w-12 h-12 rounded-xl overflow-hidden border border-border/50 shrink-0 bg-primary/10 text-primary flex items-center justify-center relative">
-                          <Layers className="w-5 h-5 absolute inset-0 m-auto text-primary pointer-events-none" />
-                          {service.imageUrl && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={resolveMediaUrl(service.imageUrl) || undefined}
-                              alt={service.title}
-                              onError={(e) => {
-                                (e.currentTarget as HTMLElement).style.display = "none";
-                              }}
-                              className="w-full h-full object-cover relative z-10"
-                            />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-base text-foreground line-clamp-1">{service.title}</h3>
-                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                            {service.shortDesc || "No short description provided."}
-                          </p>
-                        </div>
-                      </div>
                     </div>
 
-                    {/* Key Metrics - Soft Pill Box */}
-                    <div className="px-4 py-3 bg-slate-50/70 dark:bg-slate-800/40 rounded-xl mx-4 my-1 grid grid-cols-2 gap-3 text-xs">
+                    {/* Procedure Details */}
+                    <div className="p-5 pb-3 space-y-2">
+                      <h3 className="font-display font-bold text-lg text-foreground line-clamp-1 group-hover/card:text-primary transition-colors">
+                        {service.title}
+                      </h3>
+                      <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                        {service.shortDesc || "No short clinical description provided."}
+                      </p>
+                    </div>
+
+                    {/* Key Metrics - Sleek Glassmorphic Bar */}
+                    <div className="px-4 py-2.5 bg-slate-50/80 dark:bg-slate-800/50 rounded-xl mx-5 my-1.5 border border-slate-200/60 dark:border-white/5 grid grid-cols-2 gap-3 text-xs">
                       <div className="flex items-center gap-2.5">
                         <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                           <Tag className="w-3.5 h-3.5" />
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <div className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-semibold">Standard Fee</div>
-                          <div className="font-semibold text-slate-800 dark:text-slate-200">{service.cashPrice}</div>
+                          <div className="font-bold text-slate-900 dark:text-slate-100 font-mono truncate">{service.cashPrice}</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2.5">
                         <div className="w-7 h-7 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
                           <Clock className="w-3.5 h-3.5" />
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <div className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-semibold">Duration</div>
-                          <div className="font-semibold text-slate-800 dark:text-slate-200">{service.duration}</div>
+                          <div className="font-semibold text-slate-900 dark:text-slate-100 truncate">{service.duration}</div>
                         </div>
                       </div>
                     </div>
@@ -677,7 +676,7 @@ export default function AdminServicesPage() {
                     {/* Visibility Badges */}
                     <div className="px-5 py-2.5 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
                       <span
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${service.bookableOnline !== false
+                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full ${service.bookableOnline !== false
                             ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-medium"
                             : "bg-muted text-muted-foreground line-through"
                           }`}
@@ -685,7 +684,7 @@ export default function AdminServicesPage() {
                         <Check className="w-3 h-3" /> Online Booking
                       </span>
                       <span
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${service.isPublic !== false
+                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full ${service.isPublic !== false
                             ? "bg-blue-500/10 text-blue-700 dark:text-blue-400 font-medium"
                             : "bg-muted text-muted-foreground line-through"
                           }`}
@@ -693,7 +692,7 @@ export default function AdminServicesPage() {
                         <Eye className="w-3 h-3" /> Website Visible
                       </span>
                       {service.bufferMinutes > 0 && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted font-medium">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-muted font-medium">
                           +{service.bufferMinutes}m buffer
                         </span>
                       )}

@@ -23,7 +23,10 @@ export function useAutosave<T>(data: T, options: AutosaveOptions<T>) {
 
   const initialRender = useRef(true);
   const latestData = useRef<T>(data);
-  latestData.current = data;
+
+  useEffect(() => {
+    latestData.current = data;
+  }, [data]);
 
   // Persist draft to localStorage on change if draftKey provided
   useEffect(() => {

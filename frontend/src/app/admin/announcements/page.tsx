@@ -272,9 +272,14 @@ export default function AdminAnnouncementsPage() {
                         <Edit2 className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={() => setItemToDelete(item)}
-                        className="p-1.5 rounded-lg border border-line text-ink-soft hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setItemToDelete(item);
+                        }}
+                        className="p-1.5 rounded-lg border border-line text-ink-soft hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
                         title="Delete announcement"
+                        aria-label={`Delete announcement: ${item.content}`}
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -399,6 +404,16 @@ export default function AdminAnnouncementsPage() {
             </motion.div>
           )}
         </AnimatePresence>
+        {/* Destructive Delete Confirmation Dialog */}
+        <DestructiveConfirmDialog
+          isOpen={!!itemToDelete}
+          title="Delete Announcement"
+          description={`Are you sure you want to permanently delete this announcement? "${itemToDelete?.content}". This action cannot be undone.`}
+          confirmText="Delete Announcement"
+          isSubmitting={isDeleting}
+          onConfirm={confirmDeleteAnnouncement}
+          onClose={() => setItemToDelete(null)}
+        />
       </div>
     </AnimatedPage>
   );

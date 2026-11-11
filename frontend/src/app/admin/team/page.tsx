@@ -238,32 +238,6 @@ export default function AdminTeamPage() {
     });
   }, [accessToken]);
 
-  // When a clinician is selected, load tab-specific data
-  useEffect(() => {
-    if (!selectedClinician) return;
-
-    setProfileForm({
-      displayName: selectedClinician.displayName,
-      professionalTitle: selectedClinician.professionalTitle || "Associate Dental Surgeon",
-      specialties: selectedClinician.specialties?.join(", ") || "General Dentistry",
-      credentials: selectedClinician.credentials || "",
-      biography: selectedClinician.biography || "",
-      role: selectedClinician.role || "doctor",
-      locationId: selectedClinician.locationId || "",
-      photoUrl: selectedClinician.photoUrl || "",
-    });
-
-    if (activeTab === "locations") {
-      loadDoctorBranches(selectedClinician.id);
-    } else if (activeTab === "services") {
-      loadDoctorServicesData(selectedClinician.id);
-    } else if (activeTab === "schedule") {
-      loadDoctorShifts(selectedClinician.id);
-    } else if (activeTab === "availability") {
-      loadDoctorOverridesData(selectedClinician.id);
-    }
-  }, [selectedClinician, activeTab]);
-
   const loadDoctorBranches = async (doctorId: string) => {
     if (!accessToken) return;
     try {
@@ -345,6 +319,32 @@ export default function AdminTeamPage() {
       setErrorMessage(err.message || "Failed to load availability overrides.");
     }
   };
+
+  // When a clinician is selected, load tab-specific data
+  useEffect(() => {
+    if (!selectedClinician) return;
+
+    setProfileForm({
+      displayName: selectedClinician.displayName,
+      professionalTitle: selectedClinician.professionalTitle || "Associate Dental Surgeon",
+      specialties: selectedClinician.specialties?.join(", ") || "General Dentistry",
+      credentials: selectedClinician.credentials || "",
+      biography: selectedClinician.biography || "",
+      role: selectedClinician.role || "doctor",
+      locationId: selectedClinician.locationId || "",
+      photoUrl: selectedClinician.photoUrl || "",
+    });
+
+    if (activeTab === "locations") {
+      loadDoctorBranches(selectedClinician.id);
+    } else if (activeTab === "services") {
+      loadDoctorServicesData(selectedClinician.id);
+    } else if (activeTab === "schedule") {
+      loadDoctorShifts(selectedClinician.id);
+    } else if (activeTab === "availability") {
+      loadDoctorOverridesData(selectedClinician.id);
+    }
+  }, [selectedClinician, activeTab]);
 
   // Tab 1: Save Profile
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -886,15 +886,6 @@ export default function AdminTeamPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-border/40 pb-6">
         <div className="flex items-start gap-3.5">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="mt-1 h-9 w-9 rounded-full border border-border/80 bg-background hover:bg-muted/60 flex items-center justify-center text-foreground/80 hover:text-foreground transition-all shadow-xs cursor-pointer shrink-0"
-            title="Go Back"
-            aria-label="Go Back"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </button>
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-semibold uppercase tracking-wider text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">

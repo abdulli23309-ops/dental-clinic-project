@@ -15,6 +15,7 @@ const eslintConfig = defineConfig([
     "seed.js",
     "repro-error.mjs",
     "eslint_report.json",
+    "_scratch/**",
   ]),
   {
     rules: {

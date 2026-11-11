@@ -103,10 +103,10 @@ export function ClinicLogo({
 
   return (
     <div
-      className={`relative shrink-0 overflow-hidden select-none ${
+      className={`relative shrink-0 select-none ${
         variant === "badge"
-          ? "rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white dark:bg-slate-900/80 shadow-xs"
-          : ""
+          ? "flex items-center justify-center rounded-xl bg-white dark:bg-white/95 border border-slate-200/80 dark:border-white/90 shadow-sm dark:shadow-[0_0_20px_rgba(255,255,255,0.14)] ring-1 ring-black/5 dark:ring-2 dark:ring-primary/40 p-1.5 transition-all overflow-hidden"
+          : "overflow-hidden"
       } ${className}`}
     >
       {logoUrl && !hasError ? (

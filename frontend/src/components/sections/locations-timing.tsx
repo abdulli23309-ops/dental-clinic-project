@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import {
   Clock,
@@ -36,6 +37,7 @@ export function LocationsTiming() {
   } = usePublicContent();
 
   const [selectedCity, setSelectedCity] = useState<string>("all");
+  const shouldReduceMotion = useReducedMotion();
   const [expandedLocationId, setExpandedLocationId] = useState<string | null>(null);
 
   const activeLocations = locations.filter((l) => l.isActive !== false);
@@ -115,10 +117,11 @@ export function LocationsTiming() {
               onClick={() => setSelectedCity("all")}
               className={`rounded-full px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
                 selectedCity === "all"
-                  ? "bg-primary font-semibold text-primary-foreground shadow-sm"
+                  ? "relative z-0 font-semibold text-primary-foreground shadow-sm"
                   : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700"
               }`}
             >
+              {selectedCity === "all" && <motion.span layoutId="active-pill-locations" className="absolute inset-0 -z-10 rounded-full bg-primary shadow-sm" transition={shouldReduceMotion ? { duration: 0.01 } : { type: "spring", stiffness: 500, damping: 40, mass: 1 }} />}
               {copy.allClinics} ({activeLocations.length})
             </button>
             {availableCities.map((city) => {
@@ -134,10 +137,11 @@ export function LocationsTiming() {
                   onClick={() => setSelectedCity(city)}
                   className={`rounded-full px-5 py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
                     isSelected
-                      ? "bg-primary font-semibold text-primary-foreground shadow-sm"
+                      ? "relative z-0 font-semibold text-primary-foreground shadow-sm"
                       : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700"
                   }`}
                 >
+                  {isSelected && <motion.span layoutId="active-pill-locations" className="absolute inset-0 -z-10 rounded-full bg-primary shadow-sm" transition={shouldReduceMotion ? { duration: 0.01 } : { type: "spring", stiffness: 500, damping: 40, mass: 1 }} />}
                   {city} ({count})
                 </button>
               );

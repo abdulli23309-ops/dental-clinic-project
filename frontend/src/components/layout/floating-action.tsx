@@ -22,14 +22,14 @@ export function FloatingAction() {
 
   return (
     <div
-      className="fixed bottom-4 left-4 z-40 hidden md:block"
+      className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 z-40 hidden md:block"
       role="complementary"
       aria-label="Direct clinic contact actions"
     >
       <div className="flex items-center gap-2 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/95 dark:bg-gray-900/95 p-1.5 backdrop-blur-md shadow-lg transition-all">
         <a
           href={`tel:${cleanPhone}`}
-          className="flex items-center gap-2 rounded-xl bg-gray-50 dark:bg-gray-800 px-3 py-2 text-xs font-medium text-gray-900 dark:text-white transition-colors hover:bg-primary hover:text-white dark:hover:bg-primary cursor-pointer"
+          className="flex min-h-11 items-center gap-2 rounded-xl bg-gray-50 dark:bg-gray-800 px-3 py-2 text-xs font-medium tabular-nums text-gray-900 dark:text-white transition-colors hover:bg-primary hover:text-white dark:hover:bg-primary cursor-pointer"
           title="Direct clinic line"
         >
           {status && (

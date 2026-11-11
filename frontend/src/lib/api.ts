@@ -119,6 +119,8 @@ export interface User {
   organizationId?: string | null;
   requiresPasswordChange?: boolean;
   hasCompletedOnboarding?: boolean;
+  avatarUrl?: string | null;
+  personalAvatarUrl?: string | null;
   inactivityEnabled?: boolean;
   inactivityTimeoutMinutes?: number;
   inactivityWarningSeconds?: number;
@@ -973,6 +975,46 @@ export async function completeOnboarding(
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Failed to complete onboarding.");
+  }
+  return res.json();
+}
+
+/** Uploads a personal account avatar image for the authenticated user */
+export async function uploadUserAvatar(
+  file: File,
+  token?: string | null
+): Promise<User> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await authorizedFetch(
+    "/api/v1/users/me/avatar",
+    {
+      method: "POST",
+      body: formData,
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to upload avatar image.");
+  }
+  return res.json();
+}
+
+/** Resets personal account avatar to fall back to the Team default portrait */
+export async function resetUserAvatar(token?: string | null): Promise<User> {
+  const res = await authorizedFetch(
+    "/api/v1/users/me/avatar",
+    {
+      method: "PATCH",
+      body: JSON.stringify({ avatarUrl: null }),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to reset avatar.");
   }
   return res.json();
 }

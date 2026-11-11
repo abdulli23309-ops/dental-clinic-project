@@ -59,41 +59,37 @@ export function AnnouncementMarquee() {
         aria-hidden="true"
       />
 
-      {/* Marquee Tracks Container */}
+      {/* Marquee Track Container: Continuous Left-to-Right Motor */}
       <div className="flex w-full overflow-hidden">
-        {/* Track 1 (Primary) */}
-        <div className="flex shrink-0 items-center gap-12 sm:gap-16 pr-12 sm:pr-16 animate-marquee group-hover:[animation-play-state:paused]">
+        <div className="dhdc-marquee-track flex shrink-0 items-center gap-12 sm:gap-16 pr-12 sm:pr-16">
+          {/* First sequence of announcements */}
           {trackItems.map((ann, idx) => (
             <div
-              key={`t1-${ann.id || idx}-${idx}`}
+              key={`a1-${ann.id || idx}-${idx}`}
               className="inline-flex items-center gap-3 text-sm font-medium text-slate-800 dark:text-slate-200 tracking-wide whitespace-nowrap"
             >
               <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary dark:bg-primary/20">
                 <Sparkles className="h-3 w-3 select-none" aria-hidden="true" />
               </span>
               <span>{ann.content}</span>
-              <span className="text-slate-300 dark:text-slate-700 select-none ml-3" aria-hidden="true">
+              <span className="text-primary/40 dark:text-primary/60 font-bold select-none ml-3" aria-hidden="true">
                 •
               </span>
             </div>
           ))}
-        </div>
 
-        {/* Track 2 (Synchronized Duplicate for seamless infinite loop) */}
-        <div
-          className="flex shrink-0 items-center gap-12 sm:gap-16 pr-12 sm:pr-16 animate-marquee group-hover:[animation-play-state:paused]"
-          aria-hidden="true"
-        >
+          {/* Second identical sequence for seamless -50% to 0% infinite loop */}
           {trackItems.map((ann, idx) => (
             <div
-              key={`t2-${ann.id || idx}-${idx}`}
+              key={`a2-${ann.id || idx}-${idx}`}
               className="inline-flex items-center gap-3 text-sm font-medium text-slate-800 dark:text-slate-200 tracking-wide whitespace-nowrap"
+              aria-hidden="true"
             >
               <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary dark:bg-primary/20">
                 <Sparkles className="h-3 w-3 select-none" aria-hidden="true" />
               </span>
               <span>{ann.content}</span>
-              <span className="text-slate-300 dark:text-slate-700 select-none ml-3" aria-hidden="true">
+              <span className="text-primary/40 dark:text-primary/60 font-bold select-none ml-3" aria-hidden="true">
                 •
               </span>
             </div>

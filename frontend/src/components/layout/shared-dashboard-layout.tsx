@@ -11,6 +11,8 @@ import {
   ExternalLink,
   LogOut,
   Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   Search,
   X,
 } from "lucide-react";
@@ -18,6 +20,7 @@ import {
 import { useAuth } from "@/components/providers/auth-provider";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 import { useClinicBranding } from "@/components/ui/clinic-logo";
+import { resolveMediaUrl } from "@/lib/api";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { OnboardingWizardModal } from "@/components/modals/onboarding-wizard-modal";
@@ -186,7 +189,7 @@ export function SharedDashboardLayout({
             </button>
           )}
           {logoUrl && (
-            <div className="h-7 w-7 rounded-lg overflow-hidden bg-white dark:bg-gray-800 p-0.5 border border-gray-200 dark:border-gray-700 shrink-0 flex items-center justify-center">
+            <div className="h-7 w-7 rounded-lg overflow-hidden bg-white dark:bg-white/95 dark:ring-1 dark:ring-primary/40 p-0.5 border border-gray-200 dark:border-white/20 shrink-0 flex items-center justify-center shadow-xs">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={logoUrl} alt="" className="h-full w-full object-contain" />
             </div>
@@ -235,52 +238,67 @@ export function SharedDashboardLayout({
       >
         {/* Top: Brand Header */}
         <div
-          className={`p-4 border-b border-gray-200 dark:border-gray-800 flex items-center ${isCollapsed ? "justify-center" : "justify-between"
-            }`}
+          className={`p-3.5 border-b border-gray-200 dark:border-gray-800 flex items-center ${
+            isCollapsed ? "justify-center" : "justify-between"
+          }`}
         >
-          <div className="flex items-center gap-3 overflow-hidden min-w-0">
-            {/* Real Uploaded Clinic Logo: Clicking directly toggles sidebar collapse */}
-            <div className="shrink-0">
-              <button
-                type="button"
-                onClick={handleToggleCollapse}
-                className="h-11 w-11 rounded-2xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700/80 p-1 flex items-center justify-center shadow-xs overflow-hidden transition-all hover:scale-105 active:scale-95 cursor-pointer block"
-                title={isCollapsed ? `Expand sidebar (${fullBrandName})` : `Collapse sidebar (${fullBrandName})`}
-                aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          {/* Unified Interactive Brand Header / Logo Button with Integrated Invisible Toggle */}
+          <button
+            type="button"
+            onClick={handleToggleCollapse}
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className={`group relative flex items-center gap-3 text-left rounded-xl p-1 transition-all select-none cursor-pointer active:scale-[0.97] ${
+              isCollapsed ? "justify-center mx-auto" : "w-full min-w-0"
+            }`}
+          >
+            {/* Luminous Logo Badge with Integrated Hover Feedback */}
+            <div className="relative h-11 w-11 rounded-2xl bg-white dark:bg-white/95 dark:ring-2 dark:ring-primary/40 dark:shadow-[0_0_20px_rgba(255,255,255,0.12)] border border-gray-200 dark:border-white/20 p-1 flex items-center justify-center shadow-xs overflow-hidden shrink-0 transition-transform group-hover:scale-105">
+              {logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={logoUrl}
+                  alt={fullBrandName}
+                  className="h-full w-full object-contain"
+                />
+              ) : (
+                <span className="font-display font-bold text-lg text-primary">
+                  {shortBrandName.charAt(0)}
+                </span>
+              )}
+
+              {/* Subtle Integrated Hover Feedback (Inside the Logo Badge Only) */}
+              <div
+                className="opacity-0 group-hover:opacity-100 transition-opacity duration-180 ease-out bg-primary/90 text-white rounded-2xl absolute inset-0 flex items-center justify-center backdrop-blur-sm"
+                aria-hidden="true"
               >
-                {logoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={logoUrl}
-                    alt={fullBrandName}
-                    className="h-full w-full object-contain"
-                  />
+                {isCollapsed ? (
+                  <PanelLeftOpen className="w-4 h-4" />
                 ) : (
-                  <span className="font-display font-bold text-lg text-primary">
-                    {shortBrandName.charAt(0)}
-                  </span>
+                  <PanelLeftClose className="w-4 h-4" />
                 )}
-              </button>
+              </div>
             </div>
 
-            <Link
-              href={basePath || links[0]?.href || "/"}
-              className={`truncate transition-opacity duration-300 ${isCollapsed ? "hidden opacity-0" : "opacity-100 flex flex-col min-w-0"
-                }`}
+            {/* Brand Title (Visible when expanded) */}
+            <div
+              className={`truncate transition-opacity duration-300 min-w-0 flex-1 ${
+                isCollapsed ? "hidden opacity-0" : "opacity-100 flex flex-col"
+              }`}
             >
-              <span className="font-display text-sm font-bold text-gray-900 dark:text-gray-100 block leading-tight tracking-tight hover:text-primary transition-colors truncate">
+              <span className="font-display text-sm font-bold text-gray-900 dark:text-gray-100 block leading-tight tracking-tight group-hover:text-primary transition-colors truncate">
                 {shortBrandName}
               </span>
               <span className="text-[10px] font-mono text-gray-500 dark:text-gray-400 block uppercase tracking-wider truncate">
                 {roleTitle}
               </span>
-            </Link>
-          </div>
+            </div>
+          </button>
 
           {/* Close button on mobile */}
           <button
             onClick={() => setMobileOpen(false)}
-            className="md:hidden p-1.5 rounded-xl text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+            className="md:hidden p-1.5 rounded-xl text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer shrink-0 ml-1"
             aria-label="Close sidebar"
           >
             <X className="h-5 w-5" />
@@ -358,8 +376,17 @@ export function SharedDashboardLayout({
               className={`flex items-center rounded-2xl bg-white dark:bg-gray-950 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-800 shadow-xs ${isCollapsed ? "p-1.5 justify-center" : "gap-2.5 p-2.5"
                 }`}
             >
-              <div className="h-9 w-9 shrink-0 rounded-full bg-primary/10 text-primary grid place-items-center text-xs font-bold font-mono">
-                {user.fullName ? user.fullName.slice(0, 2).toUpperCase() : "HD"}
+              <div className="h-9 w-9 shrink-0 rounded-full overflow-hidden bg-primary/10 text-primary flex items-center justify-center text-xs font-bold font-mono border border-gray-200 dark:border-gray-700 shadow-xs">
+                {user.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={resolveMediaUrl(user.avatarUrl) || undefined}
+                    alt={user.fullName}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span>{user.fullName ? user.fullName.slice(0, 2).toUpperCase() : "HD"}</span>
+                )}
               </div>
               <div
                 className={`truncate flex-1 min-w-0 transition-opacity duration-300 ${isCollapsed ? "hidden opacity-0" : "opacity-100 flex flex-col"

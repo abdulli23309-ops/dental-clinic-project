@@ -115,7 +115,10 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
             : "border-transparent bg-white/40 dark:bg-gray-950/40 backdrop-blur-sm py-4"
         }`}
       >
-        <div className="container-x max-w-7xl mx-auto px-4 sm:px-6 lg:px-4 xl:px-8 flex items-center justify-between gap-2 lg:gap-3 xl:gap-6 flex-nowrap">
+        <div
+          className="container-x max-w-7xl mx-auto px-4 sm:px-6 lg:px-4 xl:px-8 flex items-center justify-between gap-2 lg:gap-3 xl:gap-6 flex-nowrap overflow-x-hidden md:overflow-visible"
+          style={{ minWidth: 0 }}
+        >
           <Link
             href="/"
             suppressHydrationWarning
@@ -123,23 +126,25 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
             aria-label={brandName ? `${brandName} Homepage` : "Homepage"}
           >
             {logoUrl && !logoError ? (
-              <img
-                src={logoUrl}
-                alt={practiceName || "Clinic Logo"}
-                suppressHydrationWarning
-                onError={(e) => {
-                  if (e.currentTarget.src && !e.currentTarget.src.includes("/images/logo.png")) {
-                    e.currentTarget.src = "/images/logo.png";
-                  } else {
-                    setLogoError(true);
-                  }
-                }}
-                className="h-9 sm:h-10 w-auto object-contain dark:brightness-0 dark:invert shrink-0"
-                width="40"
-                height="40"
-              />
+              <span className="relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-11 md:h-11 rounded-xl bg-white dark:bg-white/95 border border-slate-200/80 dark:border-white/90 shadow-sm dark:shadow-[0_0_20px_rgba(255,255,255,0.14)] ring-1 ring-black/5 dark:ring-2 dark:ring-primary/40 p-1 sm:p-1.5 shrink-0 transition-all">
+                <img
+                  src={logoUrl}
+                  alt={practiceName || "Clinic Logo"}
+                  suppressHydrationWarning
+                  onError={(e) => {
+                    if (e.currentTarget.src && !e.currentTarget.src.includes("/images/logo.png")) {
+                      e.currentTarget.src = "/images/logo.png";
+                    } else {
+                      setLogoError(true);
+                    }
+                  }}
+                  className="h-full w-full object-contain shrink-0"
+                  width="40"
+                  height="40"
+                />
+              </span>
             ) : (
-              <span className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-full bg-primary text-white shadow-subtle group-hover:brightness-90 transition-all shrink-0">
+              <span className="grid h-8 w-8 sm:h-9 sm:w-9 md:h-11 md:w-11 place-items-center rounded-xl bg-primary text-white shadow-subtle group-hover:brightness-90 transition-all shrink-0">
                 <svg
                   viewBox="0 0 24 24"
                   className="h-4.5 w-4.5 sm:h-5 sm:w-5"

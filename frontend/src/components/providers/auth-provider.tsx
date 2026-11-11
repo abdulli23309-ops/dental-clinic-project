@@ -39,6 +39,8 @@ interface AuthContextType {
     inactivityWarningSeconds: number;
   }) => Promise<void>;
   resetActivity: () => void;
+  setUser: React.Dispatch<React.SetStateAction<User | null>>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -307,6 +309,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     resetActivity();
   };
 
+  const refreshUser = async () => {
+    try {
+      const profile = await getMe(accessToken || undefined);
+      setUser(profile);
+    } catch {
+      // ignore
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -318,6 +329,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         refresh,
         updateInactivity,
         resetActivity,
+        setUser,
+        refreshUser,
       }}
     >
       {children}

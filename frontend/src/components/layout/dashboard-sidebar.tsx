@@ -8,6 +8,8 @@ import {
   ChevronRight,
   ExternalLink,
   LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -63,54 +65,71 @@ export function DashboardSidebar({
         isCollapsed ? "w-24" : "w-64"
       )}
     >
-      {/* Top: Brand + Collapse control */}
+      {/* Top: Brand Header with Unified Invisible Toggle */}
       <div
         className={cn(
-          "p-4 border-b border-gray-200 dark:border-gray-800 flex items-center",
+          "p-3.5 border-b border-gray-200 dark:border-gray-800 flex items-center",
           isCollapsed ? "justify-center" : "justify-between"
         )}
       >
-        <div className="flex items-center gap-3 overflow-hidden">
-          <button
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="h-11 w-11 shrink-0 rounded-2xl bg-primary text-white flex items-center justify-center font-display font-bold text-lg shadow-md transition-all hover:scale-105 relative group cursor-pointer overflow-hidden p-1.5"
-            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className={cn(
+            "group relative flex items-center gap-3 text-left rounded-xl p-1 transition-all select-none cursor-pointer active:scale-[0.97]",
+            isCollapsed ? "justify-center mx-auto" : "w-full min-w-0"
+          )}
+        >
+          {/* Luminous Logo Badge with Integrated Hover Overlay */}
+          <div className="relative flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-white dark:bg-white/95 border border-slate-200/80 dark:border-white/90 shadow-sm dark:shadow-[0_0_20px_rgba(255,255,255,0.14)] ring-1 ring-black/5 dark:ring-2 dark:ring-primary/40 p-1.5 shrink-0 transition-transform group-hover:scale-105 overflow-hidden">
             {orgLogo && !logoFailed ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={orgLogo}
                 alt={orgName}
                 onError={() => setLogoFailed(true)}
-                className="h-8 w-8 object-contain dark:brightness-0 dark:invert"
+                className="w-full h-full object-contain"
               />
             ) : (
-              <span>
+              <span className="text-primary font-display font-bold">
                 {orgName.charAt(0)}
               </span>
             )}
-          </button>
-          <Link
-            href={basePath}
+
+            {/* Subtle Integrated Hover Feedback (Inside the Logo Badge Only) */}
+            <div
+              className="opacity-0 group-hover:opacity-100 transition-opacity duration-180 ease-out bg-primary/90 text-white rounded-2xl absolute inset-0 flex items-center justify-center backdrop-blur-sm"
+              aria-hidden="true"
+            >
+              {isCollapsed ? (
+                <PanelLeftOpen className="w-4 h-4" />
+              ) : (
+                <PanelLeftClose className="w-4 h-4" />
+              )}
+            </div>
+          </div>
+
+          <div
             className={cn(
-              "truncate transition-opacity duration-300",
+              "truncate transition-opacity duration-300 min-w-0 flex-1",
               isCollapsed ? "hidden opacity-0" : "opacity-100 flex flex-col"
             )}
           >
-            <span className="font-display text-sm font-bold text-gray-900 dark:text-gray-100 block leading-tight tracking-tight hover:text-primary transition-colors">
+            <span className="font-display text-sm font-bold text-gray-900 dark:text-gray-100 block leading-tight tracking-tight group-hover:text-primary transition-colors truncate">
               {orgName}
             </span>
-            <span className="text-[10px] font-mono text-gray-500 dark:text-gray-400 block uppercase tracking-wider">
+            <span className="text-[10px] font-mono text-gray-500 dark:text-gray-400 block uppercase tracking-wider truncate">
               {roleLabel}
             </span>
-          </Link>
-        </div>
+          </div>
+        </button>
 
         {/* Close button on mobile */}
         {onMobileClose && (
           <button
             onClick={onMobileClose}
-            className="md:hidden p-1.5 rounded-xl text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+            className="md:hidden p-1.5 rounded-xl text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer shrink-0 ml-1"
             aria-label="Close sidebar"
           >
             <X className="h-5 w-5" />
@@ -201,8 +220,17 @@ export function DashboardSidebar({
               isCollapsed ? "p-1.5 justify-center" : "gap-2.5 p-2.5"
             )}
           >
-            <div className="h-9 w-9 shrink-0 rounded-full bg-primary/10 text-primary grid place-items-center text-xs font-bold font-mono">
-              {user.fullName ? user.fullName.slice(0, 2).toUpperCase() : "MD"}
+            <div className="h-9 w-9 shrink-0 rounded-full overflow-hidden bg-primary/10 text-primary flex items-center justify-center text-xs font-bold font-mono border border-gray-200 dark:border-gray-700 shadow-xs">
+              {user.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={resolveMediaUrl(user.avatarUrl) || undefined}
+                  alt={user.fullName}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <span>{user.fullName ? user.fullName.slice(0, 2).toUpperCase() : "MD"}</span>
+              )}
             </div>
             <div
               className={cn(

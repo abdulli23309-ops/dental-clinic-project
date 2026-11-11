@@ -1,14 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Check, Clock, LogOut, ShieldCheck, Timer } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  Camera,
+  Check,
+  Clock,
+  Loader2,
+  LogOut,
+  RotateCcw,
+  ShieldCheck,
+  Timer,
+  Upload,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { toast } from "sonner";
 import { useAuth } from "@/components/providers/auth-provider";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { resetUserAvatar, resolveMediaUrl, uploadUserAvatar } from "@/lib/api";
 
 export default function AdminAccountPage() {
-  const { user, logout, updateInactivity } = useAuth();
+  const { user, accessToken, logout, updateInactivity, setUser } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [enabled, setEnabled] = useState(true);
   const [timeoutMinutes, setTimeoutMinutes] = useState(15);
@@ -16,6 +29,8 @@ export default function AdminAccountPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isResettingAvatar, setIsResettingAvatar] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -26,6 +41,45 @@ export default function AdminAccountPage() {
       });
     }
   }, [user]);
+
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file (JPG, PNG, WEBP).");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Avatar image size must be under 10MB.");
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    try {
+      const updatedUser = await uploadUserAvatar(file, accessToken);
+      setUser(updatedUser);
+      toast.success("Profile photo updated successfully!");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to upload avatar.");
+    } finally {
+      setIsUploadingAvatar(false);
+      if (e.target) e.target.value = "";
+    }
+  };
+
+  const handleResetAvatar = async () => {
+    setIsResettingAvatar(true);
+    try {
+      const updatedUser = await resetUserAvatar(accessToken);
+      setUser(updatedUser);
+      toast.success("Account photo reset to Our Team default.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to reset avatar.");
+    } finally {
+      setIsResettingAvatar(false);
+    }
+  };
 
   const handleSaveInactivity = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,42 +102,131 @@ export default function AdminAccountPage() {
     }
   };
 
-  return (
-  <AnimatedPage>
-    <div className="space-y-6 max-w-3xl">
-      <div className="border-b border-line pb-4">
-        <p className="eyebrow mb-1">Administrative Profile</p>
-        <h1 className="text-2xl sm:text-3xl font-display text-ink font-normal">
-          Staff Account &amp; Security
-        </h1>
-        <p className="mt-1 text-xs sm:text-sm text-ink-soft">
-          Current authenticated session credentials, inactivity policies, and security parameters.
-        </p>
-      </div>
+  const resolvedAvatar = user?.avatarUrl ? resolveMediaUrl(user.avatarUrl) : null;
+  const hasPersonalOverride = Boolean(user?.personalAvatarUrl);
 
-      <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={0}>
-        <div className="flex items-center gap-4">
-          <div className="h-16 w-16 rounded-full bg-forest text-[#FAF7F2] grid place-items-center text-xl font-display">
-            {user?.fullName
-              .split(" ")
-              .map((n) => n[0])
-              .join("")
-              .slice(0, 2)
-              .toUpperCase()}
-          </div>
-          <div>
-            <h2 className="text-lg font-display text-ink">{user?.fullName}</h2>
-            <p className="text-xs text-ink-soft">{user?.email}</p>
-            <div className="mt-1 flex items-center gap-2">
-              <span className="rounded-full bg-forest/10 px-2 py-0.5 text-[10px] font-semibold text-forest uppercase">
-                Role: {user?.role}
-              </span>
-              <span className="rounded-full bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:text-emerald-300">
-                Active Staff
-              </span>
+  return (
+    <AnimatedPage>
+      <div className="space-y-6 max-w-3xl">
+        <div className="border-b border-line pb-4">
+          <p className="eyebrow mb-1">Administrative Profile</p>
+          <h1 className="text-2xl sm:text-3xl font-display text-ink font-normal">
+            Staff Account &amp; Security
+          </h1>
+          <p className="mt-1 text-xs sm:text-sm text-ink-soft">
+            Current authenticated session credentials, personal account avatar, inactivity policies, and security parameters.
+          </p>
+        </div>
+
+        {/* Profile Card with Interactive Two-Tier Avatar Upload */}
+        <Card surface="cream" shadow="card" className="p-6 sm:p-8 space-y-6" hoverLift={true} index={0}>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+            {/* Interactive Avatar Container */}
+            <div className="relative group shrink-0">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={handleAvatarFileChange}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploadingAvatar}
+                className="relative h-20 w-20 sm:h-24 sm:w-24 rounded-full overflow-hidden bg-forest text-[#FAF7F2] grid place-items-center text-xl font-display shadow-md border-2 border-forest/20 group cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all hover:scale-105"
+                title="Click to upload personal account photo"
+                aria-label="Upload personal account photo"
+              >
+                {resolvedAvatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={resolvedAvatar}
+                    alt={user?.fullName || "User Avatar"}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span>
+                    {user?.fullName
+                      ?.split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .slice(0, 2)
+                      .toUpperCase() || "HD"}
+                  </span>
+                )}
+
+                {/* Camera Overlay on Hover */}
+                <div className="absolute inset-0 bg-black/60 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-xs">
+                  {isUploadingAvatar ? (
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  ) : (
+                    <>
+                      <Camera className="h-5 w-5 mb-0.5" />
+                      <span className="text-[10px] font-semibold uppercase tracking-wider">Change</span>
+                    </>
+                  )}
+                </div>
+              </button>
+            </div>
+
+            {/* User Meta & Action Buttons */}
+            <div className="space-y-2 flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-xl font-display text-ink font-semibold truncate">
+                  {user?.fullName}
+                </h2>
+                <span className="rounded-full bg-forest/10 px-2.5 py-0.5 text-[10px] font-semibold text-forest uppercase tracking-wider">
+                  {user?.role}
+                </span>
+                <span className="rounded-full bg-emerald-100 dark:bg-emerald-950 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-800 dark:text-emerald-300">
+                  Active Staff
+                </span>
+              </div>
+              <p className="text-xs text-ink-soft truncate font-mono">{user?.email}</p>
+
+              {/* Avatar Action Buttons */}
+              <div className="pt-2 flex flex-wrap items-center gap-2.5">
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingAvatar}
+                  className="gap-1.5 text-xs rounded-full px-3.5 py-1.5"
+                >
+                  {isUploadingAvatar ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Upload className="h-3.5 w-3.5" />
+                  )}
+                  <span>Upload Photo</span>
+                </Button>
+
+                {hasPersonalOverride && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleResetAvatar}
+                    disabled={isResettingAvatar}
+                    className="gap-1.5 text-xs rounded-full px-3.5 py-1.5"
+                  >
+                    {isResettingAvatar ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RotateCcw className="h-3.5 w-3.5" />
+                    )}
+                    <span>Reset to Team Default</span>
+                  </Button>
+                )}
+              </div>
+
+              <p className="text-[11px] text-ink-soft/80 italic pt-1">
+                Personal account avatar is isolated to internal dashboard navigation and profile cards. It will never overwrite the public doctor portrait in Our Team.
+              </p>
             </div>
           </div>
-        </div>
 
         <div className="space-y-3 pt-4 border-t border-line/60 text-xs text-ink-soft">
           <div className="flex justify-between py-1 border-b border-line/40">
@@ -166,7 +309,7 @@ export default function AdminAccountPage() {
                 onChange={(e) => setEnabled(e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-sand/80 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-forest"></div>
+              <div className="w-11 h-6 bg-sand/80 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-active:after:scale-x-[1.12] peer-checked:bg-forest"></div>
             </label>
           </div>
 

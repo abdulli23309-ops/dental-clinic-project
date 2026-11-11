@@ -535,14 +535,19 @@ export default function AdminLocationsPage() {
 
   const handleToggleLocationStatus = async (id: string, currentStatus: boolean) => {
     if (!accessToken) return;
+    const nextStatus = !currentStatus;
+    const previousLocations = locations;
+    const previousBranch = selectedBranch;
+    setLocations((prev) => prev.map((loc) => loc.id === id ? { ...loc, isActive: nextStatus } : loc));
+    if (selectedBranch?.id === id) {
+      setSelectedBranch((prev) => prev ? { ...prev, isActive: nextStatus } : null);
+    }
     try {
-      await adminToggleLocationStatus(id, !currentStatus, accessToken);
-      toast.success(`Branch ${currentStatus ? "deactivated" : "reactivated"} successfully.`);
-      loadLocations();
-      if (selectedBranch?.id === id) {
-        setSelectedBranch((prev) => (prev ? { ...prev, isActive: !currentStatus } : null));
-      }
+      await adminToggleLocationStatus(id, nextStatus, accessToken);
+      toast.success(`Branch ${nextStatus ? "activated" : "deactivated"} successfully.`);
     } catch (err: any) {
+      setLocations(previousLocations);
+      setSelectedBranch(previousBranch);
       toast.error(err.message || "Failed to toggle branch status.");
     }
   };
@@ -736,21 +741,17 @@ export default function AdminLocationsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-border/40 pb-6">
         <div className="flex items-start gap-3.5">
-          <button
-            type="button"
-            onClick={() => {
-              if (selectedBranch) {
-                setSelectedBranch(null);
-              } else {
-                router.back();
-              }
-            }}
-            className="mt-1 h-9 w-9 rounded-full border border-border/80 bg-background hover:bg-muted/60 flex items-center justify-center text-foreground/80 hover:text-foreground transition-all shadow-xs cursor-pointer shrink-0"
-            title="Go Back"
-            aria-label="Go Back"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </button>
+          {selectedBranch && (
+            <button
+              type="button"
+              onClick={() => setSelectedBranch(null)}
+              className="mt-1 h-9 w-9 rounded-full border border-border/80 bg-background hover:bg-muted/60 flex items-center justify-center text-foreground/80 hover:text-foreground transition-all shadow-xs cursor-pointer shrink-0"
+              title="Back to All Branches"
+              aria-label="Back to All Branches"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+          )}
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-semibold uppercase tracking-wider text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
@@ -930,62 +931,71 @@ export default function AdminLocationsPage() {
                     <Card
                       key={loc.id}
                       onClick={() => setSelectedEntityModal({ type: "branch", id: loc.id, data: loc })}
-                      className={`overflow-hidden rounded-2xl border border-slate-200/70 dark:border-slate-800/60 bg-white dark:bg-slate-900 shadow-xs hover:shadow-md hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between cursor-pointer group/card ${!loc.isActive ? "opacity-60 bg-slate-50/50 dark:bg-slate-900/40" : ""
+                      className={`overflow-hidden rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between cursor-pointer group/card ${!loc.isActive ? "opacity-75 bg-slate-50/50 dark:bg-slate-900/40" : ""
                         }`}
                     >
                       <div>
-                        {/* Image / Header Banner */}
-                        <div className="h-36 bg-muted relative overflow-hidden border-b border-border/40">
+                        {/* 16:9 / Panoramic Header Image */}
+                        <div className="relative h-52 w-full overflow-hidden bg-slate-900 border-b border-border/40">
                           {loc.imageUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
                               src={resolveMediaUrl(loc.imageUrl) || undefined}
                               alt={loc.name}
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-cover object-center group-hover/card:scale-105 transition-transform duration-500 ease-out"
                             />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-muted/60 text-muted-foreground">
-                              <Building2 className="w-12 h-12 opacity-30" />
+                            <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900/60 text-slate-400 gap-2">
+                              <Building2 className="w-12 h-12 opacity-40 text-primary" />
+                              <span className="text-xs uppercase font-mono tracking-wider text-slate-400">Clinic Facility</span>
                             </div>
                           )}
-                          <div className="absolute top-3 right-3 flex items-center gap-1.5">
+
+                          {/* Gradient Vignette overlay for text legibility & luxury depth */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent pointer-events-none" />
+
+                          {/* Top-Right Floating Badges */}
+                          <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10">
                             {loc.isPrimary && (
-                              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-primary text-primary-foreground shadow-sm">
+                              <span className="backdrop-blur-md bg-primary/90 text-white border border-white/20 text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-sm">
                                 Primary HQ
                               </span>
                             )}
                             <span
-                              className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${loc.isActive
-                                  ? "bg-emerald-500/90 text-white shadow-sm"
-                                  : "bg-slate-700 text-white shadow-sm"
+                              className={`backdrop-blur-md text-[11px] font-semibold px-2.5 py-1 rounded-full border shadow-sm ${loc.isActive
+                                  ? "bg-emerald-500/80 text-white border-emerald-400/30"
+                                  : "bg-slate-800/85 text-slate-200 border-slate-700/50"
                                 }`}
                             >
                               {loc.isActive ? "Active" : "Inactive"}
                             </span>
                           </div>
+
+                          {/* Bottom-Left Overlay Title on Image */}
+                          <div className="absolute bottom-3 left-4 right-4 z-10">
+                            <h3 className="font-display font-bold text-lg text-white drop-shadow-md line-clamp-1">
+                              {loc.name}
+                            </h3>
+                            <p className="text-xs text-white/80 drop-shadow-sm flex items-center gap-1.5 mt-0.5">
+                              <MapPin className="w-3.5 h-3.5 text-primary-300 shrink-0" />
+                              <span className="line-clamp-1">{loc.addressLine1}, {loc.city}</span>
+                            </p>
+                          </div>
                         </div>
 
                         {/* Details */}
                         <div className="p-5 space-y-3">
-                          <div>
-                            <h3 className="font-bold text-lg text-foreground line-clamp-1">{loc.name}</h3>
-                            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                              <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
-                              <span className="line-clamp-1">{loc.addressLine1}, {loc.city}</span>
-                            </p>
-                          </div>
-
-                          <div className="space-y-1.5 pt-2 border-t border-border/40 text-xs text-muted-foreground">
+                          <div className="space-y-2 text-xs text-muted-foreground">
                             {loc.phone && (
                               <div className="flex items-center gap-2">
                                 <Phone className="w-3.5 h-3.5 text-primary shrink-0" />
-                                <span>{loc.phone}</span>
+                                <span className="font-medium text-foreground/80">{loc.phone}</span>
                               </div>
                             )}
                             {loc.email && (
                               <div className="flex items-center gap-2">
                                 <Mail className="w-3.5 h-3.5 text-primary shrink-0" />
-                                <span>{loc.email}</span>
+                                <span className="truncate">{loc.email}</span>
                               </div>
                             )}
                             {loc.hoursInfo && (
@@ -1002,7 +1012,7 @@ export default function AdminLocationsPage() {
                       <div onClick={(e) => e.stopPropagation()} className="p-4 border-t border-border/40 bg-muted/10 flex items-center justify-between gap-2">
                         <button
                           onClick={() => handleToggleLocationStatus(loc.id, loc.isActive)}
-                          className={`text-xs px-2.5 py-1 rounded-md font-medium transition-colors ${loc.isActive
+                          className={`text-xs px-2.5 py-1.5 rounded-lg font-medium transition-colors ${loc.isActive
                               ? "text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10"
                               : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
                             }`}
@@ -1016,7 +1026,7 @@ export default function AdminLocationsPage() {
                             setSelectedBranch(loc);
                             setActiveTab("overview");
                           }}
-                          className="gap-1.5 text-xs font-semibold"
+                          className="gap-1.5 text-xs font-semibold shadow-xs"
                         >
                           <Settings className="w-3.5 h-3.5" />
                           Manage Branch

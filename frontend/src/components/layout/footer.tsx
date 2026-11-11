@@ -200,14 +200,16 @@ export function Footer() {
             {practiceName ? (
               <div className="flex items-center gap-2.5">
                 {logoUrl && !logoError ? (
-                  <img
-                    src={logoUrl}
-                    alt={practiceName || "Clinic Logo"}
-                    onError={() => setLogoError(true)}
-                    className="h-10 w-auto object-contain dark:brightness-0 dark:invert"
-                    width="40"
-                    height="40"
-                  />
+                  <div className="relative flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-white dark:bg-white/95 border border-slate-200/80 dark:border-white/90 shadow-sm dark:shadow-[0_0_20px_rgba(255,255,255,0.14)] ring-1 ring-black/5 dark:ring-2 dark:ring-primary/40 p-1.5 shrink-0 transition-all">
+                    <img
+                      src={logoUrl}
+                      alt={practiceName || "Clinic Logo"}
+                      onError={() => setLogoError(true)}
+                      className="h-full w-full object-contain"
+                      width="40"
+                      height="40"
+                    />
+                  </div>
                 ) : (
                   <span className="grid h-10 w-10 place-items-center rounded-full bg-primary text-white shadow-xs shrink-0">
                     <svg

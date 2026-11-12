@@ -27,10 +27,16 @@ async def pg_session():
     """
     Provides a real PostgreSQL database session for integration testing.
 
-    If the configured development database (dentai_dev) does not exist yet,
+    If the configured database is not an isolated test database or does not exist yet,
     the fixture gracefully skips the test and guides the developer.
     """
     db_name = settings.DATABASE_URL.split("/")[-1].split("?")[0]
+    if "test" not in db_name.lower():
+        pytest.skip(
+            f"Database '{db_name}' is not an isolated test database. "
+            "Integration tests must only run against an isolated test database (containing 'test') to prevent data pollution."
+        )
+
     engine = create_async_engine(settings.DATABASE_URL, echo=False)
     session_factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 

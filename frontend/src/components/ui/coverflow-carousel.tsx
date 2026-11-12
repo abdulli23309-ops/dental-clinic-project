@@ -130,7 +130,7 @@ export function CoverflowCarousel<T>({
     if (isMobile) {
       if (offset === 0) {
         return {
-          transform: `translate3d(0px, 0px, 40px) scale(1)`,
+          transform: "perspective(1000px) translate3d(0px, 0px, 40px) rotateY(0deg) scale(1)",
           zIndex: 30,
           opacity: 1,
           filter: "blur(0px)",
@@ -140,20 +140,20 @@ export function CoverflowCarousel<T>({
       }
       if (offset === -1) {
         return {
-          transform: `translate3d(${-42 * rtlSign}px, 14px, -60px) rotateY(${12 * rtlSign}deg) scale(0.91)`,
+          transform: `perspective(1000px) translate3d(${-62 * rtlSign}%, 0px, -40px) rotateY(${24 * rtlSign}deg) scale(0.84)`,
           zIndex: 20,
-          opacity: 0.55,
-          filter: "blur(2.5px)",
+          opacity: 0.65,
+          filter: "blur(2px) brightness(0.6)",
           pointerEvents: "auto" as const,
           visibility: "visible" as const,
         };
       }
       if (offset === 1) {
         return {
-          transform: `translate3d(${42 * rtlSign}px, 14px, -60px) rotateY(${-12 * rtlSign}deg) scale(0.91)`,
+          transform: `perspective(1000px) translate3d(${62 * rtlSign}%, 0px, -40px) rotateY(${-24 * rtlSign}deg) scale(0.84)`,
           zIndex: 20,
-          opacity: 0.55,
-          filter: "blur(2.5px)",
+          opacity: 0.65,
+          filter: "blur(2px) brightness(0.6)",
           pointerEvents: "auto" as const,
           visibility: "visible" as const,
         };
@@ -290,7 +290,7 @@ export function CoverflowCarousel<T>({
 
   return (
     <div
-      className={`relative w-full overflow-visible py-4 md:py-6 select-none ${className}`}
+      className={`relative w-full overflow-x-clip md:overflow-visible py-4 md:py-6 select-none ${className}`}
       onKeyDown={handleKeyDown}
       tabIndex={0}
       aria-label={ariaLabel}
@@ -333,7 +333,7 @@ export function CoverflowCarousel<T>({
             type="button"
             onClick={handlePrev}
             aria-label={prevAriaLabel}
-            className={variant === "glass-drum" ? "glass-carousel-control" : "hidden md:flex absolute left-1 sm:left-4 top-1/2 -translate-y-1/2 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-white/60 dark:border-white/15 bg-white/90 dark:bg-slate-900/90 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-xl items-center justify-center hover:scale-105 active:scale-95 hover:border-primary/40 hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer"}
+            className={variant === "glass-drum" ? "glass-carousel-control coverflow-desktop-control" : "hidden md:flex absolute left-1 sm:left-4 top-1/2 -translate-y-1/2 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-white/60 dark:border-white/15 bg-white/90 dark:bg-slate-900/90 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-xl items-center justify-center hover:scale-105 active:scale-95 hover:border-primary/40 hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer"}
           >
             <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6 rtl:rotate-180" />
           </button>
@@ -341,7 +341,7 @@ export function CoverflowCarousel<T>({
             type="button"
             onClick={handleNext}
             aria-label={nextAriaLabel}
-            className={variant === "glass-drum" ? "glass-carousel-control glass-carousel-control-next" : "hidden md:flex absolute right-1 sm:right-4 top-1/2 -translate-y-1/2 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-white/60 dark:border-white/15 bg-white/90 dark:bg-slate-900/90 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-xl items-center justify-center hover:scale-105 active:scale-95 hover:border-primary/40 hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer"}
+            className={variant === "glass-drum" ? "glass-carousel-control glass-carousel-control-next coverflow-desktop-control" : "hidden md:flex absolute right-1 sm:right-4 top-1/2 -translate-y-1/2 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-white/60 dark:border-white/15 bg-white/90 dark:bg-slate-900/90 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-xl items-center justify-center hover:scale-105 active:scale-95 hover:border-primary/40 hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer"}
           >
             <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6 rtl:rotate-180" />
           </button>
@@ -414,7 +414,7 @@ export function CoverflowCarousel<T>({
                 key={String(card.key)}
                 data-carousel-index={card.origIdx}
                 data-carousel-active={isFront ? "true" : "false"}
-                className="absolute w-[280px] sm:w-[310px] md:w-[320px] h-[495px] sm:h-[525px] will-change-transform"
+                className="absolute left-1/2 ml-[calc(min(300px,80vw)/-2)] w-[min(300px,80vw)] sm:left-auto sm:ml-0 sm:w-[310px] md:w-[320px] h-[495px] sm:h-[525px] will-change-transform"
                 style={{
                   ...slotStyle,
                   transition: isDragging
@@ -443,7 +443,10 @@ export function CoverflowCarousel<T>({
 
       {/* Mobile Bottom Dock Navigation (Mobile Only) */}
       {n > 1 && (
-        <div className={variant === "glass-drum" ? "hidden" : "glass-carousel-mobile-controls md:hidden"}>
+        <div
+          className="flex items-center justify-center gap-4 mt-4 md:hidden"
+          aria-hidden={!isMobile}
+        >
           <button
             type="button"
             onClick={handlePrev}
@@ -453,8 +456,19 @@ export function CoverflowCarousel<T>({
             <ChevronLeft className="h-5 w-5 rtl:rotate-180" />
           </button>
 
-          <div className="rounded-full border border-primary/20 bg-primary/10 px-4 py-1 text-xs font-mono font-bold text-primary">
-            {String(safeIndex + 1).padStart(2, "0")} / {String(n).padStart(2, "0")}
+          <div className="flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-2">
+            {items.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => onChange(i)}
+                aria-label={`Go to ${itemAriaLabelPrefix} ${i + 1}`}
+                aria-current={i === safeIndex ? "true" : undefined}
+                className={`h-2 rounded-full transition-all cursor-pointer ${
+                  i === safeIndex ? "w-6 bg-primary" : "w-2 bg-gray-300 dark:bg-gray-700"
+                }`}
+              />
+            ))}
           </div>
 
           <button
@@ -470,7 +484,10 @@ export function CoverflowCarousel<T>({
 
       {/* Pagination Indicators (Desktop/Tablet Only) */}
       {n > 1 && (
-        <div className={variant === "glass-drum" ? "glass-carousel-pagination" : "hidden md:flex items-center justify-center gap-1.5 pt-4 md:pt-6"}>
+        <div
+          className={variant === "glass-drum" ? "glass-carousel-pagination coverflow-desktop-pagination" : "hidden md:flex items-center justify-center gap-1.5 pt-4 md:pt-6"}
+          aria-hidden={isMobile}
+        >
           {items.map((_, i) => (
             <button
               key={i}

@@ -29,12 +29,16 @@ if not TEST_DB_URL:
     base_url = str(settings.DATABASE_URL)
     if "dental_dev" in base_url:
         TEST_DB_URL = base_url.replace("dental_dev", "marlow_test")
-    else:
+    elif "test" in base_url.rsplit("/", 1)[-1].lower():
         TEST_DB_URL = base_url
+    else:
+        TEST_DB_URL = None
 
 
 @pytest_asyncio.fixture
 async def pg_test_engine():
+    if not TEST_DB_URL:
+        pytest.skip("MARLOW_TEST_DATABASE_URL not configured with an isolated test database. Skipping to prevent polluting production/development database.")
     engine = create_async_engine(TEST_DB_URL, echo=False, pool_size=10, max_overflow=10)
     try:
         async with engine.connect() as conn:

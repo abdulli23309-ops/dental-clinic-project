@@ -178,8 +178,7 @@ async def create_admin_cmd(email: str, password: str, full_name: str):
 
 
 async def seed_data_cmd():
-    from scripts.seed_demo_data import seed_database
-    await seed_database(dry_run=False)
+    print("Database seeding is permanently disabled. Database is the single source of truth.")
 
 
 async def seed_dev_users_internal(session):
@@ -434,13 +433,7 @@ async def mark_cold_leads_cmd():
 
 
 async def seed_demo_cmd():
-    from app.core.config import settings
-    if str(settings.ENVIRONMENT).lower() != "development":
-        print(f"ERROR: 'seed-demo' is strictly prohibited outside development (current ENVIRONMENT='{settings.ENVIRONMENT}').")
-        sys.exit(1)
-
-    from scripts.seed_demo_data import seed_database
-    await seed_database(dry_run=False)
+    print("Demo seeding is permanently disabled. Database is the single source of truth.")
 
 
 async def doctor_cmd():

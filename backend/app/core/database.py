@@ -55,6 +55,42 @@ async def init_db() -> None:
             await session.commit()
     except Exception as e:
         logger.warning("Safe schema column check encountered warning: %s", e)
+
+    # Strictly enforce: Database is the single source of truth.
+    # If and only if users table is empty (COUNT == 0) on a fresh install, bootstrap one admin account.
+    # If COUNT > 0, do ABSOLUTELY NOTHING (0 writes, 0 updates, 0 deletes).
+    try:
+        from sqlalchemy import text
+        from app.core.security import hash_password
+        import os
+        from uuid import uuid4
+
+        async with factory() as session:
+            res = await session.execute(text("SELECT count(*) FROM users;"))
+            user_count = res.scalar() or 0
+            if user_count == 0:
+                admin_email = os.environ.get("INITIAL_ADMIN_EMAIL", "admin@hiradental.com").strip().lower()
+                admin_password = os.environ.get("INITIAL_ADMIN_PASSWORD", "Admin123456!")
+                admin_name = os.environ.get("INITIAL_ADMIN_NAME", "Administrator")
+                await session.execute(
+                    text("""
+                        INSERT INTO users (id, email, hashed_password, full_name, role, is_active, requires_password_change, has_completed_onboarding)
+                        VALUES (:id, :email, :hashed_password, :full_name, 'admin', true, false, true);
+                    """),
+                    {
+                        "id": uuid4(),
+                        "email": admin_email,
+                        "hashed_password": hash_password(admin_password),
+                        "full_name": admin_name,
+                    },
+                )
+                await session.commit()
+                logger.info("Initialized bootstrap admin account '%s' on empty database installation (user count was 0).", admin_email)
+            else:
+                logger.debug("Database has %d existing user(s). 0 bootstrap mutations performed.", user_count)
+    except Exception as e:
+        logger.warning("Safe bootstrap check encountered warning: %s", e)
+
     logger.info("Database engine initialized.")
 
 

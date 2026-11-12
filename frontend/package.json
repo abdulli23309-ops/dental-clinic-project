@@ -9,7 +9,6 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "seed": "python ../backend/scripts/seed_demo_data.py",
     "check:hardcoded": "node scripts/check-hardcoded.mjs"
   },
   "dependencies": {

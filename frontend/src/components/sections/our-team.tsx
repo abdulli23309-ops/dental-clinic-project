@@ -303,7 +303,7 @@ export function OurTeam() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: shouldReduceMotion ? 0.01 : 0.2, ease: "easeInOut" }}
-              className="w-full overflow-visible"
+              className="w-full overflow-x-clip md:overflow-visible"
             >
               <CoverflowCarousel
                 items={filteredDoctors}
@@ -320,7 +320,7 @@ export function OurTeam() {
 
                   return (
                     <div
-                      className={`group relative w-[280px] sm:w-[310px] md:w-[320px] h-[495px] sm:h-[525px] rounded-3xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border p-3.5 sm:p-4 shadow-[0_20px_50px_rgba(15,23,42,0.08)] flex flex-col justify-between transition-all duration-300 select-none ${
+                      className={`group relative w-[min(300px,80vw)] sm:w-[310px] md:w-[320px] h-[495px] sm:h-[525px] rounded-3xl bg-white dark:bg-[#0B0F19] border p-3.5 sm:p-4 shadow-[0_20px_50px_rgba(15,23,42,0.08)] flex flex-col justify-between transition-all duration-300 select-none ${
                         isFront
                           ? "ring-2 ring-primary border-primary shadow-[0_25px_60px_-15px_hsl(var(--primary)/0.28)] scale-[1.01]"
                           : "border-slate-200/80 dark:border-white/10 hover:border-primary/40 shadow-[0_20px_50px_rgba(15,23,42,0.08)]"

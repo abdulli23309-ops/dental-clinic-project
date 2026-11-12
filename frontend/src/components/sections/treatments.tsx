@@ -135,7 +135,7 @@ export function Treatments() {
         )}
 
         {(isLoading || filtered.length > 0) && (
-          <div className="relative" aria-busy={isLoading}>
+          <div className="relative overflow-x-clip" aria-busy={isLoading}>
             {isLoading ? (
               <div className="grid min-h-[540px] place-items-center text-sm text-gray-500 dark:text-gray-400" role="status">
                 Loading treatments…
@@ -181,8 +181,8 @@ export function Treatments() {
                         </div>
 
                         <div className="relative z-10 flex min-h-0 flex-1 flex-col gap-1.5 py-1">
-                          <div className="flex min-w-0 items-baseline gap-2">
-                            <h3 data-card-part="title" className="min-w-0 flex-1 truncate font-serif text-sm font-bold leading-snug text-gray-900 dark:text-white sm:text-base">
+                          <div className="flex min-w-0 items-start gap-2">
+                            <h3 data-card-part="title" className="min-w-0 flex-1 break-words font-serif text-sm font-bold leading-snug text-gray-900 dark:text-white sm:text-base">
                               {service.title}
                             </h3>
                             <span data-card-part="duration" className="inline-flex shrink-0 items-center rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.04em] text-primary sm:text-[10px]">

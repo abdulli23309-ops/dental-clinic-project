@@ -48,19 +48,11 @@ async def init_db() -> None:
     """Initializes the database connection pool when the application first starts up."""
     get_engine()
     factory = get_session_factory()
-    try:
-        from sqlalchemy import text
-        async with factory() as session:
-            await session.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(500);"))
-            await session.commit()
-    except Exception as e:
-        logger.warning("Safe schema column check encountered warning: %s", e)
 
-    # Strictly enforce: Database is the single source of truth.
-    # If and only if users table is empty (COUNT == 0) on a fresh install, bootstrap one admin account.
-    # If COUNT > 0, do ABSOLUTELY NOTHING (0 writes, 0 updates, 0 deletes).
+    # Migrations are the schema source of truth. On a brand-new installation an
+    # admin can be created once, but only with credentials explicitly supplied
+    # by the operator. Existing users are never changed at startup.
     try:
-        from sqlalchemy import text
         from app.core.security import hash_password
         import os
         from uuid import uuid4
@@ -69,9 +61,12 @@ async def init_db() -> None:
             res = await session.execute(text("SELECT count(*) FROM users;"))
             user_count = res.scalar() or 0
             if user_count == 0:
-                admin_email = os.environ.get("INITIAL_ADMIN_EMAIL", "admin@hiradental.com").strip().lower()
-                admin_password = os.environ.get("INITIAL_ADMIN_PASSWORD", "Admin123456!")
-                admin_name = os.environ.get("INITIAL_ADMIN_NAME", "Administrator")
+                admin_email = os.environ.get("INITIAL_ADMIN_EMAIL", "").strip().lower()
+                admin_password = os.environ.get("INITIAL_ADMIN_PASSWORD", "")
+                admin_name = os.environ.get("INITIAL_ADMIN_NAME", "Administrator").strip()
+                if not admin_email or not admin_password:
+                    logger.info("Users table is empty. No admin was created because INITIAL_ADMIN_EMAIL and INITIAL_ADMIN_PASSWORD were not both supplied.")
+                    return
                 await session.execute(
                     text("""
                         INSERT INTO users (id, email, hashed_password, full_name, role, is_active, requires_password_change, has_completed_onboarding)

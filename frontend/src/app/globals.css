@@ -716,7 +716,7 @@ main[class*="bg-"] {
 }
 
 .glass-treatment-card [data-card-part="title"] {
-  text-wrap: nowrap;
+  text-wrap: wrap;
 }
 
 .glass-treatment-card[data-offset="-1"]::after,

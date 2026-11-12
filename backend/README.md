@@ -210,15 +210,20 @@ alembic current
 
 ### CLI Bootstrap Commands
 
-To safely initialize the database with baseline clinic data and create an initial admin without hardcoding credentials:
+Apply migrations before starting the API. Runtime startup never seeds or repairs
+clinic content, and the disabled seed commands cannot overwrite administrator
+edits. The database remains the source of truth.
+
+To create the initial administrator, use explicit credentials:
 
 ```bash
-# 1. Seed initial organization, location, core services, clinical director, and FAQs:
-python -m app.cli seed
-
-# 2. Safely create or update an administrator account:
 python -m app.cli create-admin --email admin@marlowdental.com --password "YourSecurePassword" --name "Clinic Administrator"
 ```
+
+For a brand-new deployment, startup creates an administrator only when both
+`INITIAL_ADMIN_EMAIL` and `INITIAL_ADMIN_PASSWORD` are explicitly supplied and
+the `users` table is empty. Schema changes must always be applied through an
+Alembic migration.
 
 ### Running the API Server
 

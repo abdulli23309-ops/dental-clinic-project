@@ -23,6 +23,7 @@ import { usePublicContent } from "@/components/providers/public-content-provider
 import { getOfficeStatus } from "@/lib/utils";
 import { formatTimeRangeString } from "@/lib/currency";
 import { resolveMediaUrl } from "@/lib/api";
+import { MobileLocationsTiming } from "@/components/mobile/MobileLocationsTiming";
 
 export function LocationsTiming() {
   const {
@@ -71,12 +72,19 @@ export function LocationsTiming() {
   return (
     <section
       id="locations"
-      className="border-t border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/40 py-28 md:py-36 overflow-hidden"
+      className="border-t border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/40 py-28 md:py-36 max-md:py-12 overflow-hidden"
     >
       {/* Anchor alias for backwards compatibility */}
       <span id="visit" className="sr-only" />
 
-      <div className="container-x space-y-14 lg:space-y-16">
+      {/* Mobile-Only Experience (< 768px) */}
+      <div className="md:hidden w-full">
+        <MobileLocationsTiming />
+      </div>
+
+      {/* Desktop Experience (>= 768px) */}
+      <div className="max-md:hidden w-full">
+        <div className="container-x space-y-14 lg:space-y-16">
         {/* Section Heading */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <SectionHeading
@@ -502,6 +510,7 @@ export function LocationsTiming() {
           })}
         </div>
         )}
+      </div>
       </div>
     </section>
   );

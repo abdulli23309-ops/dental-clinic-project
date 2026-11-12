@@ -93,7 +93,17 @@ function formatDayLabel(isoDate: string): string {
  * each upstream selection, backed entirely by the live booking API.
  * Page 3 reviews the summary and submits a real appointment request.
  */
-export function ProgressiveBookingFlow() {
+export interface ProgressiveBookingFlowProps {
+  initialServiceId?: string;
+  initialClinicId?: string;
+  initialDoctorId?: string;
+}
+
+export function ProgressiveBookingFlow({
+  initialServiceId,
+  initialClinicId,
+  initialDoctorId,
+}: ProgressiveBookingFlowProps = {}) {
   const { content, currency } = usePublicContent();
   const fallbackPhone = content.general?.phone || "";
   const shouldReduceMotion = useReducedMotion();
@@ -135,7 +145,7 @@ export function ProgressiveBookingFlow() {
   const [servicesLoading, setServicesLoading] = useState<boolean>(true);
   const [servicesError, setServicesError] = useState<string | null>(null);
 
-  const [selectedServiceId, setSelectedServiceId] = useState<string>("");
+  const [selectedServiceId, setSelectedServiceId] = useState<string>(initialServiceId || "");
   const [clinics, setClinics] = useState<PublicBookingClinicItem[]>([]);
   const [clinicsLoading, setClinicsLoading] = useState<boolean>(false);
   const [clinicsError, setClinicsError] = useState<string | null>(null);

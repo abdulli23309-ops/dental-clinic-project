@@ -17,6 +17,8 @@ import { CookieBanner } from '@/components/ui/cookie-banner';
 import { TemporarilyUnavailable } from '@/components/ui/temporarily-unavailable';
 import { PublicContentProvider } from '@/components/providers/public-content-provider';
 import { getServerSiteContent } from '@/lib/server-content';
+import { MobileDock } from '@/components/mobile/MobileDock';
+import { MobileBookingProvider } from '@/components/mobile/MobileBookingSheet';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,12 +43,13 @@ export default async function Home() {
       initialTeam={team}
       initialLocations={locations}
     >
+      <MobileBookingProvider>
       <div className="min-h-screen flex flex-col">
         <>
           <ScrollProgress />
           <AnnouncementMarquee />
           <SiteHeader />
-          <main id="main-content" className="bg-white dark:bg-gray-950 min-h-[60vh]">
+          <main id="main-content" className="bg-white dark:bg-gray-950 min-h-[60vh] pb-dock md:pb-0">
             {/* 1. Hero: White */}
             <div className="bg-white dark:bg-gray-950">
               <Hero />
@@ -94,11 +97,15 @@ export default async function Home() {
           </main>
           {/* 11. Footer with social links */}
           <Footer />
-          <BackToTop />
-          <FloatingAction />
+          <div className="max-md:hidden">
+            <BackToTop />
+            <FloatingAction />
+          </div>
+          <MobileDock />
           <CookieBanner />
         </>
       </div>
+      </MobileBookingProvider>
     </PublicContentProvider>
   );
 }

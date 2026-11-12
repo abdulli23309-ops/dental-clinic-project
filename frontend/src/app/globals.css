@@ -913,8 +913,33 @@ main[class*="bg-"] {
 
 /* Mobile controls dock beneath the stage so they cannot overlap card content. */
 @media (max-width: 767px) {
+  :root {
+    --mobile-dock-h: 76px;
+  }
   .coverflow-desktop-control,
   .coverflow-desktop-pagination {
     display: none;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .edge-mask {
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
+  }
+  .pb-dock {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  }
+
+  body.menu-open nav[aria-label="Mobile Bottom Navigation"],
+  body.sheet-open nav[aria-label="Mobile Bottom Navigation"] {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(20px);
+    transition: all 0.2s ease-in-out;
   }
 }

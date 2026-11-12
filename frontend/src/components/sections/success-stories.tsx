@@ -13,6 +13,7 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getPublicReviews, Review } from "@/lib/api";
 import { usePublicContent } from "@/components/providers/public-content-provider";
+import { MobileSuccessStories } from "@/components/mobile/MobileSuccessStories";
 
 export function SuccessStories() {
   const { copy } = usePublicContent();
@@ -55,9 +56,18 @@ export function SuccessStories() {
   return (
     <section
       id="reviews"
-      className="border-t border-gray-200 dark:border-gray-800 bg-[#FAF9F5] dark:bg-gray-900/40 py-28 md:py-36 overflow-hidden"
+      className="border-t border-gray-200 dark:border-gray-800 bg-[#FAF9F5] dark:bg-gray-900/40 py-12 md:py-36 overflow-hidden"
     >
-      <div className="container-x space-y-14 lg:space-y-16">
+      <span id="stories" className="sr-only" />
+
+      {/* MOBILE-ONLY: Review Snap Rail (< 768px) */}
+      <div className="md:hidden w-full">
+        <MobileSuccessStories reviews={reviews} avgRating={avgRating} />
+      </div>
+
+      {/* DESKTOP-ONLY (>= 768px, 100% UNTOUCHED) */}
+      <div className="max-md:hidden w-full">
+        <div className="container-x space-y-14 lg:space-y-16">
         {/* Section Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <SectionHeading
@@ -179,6 +189,7 @@ export function SuccessStories() {
             </div>
           </div>
         )}
+      </div>
       </div>
     </section>
   );

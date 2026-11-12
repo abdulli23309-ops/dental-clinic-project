@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   RefreshCw,
   Globe,
+  ChevronDown,
 } from "lucide-react";
 import { CopyButton } from "@/components/ui/copy-button";
 import { usePublicContent } from "@/components/providers/public-content-provider";
@@ -70,6 +71,11 @@ export function Footer() {
   const currentYear = new Date().getFullYear();
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
   const [services, setServices] = useState<ServiceItem[]>([]);
+  const [openAccordion, setOpenAccordion] = useState<string | null>(null);
+
+  const toggleAccordion = (key: string) => {
+    setOpenAccordion((prev) => (prev === key ? null : key));
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -192,9 +198,167 @@ export function Footer() {
   const hasContact = phone || email || addressLine1;
 
   return (
-    <footer className="border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
+    <footer className="border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 pb-dock md:pb-0">
       <div className="container-x py-12 md:py-16">
-        <div className="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:gap-10">
+        {/* Mobile Accordions (< 768px) */}
+        <div className="md:hidden space-y-3 mb-8">
+          {/* Clinic Brand & Contacts */}
+          <div className="space-y-3 pb-4 border-b border-gray-200 dark:border-gray-800">
+            {practiceName && (
+              <div className="flex items-center gap-2.5">
+                {logoUrl && !logoError ? (
+                  <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-white dark:bg-white/95 border border-slate-200/80 dark:border-white/90 shadow-sm ring-1 ring-black/5 dark:ring-2 dark:ring-primary/40 p-1.5 shrink-0">
+                    <img
+                      src={logoUrl}
+                      alt={practiceName}
+                      className="h-full w-full object-contain"
+                      width="36"
+                      height="36"
+                    />
+                  </div>
+                ) : null}
+                <span className="font-serif text-lg font-bold tracking-tight text-gray-950 dark:text-white">
+                  {practiceName}
+                </span>
+              </div>
+            )}
+            {tagline && (
+              <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                {tagline}
+              </p>
+            )}
+            {phone && (
+              <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                <Phone className="h-3.5 w-3.5 text-primary shrink-0" />
+                <a href={`tel:${cleanPhone}`} className="hover:text-primary">
+                  {phone}
+                </a>
+              </div>
+            )}
+          </div>
+
+          {/* Accordion 1: Treatments */}
+          <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/50 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => toggleAccordion("treatments")}
+              className="w-full flex items-center justify-between p-3.5 text-left min-h-[48px]"
+              aria-expanded={openAccordion === "treatments"}
+            >
+              <span className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">
+                {copy.treatments}
+              </span>
+              <ChevronDown
+                className={`h-4 w-4 text-gray-400 transition-transform ${
+                  openAccordion === "treatments" ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+            {openAccordion === "treatments" && (
+              <div className="px-3.5 pb-3.5 pt-1 border-t border-gray-150 dark:border-gray-800 space-y-2 text-xs text-gray-600 dark:text-gray-400">
+                {services.map((svc) => (
+                  <div key={svc.id}>
+                    <Link href="/#treatments" className="hover:text-primary block py-0.5">
+                      {svc.title}
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Accordion 2: Explore Navigation */}
+          <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/50 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => toggleAccordion("explore")}
+              className="w-full flex items-center justify-between p-3.5 text-left min-h-[48px]"
+              aria-expanded={openAccordion === "explore"}
+            >
+              <span className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">
+                {copy.explore}
+              </span>
+              <ChevronDown
+                className={`h-4 w-4 text-gray-400 transition-transform ${
+                  openAccordion === "explore" ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+            {openAccordion === "explore" && (
+              <div className="px-3.5 pb-3.5 pt-1 border-t border-gray-150 dark:border-gray-800 space-y-2 text-xs text-gray-600 dark:text-gray-400">
+                <div>
+                  <Link href="/#why-us" className="hover:text-primary block py-0.5">
+                    {copy.whyUs || "Why Choose Us"}
+                  </Link>
+                </div>
+                <div>
+                  <Link href="/#reviews" className="hover:text-primary block py-0.5">
+                    {copy.successStories}
+                  </Link>
+                </div>
+                <div>
+                  <Link href="/#team" className="hover:text-primary block py-0.5">
+                    {copy.team}
+                  </Link>
+                </div>
+                <div>
+                  <Link href="/#locations" className="hover:text-primary block py-0.5">
+                    {copy.locationsAndTiming}
+                  </Link>
+                </div>
+                <div>
+                  <Link href="/#faq" className="hover:text-primary block py-0.5">
+                    {copy.faqs}
+                  </Link>
+                </div>
+                <div>
+                  <Link href="/blog" className="hover:text-primary block py-0.5">
+                    {copy.blogs}
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Accordion 3: Branches & Hours */}
+          <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/50 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => toggleAccordion("hours")}
+              className="w-full flex items-center justify-between p-3.5 text-left min-h-[48px]"
+              aria-expanded={openAccordion === "hours"}
+            >
+              <span className="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">
+                {copy.clinicHours}
+              </span>
+              <ChevronDown
+                className={`h-4 w-4 text-gray-400 transition-transform ${
+                  openAccordion === "hours" ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+            {openAccordion === "hours" && (
+              <div className="px-3.5 pb-3.5 pt-1 border-t border-gray-150 dark:border-gray-800 space-y-2 text-xs text-gray-600 dark:text-gray-400">
+                {addressLine1 && (
+                  <p className="py-0.5 text-gray-800 dark:text-gray-300">
+                    {addressLine1}
+                  </p>
+                )}
+                {scheduleLines.slice(0, 4).map((line, idx) => (
+                  <div key={idx} className="flex justify-between py-0.5">
+                    <span>{line.label}:</span>
+                    <span className="font-mono text-gray-900 dark:text-white">
+                      {line.timeRange}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Desktop Footer Grid (>= 768px, untouched) */}
+        <div className="max-md:hidden grid grid-cols-1 gap-10 lg:grid-cols-12 lg:gap-10">
           {/* Column 1: Brand, Tagline, Contact Info, Social Links */}
           <div className="lg:col-span-4 space-y-5">
             {practiceName ? (

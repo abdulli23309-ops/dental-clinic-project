@@ -29,6 +29,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { useDirectory } from "@/lib/directory";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { Pagination } from "@/components/ui/pagination";
+import { MobileReceptionQueue } from "@/components/mobile/MobileReceptionQueue";
 import {
   isExpected,
   isWaiting,
@@ -199,7 +200,21 @@ export default function ReceptionAppointmentsPage() {
             <p className="text-xs text-gray-500">Try adjusting the tab filter or search query.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div>
+            {/* Dedicated Mobile Reception Queue (< 768px) */}
+            <div className="md:hidden">
+              <MobileReceptionQueue
+                bookings={bookings}
+                directory={directory}
+                onConfirm={handleConfirm}
+                onStatusChange={handleStatusChange}
+                onRefresh={loadBookings}
+                isRefreshing={isLoading}
+              />
+            </div>
+
+            {/* Desktop Table Container (>= 768px, 100% UNTOUCHED) */}
+            <div className="max-md:hidden overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="bg-gray-50 dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 uppercase font-mono text-[10px]">
                 <tr>
@@ -346,6 +361,7 @@ export default function ReceptionAppointmentsPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
 

@@ -22,6 +22,7 @@ import { CopyButton } from "@/components/ui/copy-button";
 import { SafeImage } from "@/components/ui/safe-image";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 import { resolveMediaUrl } from "@/lib/api";
+import { MobileHero } from "@/components/mobile/MobileHero";
 
 function renderTwoToneHeadline(heading: string, highlightWord?: string) {
   if (highlightWord && highlightWord.trim()) {
@@ -313,7 +314,13 @@ export function Hero() {
   };
 
   return (
-    <section className="relative overflow-hidden pt-4 pb-12 sm:pt-8 sm:pb-16 md:pt-24 md:pb-36 lg:pt-28 lg:pb-40">
+    <>
+      <div className="md:hidden w-full">
+        <MobileHero />
+      </div>
+
+      <div className="max-md:hidden w-full">
+        <section className="relative overflow-hidden pt-4 pb-12 sm:pt-8 sm:pb-16 md:pt-24 md:pb-36 lg:pt-28 lg:pb-40">
       {/* Refined Luxury Top Ambient Theme Shade beneath Navbar (Dynamically reflects Admin's chosen theme color) */}
       <div
         className="absolute top-0 inset-x-0 h-80 bg-gradient-to-b from-primary/[0.08] via-primary/[0.03] to-transparent pointer-events-none z-0"
@@ -461,6 +468,8 @@ export function Hero() {
         </div>
       </div>
     </section>
+    </div>
+    </>
   );
 }
 

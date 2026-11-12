@@ -475,7 +475,7 @@ export function SharedDashboardLayout({
           </div>
         </header>
 
-        <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full">
+        <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full pb-24 md:pb-8">
           <AnimatePresence mode="wait" key={pathname}>
             <AnimatedPage key={pathname}>
               {children}
@@ -483,6 +483,50 @@ export function SharedDashboardLayout({
           </AnimatePresence>
         </main>
       </div>
+
+      {/* Mobile Floating Bottom Glass Navigation Bar (< 768px) */}
+      <nav
+        aria-label="Staff mobile navigation"
+        className="md:hidden fixed bottom-3 inset-x-3 z-40 h-16 rounded-2xl bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80 shadow-2xl px-2 flex items-center justify-around"
+      >
+        {links.slice(0, 4).map((link) => {
+          const isActive = link.exact
+            ? pathname === link.href
+            : pathname.startsWith(link.href);
+          return (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={`flex flex-col items-center justify-center gap-1 py-1 px-2 rounded-xl transition-colors min-w-[56px] ${
+                isActive
+                  ? "text-primary font-semibold"
+                  : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+              }`}
+            >
+              <div className="relative">
+                {renderIcon(link.icon, isActive)}
+                {link.badge !== undefined && (
+                  <span className="absolute -top-1 -right-2 px-1 text-[9px] font-bold rounded-full bg-primary text-white">
+                    {link.badge}
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] tracking-tight leading-none truncate max-w-[64px]">
+                {link.title}
+              </span>
+            </Link>
+          );
+        })}
+        {/* Drawer button for more links */}
+        <button
+          type="button"
+          onClick={() => setMobileOpen(true)}
+          className="flex flex-col items-center justify-center gap-1 py-1 px-2 rounded-xl transition-colors min-w-[56px] text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white cursor-pointer"
+        >
+          <Menu className="h-5 w-5" />
+          <span className="text-[10px] tracking-tight leading-none">More</span>
+        </button>
+      </nav>
 
       <CommandPalette
         isOpen={isCommandPaletteOpen}

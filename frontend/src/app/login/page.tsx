@@ -101,6 +101,37 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen w-full grid grid-cols-1 lg:grid-cols-2 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans">
+      {/* MOBILE-ONLY TOP BRAND BANNER (< md, >= md is 100% untouched) */}
+      <div className="md:hidden p-4 flex items-center justify-between border-b border-slate-200/80 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-white dark:bg-white/95 border border-slate-200/80 dark:border-white/90 shadow-sm ring-1 ring-black/5 dark:ring-2 dark:ring-primary/40 p-1.5 shrink-0">
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logoUrl}
+                alt={orgName}
+                className="w-full h-full object-contain"
+              />
+            ) : (
+              <span className="font-display font-bold text-lg text-primary" style={{ color: primaryColor }}>
+                {shortBrandName.charAt(0) || "H"}
+              </span>
+            )}
+          </div>
+          <div>
+            <h1 className="font-display font-bold text-sm text-slate-900 dark:text-white leading-tight">
+              {orgName}
+            </h1>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              Clinical Administration Portal
+            </p>
+          </div>
+        </div>
+        <div className="w-11 h-11 flex items-center justify-center shrink-0">
+          <ThemeToggle />
+        </div>
+      </div>
+
       {/* LEFT PANEL: Responsive Enterprise Showcase with High-Contrast Typography & Floating Cards */}
       <div className="relative hidden lg:flex flex-col justify-between p-12 xl:p-16 bg-gradient-to-br from-slate-100 via-slate-50 to-primary/[0.04] dark:from-slate-900 dark:via-slate-950 dark:to-primary/[0.08] border-r border-slate-200 dark:border-slate-800 overflow-hidden">
         {/* Soft Decorative Ambient Background */}
@@ -248,7 +279,9 @@ export default function LoginPage() {
             <span>Return to public website</span>
           </Link>
           <div className="flex items-center gap-2.5">
-            <ThemeToggle />
+            <div className="max-md:hidden">
+              <ThemeToggle />
+            </div>
             <span className="text-[11px] font-mono uppercase tracking-wider text-primary font-bold px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
               Staff Portal
             </span>
@@ -256,7 +289,7 @@ export default function LoginPage() {
         </div>
 
         {/* Center Login Form Container */}
-        <div className="w-full max-w-md mx-auto my-auto py-8">
+        <div className="w-full max-w-md mx-auto my-auto py-8 max-md:py-4">
           <div className="space-y-6">
             {/* Header */}
             <div className="space-y-1.5">
@@ -309,12 +342,13 @@ export default function LoginPage() {
                 </label>
                 <input
                   type="email"
+                  inputMode="email"
+                  autoComplete="username"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="admin@hiradental.com"
-                  autoComplete="email"
-                  className="w-full px-4 py-3 text-sm rounded-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  className="w-full px-4 py-3 max-md:h-[52px] text-sm max-md:text-base rounded-full max-md:rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                 />
               </div>
 
@@ -332,12 +366,12 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••••••"
                     autoComplete="current-password"
-                    className="w-full pl-11 pr-16 py-3 text-sm rounded-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-mono"
+                    className="w-full pl-11 pr-14 py-3 max-md:h-[52px] text-sm max-md:text-base rounded-full max-md:rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-mono"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors p-1 cursor-pointer"
+                    className="absolute right-2 w-11 h-11 flex items-center justify-center text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
                     aria-label={showPassword ? "Hide password" : "Show password"}
                   >
                     {showPassword ? "Hide" : "Show"}
@@ -350,7 +384,7 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full py-3.5 px-6 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2 shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
+                  className="w-full py-3.5 max-md:h-[52px] px-6 rounded-full max-md:rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm max-md:text-base flex items-center justify-center gap-2 shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
                 >
                   <span>{isSubmitting ? "Signing in..." : "Log in"}</span>
                   <ArrowRight className="w-4 h-4" />
@@ -361,7 +395,8 @@ export default function LoginPage() {
             {/* Security Assurance Badge */}
             <div className="pt-4 border-t border-slate-100 dark:border-slate-900 flex items-center justify-center gap-2 text-[11px] text-slate-400 dark:text-slate-500">
               <ShieldCheck className="w-3.5 h-3.5 text-primary" />
-              <span>Session protected with JWT and HttpOnly token rotation</span>
+              <span className="max-md:hidden">Session protected with JWT and HttpOnly token rotation</span>
+              <span className="md:hidden">Secure, encrypted staff session</span>
             </div>
           </div>
         </div>

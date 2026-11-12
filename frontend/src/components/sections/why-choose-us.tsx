@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { CheckCircle2, Sparkles } from "lucide-react";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 import { resolveMediaUrl } from "@/lib/api";
+import { MobileWhyChooseUs } from "@/components/mobile/MobileWhyChooseUs";
 
 export function WhyChooseUs() {
   const { content, organization, copy } = usePublicContent();
@@ -18,9 +19,16 @@ export function WhyChooseUs() {
   return (
     <section
       id="why-us"
-      className="border-t border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/50 py-20 md:py-28"
+      className="border-t border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/50 py-12 md:py-28"
     >
-      <div className="container-x">
+      {/* MOBILE-ONLY: 2x2 Grid + Connected Stepper (< 768px) */}
+      <div className="md:hidden w-full">
+        <MobileWhyChooseUs />
+      </div>
+
+      {/* DESKTOP-ONLY (>= 768px, 100% UNTOUCHED) */}
+      <div className="max-md:hidden w-full">
+        <div className="container-x">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-14 items-start">
           {/* Left Column: Why Choose Us Promises + 3-Step Strip */}
           <div className="lg:col-span-7 space-y-8">
@@ -168,6 +176,7 @@ export function WhyChooseUs() {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </section>
   );

@@ -165,7 +165,17 @@ export default function AdminOverviewPage() {
       {!error && data && ops && (
         <>
           {/* Clinic operations */}
-          <section className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-2.5">
+          <div className="md:hidden flex gap-2.5 overflow-x-auto no-scrollbar snap-x snap-mandatory -mx-4 px-4 pb-2">
+            <div className="min-w-[140px] shrink-0 snap-start"><StatCard label="Appointments today" value={ops.todayAppointments} index={0} /></div>
+            <div className="min-w-[140px] shrink-0 snap-start"><StatCard label="Confirmed" value={ops.confirmedCount} tone="positive" index={1} /></div>
+            <div className="min-w-[140px] shrink-0 snap-start"><StatCard label="Unconfirmed" value={ops.unconfirmedCount} tone="warning" index={2} /></div>
+            <div className="min-w-[140px] shrink-0 snap-start"><StatCard label="Checked in" value={ops.checkedInCount} tone="info" index={3} /></div>
+            <div className="min-w-[140px] shrink-0 snap-start"><StatCard label="Waiting" value={ops.waitingCount} tone="warning" index={4} /></div>
+            <div className="min-w-[140px] shrink-0 snap-start"><StatCard label="In treatment" value={ops.inProgressCount} tone="info" index={5} /></div>
+            <div className="min-w-[140px] shrink-0 snap-start"><StatCard label="Completed" value={ops.completedCount} tone="positive" index={6} /></div>
+            <div className="min-w-[140px] shrink-0 snap-start"><StatCard label="No shows" value={ops.noShowCount} tone="danger" index={7} /></div>
+          </div>
+          <section className="max-md:hidden grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-2.5">
             <StatCard label="Appointments today" value={ops.todayAppointments} index={0} />
             <StatCard label="Confirmed" value={ops.confirmedCount} tone="positive" index={1} />
             <StatCard label="Unconfirmed" value={ops.unconfirmedCount} tone="warning" index={2} />
@@ -221,46 +231,88 @@ export default function AdminOverviewPage() {
                   }
                 />
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b border-line text-left text-[10px] font-mono uppercase tracking-wider text-ink-soft">
-                        <th className="px-4 py-2 font-semibold">Time</th>
-                        <th className="px-4 py-2 font-semibold">Patient</th>
-                        <th className="px-4 py-2 font-semibold">Provider</th>
-                        <th className="px-4 py-2 font-semibold">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-line">
-                      {ops.todayFlow.map((item) => (
-                        <tr key={item.id} className="hover:bg-sand/60 transition-colors">
-                          <td className="px-4 py-2.5 font-mono text-ink whitespace-nowrap">
+                <>
+                  {/* Desktop Table View (>= 768px) */}
+                  <div className="max-md:hidden overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-line text-left text-[10px] font-mono uppercase tracking-wider text-ink-soft">
+                          <th className="px-4 py-2 font-semibold">Time</th>
+                          <th className="px-4 py-2 font-semibold">Patient</th>
+                          <th className="px-4 py-2 font-semibold">Provider</th>
+                          <th className="px-4 py-2 font-semibold">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-line">
+                        {ops.todayFlow.map((item) => (
+                          <tr key={item.id} className="hover:bg-sand/60 transition-colors">
+                            <td className="px-4 py-2.5 font-mono text-ink whitespace-nowrap">
+                              {item.appointmentTime}
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <a
+                                href={`tel:${item.patientPhone}`}
+                                className="font-medium text-ink hover:text-primary"
+                              >
+                                {item.patientName}
+                              </a>
+                            </td>
+                            <td className="px-4 py-2.5 text-ink-soft">
+                              {item.providerId
+                                ? directory.providerName(item.providerId) || "Team member"
+                                : "Unassigned"}
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <StatusBadge status={item.status} />
+                              {item.confirmationStatus === "unconfirmed" && (
+                                <StatusBadge status="unconfirmed" />
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile Stacked Cards (< 768px) */}
+                  <div className="md:hidden divide-y divide-line/60">
+                    {ops.todayFlow.map((item) => (
+                      <div key={item.id} className="p-3.5 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
                             {item.appointmentTime}
-                          </td>
-                          <td className="px-4 py-2.5">
-                            <a
-                              href={`tel:${item.patientPhone}`}
-                              className="font-medium text-ink hover:text-primary"
-                            >
-                              {item.patientName}
-                            </a>
-                          </td>
-                          <td className="px-4 py-2.5 text-ink-soft">
-                            {item.providerId
-                              ? directory.providerName(item.providerId) || "Team member"
-                              : "Unassigned"}
-                          </td>
-                          <td className="px-4 py-2.5">
+                          </span>
+                          <div className="flex items-center gap-1.5 flex-wrap justify-end">
                             <StatusBadge status={item.status} />
                             {item.confirmationStatus === "unconfirmed" && (
                               <StatusBadge status="unconfirmed" />
                             )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-semibold text-ink leading-tight">
+                              {item.patientName}
+                            </p>
+                            <p className="text-xs text-ink-soft mt-0.5">
+                              {item.providerId
+                                ? directory.providerName(item.providerId) || "Team member"
+                                : "Unassigned"}
+                            </p>
+                          </div>
+                          {item.patientPhone && (
+                            <a
+                              href={`tel:${item.patientPhone}`}
+                              className="px-2.5 py-1 rounded-full text-xs font-medium border border-line bg-surface hover:border-primary/40 text-ink shrink-0"
+                            >
+                              Call
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
               )}
             </Panel>
 

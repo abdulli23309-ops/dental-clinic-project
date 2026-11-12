@@ -7,6 +7,7 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 import { useLightbox } from "@/components/providers/lightbox-provider";
 import { publicGetGallery, GalleryImageItem, resolveMediaUrl } from "@/lib/api";
+import { MobileGallery } from "@/components/mobile/MobileGallery";
 
 const BENTO_LAYOUTS = [
   { colSpanClass: "md:col-span-7", minHeightClass: "min-h-[260px] md:min-h-[460px]", defaultBadge: "CLINICAL SUITE" },
@@ -72,9 +73,16 @@ export function Gallery() {
   return (
     <section
       id="gallery"
-      className="border-t border-gray-200 dark:border-gray-800 bg-[#FAF9F5] dark:bg-gray-900/50 py-24 md:py-32 overflow-hidden"
+      className="border-t border-gray-200 dark:border-gray-800 bg-[#FAF9F5] dark:bg-gray-900/50 py-12 md:py-32 overflow-hidden"
     >
-      <div className="container-x space-y-12 lg:space-y-14">
+      {/* MOBILE-ONLY: 2-Column Bento Grid (< 768px) */}
+      <div className="md:hidden w-full">
+        <MobileGallery items={galleryItems} />
+      </div>
+
+      {/* DESKTOP-ONLY (>= 768px, 100% UNTOUCHED) */}
+      <div className="max-md:hidden w-full">
+        <div className="container-x space-y-12 lg:space-y-14">
         {/* Section Heading */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <SectionHeading
@@ -187,6 +195,7 @@ export function Gallery() {
             );
           })}
         </div>
+      </div>
       </div>
     </section>
   );

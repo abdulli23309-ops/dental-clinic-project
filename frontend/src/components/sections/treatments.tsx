@@ -9,6 +9,7 @@ import { SafeImage } from "@/components/ui/safe-image";
 import { CoverflowCarousel } from "@/components/ui/coverflow-carousel";
 import { getServices, ServiceItem } from "@/lib/api";
 import { usePublicContent } from "@/components/providers/public-content-provider";
+import { MobileTreatments } from "@/components/mobile/MobileTreatments";
 
 type CategoryFilter = "all" | string;
 
@@ -56,12 +57,19 @@ export function Treatments() {
   return (
     <section
       id="treatments"
-      className="treatments-glass-theme relative overflow-clip border-t border-gray-200 bg-white py-24 dark:border-gray-800 dark:bg-gray-950 md:py-32"
+      className="treatments-glass-theme relative overflow-clip border-t border-gray-200 bg-white py-24 dark:border-gray-800 dark:bg-gray-950 md:py-32 max-md:py-12"
       aria-label="Treatments We Offer"
     >
       <span id="services" className="sr-only" />
 
-      <div className="container-x relative z-10 space-y-12 lg:space-y-14">
+      {/* MOBILE-ONLY: Snap Rail + Bottom Sheet (< 768px) */}
+      <div className="md:hidden w-full">
+        <MobileTreatments />
+      </div>
+
+      {/* DESKTOP-ONLY: 3D Coverflow (>= 768px, 100% UNTOUCHED) */}
+      <div className="max-md:hidden w-full">
+        <div className="container-x relative z-10 space-y-12 lg:space-y-14">
         <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
           <SectionHeading eyebrow={copy.clinicalExcellence} title={copy.treatments} />
           <p className="max-w-[62ch] text-pretty text-xs text-gray-600 dark:text-gray-400 sm:text-sm">
@@ -242,6 +250,7 @@ export function Treatments() {
             <ArrowRight className="h-4 w-4 rtl:rotate-180" />
           </Button>
         </div>
+      </div>
       </div>
     </section>
   );

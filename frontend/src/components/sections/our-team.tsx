@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CoverflowCarousel } from "@/components/ui/coverflow-carousel";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 import { resolveMediaUrl } from "@/lib/api";
+import { MobileTeam } from "@/components/mobile/MobileTeam";
 
 // Helper for per-doctor portrait focal point framing
 function getDoctorFocalClass(name: string) {
@@ -110,10 +111,17 @@ export function OurTeam() {
   return (
     <section
       id="team"
-      className="border-t border-gray-200 dark:border-gray-800 bg-[#FAF9F6] dark:bg-gray-950 py-24 md:py-32 overflow-hidden select-none relative"
+      className="border-t border-gray-200 dark:border-gray-800 bg-[#FAF9F6] dark:bg-gray-950 py-24 md:py-32 max-md:py-12 overflow-hidden select-none relative"
       aria-label="Our Clinical Specialists"
     >
-      <div className="container-x space-y-10 md:space-y-14 relative z-10">
+      {/* MOBILE-ONLY: Swipe Deck + List Toggle (< 768px) */}
+      <div className="md:hidden w-full">
+        <MobileTeam />
+      </div>
+
+      {/* DESKTOP-ONLY: 3D Coverflow (>= 768px, 100% UNTOUCHED) */}
+      <div className="max-md:hidden w-full">
+        <div className="container-x space-y-10 md:space-y-14 relative z-10">
         {/* Section Heading */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6">
           <SectionHeading
@@ -471,6 +479,7 @@ export function OurTeam() {
             </motion.div>
           </AnimatePresence>
         )}
+      </div>
       </div>
     </section>
   );

@@ -77,7 +77,7 @@ export function FAQ() {
   return (
     <section
       id="faq"
-      className="border-t border-gray-200 dark:border-gray-800 bg-[#FAF9F5] dark:bg-gray-900/50 py-28 md:py-36"
+      className="border-t border-gray-200 dark:border-gray-800 bg-[#FAF9F5] dark:bg-gray-900/50 py-28 md:py-36 max-md:py-12"
     >
       {/* Technical SEO: FAQPage Structured Data */}
       {faqs.length > 0 && (
@@ -186,7 +186,7 @@ export function FAQ() {
                       <button
                         id={buttonId}
                         onClick={() => toggle(idx)}
-                        className="flex w-full items-start justify-between gap-4 text-left transition-colors hover:text-primary cursor-pointer group"
+                        className="flex w-full items-start justify-between gap-4 text-left transition-colors hover:text-primary cursor-pointer group min-h-[52px] py-1"
                         aria-expanded={isOpen}
                         aria-controls={contentId}
                       >

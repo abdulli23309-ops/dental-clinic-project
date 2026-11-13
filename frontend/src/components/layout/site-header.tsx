@@ -136,13 +136,7 @@ export function SiteHeader({ variant = "default" }: SiteHeaderProps) {
                   src={logoUrl}
                   alt={practiceName || "Clinic Logo"}
                   suppressHydrationWarning
-                  onError={(e) => {
-                    if (e.currentTarget.src && !e.currentTarget.src.includes("/images/logo.png")) {
-                      e.currentTarget.src = "/images/logo.png";
-                    } else {
-                      setLogoError(true);
-                    }
-                  }}
+                  onError={() => setLogoError(true)}
                   className="h-full w-full object-contain shrink-0"
                   width="40"
                   height="40"

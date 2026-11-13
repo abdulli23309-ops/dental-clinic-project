@@ -4,20 +4,27 @@ Executes idempotent migrations and data repairs on boot (guarded by schema_meta 
 so Coolify auto-deployments heal the production database automatically without manual CLI intervention.
 """
 
+import json
 import re
+import shutil
 from datetime import datetime, timezone
+from pathlib import Path
 from uuid import uuid4
 
 from sqlalchemy import delete, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.logging import logger
 from app.infrastructure.database.orm_models import (
     FaqItemORM,
     GalleryImageORM,
+    OrganizationORM,
     SchemaMetaORM,
+    SiteSectionORM,
     TeamMemberORM,
     TranslationCacheORM,
+    UserORM,
 )
 
 URDU_LETTERS = r"[\u0620-\u064A\u0671-\u06D3\u06FA-\u06FC]"
@@ -199,6 +206,94 @@ async def run_auto_heal(session: AsyncSession) -> None:
             await session.flush()
     except Exception as e:
         logger.warning("Auto-heal clinician deactivation warning: %s", e)
+
+    # 5. Media & Branding Verification (Runs on EVERY startup, zero-guard)
+    try:
+        upload_path = Path(settings.UPLOAD_DIR).resolve()
+        upload_path.mkdir(parents=True, exist_ok=True)
+        seed_dir = Path(__file__).resolve().parent.parent.parent / "seed_data" / "uploads"
+
+        canonical_logo_filename = "8d90adff4feb4e8db41f532aa3d630f1.png"
+        canonical_logo_path = upload_path / canonical_logo_filename
+        if not canonical_logo_path.exists() and seed_dir.exists():
+            seed_canonical = seed_dir / canonical_logo_filename
+            if seed_canonical.exists():
+                shutil.copy2(seed_canonical, canonical_logo_path)
+
+        def _heal_file_or_fallback(url: str | None) -> str | None:
+            if not url:
+                return None
+            clean = url.strip()
+            match = re.search(r"/(?:media|uploads)/([a-zA-Z0-9_\-\.]+)", clean)
+            if match:
+                fname = match.group(1)
+                target_file = upload_path / fname
+                if not target_file.exists():
+                    if canonical_logo_path.exists():
+                        try:
+                            shutil.copy2(canonical_logo_path, target_file)
+                            logger.info("Auto-heal: satisfied missing media asset %s with canonical logo", fname)
+                            return f"/media/{fname}"
+                        except Exception:
+                            pass
+                    return f"/media/{canonical_logo_filename}"
+            return clean
+
+        # Heal SiteSections ('general' section logoUrl)
+        section_res = await session.execute(
+            select(SiteSectionORM).where(SiteSectionORM.section_key == "general")
+        )
+        general_sec = section_res.scalar_one_or_none()
+        if general_sec and general_sec.content_json:
+            try:
+                content_dict = json.loads(general_sec.content_json)
+                current_logo = content_dict.get("logoUrl")
+                if current_logo:
+                    healed_logo = _heal_file_or_fallback(current_logo)
+                    if healed_logo and healed_logo != current_logo:
+                        content_dict["logoUrl"] = healed_logo
+                        general_sec.content_json = json.dumps(content_dict, ensure_ascii=False)
+                        logger.info("Auto-heal: updated general CMS logoUrl to %s", healed_logo)
+                elif canonical_logo_path.exists():
+                    content_dict["logoUrl"] = f"/media/{canonical_logo_filename}"
+                    general_sec.content_json = json.dumps(content_dict, ensure_ascii=False)
+            except Exception as json_err:
+                logger.warning("Auto-heal CMS general parsing warning: %s", json_err)
+
+        # Heal Organization logo_url
+        org_res = await session.execute(select(OrganizationORM))
+        for org in org_res.scalars().all():
+            if org.logo_url:
+                healed_org_logo = _heal_file_or_fallback(org.logo_url)
+                if healed_org_logo:
+                    org.logo_url = healed_org_logo
+            elif canonical_logo_path.exists():
+                org.logo_url = f"/media/{canonical_logo_filename}"
+
+        # Heal User avatars
+        users_res = await session.execute(select(UserORM))
+        for user in users_res.scalars().all():
+            if user.avatar_url:
+                match = re.search(r"/(?:media|uploads)/([a-zA-Z0-9_\-\.]+)", user.avatar_url)
+                if match:
+                    fname = match.group(1)
+                    if not (upload_path / fname).exists():
+                        user.avatar_url = None
+
+        # Heal TeamMember photos
+        team_res = await session.execute(select(TeamMemberORM))
+        for member in team_res.scalars().all():
+            if member.photo_url:
+                match = re.search(r"/(?:media|uploads)/([a-zA-Z0-9_\-\.]+)", member.photo_url)
+                if match:
+                    fname = match.group(1)
+                    if not (upload_path / fname).exists():
+                        member.photo_url = None
+
+        await session.flush()
+        logger.info("Auto-heal: media and logo verification completed.")
+    except Exception as e:
+        logger.warning("Auto-heal media check warning: %s", e)
 
     await session.commit()
     logger.info("Zero-touch production auto-heal sequence completed successfully.")

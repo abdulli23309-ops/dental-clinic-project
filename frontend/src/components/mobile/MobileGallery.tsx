@@ -99,6 +99,9 @@ export function MobileGallery({ items }: MobileGalleryProps) {
             <img
               src={resolveMediaUrl(item.imageUrl) || item.imageUrl}
               alt={item.caption || "Clinic photo"}
+              onError={(e) => {
+                e.currentTarget.src = "/images/gallery-1.jpg";
+              }}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-80" />

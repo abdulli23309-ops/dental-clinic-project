@@ -272,12 +272,25 @@ export function Footer() {
                     <img
                       src={logoUrl}
                       alt={practiceName}
+                      onError={() => setLogoError(true)}
                       className="h-full w-full object-contain"
                       width="36"
                       height="36"
                     />
                   </div>
-                ) : null}
+                ) : (
+                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-white shadow-xs shrink-0">
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-5 w-5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                    >
+                      <path d="M12 4c-2.5 0-3.2 1.2-4.6 1.2C6 5.2 4.5 6.6 4.5 9.2c0 3.4 1.7 6 2.6 8.6.6 1.7 1 3 2.1 3 1.2 0 1.3-1.6 1.5-3.3.15-1.4.5-2.5 1.3-2.5s1.15 1.1 1.3 2.5c.2 1.7.3 3.3 1.5 3.3 1.1 0 1.5-1.3 2.1-3 .9-2.6 2.6-5.2 2.6-8.6 0-2.6-1.5-4-2.9-4C15.2 5.2 14.5 4 12 4Z" />
+                    </svg>
+                  </span>
+                )}
                 <span className="font-serif text-lg font-bold tracking-tight text-gray-950 dark:text-white">
                   {practiceName}
                 </span>

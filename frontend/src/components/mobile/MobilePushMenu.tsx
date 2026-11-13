@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { X, Phone, Calendar, MapPin, ChevronRight, Moon, Sun, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -50,6 +50,11 @@ export function MobilePushMenu({ isOpen, onClose }: MobilePushMenuProps) {
     "DHDC";
   const rawLogoUrl = content.general?.logoUrl || organization?.logoUrl || null;
   const logoUrl = resolveMediaUrl(rawLogoUrl);
+  const [logoError, setLogoError] = useState(false);
+
+  useEffect(() => {
+    setLogoError(false);
+  }, [rawLogoUrl]);
 
   const activeBranch = primaryLocation || (locations && locations[0]);
   const branchStatus = getOpenStatus(activeBranch?.hoursInfo || content.contact?.hoursSummary);
@@ -98,13 +103,28 @@ export function MobilePushMenu({ isOpen, onClose }: MobilePushMenuProps) {
             {/* Top Bar */}
             <div className="p-5 pb-3 flex items-center justify-between border-b border-white/10">
               <div className="flex items-center gap-2.5">
-                <span className="relative flex items-center justify-center w-9 h-9 rounded-xl bg-white dark:bg-white/95 ring-1 ring-black/5 dark:ring-2 dark:ring-primary/40 p-1 shadow-sm shrink-0">
-                  <img
-                    src={logoUrl || "/images/logo.png"}
-                    alt={brandName}
-                    className="h-full w-full object-contain"
-                  />
-                </span>
+                {logoUrl && !logoError ? (
+                  <span className="relative flex items-center justify-center w-9 h-9 rounded-xl bg-white dark:bg-white/95 ring-1 ring-black/5 dark:ring-2 dark:ring-primary/40 p-1 shadow-sm shrink-0">
+                    <img
+                      src={logoUrl}
+                      alt={brandName}
+                      onError={() => setLogoError(true)}
+                      className="h-full w-full object-contain"
+                    />
+                  </span>
+                ) : (
+                  <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-white shadow-subtle shrink-0">
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-5 w-5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                    >
+                      <path d="M12 4c-2.5 0-3.2 1.2-4.6 1.2C6 5.2 4.5 6.6 4.5 9.2c0 3.4 1.7 6 2.6 8.6.6 1.7 1 3 2.1 3 1.2 0 1.3-1.6 1.5-3.3.15-1.4.5-2.5 1.3-2.5s1.15 1.1 1.3 2.5c.2 1.7.3 3.3 1.5 3.3 1.1 0 1.5-1.3 2.1-3 .9-2.6 2.6-5.2 2.6-8.6 0-2.6-1.5-4-2.9-4C15.2 5.2 14.5 4 12 4Z" />
+                    </svg>
+                  </span>
+                )}
                 <div>
                   <span className="font-serif text-lg font-bold tracking-tight text-white block leading-none">
                     {brandName}

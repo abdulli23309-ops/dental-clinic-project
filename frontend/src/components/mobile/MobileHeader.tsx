@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Menu } from "lucide-react";
 import { usePublicContent } from "@/components/providers/public-content-provider";
@@ -15,6 +15,7 @@ export function MobileHeader() {
   const { content, organization, locale, setLocale } = usePublicContent();
   const { t } = useT();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [logoError, setLogoError] = useState(false);
 
   const brandName =
     content.general?.shortBrandName?.trim() ||
@@ -25,6 +26,10 @@ export function MobileHeader() {
 
   const rawLogoUrl = content.general?.logoUrl || organization?.logoUrl || null;
   const logoUrl = resolveMediaUrl(rawLogoUrl);
+
+  useEffect(() => {
+    setLogoError(false);
+  }, [rawLogoUrl]);
 
   return (
     <>
@@ -39,16 +44,30 @@ export function MobileHeader() {
           className="flex items-center gap-2.5 active:scale-95 transition-transform"
           aria-label={`${brandName} Homepage`}
         >
-          <span className="relative flex items-center justify-center w-8 h-8 rounded-xl bg-white dark:bg-white/95 ring-1 ring-black/5 dark:ring-2 dark:ring-primary/40 p-1 shadow-sm shrink-0">
-            <SafeImage
-              src={rawLogoUrl || null}
-              alt={brandName}
-              className="h-full w-full object-contain"
-              fallbackInitials={brandName.charAt(0)}
-              fallbackSubtitle="Dental Clinic"
-              priority
-            />
-          </span>
+          {logoUrl && !logoError ? (
+            <span className="relative flex items-center justify-center w-8 h-8 rounded-xl bg-white dark:bg-white/95 ring-1 ring-black/5 dark:ring-2 dark:ring-primary/40 p-1 shadow-sm shrink-0">
+              <img
+                src={logoUrl}
+                alt={brandName}
+                onError={() => setLogoError(true)}
+                className="h-full w-full object-contain"
+                width="32"
+                height="32"
+              />
+            </span>
+          ) : (
+            <span className="grid h-8 w-8 place-items-center rounded-xl bg-primary text-white shadow-subtle shrink-0">
+              <svg
+                viewBox="0 0 24 24"
+                className="h-4.5 w-4.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+              >
+                <path d="M12 4c-2.5 0-3.2 1.2-4.6 1.2C6 5.2 4.5 6.6 4.5 9.2c0 3.4 1.7 6 2.6 8.6.6 1.7 1 3 2.1 3 1.2 0 1.3-1.6 1.5-3.3.15-1.4.5-2.5 1.3-2.5s1.15 1.1 1.3 2.5c.2 1.7.3 3.3 1.5 3.3 1.1 0 1.5-1.3 2.1-3 .9-2.6 2.6-5.2 2.6-8.6 0-2.6-1.5-4-2.9-4C15.2 5.2 14.5 4 12 4Z" />
+              </svg>
+            </span>
+          )}
           <span className="font-serif text-[17px] font-bold tracking-tight text-gray-900 dark:text-white leading-none">
             {brandName}
           </span>

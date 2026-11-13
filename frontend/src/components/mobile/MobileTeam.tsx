@@ -19,10 +19,14 @@ import { TeamMember, resolveMediaUrl } from "@/lib/api";
 import { FilterChips } from "@/components/mobile/FilterChips";
 import { BottomSheet } from "@/components/mobile/BottomSheet";
 import { useMobileBooking } from "@/components/mobile/MobileBookingSheet";
+import { SafeImage } from "@/components/ui/safe-image";
+import { useT } from "@/i18n/useT";
+import { Num } from "@/i18n/Num";
 import { tap } from "@/lib/haptics";
 
 function normalizeDoctorName(name?: string | null): string {
   if (!name) return "";
+  if (/[\u0600-\u06FF]/.test(name)) return name.trim();
   const parts = name.trim().split(/\s+/);
   return parts
     .map((part) => {
@@ -40,8 +44,10 @@ function normalizeDoctorName(name?: string | null): string {
 }
 
 export function MobileTeam() {
-  const { team, locations } = usePublicContent();
+  const { team, locations, locale } = usePublicContent();
   const { openBooking } = useMobileBooking();
+  const { t } = useT();
+  const isUrdu = locale === "ur";
   const [viewMode, setViewMode] = useState<"deck" | "list">("deck");
   const [selectedCity, setSelectedCity] = useState<string>("all");
   const [selectedBranch, setSelectedBranch] = useState<string>("all");
@@ -63,8 +69,8 @@ export function MobileTeam() {
     return {
       ...member,
       displayName: normalizeDoctorName(member.displayName || `${member.firstName} ${member.lastName}`),
-      locationName: loc?.name || "DHDC Specialist Center",
-      city: loc?.city || "Islamabad",
+      locationName: loc?.name || (isUrdu ? "ڈی ایچ ڈی سی اسپیشلٹی سینٹر" : "DHDC Specialist Center"),
+      city: loc?.city || (isUrdu ? "اسلام آباد" : "Islamabad"),
     };
   });
 
@@ -97,7 +103,7 @@ export function MobileTeam() {
 
   // Filter options for cities
   const cityFilterOptions = [
-    { id: "all", label: "All Clinicians", count: doctors.length },
+    { id: "all", label: isUrdu ? "تمام ڈاکٹرز" : "All Clinicians", count: doctors.length },
     ...availableCities.map((city) => ({
       id: city,
       label: city,
@@ -107,7 +113,7 @@ export function MobileTeam() {
 
   // Sub-branch filter options
   const branchFilterOptions = [
-    { id: "all", label: `All ${selectedCity}` },
+    { id: "all", label: isUrdu ? `تمام ${selectedCity}` : `All ${selectedCity}` },
     ...branchesInCity.map((b) => ({
       id: b.id,
       label: b.name.replace(/^DHDC\s*/i, "").replace(new RegExp(`^${selectedCity}\\s*[-–—]?\\s*`, "i"), ""),
@@ -140,14 +146,16 @@ export function MobileTeam() {
   if (doctors.length === 0) return null;
 
   const uniqueCitiesList = Array.from(new Set(doctors.map((d) => d.city).filter(Boolean)));
-  const teamSubtitle = `${doctors.length} specialized clinicians across ${uniqueCitiesList.join(", ")}.`;
+  const teamSubtitle = isUrdu
+    ? `${doctors.length} مستند اور ماہر ڈاکٹرز۔`
+    : `${doctors.length} specialized clinicians across ${uniqueCitiesList.join(", ")}.`;
 
   return (
     <div className="py-8 px-4 md:hidden">
       {/* Top Flex Row: Eyebrow + Deck|List Toggle */}
       <div className="flex items-center justify-between gap-2 mb-1.5">
         <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
-          Board-Certified Clinicians
+          {isUrdu ? "بোর্ড میں مصدقہ ڈاکٹرز" : "Board-Certified Clinicians"}
         </span>
 
         {/* View Toggle */}
@@ -166,7 +174,7 @@ export function MobileTeam() {
             aria-label="Switch to deck swipe view"
           >
             <Layers className="w-3.5 h-3.5" />
-            <span>Deck</span>
+            <span>{isUrdu ? "کارڈز" : "Deck"}</span>
           </button>
 
           <button
@@ -183,7 +191,7 @@ export function MobileTeam() {
             aria-label="Switch to list overview"
           >
             <List className="w-3.5 h-3.5" />
-            <span>List</span>
+            <span>{isUrdu ? "فہرست" : "List"}</span>
           </button>
         </div>
       </div>
@@ -191,7 +199,7 @@ export function MobileTeam() {
       {/* Full-width Title & Subtitle */}
       <div className="mb-4">
         <h2 className="font-serif text-[28px] leading-[32px] font-bold text-gray-900 dark:text-white">
-          Our Dental Team
+          {isUrdu ? "ہمارے ڈینٹل عملے سے ملاقات کریں" : "Our Dental Team"}
         </h2>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
           {teamSubtitle}
@@ -247,10 +255,13 @@ export function MobileTeam() {
                   <div>
                     {/* Doctor Portrait with floating Credential badge */}
                     <div className="h-[230px] rounded-[20px] overflow-hidden relative bg-slate-100 dark:bg-slate-800">
-                      <img
-                        src={photoUrl}
+                      <SafeImage
+                        src={doc.photoUrl || null}
                         alt={doc.displayName}
+                        fill
                         className="w-full h-full object-cover object-[50%_15%]"
+                        fallbackInitials={doc.displayName.replace(/Dr\.?\s*/i, "").charAt(0) || "D"}
+                        fallbackSubtitle={doc.professionalTitle || doc.role}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
@@ -316,7 +327,9 @@ export function MobileTeam() {
                       className="flex-1 h-11 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold flex items-center justify-center gap-1.5 shadow-md shadow-primary/30 transition-colors cursor-pointer"
                     >
                       <Calendar className="w-3.5 h-3.5" />
-                      <span className="truncate">Book with {doc.displayName.split(" ")[0] || "Doctor"}</span>
+                      <span className="truncate">
+                        {isUrdu ? `${doc.displayName} کے ساتھ بک کریں` : `Book with ${doc.displayName.replace(/^Dr\.?\s*/i, "") || "Doctor"}`}
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -354,7 +367,7 @@ export function MobileTeam() {
                     className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-white/10 flex items-center justify-center text-slate-700 dark:text-slate-200 disabled:opacity-30 disabled:pointer-events-none active:scale-95 transition-all cursor-pointer"
                     aria-label="Previous clinician"
                   >
-                    <ChevronLeft className="w-5 h-5 rtl:rotate-180" />
+                    <ChevronLeft className="w-5 h-5" />
                   </button>
 
                   <button
@@ -364,7 +377,7 @@ export function MobileTeam() {
                     className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-white/10 flex items-center justify-center text-slate-700 dark:text-slate-200 disabled:opacity-30 disabled:pointer-events-none active:scale-95 transition-all cursor-pointer"
                     aria-label="Next clinician"
                   >
-                    <ChevronRight className="w-5 h-5 rtl:rotate-180" />
+                    <ChevronRight className="w-5 h-5" />
                   </button>
                 </div>
               </div>
@@ -431,7 +444,7 @@ export function MobileTeam() {
       <BottomSheet
         isOpen={!!inspectingDoctor}
         onClose={() => setInspectingDoctor(null)}
-        title={inspectingDoctor?.displayName || "Clinician Details"}
+        title={inspectingDoctor?.displayName || (isUrdu ? "ڈاکٹر کی تفصیلات" : "Clinician Details")}
         subtitle={inspectingDoctor?.professionalTitle || inspectingDoctor?.role}
       >
         {inspectingDoctor && (
@@ -466,7 +479,7 @@ export function MobileTeam() {
             {inspectingDoctor.biography && (
               <div>
                 <h5 className="font-semibold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
-                  Biography & Clinical Experience
+                  {isUrdu ? "تعارف اور طبی تجربہ" : "Biography & Clinical Experience"}
                 </h5>
                 <p className="mt-1 leading-relaxed text-sm">
                   {inspectingDoctor.biography}
@@ -479,7 +492,7 @@ export function MobileTeam() {
               {inspectingDoctor.education && (
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-white/10">
                   <span className="text-[10px] uppercase font-bold text-slate-600 dark:text-slate-300 block">
-                    Education
+                    {isUrdu ? "تعلیم" : "Education"}
                   </span>
                   <span className="text-xs font-semibold text-gray-900 dark:text-white block mt-0.5">
                     {inspectingDoctor.education}
@@ -490,7 +503,7 @@ export function MobileTeam() {
               {inspectingDoctor.licenseNumber && (
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-white/10">
                   <span className="text-[10px] uppercase font-bold text-slate-600 dark:text-slate-300 block">
-                    PMDC License
+                    {isUrdu ? "پی ایم ڈی سی لائسنس" : "PMDC License"}
                   </span>
                   <span className="text-xs font-semibold text-gray-900 dark:text-white block mt-0.5">
                     {inspectingDoctor.licenseNumber}
@@ -512,7 +525,7 @@ export function MobileTeam() {
                 className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold flex items-center justify-center gap-2 shadow-md shadow-primary/30 transition-colors cursor-pointer"
               >
                 <Calendar className="w-4 h-4" />
-                <span>Book Consultation with {inspectingDoctor.displayName}</span>
+                <span>{isUrdu ? `${inspectingDoctor.displayName} کے ساتھ مشاورت بک کریں` : `Book Consultation with ${inspectingDoctor.displayName}`}</span>
               </button>
             </div>
           </div>

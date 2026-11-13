@@ -1,17 +1,46 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { ArrowRight, Calendar, CircleDollarSign, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { SafeImage } from "@/components/ui/safe-image";
 import { CoverflowCarousel } from "@/components/ui/coverflow-carousel";
-import { getServices, ServiceItem } from "@/lib/api";
+import { getServices, ServiceItem, batchTranslate } from "@/lib/api";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 import { MobileTreatments } from "@/components/mobile/MobileTreatments";
 
 type CategoryFilter = "all" | string;
+
+function formatDuration(duration: string | number | undefined, isUrdu: boolean) {
+  if (!duration) return isUrdu ? "45 منٹ" : "45 min";
+  const s = String(duration).trim();
+  if (isUrdu) {
+    return s
+      .replace(/(\d+)\s*to\s*(\d+)\s*months?/gi, "$1 سے $2 ماہ")
+      .replace(/(\d+)\s*months?/gi, "$1 ماہ")
+      .replace(/(\d+)\s*to\s*(\d+)\s*(?:mins?|minutes?)/gi, "$1 سے $2 منٹ")
+      .replace(/(\d+)\s*(?:mins?|minutes?)/gi, "$1 منٹ")
+      .replace(/\bto\b/gi, "سے")
+      .replace(/\bmonths?\b/gi, "ماہ")
+      .replace(/\b(?:mins?|minutes?)\b/gi, "منٹ");
+  }
+  return s;
+}
+
+function formatPrice(cashPrice: string | undefined, isUrdu: boolean, fallback: string) {
+  if (!cashPrice || !cashPrice.trim()) return fallback;
+  const numStr = cashPrice.replace(/[^0-9.]/g, "").trim();
+  const num = parseFloat(numStr);
+  if (!isNaN(num) && num > 0) {
+    return isUrdu ? `شروع از Rs ${num.toLocaleString()}` : `From Rs ${num.toLocaleString()}`;
+  }
+  if (isUrdu) {
+    return cashPrice.replace(/\bFrom\b/gi, "شروع از").replace(/\bRs\.?\b/gi, "Rs");
+  }
+  return cashPrice;
+}
 
 export function Treatments() {
   const { copy, locale } = usePublicContent();
@@ -19,14 +48,57 @@ export function Treatments() {
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
+  const rawServicesRef = useRef<ServiceItem[]>([]);
   const shouldReduceMotion = useReducedMotion();
   const isRtl = locale === "ur";
+
+  const categoryLabels: Record<string, string> = {
+    preventive: isRtl ? "احتیاطی" : "Preventive",
+    restorative: isRtl ? "بحالی" : "Restorative",
+    cosmetic: isRtl ? "کاسمیٹک" : "Cosmetic",
+    emergency: isRtl ? "ایمرجنسی" : "Emergency",
+    orthodontics: isRtl ? "آرتھوڈانٹکس" : "Orthodontics",
+  };
+
+  const applyTranslation = async (targetLocale: string, list: ServiceItem[]) => {
+    if (targetLocale !== "ur" || list.length === 0) {
+      setServices(list);
+      return;
+    }
+    const texts: string[] = [];
+    list.forEach((s) => {
+      if (s.title) texts.push(s.title);
+      if (s.shortDesc) texts.push(s.shortDesc);
+      if (s.fullDesc) texts.push(s.fullDesc);
+    });
+    try {
+      const trans = await batchTranslate(texts, "ur");
+      if (trans && Object.keys(trans).length > 0) {
+        setServices(
+          list.map((s) => ({
+            ...s,
+            title: trans[s.title] || s.title,
+            shortDesc: (s.shortDesc && trans[s.shortDesc]) || s.shortDesc,
+            fullDesc: (s.fullDesc && trans[s.fullDesc]) || s.fullDesc,
+          }))
+        );
+      } else {
+        setServices(list);
+      }
+    } catch {
+      setServices(list);
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
     getServices()
       .then((data) => {
-        if (isMounted) setServices(data?.filter((service) => service.isActive !== false) ?? []);
+        if (isMounted) {
+          const active = data?.filter((service) => service.isActive !== false) ?? [];
+          rawServicesRef.current = active;
+          applyTranslation(locale, active);
+        }
       })
       .catch(() => {
         if (isMounted) setServices([]);
@@ -38,7 +110,13 @@ export function Treatments() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [locale]);
+
+  useEffect(() => {
+    if (rawServicesRef.current.length > 0) {
+      applyTranslation(locale, rawServicesRef.current);
+    }
+  }, [locale]);
 
   const categories = Array.from(
     new Set(services.map((service) => service.category).filter(Boolean))
@@ -132,7 +210,7 @@ export function Treatments() {
                       transition={shouldReduceMotion ? { duration: 0.01 } : { type: "spring", stiffness: 500, damping: 40, mass: 1 }}
                     />
                   )}
-                  <span>{category}</span>
+                  <span>{categoryLabels[category.toLowerCase()] || category}</span>
                   <span className={`rounded-full px-2 text-[11px] ${selected ? "bg-white/20 text-white" : "bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300"}`}>
                     {count}
                   </span>
@@ -194,12 +272,12 @@ export function Treatments() {
                               {service.title}
                             </h3>
                             <span data-card-part="duration" className="inline-flex shrink-0 items-center rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.04em] text-primary sm:text-[10px]">
-                              {service.duration || copy.consultationRequired}
+                              {formatDuration(service.duration, isRtl)}
                             </span>
                           </div>
 
                           <p data-card-part="category" className="truncate text-xs text-gray-500 dark:text-gray-400">
-                            {service.category}
+                            {categoryLabels[service.category?.toLowerCase()] || service.category}
                           </p>
 
                           <p data-card-part="description" className="line-clamp-3 text-[11.5px] leading-[1.35] text-gray-600 dark:text-gray-300">
@@ -208,7 +286,7 @@ export function Treatments() {
 
                           <div data-card-part="price" className="mt-auto flex min-w-0 items-center gap-1.5 text-[11px] text-gray-600 dark:text-gray-400">
                             <CircleDollarSign className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
-                            <span className="truncate capitalize">{service.cashPrice || copy.consultationRequired}</span>
+                            <span className="truncate">{formatPrice(service.cashPrice, isRtl, copy.consultationRequired)}</span>
                           </div>
                         </div>
 

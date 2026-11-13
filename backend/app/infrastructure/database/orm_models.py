@@ -3826,3 +3826,38 @@ class CancellationRequestORM(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+
+class TranslationCacheORM(Base):
+    """Stores auto-translated text cached in PostgreSQL for live Urdu translation."""
+
+    __tablename__ = "translation_cache"
+
+    hash_key: Mapped[str] = mapped_column(
+        String(64),
+        primary_key=True,
+        index=True,
+    )
+    source_lang: Mapped[str] = mapped_column(
+        String(10),
+        nullable=False,
+        default="en",
+    )
+    target_lang: Mapped[str] = mapped_column(
+        String(10),
+        nullable=False,
+        default="ur",
+    )
+    source_text: Mapped[str] = mapped_column(Text, nullable=False)
+    translated_text: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="auto",
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+

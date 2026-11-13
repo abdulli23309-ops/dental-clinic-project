@@ -335,7 +335,7 @@ export function CoverflowCarousel<T>({
             aria-label={prevAriaLabel}
             className={variant === "glass-drum" ? "glass-carousel-control coverflow-desktop-control" : "hidden md:flex absolute left-1 sm:left-4 top-1/2 -translate-y-1/2 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-white/60 dark:border-white/15 bg-white/90 dark:bg-slate-900/90 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-xl items-center justify-center hover:scale-105 active:scale-95 hover:border-primary/40 hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer"}
           >
-            <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6 rtl:rotate-180" />
+            <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
           </button>
           <button
             type="button"
@@ -343,7 +343,7 @@ export function CoverflowCarousel<T>({
             aria-label={nextAriaLabel}
             className={variant === "glass-drum" ? "glass-carousel-control glass-carousel-control-next coverflow-desktop-control" : "hidden md:flex absolute right-1 sm:right-4 top-1/2 -translate-y-1/2 z-40 h-11 w-11 sm:h-12 sm:w-12 rounded-full border border-white/60 dark:border-white/15 bg-white/90 dark:bg-slate-900/90 text-gray-800 dark:text-gray-100 shadow-xl backdrop-blur-xl items-center justify-center hover:scale-105 active:scale-95 hover:border-primary/40 hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer"}
           >
-            <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6 rtl:rotate-180" />
+            <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
           </button>
         </>
       )}
@@ -453,7 +453,7 @@ export function CoverflowCarousel<T>({
             aria-label={prevAriaLabel}
             className="grid h-10 w-10 place-items-center rounded-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 shadow-md active:scale-95 transition-all cursor-pointer"
           >
-            <ChevronLeft className="h-5 w-5 rtl:rotate-180" />
+            <ChevronLeft className="h-5 w-5" />
           </button>
 
           <div className="flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-2">
@@ -477,7 +477,7 @@ export function CoverflowCarousel<T>({
             aria-label={nextAriaLabel}
             className="grid h-10 w-10 place-items-center rounded-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 shadow-md active:scale-95 transition-all cursor-pointer"
           >
-            <ChevronRight className="h-5 w-5 rtl:rotate-180" />
+            <ChevronRight className="h-5 w-5" />
           </button>
         </div>
       )}

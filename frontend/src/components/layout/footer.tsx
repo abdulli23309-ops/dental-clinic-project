@@ -14,7 +14,18 @@ import {
 import { CopyButton } from "@/components/ui/copy-button";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 import { formatWorkingHoursSchedule } from "@/lib/currency";
-import { getPublicSocialLinks, getServices, SocialLink, ServiceItem, resolveMediaUrl } from "@/lib/api";
+import { getPublicSocialLinks, getServices, batchTranslate, SocialLink, ServiceItem, resolveMediaUrl } from "@/lib/api";
+
+const DAY_URDU_MAP: Record<string, string> = {
+  "Mon - Thu": "پیر تا جمعرات",
+  "Mon - Fri": "پیر تا جمعہ",
+  "Mon - Sat": "پیر تا ہفتہ",
+  "Fri": "جمعہ",
+  "Sat": "ہفتہ",
+  "Sun": "اتوار",
+  "Daily": "روزانہ",
+  "Closed": "بند ہے",
+};
 
 function getSocialIcon(platform: string) {
   const p = platform.toLowerCase();
@@ -67,7 +78,9 @@ export function Footer() {
     retry,
     status,
     copy,
+    locale,
   } = usePublicContent();
+  const isUrdu = locale === "ur";
   const currentYear = new Date().getFullYear();
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
   const [services, setServices] = useState<ServiceItem[]>([]);
@@ -89,9 +102,21 @@ export function Footer() {
         .catch(() => {});
 
       getServices()
-        .then((data) => {
+        .then(async (data) => {
           if (mounted && Array.isArray(data)) {
-            setServices(data.filter((s) => s.isActive !== false).slice(0, 5));
+            const active = data.filter((s) => s.isActive !== false).slice(0, 5);
+            if (isUrdu) {
+              try {
+                const trans = await batchTranslate(active.map((s) => s.title), "ur");
+                if (mounted && trans) {
+                  setServices(active.map((s) => ({ ...s, title: trans[s.title] || s.title })));
+                  return;
+                }
+              } catch (_) {}
+            }
+            if (mounted) {
+              setServices(active);
+            }
           }
         })
         .catch(() => {});
@@ -99,7 +124,7 @@ export function Footer() {
     return () => {
       mounted = false;
     };
-  }, [isUnavailable]);
+  }, [isUnavailable, isUrdu]);
 
   const [logoError, setLogoError] = useState(false);
   const practiceName =
@@ -145,11 +170,18 @@ export function Footer() {
       ? primaryLocation.city
       : "");
 
-  const tagline = content.footer?.tagline || content.general?.tagline || "";
+  const tagline =
+    content.footer?.tagline ||
+    content.general?.tagline ||
+    (isUrdu ? "جدید ڈینٹسٹری میں مصدقہ طبی معیار اور ہمدردی۔" : "Precision & Compassion in Modern Dentistry.");
   const copyrightNotice =
     content.footer?.copyrightNotice ||
-    `© ${currentYear} ${practiceName ? `${practiceName}. ` : ""}${copy.allRightsReserved}`;
-  const cancellationPolicy = content.footer?.cancellationPolicy;
+    (isUrdu
+      ? `© ${currentYear} ${practiceName ? `${practiceName}. ` : ""}جملہ حقوق محفوظ ہیں۔`
+      : `© ${currentYear} ${practiceName ? `${practiceName}. ` : ""}${copy.allRightsReserved}`);
+  const cancellationPolicy = isUrdu && !content.footer?.cancellationPolicy
+    ? "منسوخی کی پالیسی: برائے مہربانی 24 گھنٹے قبل مطلع کریں۔"
+    : content.footer?.cancellationPolicy;
 
   const licenseText = director?.licenseNumber
     ? `${director.displayName} · License #${director.licenseNumber}`
@@ -344,14 +376,19 @@ export function Footer() {
                     {addressLine1}
                   </p>
                 )}
-                {scheduleLines.slice(0, 4).map((line, idx) => (
-                  <div key={idx} className="flex justify-between py-0.5">
-                    <span>{line.label}:</span>
-                    <span className="font-mono text-gray-900 dark:text-white">
-                      {line.timeRange}
-                    </span>
-                  </div>
-                ))}
+                {scheduleLines.slice(0, 4).map((line, idx) => {
+                  const dayLabel = isUrdu ? (DAY_URDU_MAP[line.label] || line.label) : line.label;
+                  const isClosed = line.timeRange.toLowerCase().includes("closed");
+                  const timeDisplay = isUrdu && isClosed ? "بند ہے" : line.timeRange;
+                  return (
+                    <div key={idx} className="flex justify-between py-0.5">
+                      <span>{dayLabel}:</span>
+                      <span dir="ltr" className="inline-block font-mono text-gray-900 dark:text-white">
+                        {timeDisplay}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -412,7 +449,7 @@ export function Footer() {
                     </a>
                     <CopyButton
                       text={phone}
-                      label="Copy"
+                      label={isUrdu ? "کاپی" : "Copy"}
                       className="h-6 px-1.5 text-[10px]"
                     />
                   </div>
@@ -429,7 +466,7 @@ export function Footer() {
                     </a>
                     <CopyButton
                       text={email}
-                      label="Copy"
+                      label={isUrdu ? "کاپی" : "Copy"}
                       className="h-6 px-1.5 text-[10px]"
                     />
                   </div>
@@ -485,7 +522,7 @@ export function Footer() {
                       href="/#treatments"
                       className="hover:text-primary transition-colors"
                     >
-                      Preventive Checkups
+                      {isUrdu ? "احتیاطی چیک اپ" : "Preventive Checkups"}
                     </Link>
                   </li>
                   <li>
@@ -493,7 +530,7 @@ export function Footer() {
                       href="/#treatments"
                       className="hover:text-primary transition-colors"
                     >
-                      Cosmetic Dentistry
+                      {isUrdu ? "کاسمیٹک ڈینٹسٹری" : "Cosmetic Dentistry"}
                     </Link>
                   </li>
                   <li>
@@ -501,7 +538,7 @@ export function Footer() {
                       href="/#treatments"
                       className="hover:text-primary transition-colors"
                     >
-                      Emergency Care
+                      {isUrdu ? "ایمرجنسی نگہداشت" : "Emergency Care"}
                     </Link>
                   </li>
                 </>
@@ -597,14 +634,19 @@ export function Footer() {
                   {copy.clinicHours}
                 </p>
                 <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400">
-                  {scheduleLines.slice(0, 4).map((line, idx) => (
-                    <div key={idx} className="flex justify-between">
-                      <span>{line.label}:</span>
-                      <span className="font-mono text-[11.5px] text-gray-900 dark:text-white">
-                        {line.timeRange}
-                      </span>
-                    </div>
-                  ))}
+                  {scheduleLines.slice(0, 4).map((line, idx) => {
+                    const dayLabel = isUrdu ? (DAY_URDU_MAP[line.label] || line.label) : line.label;
+                    const isClosed = line.timeRange.toLowerCase().includes("closed");
+                    const timeDisplay = isUrdu && isClosed ? "بند ہے" : line.timeRange;
+                    return (
+                      <div key={idx} className="flex justify-between">
+                        <span>{dayLabel}:</span>
+                        <span dir="ltr" className="inline-block font-mono text-[11.5px] text-gray-900 dark:text-white">
+                          {timeDisplay}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ) : null}
@@ -616,9 +658,9 @@ export function Footer() {
           <div className="flex flex-col sm:flex-row items-center gap-1.5 text-center sm:text-left">
             <div className="flex items-center gap-1.5">
               <ShieldCheck className="h-3.5 w-3.5 text-primary/70 shrink-0" />
-              <span>
-                {copyrightNotice}
-                {licenseText && <span className="ml-1">· {licenseText}</span>}
+              <span className="inline-flex items-center gap-1.5 flex-wrap">
+                <bdi>{copyrightNotice}</bdi>
+                {licenseText && <span className="mx-1">· <bdi>{licenseText}</bdi></span>}
               </span>
             </div>
             {cancellationPolicy && (

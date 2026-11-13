@@ -44,9 +44,10 @@ export function AnnouncementMarquee() {
 
   return (
     <aside
+      dir="ltr"
       role="region"
       aria-label="Practice Announcements"
-      className="group relative z-30 w-full max-w-full overflow-hidden backdrop-blur-md bg-white/80 dark:bg-slate-950/80 border-b border-slate-200/50 dark:border-white/10 shadow-xs py-2.5 select-none"
+      className="group relative z-30 w-full max-w-full overflow-hidden backdrop-blur-md bg-white/80 dark:bg-slate-950/80 border-b border-slate-200/50 dark:border-white/10 shadow-xs py-2 select-none"
       style={{ "--marquee-duration": `${durationSeconds}s` } as React.CSSProperties}
     >
       {/* Edge gradient scrims for frosted luxury entrance/exit */}
@@ -71,7 +72,7 @@ export function AnnouncementMarquee() {
               <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary dark:bg-primary/20">
                 <Sparkles className="h-3 w-3 select-none" aria-hidden="true" />
               </span>
-              <span>{ann.content}</span>
+              <span dir="auto">{ann.content}</span>
               <span className="text-primary/40 dark:text-primary/60 font-bold select-none ml-3" aria-hidden="true">
                 •
               </span>
@@ -88,7 +89,7 @@ export function AnnouncementMarquee() {
               <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary dark:bg-primary/20">
                 <Sparkles className="h-3 w-3 select-none" aria-hidden="true" />
               </span>
-              <span>{ann.content}</span>
+              <span dir="auto">{ann.content}</span>
               <span className="text-primary/40 dark:text-primary/60 font-bold select-none ml-3" aria-hidden="true">
                 •
               </span>

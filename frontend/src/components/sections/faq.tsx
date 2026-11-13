@@ -1,16 +1,27 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "motion/react";
 import { Plus, Minus, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SectionHeading } from "@/components/ui/section-heading";
-import { getPublicFaqs, FaqItem } from "@/lib/api";
+import { getPublicFaqs, FaqItem, batchTranslate } from "@/lib/api";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 
+const FAQ_CAT_MAP: Record<string, string> = {
+  general: "عمومی",
+  appointments: "اپائنٹمنٹس",
+  treatments: "علاج",
+  pricing: "قیمتیں",
+  insurance: "انشورنس",
+  emergency: "ایمرجنسی",
+};
+
 export function FAQ() {
-  const { content, primaryLocation, copy } = usePublicContent();
+  const { content, primaryLocation, copy, locale } = usePublicContent();
+  const isUrdu = locale === "ur";
   const [faqs, setFaqs] = useState<FaqItem[]>([]);
+  const rawFaqsRef = useRef<FaqItem[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [openIndex, setOpenIndex] = useState<number | null>(0);
@@ -18,13 +29,43 @@ export function FAQ() {
   const phone = content.general?.phone || primaryLocation?.phone || "";
   const cleanPhone = phone.replace(/[^0-9+]/g, "");
 
+  const applyFaqTranslation = async (targetLocale: string, list: FaqItem[]) => {
+    if (targetLocale !== "ur" || list.length === 0) {
+      setFaqs(list);
+      return;
+    }
+    const texts: string[] = [];
+    list.forEach((f) => {
+      if (f.question) texts.push(f.question);
+      if (f.answer) texts.push(f.answer);
+    });
+    try {
+      const trans = await batchTranslate(texts, "ur");
+      if (trans && Object.keys(trans).length > 0) {
+        setFaqs(
+          list.map((f) => ({
+            ...f,
+            question: trans[f.question] || f.question,
+            answer: trans[f.answer] || f.answer,
+          }))
+        );
+      } else {
+        setFaqs(list);
+      }
+    } catch {
+      setFaqs(list);
+    }
+  };
+
   useEffect(() => {
     let isMounted = true;
     getPublicFaqs()
       .then((data) => {
         if (isMounted) {
           if (Array.isArray(data) && data.length > 0) {
-            setFaqs(data.filter((f) => f.isActive !== false));
+            const active = data.filter((f) => f.isActive !== false);
+            rawFaqsRef.current = active;
+            applyFaqTranslation(locale, active);
           } else {
             setFaqs([]);
           }
@@ -40,7 +81,13 @@ export function FAQ() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [locale]);
+
+  useEffect(() => {
+    if (rawFaqsRef.current.length > 0) {
+      applyFaqTranslation(locale, rawFaqsRef.current);
+    }
+  }, [locale]);
 
   // Hard content rule: if no data, render nothing
   if (!isLoading && faqs.length === 0) {
@@ -97,16 +144,18 @@ export function FAQ() {
             transition={{ duration: 0.4 }}
             className="lg:col-span-4 space-y-5"
           >
-            <SectionHeading eyebrow="Inquiries" title={copy.faqs} />
+            <SectionHeading eyebrow={isUrdu ? "معلومات و رہنمائی" : "Inquiries"} title={copy.faqs} />
 
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-              Find clear answers regarding treatment protocols, transparent fee structures, and what to expect during your first visit.
+              {isUrdu
+                ? "علاج کے طریقہ کار، شفاف فیس کے ڈھانچے اور اپنے پہلے وزٹ کے بارے میں واضح اور تسلی بخش جوابات حاصل کریں۔"
+                : "Find clear answers regarding treatment protocols, transparent fee structures, and what to expect during your first visit."}
             </p>
 
             {phone ? (
               <div className="pt-2 flex flex-col gap-2">
                 <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                  Have a specific question?
+                  {isUrdu ? "کیا آپ کا کوئی مخصوص سوال ہے؟" : "Have a specific question?"}
                 </span>
                 <Button
                   href={`tel:${cleanPhone}`}
@@ -141,11 +190,12 @@ export function FAQ() {
                       : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
                   }`}
                 >
-                  All Questions ({faqs.length})
+                  {isUrdu ? `تمام سوالات (${faqs.length})` : `All Questions (${faqs.length})`}
                 </button>
                 {categories.map((cat) => {
                   const count = faqs.filter((f) => f.category === cat).length;
                   const isSelected = activeCategory === cat;
+                  const catLabel = isUrdu ? (FAQ_CAT_MAP[cat.toLowerCase()] || cat) : cat;
                   return (
                     <button
                       key={cat}
@@ -158,7 +208,7 @@ export function FAQ() {
                           : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
                       }`}
                     >
-                      {cat} ({count})
+                      {catLabel} ({count})
                     </button>
                   );
                 })}

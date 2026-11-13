@@ -4,52 +4,56 @@ import React from "react";
 import Link from "next/link";
 import { ShieldCheck, HeartPulse, UserCheck, Sparkles, CheckCircle2, Calendar, Clock, ArrowRight } from "lucide-react";
 import { usePublicContent } from "@/components/providers/public-content-provider";
+import { useT } from "@/i18n/useT";
+import { Num } from "@/i18n/Num";
 import { tap } from "@/lib/haptics";
 
 export function MobileWhyChooseUs() {
-  const { content, organization } = usePublicContent();
-  const practiceName = content.general?.practiceName || organization?.displayName || "DHDC";
+  const { content, organization, locale } = usePublicContent();
+  const { t } = useT();
+  const isUrdu = locale === "ur";
+  const practiceName = content.general?.practiceName || organization?.displayName || (isUrdu ? "حرا ڈینٹل کلینک" : "DHDC");
 
   const pillars = [
     {
       icon: ShieldCheck,
-      title: "Zero Surprise Fees",
-      desc: "Transparent estimates upfront",
+      title: isUrdu ? "کوئی غیر متوقع فیس نہیں" : "Zero Surprise Fees",
+      desc: isUrdu ? "پیشگی واضح اور شفاف تخمینے" : "Transparent estimates upfront",
     },
     {
       icon: HeartPulse,
-      title: "Minimally Invasive",
-      desc: "Preserving natural tooth enamel",
+      title: isUrdu ? "کم سے کم جراحی" : "Minimally Invasive",
+      desc: isUrdu ? "قدرتی دانتوں کی ساخت کا تحفظ" : "Preserving natural tooth enamel",
     },
     {
       icon: UserCheck,
-      title: "Doctor Continuity",
-      desc: "Same specialist across visits",
+      title: isUrdu ? "مستقل معالج" : "Doctor Continuity",
+      desc: isUrdu ? "ہر وزٹ پر ایک ہی تجربہ کار ڈاکٹر" : "Same specialist across visits",
     },
     {
       icon: Sparkles,
-      title: "Hospital Sterilization",
-      desc: "PMDC compliant hygiene suites",
+      title: isUrdu ? "ہسپتال گریڈ سٹرلائزیشن" : "Hospital Sterilization",
+      desc: isUrdu ? "پی ایم ڈی سی کے معیارات کے عین مطابق" : "PMDC compliant hygiene suites",
     },
   ];
 
   const steps = [
     {
-      num: "01",
-      title: "Choose Treatment",
-      desc: "Select routine cleaning, cosmetic smile design, or specialist care.",
+      num: <Num dir="ltr">01</Num>,
+      title: isUrdu ? "علاج منتخب کریں" : "Choose Treatment",
+      desc: isUrdu ? "باقاعدہ صفائی، دانتوں کی خوبصورتی، یا ماہرانہ معالجے کا انتخاب کریں۔" : "Select routine cleaning, cosmetic smile design, or specialist care.",
       icon: Sparkles,
     },
     {
-      num: "02",
-      title: "Pick Doctor & Time",
-      desc: "View live clinician schedules across Islamabad, Lahore & Karachi.",
+      num: <Num dir="ltr">02</Num>,
+      title: isUrdu ? "ڈاکٹر اور وقت منتخب کریں" : "Pick Doctor & Time",
+      desc: isUrdu ? "اسلام آباد، لاہور اور کراچی میں ڈاکٹرز کے دستیاب اوقات دیکھیں۔" : "View live clinician schedules across Islamabad, Lahore & Karachi.",
       icon: Calendar,
     },
     {
-      num: "03",
-      title: "Instant Confirmation",
-      desc: "Real-time calendar invite, SMS reminder & directions sent to your phone.",
+      num: <Num dir="ltr">03</Num>,
+      title: isUrdu ? "فوری تصدیق" : "Instant Confirmation",
+      desc: isUrdu ? "فوری کنفرمیشن، ایس ایم ایس یاد دہانی اور لوکیشن آپ کے فون پر۔" : "Real-time calendar invite, SMS reminder & directions sent to your phone.",
       icon: Clock,
     },
   ];
@@ -59,13 +63,13 @@ export function MobileWhyChooseUs() {
       {/* Header */}
       <div className="mb-5">
         <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
-          Clinical Philosophy
+          {isUrdu ? "طبی فلسفہ" : "Clinical Philosophy"}
         </span>
         <h2 className="font-serif text-[28px] leading-tight font-bold text-gray-900 dark:text-white mt-1">
-          Why Choose {practiceName}
+          {isUrdu ? `آپ کے لیے ${practiceName} ہی کیوں؟` : `Why Choose ${practiceName}`}
         </h2>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          Designed around patient comfort, transparent fees & lasting health.
+          {isUrdu ? "مریض کے آرام، شفاف فیس اور دیرپا صحت کے گرد ڈیزائن کیا گیا۔" : "Designed around patient comfort, transparent fees & lasting health."}
         </p>
       </div>
 
@@ -97,18 +101,18 @@ export function MobileWhyChooseUs() {
       {/* 2. Vertical Connected Stepper */}
       <div className="rounded-[26px] bg-white dark:bg-[#0d1322] border border-slate-200/80 dark:border-white/10 p-5 shadow-sm">
         <span className="text-[10px] uppercase font-bold tracking-wider text-primary block mb-1">
-          Effortless Patient Journey
+          {isUrdu ? "آسان مریض کا سفر" : "Effortless Patient Journey"}
         </span>
         <h3 className="font-serif text-lg font-bold text-gray-900 dark:text-white mb-4">
-          How Your Visit Works
+          {isUrdu ? "آپ کا معائنہ کیسے عمل میں آتا ہے" : "How Your Visit Works"}
         </h3>
 
-        <div className="relative pl-6 space-y-5 before:absolute before:left-2.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-primary/20 dark:before:bg-primary/30">
+        <div className="relative pl-6 rtl:pl-0 rtl:pr-6 space-y-5 before:absolute before:left-2.5 rtl:before:left-auto rtl:before:right-2.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-primary/20 dark:before:bg-primary/30">
           {steps.map((st, i) => (
             <div key={i} className="relative">
               {/* Stepper Dot */}
-              <div className="absolute -left-6 top-0.5 w-5 h-5 rounded-full bg-primary text-primary-foreground font-mono text-[10px] font-bold flex items-center justify-center shadow-xs ring-4 ring-white dark:ring-[#0d1322]">
-                {i + 1}
+              <div className="absolute -left-6 rtl:left-auto rtl:-right-6 top-0.5 w-5 h-5 rounded-full bg-primary text-primary-foreground font-mono text-[10px] font-bold flex items-center justify-center shadow-xs ring-4 ring-white dark:ring-[#0d1322]">
+                <Num dir="ltr">{i + 1}</Num>
               </div>
 
               <div>
@@ -129,8 +133,8 @@ export function MobileWhyChooseUs() {
             onClick={() => tap(10)}
             className="w-full h-11 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm shadow-primary/30 transition-colors"
           >
-            <span>Book Initial Consultation</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            <span>{isUrdu ? "ابتدائی مشاورت بک کریں" : "Book Initial Consultation"}</span>
+            <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
           </Link>
         </div>
       </div>

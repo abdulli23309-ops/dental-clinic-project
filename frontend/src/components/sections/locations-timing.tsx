@@ -25,6 +25,22 @@ import { formatTimeRangeString } from "@/lib/currency";
 import { resolveMediaUrl } from "@/lib/api";
 import { MobileLocationsTiming } from "@/components/mobile/MobileLocationsTiming";
 
+const CITY_URDU_MAP: Record<string, string> = {
+  "Islamabad": "اسلام آباد",
+  "Lahore": "لاہور",
+  "Karachi": "کراچی",
+  "Rawalpindi": "راولپنڈی",
+};
+
+const STATUS_URDU_MAP: Record<string, string> = {
+  "Open Today": "آج کھلا ہے",
+  "Closed Today": "آج بند ہے",
+  "Open Now": "ابھی کھلا ہے",
+  "Closed Now": "ابھی بند ہے",
+  "Open": "کھلا ہے",
+  "Closed": "بند ہے",
+};
+
 export function LocationsTiming() {
   const {
     content,
@@ -35,11 +51,28 @@ export function LocationsTiming() {
     organization,
     copy,
     isLoading,
+    locale,
   } = usePublicContent();
+  const isUrdu = locale === "ur";
 
   const [selectedCity, setSelectedCity] = useState<string>("all");
   const shouldReduceMotion = useReducedMotion();
   const [expandedLocationId, setExpandedLocationId] = useState<string | null>(null);
+
+  const getTranslatedStatus = (statusText?: string) => {
+    if (!statusText) return "";
+    if (!isUrdu) return statusText;
+    return STATUS_URDU_MAP[statusText] || statusText;
+  };
+
+  const getTranslatedNextEvent = (nextEventText?: string) => {
+    if (!nextEventText) return "";
+    if (!isUrdu) return nextEventText;
+    return nextEventText
+      .replace(/^Closes at\s+/i, "بند ہوگا بوقت ")
+      .replace(/^Opens at\s+/i, "کھلے گا بوقت ")
+      .replace(/^Opens tomorrow at\s+/i, "کل کھلے گا بوقت ");
+  };
 
   const activeLocations = locations.filter((l) => l.isActive !== false);
 
@@ -102,11 +135,11 @@ export function LocationsTiming() {
                 }`}
               />
               <span className="text-xs font-semibold text-gray-900 dark:text-white">
-                {officeStatusGlobal.statusText}
+                {getTranslatedStatus(officeStatusGlobal.statusText)}
               </span>
               {officeStatusGlobal.nextEventText && (
                 <span className="text-xs text-gray-500 dark:text-gray-400">
-                  · {officeStatusGlobal.nextEventText}
+                  · {getTranslatedNextEvent(officeStatusGlobal.nextEventText)}
                 </span>
               )}
             </div>
@@ -137,6 +170,7 @@ export function LocationsTiming() {
               const count = activeLocations.filter(
                 (l) => l.city.toLowerCase() === city.toLowerCase()
               ).length;
+              const displayCity = isUrdu ? (CITY_URDU_MAP[city] || city) : city;
               return (
                 <button
                   key={city}
@@ -150,7 +184,7 @@ export function LocationsTiming() {
                   }`}
                 >
                   {isSelected && <motion.span layoutId="active-pill-locations" className="absolute inset-0 -z-10 rounded-full bg-primary shadow-sm" transition={shouldReduceMotion ? { duration: 0.01 } : { type: "spring", stiffness: 500, damping: 40, mass: 1 }} />}
-                  {city} ({count})
+                  {displayCity} ({count})
                 </button>
               );
             })}
@@ -162,10 +196,12 @@ export function LocationsTiming() {
           <div className="py-14 text-center rounded-2xl border border-dashed border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-gray-900/50 p-8">
             <Building2 className="mx-auto h-10 w-10 text-gray-400 dark:text-gray-500 mb-3" />
             <p className="text-base font-semibold text-gray-900 dark:text-white">
-              No active clinic locations found
+              {isUrdu ? "کوئی فعال کلینک برانچ نہیں ملی" : "No active clinic locations found"}
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-sm mx-auto">
-              There are currently no active clinic branches available in this selection. Please choose another location or view all clinics.
+              {isUrdu
+                ? "فی الوقت اس انتخاب میں کوئی فعال کلینک دستیاب نہیں ہے۔ براہ کرم کوئی اور برانچ منتخب کریں یا تمام کلینکس دیکھیں۔"
+                : "There are currently no active clinic branches available in this selection. Please choose another location or view all clinics."}
             </p>
             {selectedCity !== "all" && (
               <Button
@@ -188,12 +224,12 @@ export function LocationsTiming() {
                 : [
                     loc.addressLine1,
                     loc.addressLine2,
-                    loc.city,
+                    isUrdu ? (CITY_URDU_MAP[loc.city] || loc.city) : loc.city,
                     loc.state,
                     loc.postalCode,
                   ]
                     .filter(Boolean)
-                    .join(", ");
+                    .join(isUrdu ? "، " : ", ");
 
             const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
               `${loc.name}, ${fullAddress}`
@@ -216,15 +252,17 @@ export function LocationsTiming() {
               return wh.clinicId === loc.id;
             });
 
-            const dayNames = copy.daysOfWeek || [
-              "Monday",
-              "Tuesday",
-              "Wednesday",
-              "Thursday",
-              "Friday",
-              "Saturday",
-              "Sunday",
-            ];
+            const dayNames = isUrdu
+              ? ["پیر", "منگل", "بدھ", "جمعرات", "جمعہ", "ہفتہ", "اتوار"]
+              : (copy.daysOfWeek || [
+                  "Monday",
+                  "Tuesday",
+                  "Wednesday",
+                  "Thursday",
+                  "Friday",
+                  "Saturday",
+                  "Sunday",
+                ]);
 
             const consolidatedDays = Array.from({ length: 7 }, (_, dow) => {
               const dayItems = locHours.filter((h) => h.dayOfWeek === dow);
@@ -320,14 +358,14 @@ export function LocationsTiming() {
                                   : "bg-gray-400"
                               }`}
                             />
-                            <span>{officeStatus.statusText}</span>
+                            <span>{getTranslatedStatus(officeStatus.statusText)}</span>
                           </span>
                         )}
                       </div>
 
                       {loc.city && (
                         <span className="rounded-full bg-black/60 backdrop-blur-md text-white border border-white/20 px-3 py-1 text-xs font-semibold">
-                          {loc.city}
+                          {isUrdu ? (CITY_URDU_MAP[loc.city] || loc.city) : loc.city}
                         </span>
                       )}
                     </div>
@@ -389,8 +427,11 @@ export function LocationsTiming() {
                                 <span className="font-semibold text-gray-800 dark:text-gray-200">
                                   {wh.dayName}:
                                 </span>
-                                <span className={wh.isClosed ? "text-amber-600 dark:text-amber-400 font-medium" : ""}>
-                                  {wh.timeStr}
+                                <span
+                                  dir={wh.isClosed ? "auto" : "ltr"}
+                                  className={wh.isClosed ? "text-amber-600 dark:text-amber-400 font-medium" : "inline-block font-mono"}
+                                >
+                                  {wh.isClosed && isUrdu ? "بند ہے" : wh.timeStr}
                                 </span>
                               </div>
                             ))}

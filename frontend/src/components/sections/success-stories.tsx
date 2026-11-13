@@ -11,15 +11,44 @@ import {
 } from "lucide-react";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getPublicReviews, Review } from "@/lib/api";
+import { getPublicReviews, Review, batchTranslate } from "@/lib/api";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 import { MobileSuccessStories } from "@/components/mobile/MobileSuccessStories";
 
 export function SuccessStories() {
-  const { copy } = usePublicContent();
+  const { copy, locale } = usePublicContent();
   const [reviews, setReviews] = useState<Review[]>([]);
+  const rawReviewsRef = useRef<Review[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const applyReviewsTranslation = async (targetLocale: string, list: Review[]) => {
+    if (targetLocale !== "ur" || list.length === 0) {
+      setReviews(list);
+      return;
+    }
+    const texts: string[] = [];
+    list.forEach((r) => {
+      if (r.text) texts.push(r.text);
+      if (r.authorName) texts.push(r.authorName);
+    });
+    try {
+      const trans = await batchTranslate(texts, "ur");
+      if (trans && Object.keys(trans).length > 0) {
+        setReviews(
+          list.map((r) => ({
+            ...r,
+            text: trans[r.text] || r.text,
+            authorName: trans[r.authorName] || r.authorName,
+          }))
+        );
+      } else {
+        setReviews(list);
+      }
+    } catch {
+      setReviews(list);
+    }
+  };
 
   const scroll = (offset: number) => {
     scrollRef.current?.scrollBy({ left: offset, behavior: "smooth" });
@@ -30,7 +59,9 @@ export function SuccessStories() {
     getPublicReviews()
       .then((data) => {
         if (mounted && Array.isArray(data)) {
-          setReviews(data.filter((r) => r.isPublished !== false));
+          const active = data.filter((r) => r.isPublished !== false);
+          rawReviewsRef.current = active;
+          applyReviewsTranslation(locale, active);
         }
       })
       .catch(() => {
@@ -43,7 +74,13 @@ export function SuccessStories() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [locale]);
+
+  useEffect(() => {
+    if (rawReviewsRef.current.length > 0) {
+      applyReviewsTranslation(locale, rawReviewsRef.current);
+    }
+  }, [locale]);
 
   // Calculate average rating
   const avgRating =

@@ -3,6 +3,9 @@
 import React, { useState, useRef } from "react";
 import { Star, CheckCircle2, Quote, ChevronLeft, ChevronRight } from "lucide-react";
 import { Review } from "@/lib/api";
+import { usePublicContent } from "@/components/providers/public-content-provider";
+import { useT } from "@/i18n/useT";
+import { Num } from "@/i18n/Num";
 import { tap } from "@/lib/haptics";
 
 interface MobileSuccessStoriesProps {
@@ -11,6 +14,9 @@ interface MobileSuccessStoriesProps {
 }
 
 export function MobileSuccessStories({ reviews, avgRating }: MobileSuccessStoriesProps) {
+  const { locale } = usePublicContent();
+  const { t } = useT();
+  const isUrdu = locale === "ur";
   const [currentIndex, setCurrentIndex] = useState(0);
   const railRef = useRef<HTMLDivElement>(null);
 
@@ -43,13 +49,13 @@ export function MobileSuccessStories({ reviews, avgRating }: MobileSuccessStorie
       {/* Header */}
       <div className="mb-4">
         <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
-          Patient Testimonials
+          {isUrdu ? "مریضوں کے تاثرات" : "Patient Testimonials"}
         </span>
         <h2 className="font-serif text-[28px] leading-tight font-bold text-gray-900 dark:text-white mt-1">
-          Success Stories
+          {isUrdu ? "کامیاب کہانیاں" : "Success Stories"}
         </h2>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          Authentic clinical reviews from patients treated across our branches.
+          {isUrdu ? "ہمارے تمام برانچز میں علاج یافتہ مریضوں کے اصلی کلینیکل جائزے۔" : "Authentic clinical reviews from patients treated across our branches."}
         </p>
       </div>
 
@@ -63,7 +69,7 @@ export function MobileSuccessStories({ reviews, avgRating }: MobileSuccessStorie
         </div>
         <span className="text-slate-300 dark:text-slate-700 select-none">•</span>
         <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
-          {reviews.length}+ Verified Transformations
+          {reviews.length}+ {isUrdu ? "تصدیق شدہ تبدیلیاں" : "Verified Transformations"}
         </span>
         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
       </div>
@@ -110,7 +116,7 @@ export function MobileSuccessStories({ reviews, avgRating }: MobileSuccessStorie
               </div>
 
               <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                Verified Visit
+                {isUrdu ? "مصدقہ مریض" : "Verified Visit"}
               </span>
             </div>
           </div>

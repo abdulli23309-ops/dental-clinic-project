@@ -201,42 +201,6 @@ export function MobilePushMenu({ isOpen, onClose }: MobilePushMenuProps) {
                   </div>
                 </div>
               )}
-
-              {/* Toggles: Theme & Language */}
-              <div className="flex items-center justify-between pt-1 text-xs text-white/70">
-                <button
-                  type="button"
-                  onClick={() => {
-                    tap(8);
-                    toggleTheme();
-                  }}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-colors cursor-pointer"
-                >
-                  {theme === "dark" ? (
-                    <>
-                      <Sun className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Light Mode</span>
-                    </>
-                  ) : (
-                    <>
-                      <Moon className="w-3.5 h-3.5 text-primary" />
-                      <span>Dark Mode</span>
-                    </>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    tap(8);
-                    setLocale(locale === "ur" ? "en" : "ur");
-                  }}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 font-medium transition-colors cursor-pointer"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-primary" />
-                  <span>{locale === "ur" ? "English" : "اردو"}</span>
-                </button>
-              </div>
             </div>
           </motion.div>
         </div>

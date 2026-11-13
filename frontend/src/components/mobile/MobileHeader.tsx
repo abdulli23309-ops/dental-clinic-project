@@ -7,10 +7,13 @@ import { usePublicContent } from "@/components/providers/public-content-provider
 import { resolveMediaUrl } from "@/lib/api";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { MobilePushMenu } from "@/components/mobile/MobilePushMenu";
+import { SafeImage } from "@/components/ui/safe-image";
+import { useT } from "@/i18n/useT";
 import { tap } from "@/lib/haptics";
 
 export function MobileHeader() {
-  const { content, organization } = usePublicContent();
+  const { content, organization, locale, setLocale } = usePublicContent();
+  const { t } = useT();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const brandName =
@@ -37,10 +40,13 @@ export function MobileHeader() {
           aria-label={`${brandName} Homepage`}
         >
           <span className="relative flex items-center justify-center w-8 h-8 rounded-xl bg-white dark:bg-white/95 ring-1 ring-black/5 dark:ring-2 dark:ring-primary/40 p-1 shadow-sm shrink-0">
-            <img
-              src={logoUrl || "/images/logo.png"}
+            <SafeImage
+              src={rawLogoUrl || null}
               alt={brandName}
               className="h-full w-full object-contain"
+              fallbackInitials={brandName.charAt(0)}
+              fallbackSubtitle="Dental Clinic"
+              priority
             />
           </span>
           <span className="font-serif text-[17px] font-bold tracking-tight text-gray-900 dark:text-white leading-none">
@@ -48,8 +54,19 @@ export function MobileHeader() {
           </span>
         </Link>
 
-        {/* Right: Theme Toggle & 44x44px Hamburger */}
+        {/* Right: Language Toggle, Theme Toggle & 44x44px Hamburger */}
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              tap(8);
+              setLocale(locale === "ur" ? "en" : "ur");
+            }}
+            className="w-11 h-11 min-w-[44px] min-h-[44px] px-3 rounded-xl border border-black/10 dark:border-white/10 bg-white/80 dark:bg-white/10 flex items-center justify-center font-semibold text-xs text-gray-800 dark:text-gray-100 hover:bg-black/10 dark:hover:bg-white/15 active:scale-95 transition-all cursor-pointer"
+            aria-label={`Switch to ${locale === "ur" ? "English" : "Urdu"}`}
+          >
+            {locale === "ur" ? "EN" : "اردو"}
+          </button>
           <ThemeToggle className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl" />
           <button
             type="button"

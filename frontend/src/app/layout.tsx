@@ -93,6 +93,11 @@ export default function RootLayout({
             __html: `
               (function() {
                 try {
+                  var loc = localStorage.getItem('marlow_locale_preference');
+                  if (loc === 'ur') {
+                    document.documentElement.setAttribute('lang', 'ur');
+                    document.documentElement.setAttribute('dir', 'rtl');
+                  }
                   var stored = localStorage.getItem('marlow_theme_preference');
                   var isDark = stored === 'dark' || ((!stored || stored === 'system') && window.matchMedia('(prefers-color-scheme: dark)').matches);
                   if (isDark) {

@@ -7,11 +7,12 @@ import { resolveMediaUrl } from "@/lib/api";
 import { MobileWhyChooseUs } from "@/components/mobile/MobileWhyChooseUs";
 
 export function WhyChooseUs() {
-  const { content, organization, copy } = usePublicContent();
+  const { content, organization, copy, locale } = usePublicContent();
+  const isUrdu = locale === "ur";
 
   const promises = content.homepage?.promises || [];
   const practiceName =
-    content.general?.practiceName || organization?.displayName || "";
+    content.general?.practiceName || organization?.displayName || (isUrdu ? "حرا ڈینٹل کلینک" : "DHDC");
   const whyChooseUsImageRaw = content.homepage?.whyChooseUsImage;
   const whyChooseUsImage = whyChooseUsImageRaw ? resolveMediaUrl(whyChooseUsImageRaw) : null;
   const whyChooseUsCaption = content.homepage?.whyChooseUsCaption;
@@ -42,7 +43,9 @@ export function WhyChooseUs() {
               </h2>
               {practiceName && (
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Experience patient-centered clinical excellence at {practiceName}.
+                  {isUrdu
+                    ? `${practiceName} میں مریض دوست اعلیٰ طبی معیار کا تجربہ کریں۔`
+                    : `Experience patient-centered clinical excellence at ${practiceName}.`}
                 </p>
               )}
             </div>
@@ -84,15 +87,15 @@ export function WhyChooseUs() {
                 <div className="rounded-2xl border border-gray-200/80 dark:border-gray-800/80 bg-white dark:bg-gray-950 p-5 space-y-3">
                   <div className="flex items-center gap-3 text-sm font-semibold text-gray-900 dark:text-white">
                     <CheckCircle2 className="h-5 w-5 text-primary" />
-                    <span>Transparent Pricing & Zero Surprise Fees</span>
+                    <span>{isUrdu ? "شفاف قیمتیں اور بغیر کسی پوشیدہ فیس کے" : "Transparent Pricing & Zero Surprise Fees"}</span>
                   </div>
                   <div className="flex items-center gap-3 text-sm font-semibold text-gray-900 dark:text-white">
                     <CheckCircle2 className="h-5 w-5 text-primary" />
-                    <span>Gentle, Minimally Invasive Treatment Protocols</span>
+                    <span>{isUrdu ? "کم سے کم جراحی کا طبی فلسفہ" : "Gentle, Minimally Invasive Treatment Protocols"}</span>
                   </div>
                   <div className="flex items-center gap-3 text-sm font-semibold text-gray-900 dark:text-white">
                     <CheckCircle2 className="h-5 w-5 text-primary" />
-                    <span>Direct Doctor Access & Continuity of Care</span>
+                    <span>{isUrdu ? "ماہر ڈاکٹر تک براہ راست رسائی اور تسلسل" : "Direct Doctor Access & Continuity of Care"}</span>
                   </div>
                 </div>
               )}
@@ -101,34 +104,34 @@ export function WhyChooseUs() {
             {/* Visit in Three Steps Strip */}
             <div className="rounded-2xl border border-primary/20 bg-primary/5 dark:bg-primary/10 p-5">
               <div className="text-xs font-bold uppercase tracking-wider text-primary mb-3">
-                Your Visit in 3 Simple Steps
+                {isUrdu ? "آپ کا وزٹ 3 آسان مراحل میں" : "Your Visit in 3 Simple Steps"}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
                 <div className="space-y-1">
                   <div className="font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
                     <span className="grid h-5 w-5 place-items-center rounded-full bg-primary text-white text-[10px]">1</span>
-                    <span>Choose Treatment</span>
+                    <span>{isUrdu ? "علاج منتخب کریں" : "Choose Treatment"}</span>
                   </div>
                   <p className="text-gray-600 dark:text-gray-400 text-[11px]">
-                    Select routine care or specialized aesthetic dentistry.
+                    {isUrdu ? "معمول کی صفائی یا جدید کاسمیٹک ڈینٹسٹری کا انتخاب کریں۔" : "Select routine care or specialized aesthetic dentistry."}
                   </p>
                 </div>
                 <div className="space-y-1">
                   <div className="font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
                     <span className="grid h-5 w-5 place-items-center rounded-full bg-primary text-white text-[10px]">2</span>
-                    <span>Pick Your Time</span>
+                    <span>{isUrdu ? "اپنا وقت منتخب کریں" : "Pick Your Time"}</span>
                   </div>
                   <p className="text-gray-600 dark:text-gray-400 text-[11px]">
-                    Select convenient slots with your chosen clinician.
+                    {isUrdu ? "اپنے منتخب کردہ ڈاکٹر کے ساتھ اپنی سہولت کے مطابق وقت منتخب کریں۔" : "Select convenient slots with your chosen clinician."}
                   </p>
                 </div>
                 <div className="space-y-1">
                   <div className="font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
                     <span className="grid h-5 w-5 place-items-center rounded-full bg-primary text-white text-[10px]">3</span>
-                    <span>Instant Confirmation</span>
+                    <span>{isUrdu ? "فوری تصدیق" : "Instant Confirmation"}</span>
                   </div>
                   <p className="text-gray-600 dark:text-gray-400 text-[11px]">
-                    Get immediate SMS booking details & calendar invite.
+                    {isUrdu ? "فوری ایس ایم ایس بکنگ کی تفصیلات اور کیلنڈر انویٹیشن حاصل کریں۔" : "Get immediate SMS booking details & calendar invite."}
                   </p>
                 </div>
               </div>
@@ -159,18 +162,18 @@ export function WhyChooseUs() {
               <div className="absolute top-4 left-4 pointer-events-none z-10">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur-md px-3 py-1 text-xs font-semibold text-white shadow-sm border border-white/20">
                   <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                  <span>Clinical Excellence</span>
+                  <span>{isUrdu ? "طبی مہارت" : "Clinical Excellence"}</span>
                 </span>
               </div>
 
               {/* Bottom Luxury Stats / Trust Glass Overlay Bar */}
               <div className="absolute inset-x-4 bottom-4 p-4 rounded-2xl bg-black/60 backdrop-blur-md border border-white/20 text-white z-10 space-y-1.5">
                 <p className="text-xs sm:text-sm font-semibold tracking-tight leading-snug line-clamp-2">
-                  {whyChooseUsCaption || "Ergonomic treatment station equipped with chairside digital radiography and hospital-grade infection control"}
+                  {whyChooseUsCaption || (isUrdu ? "چیئر سائیڈ ڈیجیٹل ریڈیوگرافی اور ہسپتال کے درجے کے انفیکشن کنٹرول سے لیس جدید ٹریٹمنٹ اسٹیشن۔" : "Ergonomic treatment station equipped with chairside digital radiography and hospital-grade infection control")}
                 </p>
                 <div className="flex items-center gap-2 text-[10.5px] text-white/80 font-mono tracking-wider pt-1 border-t border-white/10">
                   <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                  <span>100% Hospital-Grade Sterilization • Digital Low-Dose Imaging</span>
+                  <span>{isUrdu ? "100% ہسپتال گریڈ سٹرلائزیشن • جدید ڈیجیٹل لو ڈوز امیجنگ" : "100% Hospital-Grade Sterilization • Digital Low-Dose Imaging"}</span>
                 </div>
               </div>
             </div>

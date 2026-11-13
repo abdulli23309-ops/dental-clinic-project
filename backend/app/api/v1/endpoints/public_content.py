@@ -4,6 +4,7 @@ import json
 import secrets
 from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional
+from pydantic import BaseModel
 from uuid import UUID
 from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
@@ -766,6 +767,30 @@ async def get_public_gallery(
         )
         for g in items
     ]
+
+
+class PublicTranslateRequest(BaseModel):
+    texts: List[str]
+    target_lang: str = "ur"
+
+
+@router.post("/translate", summary="Batch translate texts with PostgreSQL cache")
+async def public_translate(
+    request: Request,
+    payload: PublicTranslateRequest,
+) -> Dict[str, Any]:
+    """Batch translate texts. Deduplicates, checks cache, translates misses, persists."""
+    from app.core.database import get_session_factory
+    from app.services.translation_service import TranslationService
+
+    factory = get_session_factory()
+    async with factory() as session:
+        svc = TranslationService(session)
+        results = await svc.batch_translate(
+            payload.texts, source_lang="en", target_lang=payload.target_lang
+        )
+        await session.commit()
+        return {"translations": results}
 
 
 @router.get("/roles", response_model=List[RoleResponse])

@@ -7,6 +7,7 @@ import { ArrowRight, Phone, Sparkles, CheckCircle2, ShieldCheck, Stethoscope } f
 import { usePublicContent } from "@/components/providers/public-content-provider";
 import { resolveMediaUrl } from "@/lib/api";
 import { useMobileBooking } from "@/components/mobile/MobileBookingSheet";
+import { useT } from "@/i18n/useT";
 import { tap } from "@/lib/haptics";
 
 function renderHeadline(heading: string, highlightWord?: string) {
@@ -46,30 +47,31 @@ function renderHeadline(heading: string, highlightWord?: string) {
 }
 
 export function MobileHero() {
-  const { content, primaryLocation, organization, copy } = usePublicContent();
+  const { content, primaryLocation, organization, copy, locale } = usePublicContent();
   const { openBooking } = useMobileBooking();
+  const { t } = useT();
+  const isUrdu = locale === "ur";
 
   const practiceName =
     content.general?.practiceName ||
     organization?.displayName ||
     organization?.name ||
-    "Hira Dental Clinic";
+    (isUrdu ? "حرا ڈینٹل کلینک" : "Hira Dental Clinic");
 
   const heroObj = (content as any).hero || content.homepage || {};
-  const heading = (heroObj.headline || heroObj.heroHeading || practiceName || "").trim();
-  const description = (
-    heroObj.subheadline ||
-    heroObj.heroDescription ||
-    organization?.description ||
-    "Experience minimally invasive, technology-driven oral healthcare designed around patient comfort and lasting clinical outcomes."
-  ).trim();
+  const heading = isUrdu
+    ? (heroObj.headline || heroObj.heroHeading || "اسلام آباد میں عالمی معیار کی جدید ڈینٹسٹری").trim()
+    : (heroObj.headline || heroObj.heroHeading || practiceName || "").trim();
+  const description = isUrdu
+    ? (heroObj.subheadline || heroObj.heroDescription || "مریض کے آرام، شفاف فیس اور دیرپا نتائج کے لیے جدید اور کم سے کم جراحی والی دانتوں کی دیکھ بھال کا تجربہ کریں۔").trim()
+    : (heroObj.subheadline || heroObj.heroDescription || organization?.description || "Experience minimally invasive, technology-driven oral healthcare designed around patient comfort and lasting clinical outcomes.").trim();
 
   const heroImageRaw = (heroObj.image || heroObj.heroImageUrl || "").trim();
   const heroImage = heroImageRaw
     ? resolveMediaUrl(heroImageRaw)
     : "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1200&q=80";
 
-  const highlightWord = (heroObj.heroHighlightWord || "Islamabad").trim();
+  const highlightWord = (heroObj.heroHighlightWord || (isUrdu ? "اسلام آباد" : "Islamabad")).trim();
   const startingFee = (heroObj.startingFee || "Rs. 3,500").trim();
   const phone = content.general?.phone || primaryLocation?.phone || organization?.contactPhone || "";
   const cleanPhone = phone.replace(/[^0-9+]/g, "");
@@ -77,14 +79,14 @@ export function MobileHero() {
   const heroTicks = heroObj.heroBadges?.length
     ? heroObj.heroBadges
     : heroObj.heroTicks?.map((t: any) => t.label || t) || [
-        "Sterilization Protocols",
-        "Digital Low-Dose X-Rays",
-        "Painless Infiltration",
+        isUrdu ? "جراثیم کشی کے پروٹوکولز" : "Sterilization Protocols",
+        isUrdu ? "کم شعاعوں والے ڈیجیٹل ایکسرے" : "Digital Low-Dose X-Rays",
+        isUrdu ? "درد سے پاک انفیلتریشن" : "Painless Infiltration",
       ];
 
-  const eyebrowText =
-    (heroObj.heroEyebrow && heroObj.heroEyebrow.trim()) ||
-    `${organization?.displayName || "Hira Dental Clinic"} · Dental Care`;
+  const eyebrowText = isUrdu
+    ? `${practiceName} | ${heroObj.heroEyebrow || "مصدقہ طبی معیار اور ہمدردی"}`
+    : (heroObj.heroEyebrow && heroObj.heroEyebrow.trim()) || `${practiceName} · Dental Care`;
 
   return (
     <section className="pt-2 pb-5 px-4 md:hidden">
@@ -129,7 +131,7 @@ export function MobileHero() {
         {/* Verified Dental Care Pill */}
         <div className="absolute -bottom-2 right-3 backdrop-blur-md bg-white/95 dark:bg-slate-900/95 text-[10px] font-bold uppercase tracking-wider text-primary dark:text-primary-foreground border border-primary/30 px-2.5 py-1 rounded-full shadow-md flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-primary" />
-          <span>Verified Care</span>
+          <span>{isUrdu ? "مصدقہ طبی معیار" : "Verified Care"}</span>
         </div>
       </div>
 
@@ -154,7 +156,7 @@ export function MobileHero() {
             className="h-11 rounded-xl border border-slate-200 dark:border-white/15 bg-white/80 dark:bg-slate-900/80 text-xs font-semibold text-gray-900 dark:text-white flex items-center justify-center gap-1.5 active:bg-slate-100 dark:active:bg-slate-800 transition-colors"
           >
             <Phone className="w-3.5 h-3.5 text-primary" />
-            <span>Call Clinic</span>
+            <span>{isUrdu ? "کلینک کال کریں" : "Call Clinic"}</span>
           </a>
 
           <a
@@ -163,7 +165,7 @@ export function MobileHero() {
             className="h-11 rounded-xl border border-slate-200 dark:border-white/15 bg-white/80 dark:bg-slate-900/80 text-xs font-semibold text-gray-900 dark:text-white flex items-center justify-center gap-1.5 active:bg-slate-100 dark:active:bg-slate-800 transition-colors"
           >
             <Stethoscope className="w-3.5 h-3.5 text-primary" />
-            <span>Treatments</span>
+            <span>{isUrdu ? "علاج" : "Treatments"}</span>
           </a>
         </div>
       </div>
@@ -183,7 +185,7 @@ export function MobileHero() {
         {startingFee && (
           <div className="shrink-0 snap-start flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary shadow-xs">
             <ShieldCheck className="w-3.5 h-3.5 text-primary shrink-0" />
-            <span className="whitespace-nowrap">From {startingFee}</span>
+            <span className="whitespace-nowrap">{isUrdu ? `روپے ${startingFee} سے` : `From ${startingFee}`}</span>
           </div>
         )}
       </div>

@@ -37,6 +37,22 @@ async def lifespan(app: FastAPI):
     upload_path.mkdir(parents=True, exist_ok=True)
     await init_db()
 
+    # Startup backfill: pre-warm translation_cache for all existing DB records
+    async def _backfill_translation_cache():
+        try:
+            from app.core.database import get_session_factory
+            from app.services.translation_service import TranslationService
+            factory = get_session_factory()
+            async with factory() as session:
+                svc = TranslationService(session)
+                count = await svc.backfill_existing_data(session)
+                await session.commit()
+                logger.info("Translation cache backfill: %d entries warmed", count)
+        except Exception as e:
+            logger.warning("Translation cache backfill skipped: %s", str(e))
+
+    asyncio.create_task(_backfill_translation_cache())
+
     scheduler_task = None
     if getattr(settings, "SCHEDULER_ENABLED", False):
         async def reminder_scheduler_loop():

@@ -6,11 +6,13 @@ import { Home, Stethoscope, Users, Phone, Calendar } from "lucide-react";
 import { motion } from "framer-motion";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 import { useMobileBooking } from "@/components/mobile/MobileBookingSheet";
+import { useT } from "@/i18n/useT";
 import { tap } from "@/lib/haptics";
 
 export function MobileDock() {
-  const { content, primaryLocation, organization } = usePublicContent();
+  const { content, primaryLocation, organization, locale } = usePublicContent();
   const { openBooking } = useMobileBooking();
+  const { t } = useT();
   const [activeTab, setActiveTab] = useState<string>("home");
 
   const phone =
@@ -18,6 +20,14 @@ export function MobileDock() {
     primaryLocation?.phone ||
     organization?.contactPhone ||
     "";
+
+  const labels = {
+    home: locale === "ur" ? "ہوم" : "Home",
+    services: locale === "ur" ? "علاج" : "Treatments",
+    book: locale === "ur" ? "بکنگ" : "BOOK",
+    doctors: locale === "ur" ? "ڈاکٹرز" : "Doctors",
+    call: locale === "ur" ? "کال" : "Call",
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -56,10 +66,10 @@ export function MobileDock() {
               ? "text-primary font-semibold"
               : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
           }`}
-          aria-label="Navigate to top of page"
+          aria-label={t("mobileDock.navHome")}
         >
           <Home className="w-5 h-5" />
-          <span className="text-[10px] mt-0.5">Home</span>
+          <span className="text-[10px] mt-0.5">{labels.home}</span>
           {activeTab === "home" && (
             <motion.span
               layoutId="mobile-dock-active"
@@ -80,10 +90,10 @@ export function MobileDock() {
               ? "text-primary font-semibold"
               : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
           }`}
-          aria-label="Scroll to treatments"
+          aria-label={t("mobileDock.navTreatments")}
         >
           <Stethoscope className="w-5 h-5" />
-          <span className="text-[10px] mt-0.5">Services</span>
+          <span className="text-[10px] mt-0.5">{labels.services}</span>
           {activeTab === "treatments" && (
             <motion.span
               layoutId="mobile-dock-active"
@@ -100,10 +110,12 @@ export function MobileDock() {
             openBooking();
           }}
           className="w-14 h-14 -mt-5 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/40 flex flex-col items-center justify-center hover:scale-105 active:scale-95 transition-transform cursor-pointer"
-          aria-label="Book an appointment online"
+          aria-label={t("mobileDock.navBook")}
         >
           <Calendar className="w-5 h-5 text-white" />
-          <span className="text-[9px] font-bold uppercase tracking-wider text-white mt-0.5">Book</span>
+          <span className="text-[9px] font-bold uppercase tracking-wider text-white mt-0.5">
+            {labels.book}
+          </span>
         </button>
 
         {/* 4. Team */}
@@ -118,10 +130,10 @@ export function MobileDock() {
               ? "text-primary font-semibold"
               : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
           }`}
-          aria-label="Scroll to clinical team"
+          aria-label={t("mobileDock.navDoctors")}
         >
           <Users className="w-5 h-5" />
-          <span className="text-[10px] mt-0.5">Doctors</span>
+          <span className="text-[10px] mt-0.5">{labels.doctors}</span>
           {activeTab === "team" && (
             <motion.span
               layoutId="mobile-dock-active"
@@ -135,10 +147,10 @@ export function MobileDock() {
           href={`tel:${phone.replace(/\s+/g, "")}`}
           onClick={() => tap(8)}
           className="flex flex-col items-center justify-center w-12 h-12 rounded-full text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
-          aria-label={`Call clinic at ${phone}`}
+          aria-label={t("mobileDock.navCall")}
         >
           <Phone className="w-5 h-5" />
-          <span className="text-[10px] mt-0.5">Call</span>
+          <span className="text-[10px] mt-0.5">{labels.call}</span>
         </a>
       </div>
     </nav>

@@ -18,6 +18,19 @@ import { usePublicContent } from "@/components/providers/public-content-provider
 import { resolveMediaUrl } from "@/lib/api";
 import { MobileTeam } from "@/components/mobile/MobileTeam";
 
+const SPECIALTY_URDU: Record<string, string> = {
+  "Endodontics": "اینڈوڈونٹکس",
+  "Orthodontics": "آرتھوڈانٹکس",
+  "Implantology": "امپلانٹولوجی",
+  "Cosmetic Dentistry": "کاسمیٹک ڈینٹسٹری",
+  "Pediatric Dentistry": "بچوں کی ڈینٹسٹری",
+  "Oral Surgery": "اورل سرجری",
+  "Prosthodontics": "پراستھوڈونٹکس",
+  "Periodontics": "پیریوڈونٹکس",
+  "General Dentistry": "جنرل ڈینٹسٹری",
+  "Restorative": "بحالی",
+};
+
 // Helper for per-doctor portrait focal point framing
 function getDoctorFocalClass(name: string) {
   const lower = name.toLowerCase();
@@ -238,7 +251,7 @@ export function OurTeam() {
                 {selectedBranch === "all" && (
                   <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
                 )}
-                <span>All {activeCityLabel}</span>
+                <span>{isRtl ? `تمام ${activeCityLabel}` : `All ${activeCityLabel}`}</span>
               </button>
 
               {/* Specific branch pills */}
@@ -367,7 +380,7 @@ export function OurTeam() {
                                   .join("") || "MD"}
                               </span>
                               <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500 dark:text-gray-400 mt-1">
-                                {doc.role || "Clinical Specialist"}
+                                {isRtl ? (doc.role === "Director" ? "ڈائریکٹر" : (doc.role || "طبی ماہر")) : (doc.role || "Clinical Specialist")}
                               </span>
                             </div>
                           )}
@@ -447,7 +460,7 @@ export function OurTeam() {
                                   key={i}
                                   className="rounded-full bg-slate-100 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/10 px-2.5 py-1 text-[10px] font-medium text-slate-700 dark:text-slate-300"
                                 >
-                                  {spec}
+                                  {isRtl ? (SPECIALTY_URDU[spec] || spec) : spec}
                                 </span>
                               ))}
                             </div>

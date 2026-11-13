@@ -21,11 +21,22 @@ import { resolveMediaUrl } from "@/lib/api";
 import { SafeImage } from "@/components/ui/safe-image";
 import { getOpenStatus, parseBranchHoursRows } from "@/lib/branchHours";
 import { useMobileBooking } from "@/components/mobile/MobileBookingSheet";
+import { useT } from "@/i18n/useT";
+import { Num } from "@/i18n/Num";
 import { tap } from "@/lib/haptics";
 
+const CITY_URDU_MAP: Record<string, string> = {
+  "Islamabad": "اسلام آباد",
+  "Lahore": "لاہور",
+  "Karachi": "کراچی",
+  "Rawalpindi": "راولپنڈی",
+};
+
 export function MobileLocationsTiming() {
-  const { locations, team, organization, content } = usePublicContent();
+  const { locations, team, organization, content, locale } = usePublicContent();
   const { openBooking } = useMobileBooking();
+  const { t } = useT();
+  const isUrdu = locale === "ur";
   const activeLocations = locations.filter((l) => l.isActive !== false);
 
   const [activeIdx, setActiveIdx] = useState(0);
@@ -37,8 +48,32 @@ export function MobileLocationsTiming() {
   const currentLoc = activeLocations[Math.min(activeIdx, activeLocations.length - 1)];
   const status = getOpenStatus(currentLoc.hoursInfo || "");
   const branchHoursList = parseBranchHoursRows(currentLoc.hoursInfo || "");
-  const dynamicCities = Array.from(new Set(activeLocations.map((l) => l.city).filter(Boolean)));
-  const locationsSubtitle = `State-of-the-art facilities across ${dynamicCities.join(", ")}.`;
+  const dynamicCities = Array.from(
+    new Set(activeLocations.map((l) => (isUrdu ? (CITY_URDU_MAP[l.city] || l.city) : l.city)).filter(Boolean))
+  );
+  const locationsSubtitle = isUrdu
+    ? `${dynamicCities.join("، ")} میں جدید سہولیات کے حامل کلینکس۔`
+    : `State-of-the-art facilities across ${dynamicCities.join(", ")}.`;
+
+  const getStatusLabel = () => {
+    if (!isUrdu) return status.label;
+    if (status.open) {
+      const time = status.label.replace(/^Open now\s*·?\s*Closes\s*/i, "").replace(/^Open today\s*·?\s*/i, "");
+      return `اب کھلا ہے · بند ہوگا ${time}`;
+    } else {
+      const time = status.label.replace(/^Closed\s*·?\s*Opens\s*/i, "");
+      return `بند ہے · کھلے گا ${time}`;
+    }
+  };
+
+  const formatDayLabel = (days: string) => {
+    if (!isUrdu) return days;
+    const lower = days.toLowerCase();
+    if (lower.includes("mon") && lower.includes("sat")) return "پیر تا ہفتہ";
+    if (lower.includes("sun")) return "اتوار";
+    if (lower.includes("daily")) return "روزانہ";
+    return days;
+  };
 
   const handleCopy = async (text: string) => {
     tap(12);
@@ -72,12 +107,12 @@ export function MobileLocationsTiming() {
     <div className="w-full px-4 space-y-6">
       {/* Section Eyebrow & Title */}
       <div className="text-center space-y-1.5">
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-primary/10 text-primary dark:bg-primary/20">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold tracking-wider bg-primary/10 text-primary dark:bg-primary/20">
           <MapPin className="w-3 h-3 text-primary" />
-          Our Clinics
+          {isUrdu ? "ہمارے کلینک" : "Our Clinics"}
         </span>
         <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white font-serif">
-          Visit Our Branches
+          {isUrdu ? "ہمارے برانچز کا دورہ کریں" : "Visit Our Branches"}
         </h2>
         <p className="text-xs text-gray-600 dark:text-gray-400 max-w-xs mx-auto">
           {locationsSubtitle}
@@ -117,7 +152,7 @@ export function MobileLocationsTiming() {
                     isSelected ? "bg-white/20 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
                   }`}
                 >
-                  {loc.city}
+                  {isUrdu ? (CITY_URDU_MAP[loc.city] || loc.city) : loc.city}
                 </span>
               )}
             </button>
@@ -166,7 +201,7 @@ export function MobileLocationsTiming() {
                 }`}
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                {status.label}
+                {getStatusLabel()}
               </span>
             </div>
           </div>
@@ -193,7 +228,7 @@ export function MobileLocationsTiming() {
                       status.open ? "bg-emerald-500" : "bg-rose-500"
                     }`}
                   />
-                  {status.label}
+                  {getStatusLabel()}
                 </span>
               </div>
             )}
@@ -218,7 +253,7 @@ export function MobileLocationsTiming() {
               >
                 <div className="flex items-center gap-2 text-xs font-semibold text-gray-800 dark:text-gray-200">
                   <Clock className="w-4 h-4 text-primary" />
-                  <span>{branchHoursList[0]?.days ? `${branchHoursList[0].days}: ${branchHoursList[0].time}` : "Standard Clinic Hours"}</span>
+                  <span>{branchHoursList[0]?.days ? `${formatDayLabel(branchHoursList[0].days)}: ${branchHoursList[0].time}` : (isUrdu ? "کلینک کے معیاری اوقات" : "Standard Clinic Hours")}</span>
                 </div>
                 <ChevronDown
                   className={`w-4 h-4 text-gray-400 transition-transform ${
@@ -231,8 +266,8 @@ export function MobileLocationsTiming() {
                 <div className="px-3 pb-3 pt-1 border-t border-gray-150 dark:border-gray-800 text-xs text-gray-600 dark:text-gray-400 space-y-1.5">
                   {branchHoursList.map((row, i) => (
                     <div key={i} className="flex justify-between py-0.5 border-b border-gray-200/40 dark:border-gray-800/40 last:border-0">
-                      <span className="font-medium text-gray-800 dark:text-gray-300">{row.days}:</span>
-                      <span className="font-mono text-gray-900 dark:text-gray-100">{row.time}</span>
+                      <span className="font-medium text-gray-800 dark:text-gray-300">{formatDayLabel(row.days)}:</span>
+                      <span className="font-mono text-gray-900 dark:text-gray-100" dir="ltr">{row.time}</span>
                     </div>
                   ))}
                 </div>
@@ -244,7 +279,7 @@ export function MobileLocationsTiming() {
               <div className="space-y-1.5 pt-1">
                 <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1">
                   <Stethoscope className="w-3 h-3 text-primary" />
-                  Specialists at this branch
+                  {isUrdu ? "اس برانچ کے ماہر ڈاکٹرز" : "Specialists at this branch"}
                 </span>
                 <div className="flex flex-wrap gap-1.5">
                   {clinicDoctors.slice(0, 4).map((doc) => (
@@ -257,7 +292,7 @@ export function MobileLocationsTiming() {
                   ))}
                   {clinicDoctors.length > 4 && (
                     <span className="text-[11px] px-1.5 py-0.5 text-gray-400">
-                      +{clinicDoctors.length - 4} more
+                      {isUrdu ? `+${clinicDoctors.length - 4} مزید` : `+${clinicDoctors.length - 4} more`}
                     </span>
                   )}
                 </div>
@@ -274,7 +309,7 @@ export function MobileLocationsTiming() {
                 aria-label="Call clinic"
               >
                 <Phone className="w-4 h-4 mb-0.5" />
-                <span className="text-[10px] font-semibold">Call</span>
+                <span className="text-[10px] font-semibold">{isUrdu ? "کال" : "Call"}</span>
               </a>
 
               {/* Directions */}
@@ -287,7 +322,7 @@ export function MobileLocationsTiming() {
                 aria-label="Get directions"
               >
                 <Navigation className="w-4 h-4 mb-0.5" />
-                <span className="text-[10px] font-semibold">Directions</span>
+                <span className="text-[10px] font-semibold">{isUrdu ? "راستہ" : "Directions"}</span>
               </a>
 
               {/* Copy Address */}
@@ -300,12 +335,12 @@ export function MobileLocationsTiming() {
                 {copied ? (
                   <>
                     <Check className="w-4 h-4 mb-0.5 text-emerald-500" />
-                    <span className="text-[10px] font-semibold text-emerald-600">Copied</span>
+                    <span className="text-[10px] font-semibold text-emerald-600">{isUrdu ? "کاپی ہو گیا" : "Copied"}</span>
                   </>
                 ) : (
                   <>
                     <Copy className="w-4 h-4 mb-0.5" />
-                    <span className="text-[10px] font-semibold">Copy</span>
+                    <span className="text-[10px] font-semibold">{isUrdu ? "کاپی" : "Copy"}</span>
                   </>
                 )}
               </button>
@@ -321,7 +356,7 @@ export function MobileLocationsTiming() {
                 aria-label="Book at this branch"
               >
                 <Calendar className="w-4 h-4 mb-0.5" />
-                <span className="text-[10px] font-bold">Book</span>
+                <span className="text-[10px] font-bold">{isUrdu ? "بک کریں" : "Book"}</span>
               </button>
             </div>
           </div>
@@ -336,10 +371,10 @@ export function MobileLocationsTiming() {
           </div>
           <div>
             <p className="text-xs font-bold text-rose-900 dark:text-rose-200">
-              24/7 Dental Emergency?
+              {isUrdu ? "24/7 ڈینٹل ایمرجنسی؟" : "24/7 Dental Emergency?"}
             </p>
             <p className="text-[11px] text-rose-700 dark:text-rose-300">
-              Immediate triage & trauma relief on-call
+              {isUrdu ? "ہنگامی درد یا چوٹ کے لیے فوری معائنہ آن کال" : "Immediate triage & trauma relief on-call"}
             </p>
           </div>
         </div>
@@ -349,7 +384,7 @@ export function MobileLocationsTiming() {
           className="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-bold shrink-0 shadow-sm active:scale-95 min-h-[38px] flex items-center gap-1.5"
         >
           <Phone className="w-3.5 h-3.5" />
-          <span>Call 24/7</span>
+          <span>{isUrdu ? "24/7 کال کریں" : "Call 24/7"}</span>
         </a>
       </div>
     </div>

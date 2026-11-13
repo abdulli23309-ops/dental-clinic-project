@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { motion } from "motion/react";
 import { Maximize2, Sparkles, ImageOff } from "lucide-react";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { usePublicContent } from "@/components/providers/public-content-provider";
 import { useLightbox } from "@/components/providers/lightbox-provider";
-import { publicGetGallery, GalleryImageItem, resolveMediaUrl } from "@/lib/api";
+import { publicGetGallery, GalleryImageItem, resolveMediaUrl, batchTranslate } from "@/lib/api";
 import { MobileGallery } from "@/components/mobile/MobileGallery";
 
 const BENTO_LAYOUTS = [
@@ -33,11 +33,38 @@ function parseCaption(caption: string): { title: string; subtitle: string | null
 }
 
 export function Gallery() {
-  const { copy } = usePublicContent();
+  const { copy, locale } = usePublicContent();
   const { openLightbox } = useLightbox();
   const [galleryItems, setGalleryItems] = useState<GalleryImageItem[]>([]);
+  const rawItemsRef = useRef<GalleryImageItem[]>([]);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
+
+  const applyGalleryTranslation = async (targetLocale: string, list: GalleryImageItem[]) => {
+    if (targetLocale !== "ur" || list.length === 0) {
+      setGalleryItems(list);
+      return;
+    }
+    const texts: string[] = [];
+    list.forEach((g) => {
+      if (g.caption) texts.push(g.caption);
+    });
+    try {
+      const trans = await batchTranslate(texts, "ur");
+      if (trans && Object.keys(trans).length > 0) {
+        setGalleryItems(
+          list.map((g) => ({
+            ...g,
+            caption: (g.caption && trans[g.caption]) || g.caption,
+          }))
+        );
+      } else {
+        setGalleryItems(list);
+      }
+    } catch {
+      setGalleryItems(list);
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -45,11 +72,11 @@ export function Gallery() {
       .then((data: GalleryImageItem[]) => {
         if (!isMounted) return;
         if (Array.isArray(data)) {
-          setGalleryItems(
-            data
-              .filter((item) => item.isActive !== false && item.imageUrl)
-              .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
-          );
+          const sorted = data
+            .filter((item) => item.isActive !== false && item.imageUrl)
+            .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+          rawItemsRef.current = sorted;
+          applyGalleryTranslation(locale, sorted);
         }
         setHasLoaded(true);
       })
@@ -60,7 +87,13 @@ export function Gallery() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [locale]);
+
+  useEffect(() => {
+    if (rawItemsRef.current.length > 0) {
+      applyGalleryTranslation(locale, rawItemsRef.current);
+    }
+  }, [locale]);
 
   if (hasLoaded && galleryItems.length === 0) {
     return null;

@@ -117,18 +117,20 @@ export function Hero() {
   const cleanPhone = phone.replace(/[^0-9+]/g, "");
 
   const heroObj = (content as any).hero || content.homepage || {};
-  const heading = (heroObj.headline || heroObj.heroHeading || practiceName || "").trim();
-  const description = (
-    heroObj.subheadline ||
-    heroObj.heroDescription ||
-    organization?.description ||
-    organization?.tagline ||
-    ""
-  ).trim();
+  const heading = isUrdu
+    ? (heroObj.headline || heroObj.heroHeading || "اسلام آباد میں عالمی معیار کی جدید ڈینٹسٹری").trim()
+    : (heroObj.headline || heroObj.heroHeading || practiceName || "").trim();
+  const description = isUrdu
+    ? (heroObj.subheadline || heroObj.heroDescription || "مریض کے آرام، شفاف فیس اور دیرپا نتائج کے لیے جدید اور کم سے کم جراحی والی دانتوں کی دیکھ بھال کا تجربہ کریں۔").trim()
+    : (heroObj.subheadline || heroObj.heroDescription || organization?.description || organization?.tagline || "").trim();
   const heroImageRaw = (heroObj.image || heroObj.heroImageUrl || "").trim();
   const heroImage = heroImageRaw ? resolveMediaUrl(heroImageRaw) : "";
-  const eyebrow = (heroObj.heroEyebrow || (heading ? practiceName : "")).trim();
-  const highlightWord = (heroObj.heroHighlightWord || "").trim();
+  const eyebrow = isUrdu
+    ? (heroObj.heroEyebrow || "مصدقہ طبی معیار اور ہمدردی").trim()
+    : (heroObj.heroEyebrow || (heading ? practiceName : "")).trim();
+  const highlightWord = isUrdu
+    ? (heroObj.heroHighlightWord || "اسلام آباد").trim()
+    : (heroObj.heroHighlightWord || "").trim();
   const startingFee = (heroObj.startingFee || "").trim();
   const heroSealText = ((heroObj as any)?.heroSealText || "").trim();
 

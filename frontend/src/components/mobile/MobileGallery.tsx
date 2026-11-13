@@ -3,7 +3,9 @@
 import React from "react";
 import { Images, Maximize2 } from "lucide-react";
 import { GalleryImageItem, resolveMediaUrl } from "@/lib/api";
+import { SafeImage } from "@/components/ui/safe-image";
 import { useLightbox } from "@/components/providers/lightbox-provider";
+import { usePublicContent } from "@/components/providers/public-content-provider";
 import { tap } from "@/lib/haptics";
 
 interface MobileGalleryProps {
@@ -12,6 +14,8 @@ interface MobileGalleryProps {
 
 export function MobileGallery({ items }: MobileGalleryProps) {
   const { openLightbox } = useLightbox();
+  const { locale } = usePublicContent();
+  const isUrdu = locale === "ur";
 
   if (!items || items.length === 0) return null;
 
@@ -28,13 +32,13 @@ export function MobileGallery({ items }: MobileGalleryProps) {
       {/* Header */}
       <div className="mb-4">
         <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
-          Facilities & Technology
+          {isUrdu ? "سہولیات اور ٹیکنالوجی" : "Facilities & Technology"}
         </span>
         <h2 className="font-serif text-[28px] leading-tight font-bold text-gray-900 dark:text-white mt-1">
-          Inside Our Clinic
+          {isUrdu ? "ہمارے کلینک کا اندرونی منظر" : "Inside Our Clinic"}
         </h2>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          Hospital-grade surgical operatories & diagnostic radiology suites.
+          {isUrdu ? "ہسپتال کے معیار کے جدید ترین سرجیکل اور تشخیصی آلات۔" : "Hospital-grade surgical operatories & diagnostic radiology suites."}
         </p>
       </div>
 
@@ -54,20 +58,21 @@ export function MobileGallery({ items }: MobileGalleryProps) {
             }}
             className="col-span-2 aspect-[16/10] rounded-2xl overflow-hidden relative group cursor-pointer shadow-sm bg-slate-100 dark:bg-slate-900"
           >
-            <img
-              src={resolveMediaUrl(heroItem.imageUrl) || heroItem.imageUrl}
+            <SafeImage
+              src={resolveMediaUrl(heroItem.imageUrl) || null}
               alt={heroItem.caption || "Clinic facility"}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              fallbackInitials="C"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 
             <span className="absolute top-2.5 left-2.5 backdrop-blur-md bg-black/60 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full">
-              Surgical Suite
+              {isUrdu ? "سرجیکل روم" : "Surgical Suite"}
             </span>
 
             <div className="absolute bottom-2.5 inset-x-3 text-white flex items-end justify-between">
               <p className="text-xs font-semibold line-clamp-1 pr-2">
-                {heroItem.caption || "Sterile Surgical & Diagnostic Operatory"}
+                {heroItem.caption || (isUrdu ? "جراثیم سے پاک سرجیکل اور تشخیصی روم" : "Sterile Surgical & Diagnostic Operatory")}
               </p>
               <div className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0">
                 <Maximize2 className="w-3.5 h-3.5" />
@@ -124,7 +129,7 @@ export function MobileGallery({ items }: MobileGalleryProps) {
             className="w-full h-11 rounded-xl border border-slate-200 dark:border-white/15 bg-white/80 dark:bg-slate-900/80 text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center justify-center gap-2 active:bg-slate-100 dark:active:bg-slate-800 transition-colors cursor-pointer shadow-xs"
           >
             <Images className="w-4 h-4 text-primary" />
-            <span>View All {items.length} Clinic Photos</span>
+            <span>{isUrdu ? `کلینک کی تمام ${items.length} تصاویر دیکھیں` : `View All ${items.length} Clinic Photos`}</span>
           </button>
         </div>
       )}

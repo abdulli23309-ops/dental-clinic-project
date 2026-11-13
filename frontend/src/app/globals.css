@@ -1,12 +1,56 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap');
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *, .dark, .dark *));
+
+[lang="ur"] {
+  --font-urdu-display: 'Noto Nastaliq Urdu', 'Noto Nastaliq Urdu', Georgia, serif;
+  --font-urdu-sans: 'Noto Sans Arabic', 'Noto Naskh Arabic', system-ui, sans-serif;
+}
 
 /* Optical text defaults and stable numeric alignment across public and staff UI. */
 h1, h2, h3 {
   font-feature-settings: "kern" 1, "liga" 1;
   text-wrap: balance;
 }
+
+/* Urdu typography polish */
+[lang="ur"] {
+  body {
+    font-family: var(--font-urdu-sans);
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-urdu-display);
+    font-feature-settings: "liga" 1, "cswh" 1;
+    line-height: 1.65;
+  }
+  p, li, span, a {
+    font-family: var(--font-urdu-sans);
+    line-height: 1.9;
+  }
+  button, input, textarea, select {
+    font-family: var(--font-urdu-sans);
+  }
+  /* Disable uppercase for Urdu to prevent Latin dominance */
+  h1, h2, h3, h4, h5, h6, span, strong, b {
+    text-transform: none !important;
+  }
+  /* Eyebrow labels (no uppercase in Urdu) */
+  .uppercase {
+    text-transform: none !important;
+  }
+  /* Larger line height for Urdu body text */
+  .leading-relaxed {
+    line-height: 1.9 !important;
+  }
+  /* Disable wide tracking on eyebrows in Urdu */
+  [lang="ur"] .tracking-wide,
+  [lang="ur"] .tracking-wider,
+  [lang="ur"] .tracking-widest {
+    letter-spacing: 0 !important;
+  }
+}
+
 
 p { text-wrap: pretty; }
 

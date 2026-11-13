@@ -7044,3 +7044,22 @@ export async function deleteDoctorServiceAssignment(
   );
   if (!res.ok) await apiError(res, "Failed to delete doctor service assignment.");
 }
+
+export async function batchTranslate(
+  texts: string[],
+  targetLang: string = "ur"
+): Promise<Record<string, string>> {
+  if (!texts || texts.length === 0) return {};
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/public/translate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texts, target_lang: targetLang }),
+    });
+    if (!res.ok) return {};
+    const data = await res.json();
+    return data.translations || {};
+  } catch {
+    return {};
+  }
+}

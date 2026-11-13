@@ -1,0 +1,204 @@
+"""Zero-touch production auto-heal module for application startup.
+
+Executes idempotent migrations and data repairs on boot (guarded by schema_meta keys)
+so Coolify auto-deployments heal the production database automatically without manual CLI intervention.
+"""
+
+import re
+from datetime import datetime, timezone
+from uuid import uuid4
+
+from sqlalchemy import delete, select, text, update
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.logging import logger
+from app.infrastructure.database.orm_models import (
+    FaqItemORM,
+    GalleryImageORM,
+    SchemaMetaORM,
+    TeamMemberORM,
+    TranslationCacheORM,
+)
+
+URDU_LETTERS = r"[\u0620-\u064A\u0671-\u06D3\u06FA-\u06FC]"
+CORRUPTION_REGEX = re.compile(rf"[A-Za-z]+{URDU_LETTERS}|{URDU_LETTERS}+[A-Za-z]")
+
+PLACEHOLDER_DOCTORS = [
+    "Dr. Emily White",
+    "Dr. Michael Brown",
+    "Dr. David Black",
+    "Dr. Laura Wilson",
+    "Dr. James Taylor",
+    "Dr. Olivia Anderson",
+    "Dr. Daniel Thomas",
+    "Dr. Sophia Jackson",
+    "Dr. Matthew White",
+    "Dr. Chloe Harris",
+    "Dr. Alexander Martin",
+    "Dr. Mia Thompson",
+]
+
+DEFAULT_FAQS = [
+    {
+        "category": "general",
+        "question": "How often should I visit the dentist for a routine checkup and cleaning?",
+        "answer": "We recommend scheduling a comprehensive dental examination and professional cleaning every six months to maintain optimal oral health.",
+        "display_order": 1,
+    },
+    {
+        "category": "treatments",
+        "question": "Are dental implants painful during the procedure?",
+        "answer": "Dental implant procedures are performed under gentle local anesthesia to ensure complete patient comfort and anxiety-free treatment.",
+        "display_order": 2,
+    },
+    {
+        "category": "emergency",
+        "question": "What should I do in case of a dental emergency?",
+        "answer": "Contact our emergency triage line immediately. We offer same-day emergency appointments for severe toothaches, knocked-out teeth, and acute dental trauma.",
+        "display_order": 3,
+    },
+    {
+        "category": "treatments",
+        "question": "How do Invisalign clear aligners compare to traditional metal braces?",
+        "answer": "Invisalign aligners are virtually invisible, removable for eating and brushing, and engineered with SmartTrack material for faster, more comfortable orthodontic alignment.",
+        "display_order": 4,
+    },
+    {
+        "category": "pricing",
+        "question": "Do you offer consultations and flexible payment options?",
+        "answer": "Yes, we provide transparent treatment plans with detailed cost breakdowns before any procedure begins, along with flexible installment options.",
+        "display_order": 5,
+    },
+    {
+        "category": "appointments",
+        "question": "How can I book or reschedule an appointment?",
+        "answer": "You can book instantly online through our 24/7 appointment portal, or call our clinic reception desk. Rescheduling is complimentary up to 24 hours prior to your visit.",
+        "display_order": 6,
+    },
+]
+
+
+async def run_auto_heal(session: AsyncSession) -> None:
+    """Executes safe, idempotent production database repairs on startup."""
+    logger.info("Running zero-touch production auto-heal sequence...")
+
+    # 1. Purge corrupt translation cache entries
+    try:
+        cleanup_meta = await session.get(SchemaMetaORM, "corrupt_cache_cleanup_v1")
+        if not cleanup_meta:
+            result = await session.execute(select(TranslationCacheORM))
+            entries = result.scalars().all()
+            hashes_to_delete = []
+            for e in entries:
+                if e.status == "reviewed":
+                    continue
+                # Purge if script fusion corruption OR legacy 'auto' status
+                if e.status == "auto" or CORRUPTION_REGEX.search(e.translated_text):
+                    hashes_to_delete.append(e.hash_key)
+
+            if hashes_to_delete:
+                await session.execute(
+                    delete(TranslationCacheORM).where(
+                        TranslationCacheORM.hash_key.in_(hashes_to_delete)
+                    )
+                )
+                logger.info("Auto-heal: purged %d corrupt/auto rows from translation_cache", len(hashes_to_delete))
+
+            session.add(
+                SchemaMetaORM(
+                    key="corrupt_cache_cleanup_v1",
+                    value=f"Purged {len(hashes_to_delete)} entries on {datetime.now(timezone.utc).isoformat()}",
+                )
+            )
+            await session.flush()
+    except Exception as e:
+        logger.warning("Auto-heal translation cache purge warning: %s", e)
+
+    # 2. Seed missing FAQs if faq_items table is empty
+    try:
+        faq_count_res = await session.execute(select(FaqItemORM))
+        existing_faqs = faq_count_res.scalars().all()
+        if len(existing_faqs) == 0:
+            now = datetime.now(timezone.utc)
+            for f in DEFAULT_FAQS:
+                item = FaqItemORM(
+                    id=uuid4(),
+                    category=f["category"],
+                    question=f["question"],
+                    answer=f["answer"],
+                    display_order=f["display_order"],
+                    is_active=True,
+                    is_draft=False,
+                    published_at=now,
+                    created_at=now,
+                    updated_at=now,
+                )
+                session.add(item)
+            logger.info("Auto-heal: seeded %d default FAQ items", len(DEFAULT_FAQS))
+            await session.flush()
+    except Exception as e:
+        logger.warning("Auto-heal FAQ seed warning: %s", e)
+
+    # 3. Auto-fix broken gallery image URLs
+    try:
+        await session.execute(
+            update(GalleryImageORM)
+            .where(GalleryImageORM.image_url.like("%custom-clinic.com%"))
+            .values(image_url="/images/gallery-3.jpg")
+        )
+        await session.flush()
+    except Exception as e:
+        logger.warning("Auto-heal gallery repair warning: %s", e)
+
+    # 4. Deactivate 12 placeholder Western doctors and preserve authentic clinicians
+    try:
+        doc_meta = await session.get(SchemaMetaORM, "deactivate_placeholder_doctors_v1")
+        if not doc_meta:
+            # Deactivate Western placeholders
+            for name in PLACEHOLDER_DOCTORS:
+                await session.execute(
+                    update(TeamMemberORM)
+                    .where(TeamMemberORM.display_name.ilike(name))
+                    .values(is_active=False)
+                )
+
+            # Ensure authentic clinicians are active
+            authentic_names = [
+                "%Hira Saleem%",
+                "%Malaika Saleem%",
+                "%Carlos Novakowski%",
+                "%Yaser Rasheed%",
+                "%Meral Ozki%",
+                "%Sarah John%",
+                "%Jessica Green%",
+            ]
+            for auth in authentic_names:
+                await session.execute(
+                    update(TeamMemberORM)
+                    .where(TeamMemberORM.display_name.ilike(auth))
+                    .values(is_active=True)
+                )
+
+            # Ensure Dr. Malaika Saleem has a complete clinical biography
+            await session.execute(
+                update(TeamMemberORM)
+                .where(TeamMemberORM.display_name.ilike("%Malaika%"))
+                .where(TeamMemberORM.biography.is_(None))
+                .values(
+                    biography="Specialist dental surgeon committed to patient-focused oral health treatments, preventive dental wellness, and gentle restorative procedures."
+                )
+            )
+
+            session.add(
+                SchemaMetaORM(
+                    key="deactivate_placeholder_doctors_v1",
+                    value=f"Deactivated {len(PLACEHOLDER_DOCTORS)} demo doctors on {datetime.now(timezone.utc).isoformat()}",
+                )
+            )
+            logger.info("Auto-heal: deactivated demo clinicians and safeguarded authentic team members")
+            await session.flush()
+    except Exception as e:
+        logger.warning("Auto-heal clinician deactivation warning: %s", e)
+
+    await session.commit()
+    logger.info("Zero-touch production auto-heal sequence completed successfully.")

@@ -51,6 +51,15 @@ async def lifespan(app: FastAPI):
 
     await init_db()
 
+    # Zero-touch production auto-heal: purge corrupt cache, seed FAQs, repair gallery URLs, deactivate demo clinicians
+    try:
+        from app.core.auto_heal import run_auto_heal
+        factory = get_session_factory()
+        async with factory() as heal_session:
+            await run_auto_heal(heal_session)
+    except Exception as heal_err:
+        logger.warning("Zero-touch auto-heal sequence encountered warning: %s", heal_err)
+
     # Startup backfill: pre-warm translation_cache for all existing DB records
     async def _backfill_translation_cache():
         try:

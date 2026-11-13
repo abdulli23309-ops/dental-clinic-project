@@ -32,15 +32,15 @@ META_KEY = "corrupt_cache_cleanup_v1"
 
 
 def is_corrupted(source: str, translated: str, status: str) -> bool:
-    """Return True if translated string contains script fusion and is not protected."""
+    """Return True if translated string contains script fusion or legacy unvetted auto status."""
     # Rule 1: Never touch reviewed translations
     if status == "reviewed":
         return False
     # Never delete entries where translated text equals source text
     if source == translated:
         return False
-    # Check for script fusion corruption
-    return bool(CORRUPTION_REGEX.search(translated))
+    # Check for legacy unvetted auto translations or script fusion corruption
+    return status == "auto" or bool(CORRUPTION_REGEX.search(translated))
 
 
 async def run_cleanup(execute: bool = False, force: bool = False) -> int:

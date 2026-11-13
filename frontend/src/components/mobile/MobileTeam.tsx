@@ -43,6 +43,37 @@ function normalizeDoctorName(name?: string | null): string {
     .join(" ");
 }
 
+const CITY_CANONICAL: Record<string, string> = {
+  islamabad: "Islamabad",
+  lahore: "Lahore",
+  karachi: "Karachi",
+  rawalpindi: "Rawalpindi",
+  "اسلام آباد": "Islamabad",
+  "لاہور": "Lahore",
+  "کراچی": "Karachi",
+  "راولپنڈی": "Rawalpindi",
+};
+
+const CITY_URDU_DISPLAY: Record<string, string> = {
+  Islamabad: "اسلام آباد",
+  Lahore: "لاہور",
+  Karachi: "کراچی",
+  Rawalpindi: "راولپنڈی",
+};
+
+function toCanonicalCity(city?: string | null): string {
+  if (!city) return "";
+  const clean = city.trim().toLowerCase();
+  return CITY_CANONICAL[clean] || city.trim();
+}
+
+function getCityDisplay(canonical: string, isUrdu: boolean): string {
+  if (isUrdu && CITY_URDU_DISPLAY[canonical]) {
+    return CITY_URDU_DISPLAY[canonical];
+  }
+  return canonical;
+}
+
 export function MobileTeam() {
   const { team, locations, locale } = usePublicContent();
   const { openBooking } = useMobileBooking();
@@ -66,17 +97,19 @@ export function MobileTeam() {
     const loc = member.locationId
       ? locations.find((l) => l.id === member.locationId)
       : null;
+    const rawCity = loc?.city || (isUrdu ? "اسلام آباد" : "Islamabad");
     return {
       ...member,
       displayName: normalizeDoctorName(member.displayName || `${member.firstName} ${member.lastName}`),
       locationName: loc?.name || (isUrdu ? "ڈی ایچ ڈی سی اسپیشلٹی سینٹر" : "DHDC Specialist Center"),
-      city: loc?.city || (isUrdu ? "اسلام آباد" : "Islamabad"),
+      city: rawCity,
+      canonicalCity: toCanonicalCity(rawCity),
     };
   });
 
-  // Unique cities from active locations
+  // Unique canonical cities from active locations
   const availableCities = Array.from(
-    new Set(locations.filter((l) => l.isActive !== false).map((l) => l.city).filter(Boolean))
+    new Set(locations.filter((l) => l.isActive !== false).map((l) => toCanonicalCity(l.city)).filter(Boolean))
   );
 
   // Branches in currently selected city
@@ -86,13 +119,12 @@ export function MobileTeam() {
       : locations.filter(
           (l) =>
             l.isActive !== false &&
-            l.city &&
-            l.city.toLowerCase() === selectedCity.toLowerCase()
+            toCanonicalCity(l.city) === selectedCity
         );
 
   // Filtered doctors list
   const filteredDoctors = doctors.filter((doc) => {
-    if (selectedCity !== "all" && doc.city.toLowerCase() !== selectedCity.toLowerCase()) {
+    if (selectedCity !== "all" && doc.canonicalCity !== selectedCity) {
       return false;
     }
     if (selectedBranch !== "all" && doc.locationId !== selectedBranch) {
@@ -106,14 +138,15 @@ export function MobileTeam() {
     { id: "all", label: isUrdu ? "تمام ڈاکٹرز" : "All Clinicians", count: doctors.length },
     ...availableCities.map((city) => ({
       id: city,
-      label: city,
-      count: doctors.filter((d) => d.city.toLowerCase() === city.toLowerCase()).length,
+      label: getCityDisplay(city, isUrdu),
+      count: doctors.filter((d) => d.canonicalCity === city).length,
     })),
   ];
 
   // Sub-branch filter options
+  const selectedCityDisplay = selectedCity === "all" ? "" : getCityDisplay(selectedCity, isUrdu);
   const branchFilterOptions = [
-    { id: "all", label: isUrdu ? `تمام ${selectedCity}` : `All ${selectedCity}` },
+    { id: "all", label: isUrdu ? `تمام ${selectedCityDisplay}` : `All ${selectedCityDisplay}` },
     ...branchesInCity.map((b) => ({
       id: b.id,
       label: b.name.replace(/^DHDC\s*/i, "").replace(new RegExp(`^${selectedCity}\\s*[-–—]?\\s*`, "i"), ""),
@@ -476,16 +509,16 @@ export function MobileTeam() {
             </div>
 
             {/* Biography */}
-            {inspectingDoctor.biography && (
-              <div>
-                <h5 className="font-semibold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
-                  {isUrdu ? "تعارف اور طبی تجربہ" : "Biography & Clinical Experience"}
-                </h5>
-                <p className="mt-1 leading-relaxed text-sm">
-                  {inspectingDoctor.biography}
-                </p>
-              </div>
-            )}
+            <div>
+              <h5 className="font-semibold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
+                {isUrdu ? "تعارف اور طبی تجربہ" : "Biography & Clinical Experience"}
+              </h5>
+              <p className="mt-1 leading-relaxed text-sm">
+                {inspectingDoctor.biography || (isUrdu
+                  ? `${inspectingDoctor.professionalTitle || "ماہر امراض دندان"} - جامع کلینیکل دانتوں کی دیکھ بھال اور علاج فراہم کرتے ہیں۔`
+                  : `${inspectingDoctor.professionalTitle || "Dental Specialist"} providing comprehensive clinical oral care and treatment.`)}
+              </p>
+            </div>
 
             {/* Education & License */}
             <div className="grid grid-cols-2 gap-2.5 pt-1">

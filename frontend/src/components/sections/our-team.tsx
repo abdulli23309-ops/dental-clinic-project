@@ -31,6 +31,37 @@ const SPECIALTY_URDU: Record<string, string> = {
   "Restorative": "بحالی",
 };
 
+const CITY_CANONICAL: Record<string, string> = {
+  islamabad: "Islamabad",
+  lahore: "Lahore",
+  karachi: "Karachi",
+  rawalpindi: "Rawalpindi",
+  "اسلام آباد": "Islamabad",
+  "لاہور": "Lahore",
+  "کراچی": "Karachi",
+  "راولپنڈی": "Rawalpindi",
+};
+
+const CITY_URDU_DISPLAY: Record<string, string> = {
+  Islamabad: "اسلام آباد",
+  Lahore: "لاہور",
+  Karachi: "کراچی",
+  Rawalpindi: "راولپنڈی",
+};
+
+function toCanonicalCity(city: string): string {
+  if (!city) return "";
+  const clean = city.trim().toLowerCase();
+  return CITY_CANONICAL[clean] || city.trim();
+}
+
+function getCityDisplay(canonical: string, isUrdu: boolean): string {
+  if (isUrdu && CITY_URDU_DISPLAY[canonical]) {
+    return CITY_URDU_DISPLAY[canonical];
+  }
+  return canonical;
+}
+
 // Helper for per-doctor portrait focal point framing
 function getDoctorFocalClass(name: string) {
   const lower = name.toLowerCase();
@@ -61,12 +92,12 @@ export function OurTeam() {
     (m) => m.isActive !== false && !m.displayName?.toLowerCase().includes("test")
   );
 
-  // Derive unique cities from active locations
+  // Derive unique canonical cities from active locations
   const availableCities = Array.from(
     new Set(
       locations
         .filter((l) => l.isActive !== false)
-        .map((l) => l.city)
+        .map((l) => toCanonicalCity(l.city))
         .filter(Boolean)
     )
   );
@@ -80,6 +111,7 @@ export function OurTeam() {
       ...member,
       locationName: loc?.name || "",
       city: loc?.city || "",
+      canonicalCity: toCanonicalCity(loc?.city || ""),
     };
   });
 
@@ -90,14 +122,13 @@ export function OurTeam() {
       : locations.filter(
           (l) =>
             l.isActive !== false &&
-            l.city &&
-            l.city.toLowerCase() === selectedCity.toLowerCase()
+            toCanonicalCity(l.city) === selectedCity
         );
 
   const filteredDoctors = doctorsWithLocations.filter((d) => {
     if (
       selectedCity !== "all" &&
-      d.city.toLowerCase() !== selectedCity.toLowerCase()
+      d.canonicalCity !== selectedCity
     ) {
       return false;
     }
@@ -176,10 +207,11 @@ export function OurTeam() {
               {copy.allSpecialists} ({activeTeam.length})
             </button>
             {availableCities.map((city) => {
-              const isSelected = selectedCity.toLowerCase() === city.toLowerCase();
+              const isSelected = selectedCity === city;
               const count = doctorsWithLocations.filter(
-                (d) => d.city.toLowerCase() === city.toLowerCase()
+                (d) => d.canonicalCity === city
               ).length;
+              const displayLabel = getCityDisplay(city, isRtl);
               return (
                 <button
                   key={city}
@@ -203,7 +235,7 @@ export function OurTeam() {
                       transition={shouldReduceMotion ? { duration: 0.01 } : { type: "spring", stiffness: 500, damping: 40, mass: 1 }}
                     />
                   )}
-                  {city} ({count})
+                  {displayLabel} ({count})
                 </button>
               );
             })}
@@ -215,10 +247,7 @@ export function OurTeam() {
           if (selectedCity === "all" || branchesInSelectedCity.length <= 1) {
             return null;
           }
-          const activeCityLabel =
-            availableCities.find(
-              (c) => c.toLowerCase() === selectedCity.toLowerCase()
-            ) || selectedCity;
+          const activeCityLabel = getCityDisplay(selectedCity, isRtl);
 
           return (
             <div
@@ -439,9 +468,15 @@ export function OurTeam() {
                             </p>
                           )}
 
-                          {doc.biography && (
+                          {doc.biography ? (
                             <p className="text-[11.5px] leading-relaxed text-slate-600 dark:text-slate-300/85 line-clamp-2 mt-2">
                               {doc.biography}
+                            </p>
+                          ) : (
+                            <p className="text-[11.5px] leading-relaxed text-slate-600 dark:text-slate-300/85 line-clamp-2 mt-2">
+                              {isRtl
+                                ? `${doc.professionalTitle || "ماہر امراض دندان"} - جامع کلینیکل دانتوں کی دیکھ بھال اور علاج فراہم کرتے ہیں۔`
+                                : `${doc.professionalTitle || "Dental Specialist"} providing comprehensive clinical oral care and treatment.`}
                             </p>
                           )}
 

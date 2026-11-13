@@ -414,8 +414,23 @@ class TranslationService:
             for r in reviews:
                 if r.review_text: texts_to_warm.append(r.review_text)
 
-            warmed = await self.batch_translate(texts_to_warm, source_lang="en", target_lang="ur")
-            return len(warmed)
+            # Deduplicate preserving order
+            unique_texts = list(dict.fromkeys([t.strip() for t in texts_to_warm if t and t.strip()]))
+            total_warmed = 0
+
+            # Process in chunks of 20 to avoid overwhelming network/DB and remain non-blocking
+            chunk_size = 20
+            for i in range(0, len(unique_texts), chunk_size):
+                chunk = unique_texts[i:i + chunk_size]
+                try:
+                    warmed_chunk = await self.batch_translate(chunk, source_lang="en", target_lang="ur")
+                    total_warmed += len(warmed_chunk)
+                    await session.commit()
+                except Exception as chunk_err:
+                    logger.warning("Error backfilling translation chunk %d-%d: %s", i, i + len(chunk), chunk_err)
+                await asyncio.sleep(0.02)
+
+            return total_warmed
         except Exception as e:
             logger.warning("Error during translation backfill: %s", e)
             return 0

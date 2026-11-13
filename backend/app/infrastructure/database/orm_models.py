@@ -3861,3 +3861,18 @@ class TranslationCacheORM(Base):
         onupdate=func.now(),
     )
 
+
+class SchemaMetaORM(Base):
+    """Stores schema versioning, one-time data cleanup flags, and database metadata."""
+
+    __tablename__ = "schema_meta"
+
+    key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    value: Mapped[str] = mapped_column(Text, nullable=False)
+    applied_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+

@@ -46,8 +46,17 @@ def get_session_factory() -> async_sessionmaker[AsyncSession]:
 
 async def init_db() -> None:
     """Initializes the database connection pool when the application first starts up."""
-    get_engine()
+    engine = get_engine()
     factory = get_session_factory()
+
+    # Defensive check: ensure translation_cache and schema_meta exist
+    try:
+        from app.infrastructure.database.orm_models import TranslationCacheORM, SchemaMetaORM
+        async with engine.begin() as conn:
+            await conn.run_sync(TranslationCacheORM.__table__.create, checkfirst=True)
+            await conn.run_sync(SchemaMetaORM.__table__.create, checkfirst=True)
+    except Exception as e:
+        logger.warning("Defensive table initialization notice: %s", e)
 
     # Migrations are the schema source of truth. On a brand-new installation an
     # admin can be created once, but only with credentials explicitly supplied

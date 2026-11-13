@@ -35,6 +35,20 @@ async def lifespan(app: FastAPI):
     logger.info("Starting up %s in %s environment", settings.APP_NAME, settings.ENVIRONMENT)
     upload_path = Path(settings.UPLOAD_DIR).resolve()
     upload_path.mkdir(parents=True, exist_ok=True)
+
+    # Sync default seed media into upload directory if missing
+    seed_uploads = Path(__file__).resolve().parent.parent / "seed_data" / "uploads"
+    if seed_uploads.exists() and seed_uploads.is_dir():
+        import shutil
+        for seed_file in seed_uploads.iterdir():
+            if seed_file.is_file():
+                dest_file = upload_path / seed_file.name
+                if not dest_file.exists():
+                    try:
+                        shutil.copy2(seed_file, dest_file)
+                    except Exception as copy_err:
+                        logger.warning("Failed to copy seed asset %s: %s", seed_file.name, copy_err)
+
     await init_db()
 
     # Startup backfill: pre-warm translation_cache for all existing DB records

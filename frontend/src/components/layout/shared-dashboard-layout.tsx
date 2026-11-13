@@ -89,6 +89,8 @@ export function SharedDashboardLayout({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [logoError, setLogoError] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
   const shouldReduceMotion = useReducedMotion();
 
   // Hydrate persistent sidebar collapse state from localStorage
@@ -254,12 +256,13 @@ export function SharedDashboardLayout({
           >
             {/* Luminous Logo Badge with Integrated Hover Feedback */}
             <div className="relative h-11 w-11 rounded-2xl bg-white dark:bg-white/95 dark:ring-2 dark:ring-primary/40 dark:shadow-[0_0_20px_rgba(255,255,255,0.12)] border border-gray-200 dark:border-white/20 p-1 flex items-center justify-center shadow-xs overflow-hidden shrink-0 transition-transform group-hover:scale-105">
-              {logoUrl ? (
+              {logoUrl && !logoError ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={logoUrl}
                   alt={fullBrandName}
                   className="h-full w-full object-contain"
+                  onError={() => setLogoError(true)}
                 />
               ) : (
                 <span className="font-display font-bold text-lg text-primary">
@@ -377,12 +380,13 @@ export function SharedDashboardLayout({
                 }`}
             >
               <div className="h-9 w-9 shrink-0 rounded-full overflow-hidden bg-primary/10 text-primary flex items-center justify-center text-xs font-bold font-mono border border-gray-200 dark:border-gray-700 shadow-xs">
-                {user.avatarUrl ? (
+                {user.avatarUrl && !avatarError ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={resolveMediaUrl(user.avatarUrl) || undefined}
                     alt={user.fullName}
                     className="h-full w-full object-cover"
+                    onError={() => setAvatarError(true)}
                   />
                 ) : (
                   <span>{user.fullName ? user.fullName.slice(0, 2).toUpperCase() : "HD"}</span>

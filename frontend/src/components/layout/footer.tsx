@@ -27,6 +27,32 @@ const DAY_URDU_MAP: Record<string, string> = {
   "Closed": "بند ہے",
 };
 
+const ADDRESS_URDU_MAP: Record<string, string> = {
+  "Soan Garden, Block C, Islamabad": "سوان گارڈن، بلاک سی، اسلام آباد",
+  "Soan Garden, Block C": "سوان گارڈن، بلاک سی",
+  "Islamabad": "اسلام آباد",
+  "Lahore": "لاہور",
+  "Karachi": "کراچی",
+  "Rawalpindi": "راولپنڈی",
+  "Shop 8 & 9, Sukoon Heights, Lower Ground": "شاپ نمبر 8 اور 9، اسکون ہائٹس، لوئر گراؤنڈ",
+};
+
+function translateAddress(addr: string, isUrdu: boolean): string {
+  if (!isUrdu || !addr) return addr;
+  const trimmed = addr.trim();
+  if (ADDRESS_URDU_MAP[trimmed]) return ADDRESS_URDU_MAP[trimmed];
+  return addr
+    .replace(/Soan Garden/gi, "سوان گارڈن")
+    .replace(/Block C/gi, "بلاک سی")
+    .replace(/Sukoon Heights/gi, "اسکون ہائٹس")
+    .replace(/Lower Ground/gi, "لوئر گراؤنڈ")
+    .replace(/Shop\s*8\s*&\s*9/gi, "شاپ نمبر 8 اور 9")
+    .replace(/Islamabad/gi, "اسلام آباد")
+    .replace(/Lahore/gi, "لاہور")
+    .replace(/Karachi/gi, "کراچی")
+    .replace(/Rawalpindi/gi, "راولپنڈی");
+}
+
 function getSocialIcon(platform: string) {
   const p = platform.toLowerCase();
   if (p.includes("facebook")) {
@@ -154,13 +180,15 @@ export function Footer() {
     organization?.contactEmail ||
     "";
 
-  const addressLine1 =
+  const rawAddressLine1 =
     content.general?.address?.trim() ||
     content.contact?.addressLine1?.trim() ||
     primaryLocation?.addressLine1 ||
     (organization as unknown as { address?: string })?.address ||
     "";
-  const addressLine2 =
+  const addressLine1 = translateAddress(rawAddressLine1, isUrdu);
+
+  const rawAddressLine2 =
     content.contact?.addressLine2?.trim() ||
     (!content.general?.address?.trim() && primaryLocation?.city && primaryLocation?.state
       ? `${primaryLocation.city}, ${primaryLocation.state} ${
@@ -169,6 +197,7 @@ export function Footer() {
       : !content.general?.address?.trim() && primaryLocation?.city
       ? primaryLocation.city
       : "");
+  const addressLine2 = translateAddress(rawAddressLine2, isUrdu);
 
   const tagline =
     content.footer?.tagline ||
@@ -441,34 +470,38 @@ export function Footer() {
                 {phone ? (
                   <div className="flex items-center gap-2">
                     <Phone className="h-3.5 w-3.5 text-primary shrink-0" />
-                    <a
-                      href={`tel:${cleanPhone}`}
-                      className="hover:text-primary dark:hover:text-white transition-colors"
-                    >
-                      {phone}
-                    </a>
-                    <CopyButton
-                      text={phone}
-                      label={isUrdu ? "کاپی" : "Copy"}
-                      className="h-6 px-1.5 text-[10px]"
-                    />
+                    <span className="inline-flex items-center gap-2" dir="ltr">
+                      <a
+                        href={`tel:${cleanPhone}`}
+                        className="hover:text-primary dark:hover:text-white transition-colors"
+                      >
+                        {phone}
+                      </a>
+                      <CopyButton
+                        text={phone}
+                        label={isUrdu ? "کاپی" : "Copy"}
+                        className="h-6 px-1.5 text-[10px]"
+                      />
+                    </span>
                   </div>
                 ) : null}
 
                 {email ? (
                   <div className="flex items-center gap-2">
                     <Mail className="h-3.5 w-3.5 text-primary shrink-0" />
-                    <a
-                      href={`mailto:${email}`}
-                      className="hover:text-primary dark:hover:text-white transition-colors"
-                    >
-                      {email}
-                    </a>
-                    <CopyButton
-                      text={email}
-                      label={isUrdu ? "کاپی" : "Copy"}
-                      className="h-6 px-1.5 text-[10px]"
-                    />
+                    <span className="inline-flex items-center gap-2" dir="ltr">
+                      <a
+                        href={`mailto:${email}`}
+                        className="hover:text-primary dark:hover:text-white transition-colors"
+                      >
+                        {email}
+                      </a>
+                      <CopyButton
+                        text={email}
+                        label={isUrdu ? "کاپی" : "Copy"}
+                        className="h-6 px-1.5 text-[10px]"
+                      />
+                    </span>
                   </div>
                 ) : null}
               </div>

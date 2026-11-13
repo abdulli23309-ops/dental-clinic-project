@@ -6,8 +6,7 @@
  * `booking-copy.ts`. Strings that embed a runtime value are exposed as small
  * functions so the surrounding wording stays in this module.
  *
- * The public flow is English only today; the call desk wizard (`booking-copy.ts`)
- * is the localized surface.
+ * Fully localized for English ("en") and Urdu ("ur").
  */
 
 export interface ProgressiveBookingCopy {
@@ -118,11 +117,7 @@ export interface ProgressiveBookingCopy {
 }
 
 /**
- * Copy for the public progressive booking flow.
- *
- * Wording is intentionally identical to the strings that previously lived
- * inline in `ProgressiveBookingFlow` so visible text, accessible names and
- * existing end-to-end assertions stay stable.
+ * Copy for the public progressive booking flow (English).
  */
 export const progressiveBookingCopy: ProgressiveBookingCopy = {
   header: {
@@ -240,3 +235,129 @@ export const progressiveBookingCopy: ProgressiveBookingCopy = {
   },
   scheduleAt: (day: string, time: string) => `${day} at ${time}`,
 };
+
+/**
+ * Copy for the public progressive booking flow (Urdu).
+ */
+export const progressiveBookingCopyUrdu: ProgressiveBookingCopy = {
+  header: {
+    badge: "نجی اپائنٹمنٹس",
+    heading: "ڈینٹل کنسلٹیشن کا وقت طے کریں",
+    subheading: "چند آسان مراحل میں اپنی آن لائن اپائنٹمنٹ بک کریں۔",
+    stepsNavLabel: "بکنگ کے مراحل",
+    stepLabels: {
+      contact: "رابطے کی تفصیلات",
+      waterfall: "سروس و وقت کا انتخاب",
+      review: "خلاصہ اور جائزہ",
+    },
+    stepAriaLabel: (step: number, label: string) => `مرحلہ ${step}: ${label}`,
+  },
+  contact: {
+    pageLabel: "صفحہ 1 از 3 · مریض کی معلومات",
+    heading: "یہ اپائنٹمنٹ کس کے لیے ہے؟",
+    subheading:
+      "ہم یہ تفصیلات آپ کی پیشرفت محفوظ کرنے اور اپائنٹمنٹ کی تصدیق کے لیے کال کرنے کی خاطر استعمال کریں گے۔",
+    fullNameLabel: "پورا نام",
+    fullNamePlaceholder: "مثلاً ڈاکٹر عالیہ خان",
+    fullNameError: "براہ کرم اپنا پورا نام درج کریں۔",
+    phoneLabel: "موبائل فون نمبر",
+    phonePlaceholder: "+92 300 1234567",
+    phoneError: "براہ کرم ایک درست موبائل نمبر فراہم کریں۔",
+    emailLabel: "ای میل ایڈریس",
+    emailHelpText: "اختیاری",
+    emailPlaceholder: "patient@example.com",
+    emailError: "براہ کرم درست ای میل پتہ درج کریں۔",
+    forSomeoneElseLabel:
+      "میں فیملی ممبر، بچے یا کسی اور کے لیے بکنگ کر رہا/رہی ہوں",
+    dependentNameLabel: "مریض کا مکمل قانونی نام",
+    dependentNamePlaceholder: "مریض کا پورا نام درج کریں",
+    dependentNameError: "براہ کرم مریض کا مکمل قانونی نام فراہم کریں۔",
+    notesLabel: "طبی مسئلہ یا مخصوص علامات (اختیاری)",
+    notesPlaceholder:
+      "مثلاً ٹھنڈا گرم لگنا، معمول کا معائنہ، یا دانتوں کی سیدھ کا علاج...",
+    continueButton: "آگے بڑھیں",
+  },
+  waterfall: {
+    pageLabel: "صفحہ 2 از 3 · انتخاب کے مراحل",
+    heading: "علاج، کلینک برانچ اور وقت منتخب کریں",
+    subheading:
+      "ہر انتخاب اگلا مرحلہ دکھاتا ہے: مطلوبہ علاج کے کلینکس، وہاں کے معالجین اور دستیاب حقیقی اوقات۔",
+    treatmentHeading: "1. علاج / سروس",
+    cityHeading: "2. شہر",
+    clinicHeading: (hasCityStep: boolean) => (hasCityStep ? "3. کلینک برانچ" : "2. کلینک برانچ"),
+    doctorHeading: "ڈاکٹر / معالج",
+    dateTimeHeading: "تاریخ اور وقت",
+    loadingTreatments: "علاج کی تفصیلات لوڈ ہو رہی ہیں...",
+    loadingClinics: "کلینک برانچیں لوڈ ہو رہی ہیں...",
+    loadingClinicians: "معالجین لوڈ ہو رہے ہیں...",
+    errorTreatments: "علاج کی تفصیلات لوڈ نہیں ہو سکیں۔ براہ کرم دوبارہ کوشش کریں۔",
+    errorClinics: "اس علاج کی برانچیں لوڈ نہیں ہو سکیں۔ براہ کرم دوسرا علاج منتخب کریں۔",
+    errorClinicians: "اس کلینک کے ڈاکٹرز لوڈ نہیں ہو سکے۔ براہ کرم دوبارہ کوشش کریں۔",
+    retryButton: "دوبارہ کوشش کریں",
+    mainBranchBadge: "مرکزی برانچ",
+    noCliniciansAtClinic:
+      "اس منتخب علاج کے لیے اس برانچ میں فی الحال کوئی ڈاکٹر دستیاب نہیں ہے۔ براہ کرم کوئی دوسری برانچ منتخب کریں۔",
+    noOpenDays:
+      "اس علاج کے لیے معالج کے پاس فی الحال کوئی تاریخ دستیاب نہیں ہے۔ براہ کرم دوسرا معالج منتخب کریں۔",
+    clinicTelPrefix: " · فون: ",
+    patientsTreatedBadge: (count: number) => `${count} مریضوں کا علاج کیا گیا`,
+    patientsTreatedShortBadge: (count: number) => `${count} مریض`,
+    slotsCountLabel: (count: number) => `${count} دستیاب اوقات`,
+    showAllDays: (count: number) => `تمام ${count} دستیاب دن دیکھیں`,
+    backToContact: "رابطے کی تفصیلات پر واپس جائیں",
+    continueToSummary: "خلاصہ دیکھیں",
+    chooseDifferentTime: "کوئی دوسرا وقت منتخب کریں",
+    groupLabels: {
+      treatments: "علاج",
+      cities: "شہر",
+      clinics: "کلینک برانچیں",
+      clinicians: "معالجین",
+      appointmentDays: "اپائنٹمنٹ کے دن",
+    },
+  },
+  review: {
+    pageLabel: "صفحہ 3 از 3 · خلاصہ و جائزہ",
+    heading: "اپنی اپائنٹمنٹ کی تفصیلات کا جائزہ لیں",
+    subheading:
+      "درخواست بھیجنے پر ہمارا ریسیپشن عملہ حتمی وقت کی توثیق کے لیے آپ کو فون کرے گا۔",
+    patientLabel: "مریض",
+    contactLabel: "رابطہ",
+    treatmentLabel: "علاج / سروس",
+    clinicLabel: "کلینک برانچ",
+    clinicianLabel: "معالج",
+    scheduleLabel: "مقررہ وقت",
+    notesLabel: "آپ کے نوٹس:",
+    privacyNotice:
+      "آپ کی معلومات محفوظ ہیں اور صرف اس اپائنٹمنٹ کے انتظام کے لیے استعمال کی جائیں گی۔",
+    backToEdit: "انتخابات میں تبدیلی کریں",
+    confirmButton: "اپائنٹمنٹ کی درخواست بھیجیں",
+  },
+  confirmation: {
+    eyebrow: "بکنگ درخواست موصول ہو گئی",
+    heading: "ہم آپ کے خیر مقدم کے منتظر ہیں",
+    receptionWillCallPrefix:
+      "آپ کی اپائنٹمنٹ کی درخواست موصول ہو چکی ہے۔ ہمارا ریسیپشن عملہ",
+    receptionWillCallSuffix: "پر رابطہ کر کے حتمی وقت کی توثیق کرے گا۔",
+    referenceLabel: "ریفرنس کوڈ",
+    callbackWindowLabel: (window: string) => `متوقع رابطہ وقت: ${window}`,
+    patientLabel: "مریض:",
+    treatmentLabel: "علاج:",
+    clinicLabel: "کلینک:",
+    clinicianLabel: "معالج:",
+    scheduleLabel: "شیڈول:",
+    returnHomeButton: "ہوم پیج پر واپس جائیں",
+  },
+  errors: {
+    slotTaken: "یہ وقت ابھی بک ہو چکا ہے۔ یہاں قریبی دستیاب اوقات موجود ہیں۔",
+    bookingPaused: "آن لائن بکنگ عارضی طور پر موقوف ہے۔ براہ کرم براہ راست کال کریں۔",
+    submitFailed: "درخواست ارسال نہیں ہو سکی۔ براہ کرم دوبارہ کوشش کریں۔",
+  },
+  scheduleAt: (day: string, time: string) => `${day} بوقت ${time}`,
+};
+
+/**
+ * Get progressive booking copy for given locale.
+ */
+export function getProgressiveBookingCopy(locale: string = "en"): ProgressiveBookingCopy {
+  return locale === "ur" ? progressiveBookingCopyUrdu : progressiveBookingCopy;
+}

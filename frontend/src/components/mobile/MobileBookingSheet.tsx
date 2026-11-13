@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useCallback } from "react";
 import { BottomSheet } from "./BottomSheet";
 import { ProgressiveBookingFlow } from "@/components/booking/progressive-booking-flow";
+import { usePublicContent } from "@/components/providers/public-content-provider";
 
 interface BookingSheetContextType {
   isOpen: boolean;
@@ -22,6 +23,8 @@ export function useMobileBooking() {
 }
 
 export function MobileBookingProvider({ children }: { children: React.ReactNode }) {
+  const { locale } = usePublicContent();
+  const isUrdu = locale === "ur";
   const [isOpen, setIsOpen] = useState(false);
   const [initialParams, setInitialParams] = useState<{
     serviceId?: string;
@@ -49,8 +52,8 @@ export function MobileBookingProvider({ children }: { children: React.ReactNode 
       <BottomSheet
         isOpen={isOpen}
         onClose={closeBooking}
-        title="Book Appointment"
-        subtitle="Schedule your specialist clinical consultation"
+        title={isUrdu ? "ملاقات کا وقت بک کریں" : "Book Appointment"}
+        subtitle={isUrdu ? "ماہر معالج کے ساتھ مشاورت کا وقت طے کریں" : "Schedule your specialist clinical consultation"}
       >
         <div className="py-2 px-1 max-h-[75dvh] overflow-y-auto no-scrollbar">
           <ProgressiveBookingFlow

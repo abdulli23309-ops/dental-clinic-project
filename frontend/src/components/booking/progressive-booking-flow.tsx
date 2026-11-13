@@ -7,10 +7,12 @@ import { fadeUp, staggerContainer } from "@/animations/variants";
 import {
   AlertCircle,
   ArrowLeft,
+  ArrowRight,
   Building2,
   Calendar,
   Check,
   CheckCircle2,
+  ChevronLeft,
   ChevronRight,
   Clock,
   Lock,
@@ -25,7 +27,7 @@ import { TextField } from "@/components/ui/text-field";
 import { Card } from "@/components/ui/card";
 import { BookingPausedBanner } from "@/components/booking/booking-paused-banner";
 import { usePublicContent } from "@/components/providers/public-content-provider";
-import { progressiveBookingCopy } from "@/content/progressive-booking-copy";
+import { getProgressiveBookingCopy } from "@/content/progressive-booking-copy";
 import { validateContactDetails } from "@/lib/booking-flow-logic";
 import { formatPrice } from "@/lib/currency";
 import { getStoredUtmParams } from "@/lib/utm";
@@ -35,6 +37,7 @@ import {
   PublicBookingDoctorItem,
   PublicBookingServiceItem,
   PublicBookingStatus,
+  batchTranslate,
   fetchPublicBookingSettings,
   fetchPublicBookingStatus,
   getPublicBookingClinics,
@@ -48,8 +51,138 @@ import {
 
 const LEAD_TOKEN_STORAGE_KEY = "mb_booking_lead_token";
 
+const STATIC_CLINICAL_MAP: Record<string, string> = {
+  "Cleanings & Comprehensive Exam": "دانتوں کی صفائی اور جامع معائنہ",
+  "Complete oral health evaluation and ultrasonic scaling.": "مکمل دانتوں کا معائنہ اور جدید الٹراسونک اسکیلنگ۔",
+  "Root Canal Therapy": "روٹ کینال تھراپی",
+  "Gentle, microscopic endodontic treatment to save natural teeth.": "قدرتی دانت کو بچانے کے لیے جدید روٹ کینال علاج۔",
+  "Professional Teeth Whitening": "پیشہ ورانہ دانتوں کی سفیدی",
+  "In-office laser whitening for immediate brightness.": "فوری چمک کے لیے جدید لیزر وائٹننگ۔",
+  "Dental Implants": "ڈینٹل امپلانٹس",
+  "Permanent tooth replacement with premium biocompatible titanium.": "اعلیٰ معیار کے بائیوکمپیٹیبل ٹائٹینیم سے مستقل دانت لگانا۔",
+  "Porcelain Veneers": "پورسلین وینیرز",
+  "Custom porcelain facings for a flawless, natural aesthetic.": "خوبصورت اور قدرتی مسکراہٹ کے لیے کسٹم پورسلین وینیرز۔",
+  "Emergency Dental Care": "ہنگامی ڈینٹل کیئر",
+  "Rapid pain relief, trauma management, and urgent tooth repairs.": "فوری درد سے نجات، چوٹ کا علاج اور ہنگامی دیکھ بھال۔",
+  "Invisalign Clear Aligners": "انویزلائن کلیئر الائنرز",
+  "Invisalign": "انویزلائن",
+  "Clear Aligners": "کلیئر الائنرز",
+  "Tooth Extraction": "دانت نکالنا",
+  "Crowns & Bridges": "کراؤنز اور برجز",
+  "Dental Fillings": "دانتوں کی فلنگ",
+  "Pediatric Dentistry": "بچوں کے دانتوں کا علاج",
+  "Orthodontic Consultation": "آرتھوڈانٹک معائنہ و مشاورت",
+};
+
+const CATEGORY_URDU: Record<string, string> = {
+  General: "عمومی ڈینٹسٹری",
+  "General Dentistry": "عمومی ڈینٹسٹری",
+  Preventive: "احتیاطی دیکھ بھال",
+  Cosmetic: "کاسمیٹک ڈینٹسٹری",
+  "Cosmetic Dentistry": "کاسمیٹک ڈینٹسٹری",
+  Restorative: "بحالی دندان",
+  "Restorative Care": "بحالی دندان",
+  Orthodontics: "آرتھوڈانٹکس",
+  Endodontics: "روٹ کینال / اینڈوڈانٹکس",
+  Emergency: "ہنگامی علاج",
+  "Oral Surgery": "اورل سرجری",
+  Pediatric: "بچوں کا علاج",
+};
+
+const DOCTOR_NAME_MAP: Record<string, string> = {
+  "Dr. Hira Saleem": "ڈاکٹر حرا سلیم",
+  "Dr. Malaika Saleem": "ڈاکٹر ملائکہ سلیم",
+  "Dr. Yaser Rasheed": "ڈاکٹر یاسر رشید",
+  "Dr. Hira Saleem, BDS": "ڈاکٹر حرا سلیم (BDS)",
+  "Dr. Malaika Saleem, BDS": "ڈاکٹر ملائکہ سلیم (BDS)",
+  "Dr. Yaser Rasheed, BDS": "ڈاکٹر یاسر رشید (BDS)",
+  "Hira Saleem": "حرا سلیم",
+  "Malaika Saleem": "ملائکہ سلیم",
+  "Yaser Rasheed": "یاسر رشید",
+};
+
+const DOCTOR_TITLE_MAP: Record<string, string> = {
+  "Founder & Lead Dentist": "بانی اور چیف ڈینٹسٹ",
+  "Lead Dentist": "چیف ڈینٹسٹ",
+  "Associate Dental Surgeon": "ایسوسی ایٹ ڈینٹل سرجن",
+  "Consultant Orthodontist": "کنسلٹنٹ آرتھوڈانٹسٹ",
+  "Dental Surgeon": "ڈینٹل سرجن",
+  "Dentist": "ڈینٹسٹ",
+  "General Dentist": "جنرل ڈینٹسٹ",
+  "Specialist": "ماہر معالج",
+  "Clinician": "معالج",
+};
+
+const CITY_URDU_DISPLAY: Record<string, string> = {
+  Islamabad: "اسلام آباد",
+  Lahore: "لاہور",
+  Karachi: "کراچی",
+  Rawalpindi: "راولپنڈی",
+};
+
+const CLINIC_NAME_MAP: Record<string, string> = {
+  "DHDC Islamabad Central Flagship": "ڈی ایچ ڈی سی اسلام آباد سینٹرل فلیگ شپ",
+  "DHDC Islamabad - Central Flagship": "ڈی ایچ ڈی سی اسلام آباد سینٹرل فلیگ شپ",
+  "DHDC Islamabad – Central Flagship": "ڈی ایچ ڈی سی اسلام آباد سینٹرل فلیگ شپ",
+  "DHDC Islamabad - F-7 Markaz": "ڈی ایچ ڈی سی اسلام آباد – ایف-7 مرکز",
+  "DHDC Islamabad – F-7 Markaz": "ڈی ایچ ڈی سی اسلام آباد – ایف-7 مرکز",
+  "DHDC Lahore - Gulberg": "ڈی ایچ ڈی سی لاہور – گلبرگ",
+  "DHDC Lahore – Gulberg": "ڈی ایچ ڈی سی لاہور – گلبرگ",
+  "DHDC Karachi - Clifton": "ڈی ایچ ڈی سی کراچی – کلفٹن",
+  "DHDC Karachi – Clifton": "ڈی ایچ ڈی سی کراچی – کلفٹن",
+  "DHDC Downtown Studio": "ڈی ایچ ڈی سی ڈاؤن ٹاؤن اسٹوڈیو",
+  "DHDC Main Clinic": "ڈی ایچ ڈی سی مین کلینک",
+};
+
+const URDU_WEEKDAYS = ["اتوار", "پیر", "منگل", "بدھ", "جمعرات", "جمعہ", "ہفتہ"];
+const URDU_MONTHS = [
+  "جنوری",
+  "فروری",
+  "مارچ",
+  "اپریل",
+  "مئی",
+  "جون",
+  "جولائی",
+  "اگست",
+  "ستمبر",
+  "اکتوبر",
+  "نومبر",
+  "دسمبر",
+];
+
+function formatDuration(duration: string | number | undefined, isUrdu: boolean) {
+  if (!duration) return isUrdu ? "45 منٹ" : "45 min";
+  const s = String(duration).trim();
+  if (isUrdu) {
+    return s
+      .replace(/(\d+)\s*to\s*(\d+)\s*months?/gi, "$1 سے $2 ماہ")
+      .replace(/(\d+)\s*months?/gi, "$1 ماہ")
+      .replace(/(\d+)\s*to\s*(\d+)\s*(?:mins?|minutes?)/gi, "$1 سے $2 منٹ")
+      .replace(/(\d+)\s*(?:mins?|minutes?)/gi, "$1 منٹ")
+      .replace(/\bto\b/gi, "سے")
+      .replace(/\bmonths?\b/gi, "ماہ")
+      .replace(/\b(?:mins?|minutes?)\b/gi, "منٹ");
+  }
+  return s;
+}
+
+function formatScheduleText(schedule: string | undefined, isUrdu: boolean): string {
+  if (!schedule) return isUrdu ? "پیر تا ہفتہ دستیاب" : "Available Mon-Fri";
+  if (!isUrdu) return `Available ${schedule}`;
+  return (
+    schedule
+      .replace(/Mon\s*-\s*Fri/gi, "پیر تا جمعہ")
+      .replace(/Mon\s*-\s*Sat/gi, "پیر تا ہفتہ")
+      .replace(/Monday\s*to\s*Saturday/gi, "پیر تا ہفتہ")
+      .replace(/Monday\s*to\s*Friday/gi, "پیر تا جمعہ")
+      .replace(/Sunday/gi, "اتوار")
+      .replace(/Available\s*/gi, "")
+      .trim() + " دستیاب"
+  );
+}
+
 function getDoctorInitials(displayName: string): string {
-  const clean = displayName.replace(/^(Dr\.|Doctor)\s+/i, "").trim();
+  const clean = displayName.replace(/^(Dr\.|Doctor|ڈاکٹر)\s+/i, "").trim();
   const parts = clean.split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "MD";
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
@@ -76,9 +209,15 @@ function parseLocalDate(isoDate: string): Date | null {
   return new Date(parts[0], parts[1] - 1, parts[2]);
 }
 
-function formatDayLabel(isoDate: string): string {
+function formatDayLabel(isoDate: string, isUrdu: boolean = false): string {
   const date = parseLocalDate(isoDate);
   if (!date) return isoDate;
+  if (isUrdu) {
+    const dayName = URDU_WEEKDAYS[date.getDay()];
+    const monthName = URDU_MONTHS[date.getMonth()];
+    const dayNumber = date.getDate();
+    return `${dayName}، ${dayNumber} ${monthName}`;
+  }
   return date.toLocaleDateString("en-US", {
     weekday: "short",
     month: "short",
@@ -104,12 +243,126 @@ export function ProgressiveBookingFlow({
   initialClinicId,
   initialDoctorId,
 }: ProgressiveBookingFlowProps = {}) {
-  const { content, currency } = usePublicContent();
+  const { content, currency, locale } = usePublicContent();
+  const isUrdu = locale === "ur";
+  const copy = useMemo(() => getProgressiveBookingCopy(locale), [locale]);
+
   const fallbackPhone = content.general?.phone || "";
   const shouldReduceMotion = useReducedMotion();
   const transitionSettings: Transition = shouldReduceMotion
     ? { duration: 0 }
     : { duration: 0.35, ease: [0.16, 1, 0.3, 1] };
+
+  // Dynamic async translations cache (for new custom admin data)
+  const [translations, setTranslations] = useState<Record<string, string>>({});
+
+  const translateStrings = useCallback(
+    async (strings: string[]) => {
+      if (!isUrdu) return;
+      const missing = strings.filter(
+        (s) =>
+          Boolean(s) &&
+          !translations[s] &&
+          !STATIC_CLINICAL_MAP[s] &&
+          !DOCTOR_NAME_MAP[s] &&
+          !CLINIC_NAME_MAP[s] &&
+          !CITY_URDU_DISPLAY[s]
+      );
+      if (missing.length === 0) return;
+      try {
+        const res = await batchTranslate(missing, "ur");
+        if (res && Object.keys(res).length > 0) {
+          setTranslations((prev) => ({ ...prev, ...res }));
+        }
+      } catch {
+        // Soft fallback
+      }
+    },
+    [isUrdu, translations]
+  );
+
+  // Translation helpers
+  const getServiceTitle = useCallback(
+    (s: PublicBookingServiceItem | null) => {
+      if (!s) return "";
+      if (!isUrdu) return s.title;
+      return translations[s.title] || STATIC_CLINICAL_MAP[s.title] || s.title;
+    },
+    [isUrdu, translations]
+  );
+
+  const getServiceCategory = useCallback(
+    (cat?: string) => {
+      if (!cat) return "";
+      if (!isUrdu) return cat;
+      return CATEGORY_URDU[cat] || translations[cat] || STATIC_CLINICAL_MAP[cat] || cat;
+    },
+    [isUrdu, translations]
+  );
+
+  const getServiceDesc = useCallback(
+    (s: PublicBookingServiceItem | null) => {
+      if (!s || !s.shortDesc) return "";
+      if (!isUrdu) return s.shortDesc;
+      return translations[s.shortDesc] || STATIC_CLINICAL_MAP[s.shortDesc] || s.shortDesc;
+    },
+    [isUrdu, translations]
+  );
+
+  const getClinicName = useCallback(
+    (c: PublicBookingClinicItem | null) => {
+      if (!c) return "";
+      if (!isUrdu) return c.name;
+      return translations[c.name] || CLINIC_NAME_MAP[c.name] || c.name;
+    },
+    [isUrdu, translations]
+  );
+
+  const getCityName = useCallback(
+    (cityName: string) => {
+      if (!isUrdu) return cityName;
+      return CITY_URDU_DISPLAY[cityName] || translations[cityName] || cityName;
+    },
+    [isUrdu, translations]
+  );
+
+  const getDoctorName = useCallback(
+    (d: PublicBookingDoctorItem | null) => {
+      if (!d) return "";
+      if (!isUrdu) return d.displayName;
+      return translations[d.displayName] || DOCTOR_NAME_MAP[d.displayName] || d.displayName;
+    },
+    [isUrdu, translations]
+  );
+
+  const getDoctorRole = useCallback(
+    (role?: string) => {
+      if (!role) return isUrdu ? "ڈینٹسٹ" : "Dentist";
+      if (!isUrdu) return role;
+      return DOCTOR_TITLE_MAP[role] || translations[role] || STATIC_CLINICAL_MAP[role] || role;
+    },
+    [isUrdu, translations]
+  );
+
+  const getDoctorSpecialties = useCallback(
+    (d: PublicBookingDoctorItem | null) => {
+      if (!d) return "";
+      if (Array.isArray(d.specialties) && d.specialties.length > 0) {
+        if (!isUrdu) return d.specialties.join(", ");
+        return d.specialties
+          .map(
+            (spec) =>
+              translations[spec] ||
+              STATIC_CLINICAL_MAP[spec] ||
+              CATEGORY_URDU[spec] ||
+              spec
+          )
+          .join("، ");
+      }
+      return getDoctorRole(d.role);
+    },
+    [isUrdu, translations, getDoctorRole]
+  );
 
   // Navigation: 1 (Contact) -> 2 (Booking Waterfall) -> 3 (Summary & Confirm)
   const [currentPage, setCurrentPage] = useState<1 | 2 | 3>(1);
@@ -196,14 +449,17 @@ export function ProgressiveBookingFlow({
         .then((items) => {
           setServices(items);
           setServicesError(null);
+          // Pre-translate service titles/descriptions
+          const toTranslate = items.flatMap((it) => [it.title, it.shortDesc, it.category].filter(Boolean));
+          translateStrings(toTranslate);
         })
         .catch(() => {
           setServices([]);
-          setServicesError(progressiveBookingCopy.waterfall.errorTreatments);
+          setServicesError(copy.waterfall.errorTreatments);
         })
         .finally(() => setServicesLoading(false));
     });
-  }, []);
+  }, [copy.waterfall.errorTreatments, translateStrings]);
 
   // 2. Clinics offering the selected service (each clinic filtered by clinic_services)
   useEffect(() => {
@@ -218,11 +474,13 @@ export function ProgressiveBookingFlow({
         if (cancelled) return;
         setClinics(items);
         setClinicsError(null);
+        const toTranslate = items.flatMap((c) => [c.name, c.city].filter(Boolean));
+        translateStrings(toTranslate);
       })
       .catch(() => {
         if (cancelled) return;
         setClinics([]);
-        setClinicsError(progressiveBookingCopy.waterfall.errorClinics);
+        setClinicsError(copy.waterfall.errorClinics);
       })
       .finally(() => {
         if (!cancelled) setClinicsLoading(false);
@@ -230,7 +488,7 @@ export function ProgressiveBookingFlow({
     return () => {
       cancelled = true;
     };
-  }, [selectedServiceId]);
+  }, [selectedServiceId, copy.waterfall.errorClinics, translateStrings]);
 
   // 3. Doctors (with real slot calendars) for the selected service + clinic
   useEffect(() => {
@@ -245,6 +503,17 @@ export function ProgressiveBookingFlow({
         if (cancelled) return;
         setDoctors(items);
         setDoctorsError(null);
+        const toTranslate = items.flatMap((d) =>
+          [
+            d.displayName,
+            d.role,
+            d.biography,
+            d.bio,
+            ...(Array.isArray(d.specialties) ? d.specialties : []),
+          ].filter(Boolean) as string[]
+        );
+        translateStrings(toTranslate);
+
         if (items.length === 1) {
           // Single clinician at this branch: auto-select and show the intro card
           setSelectedDoctorId(items[0].id);
@@ -258,7 +527,7 @@ export function ProgressiveBookingFlow({
       .catch(() => {
         if (cancelled) return;
         setDoctors([]);
-        setDoctorsError(progressiveBookingCopy.waterfall.errorClinicians);
+        setDoctorsError(copy.waterfall.errorClinicians);
       })
       .finally(() => {
         if (!cancelled) setDoctorsLoading(false);
@@ -266,7 +535,7 @@ export function ProgressiveBookingFlow({
     return () => {
       cancelled = true;
     };
-  }, [selectedServiceId, selectedClinicId]);
+  }, [selectedServiceId, selectedClinicId, copy.waterfall.errorClinicians, translateStrings]);
 
   // --------------------------------------------------------------------------
   // DERIVED DATA
@@ -298,10 +567,6 @@ export function ProgressiveBookingFlow({
   }, [selectedDoctor]);
 
   const visibleDays = showAllDays ? openDays : openDays.slice(0, daysShownLimit);
-  const activeDaySlots =
-    selectedDate && selectedDoctor?.slotsByDate
-      ? selectedDoctor.slotsByDate[selectedDate] || []
-      : [];
 
   const canContinueToSummary = Boolean(
     selectedService && selectedClinic && selectedDoctor && selectedDate && selectedTime
@@ -379,11 +644,11 @@ export function ProgressiveBookingFlow({
   const validatePage1 = (): boolean => {
     const validation = validateContactDetails(contact.fullName, contact.phone, contact.email);
     const errors: Record<string, string> = {};
-    if (validation.nameError) errors.fullName = progressiveBookingCopy.contact.fullNameError;
-    if (validation.phoneError) errors.phone = progressiveBookingCopy.contact.phoneError;
-    if (validation.emailError) errors.email = progressiveBookingCopy.contact.emailError;
+    if (validation.nameError) errors.fullName = copy.contact.fullNameError;
+    if (validation.phoneError) errors.phone = copy.contact.phoneError;
+    if (validation.emailError) errors.email = copy.contact.emailError;
     if (contact.isForSomeoneElse && !contact.dependentName.trim()) {
-      errors.dependentName = progressiveBookingCopy.contact.dependentNameError;
+      errors.dependentName = copy.contact.dependentNameError;
     }
     setContactErrors(errors);
     return Object.keys(errors).length === 0;
@@ -446,7 +711,7 @@ export function ProgressiveBookingFlow({
       const latest = await fetchPublicBookingStatus();
       if (latest.mode !== "open") {
         setBookingStatus(latest);
-        setSubmitError(latest.message || progressiveBookingCopy.errors.bookingPaused);
+        setSubmitError(latest.message || copy.errors.bookingPaused);
         setIsSubmitting(false);
         return;
       }
@@ -495,10 +760,10 @@ export function ProgressiveBookingFlow({
         message.includes("no longer available")
       ) {
         setSlotConflict(true);
-        setSubmitError(progressiveBookingCopy.errors.slotTaken);
+        setSubmitError(copy.errors.slotTaken);
         setCurrentPage(2);
       } else {
-        setSubmitError(message || progressiveBookingCopy.errors.submitFailed);
+        setSubmitError(message || copy.errors.submitFailed);
       }
     } finally {
       setIsSubmitting(false);
@@ -514,7 +779,11 @@ export function ProgressiveBookingFlow({
       : contact.fullName.trim();
 
   return (
-    <div data-testid="progressive-booking-flow" className="w-full max-w-4xl mx-auto">
+    <div
+      data-testid="progressive-booking-flow"
+      dir={isUrdu ? "rtl" : "ltr"}
+      className="w-full max-w-4xl mx-auto"
+    >
       <BookingPausedBanner status={bookingStatus} fallbackPhone={fallbackPhone} />
 
       {/* -------------------------------------------------------------------- */}
@@ -528,71 +797,74 @@ export function ProgressiveBookingFlow({
 
           <div className="space-y-2">
             <span className="text-xs font-mono font-semibold uppercase tracking-wider text-primary">
-              {progressiveBookingCopy.confirmation.eyebrow}
+              {copy.confirmation.eyebrow}
             </span>
             <h2 className="font-display text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white">
-              {progressiveBookingCopy.confirmation.heading}
+              {copy.confirmation.heading}
             </h2>
             <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto">
-              {progressiveBookingCopy.confirmation.receptionWillCallPrefix}{" "}
-              <span className="font-semibold text-gray-900 dark:text-white">{contact.phone}</span>{" "}
-              {progressiveBookingCopy.confirmation.receptionWillCallSuffix}
+              {copy.confirmation.receptionWillCallPrefix}{" "}
+              <span dir="ltr" className="font-semibold text-gray-900 dark:text-white">
+                {contact.phone}
+              </span>{" "}
+              {copy.confirmation.receptionWillCallSuffix}
             </p>
           </div>
 
           <div className="max-w-md mx-auto p-4 rounded-2xl bg-gray-50 dark:bg-gray-950/70 border border-gray-200 dark:border-gray-800 space-y-1">
             <span className="text-[11px] text-gray-400 uppercase tracking-widest font-mono font-medium">
-              {progressiveBookingCopy.confirmation.referenceLabel}
+              {copy.confirmation.referenceLabel}
             </span>
             <p
               data-testid="booking-confirmation-code"
+              dir="ltr"
               className="font-mono text-xl font-bold tracking-wider text-primary"
             >
               {submittedData.confirmationId}
             </p>
             {submittedData.callbackWindow && (
               <p className="text-[11px] text-gray-500 dark:text-gray-400 pt-1">
-                {progressiveBookingCopy.confirmation.callbackWindowLabel(submittedData.callbackWindow)}
+                {copy.confirmation.callbackWindowLabel(submittedData.callbackWindow)}
               </p>
             )}
           </div>
 
-          <div className="max-w-md mx-auto text-left text-xs bg-gray-50 dark:bg-gray-950/50 rounded-2xl p-5 border border-gray-100 dark:border-gray-800 space-y-2">
+          <div className="max-w-md mx-auto text-start text-xs bg-gray-50 dark:bg-gray-950/50 rounded-2xl p-5 border border-gray-100 dark:border-gray-800 space-y-2">
             <div className="flex justify-between py-1 border-b border-gray-200/50 dark:border-gray-800">
-              <span className="text-gray-400">{progressiveBookingCopy.confirmation.patientLabel}</span>
+              <span className="text-gray-400">{copy.confirmation.patientLabel}</span>
               <span className="font-semibold text-gray-900 dark:text-white">
                 {finalPatientName}
               </span>
             </div>
             <div className="flex justify-between py-1 border-b border-gray-200/50 dark:border-gray-800">
-              <span className="text-gray-400">{progressiveBookingCopy.confirmation.treatmentLabel}</span>
+              <span className="text-gray-400">{copy.confirmation.treatmentLabel}</span>
               <span className="font-semibold text-gray-900 dark:text-white">
-                {selectedService?.title || ""}
+                {getServiceTitle(selectedService)}
               </span>
             </div>
             <div className="flex justify-between py-1 border-b border-gray-200/50 dark:border-gray-800">
-              <span className="text-gray-400">{progressiveBookingCopy.confirmation.clinicLabel}</span>
+              <span className="text-gray-400">{copy.confirmation.clinicLabel}</span>
               <span className="font-semibold text-gray-900 dark:text-white">
-                {selectedClinic?.name || ""}
+                {getClinicName(selectedClinic)}
               </span>
             </div>
             <div className="flex justify-between py-1 border-b border-gray-200/50 dark:border-gray-800">
-              <span className="text-gray-400">{progressiveBookingCopy.confirmation.clinicianLabel}</span>
+              <span className="text-gray-400">{copy.confirmation.clinicianLabel}</span>
               <span className="font-semibold text-gray-900 dark:text-white">
-                {selectedDoctor?.displayName || ""}
+                {getDoctorName(selectedDoctor)}
               </span>
             </div>
             <div className="flex justify-between py-1">
-              <span className="text-gray-400">{progressiveBookingCopy.confirmation.scheduleLabel}</span>
+              <span className="text-gray-400">{copy.confirmation.scheduleLabel}</span>
               <span className="font-semibold text-primary">
-                {progressiveBookingCopy.scheduleAt(formatDayLabel(selectedDate), selectedTime)}
+                {copy.scheduleAt(formatDayLabel(selectedDate, isUrdu), selectedTime)}
               </span>
             </div>
           </div>
 
           <div className="pt-2">
             <Button href="/" variant="secondary">
-              {progressiveBookingCopy.confirmation.returnHomeButton}
+              {copy.confirmation.returnHomeButton}
             </Button>
           </div>
         </Card>
@@ -602,30 +874,31 @@ export function ProgressiveBookingFlow({
           <header className="mb-10 text-center space-y-3">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-[11px] font-semibold tracking-wider text-primary uppercase">
               <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-              <span>{progressiveBookingCopy.header.badge}</span>
+              <span>{copy.header.badge}</span>
             </div>
 
             <h1 className="font-display text-2xl sm:text-3xl md:text-4xl font-semibold text-gray-900 dark:text-white tracking-tight">
-              {progressiveBookingCopy.header.heading}
+              {copy.header.heading}
             </h1>
             <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 max-w-lg mx-auto leading-relaxed">
-              {progressiveBookingCopy.header.subheading}
+              {copy.header.subheading}
             </p>
 
             {/* 3-Step Pill Progress Bar */}
-            <nav aria-label={progressiveBookingCopy.header.stepsNavLabel} className="pt-4 max-w-md mx-auto">
+            <nav aria-label={copy.header.stepsNavLabel} className="pt-4 max-w-md mx-auto">
               <div className="flex items-center justify-between relative">
                 <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-gray-200 dark:bg-gray-800 -translate-y-1/2 z-0" />
                 <div
-                  className="absolute top-1/2 left-0 h-0.5 bg-primary transition-all duration-500 -translate-y-1/2 z-0"
+                  className="absolute top-1/2 h-0.5 bg-primary transition-all duration-500 -translate-y-1/2 z-0"
                   style={{
+                    ...(isUrdu ? { right: 0 } : { left: 0 }),
                     width: currentPage === 1 ? "0%" : currentPage === 2 ? "50%" : "100%",
                   }}
                 />
                 {[
-                  { step: 1, label: progressiveBookingCopy.header.stepLabels.contact },
-                  { step: 2, label: progressiveBookingCopy.header.stepLabels.waterfall },
-                  { step: 3, label: progressiveBookingCopy.header.stepLabels.review },
+                  { step: 1, label: copy.header.stepLabels.contact },
+                  { step: 2, label: copy.header.stepLabels.waterfall },
+                  { step: 3, label: copy.header.stepLabels.review },
                 ].map(({ step, label }) => {
                   const isPast = currentPage > step;
                   const isCurrent = currentPage === step;
@@ -637,7 +910,7 @@ export function ProgressiveBookingFlow({
                         onClick={() => {
                           if (step < currentPage) setCurrentPage(step as 1 | 2 | 3);
                         }}
-                        aria-label={progressiveBookingCopy.header.stepAriaLabel(step, label)}
+                        aria-label={copy.header.stepAriaLabel(step, label)}
                         className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-300 cursor-pointer ${
                           isPast
                             ? "bg-primary text-white shadow-sm ring-4 ring-primary/20"
@@ -679,23 +952,23 @@ export function ProgressiveBookingFlow({
                 <Card shadow="card" className="p-6 sm:p-8 md:p-10 space-y-8" animate={false}>
                   <div className="space-y-1 pb-4 border-b border-gray-100 dark:border-gray-800">
                     <span className="text-xs font-mono font-semibold uppercase tracking-wider text-primary">
-                      {progressiveBookingCopy.contact.pageLabel}
+                      {copy.contact.pageLabel}
                     </span>
                     <h2 className="font-display text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">
-                      {progressiveBookingCopy.contact.heading}
+                      {copy.contact.heading}
                     </h2>
                     <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                      {progressiveBookingCopy.contact.subheading}
+                      {copy.contact.subheading}
                     </p>
                   </div>
 
                   <form onSubmit={handlePage1Submit} className="space-y-6" noValidate>
                     <TextField
                       id="contact-name"
-                      label={progressiveBookingCopy.contact.fullNameLabel}
+                      label={copy.contact.fullNameLabel}
                       required
                       autoComplete="name"
-                      placeholder={progressiveBookingCopy.contact.fullNamePlaceholder}
+                      placeholder={copy.contact.fullNamePlaceholder}
                       value={contact.fullName}
                       error={contactErrors.fullName}
                       onChange={(e) => {
@@ -709,11 +982,13 @@ export function ProgressiveBookingFlow({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                       <TextField
                         id="contact-phone"
-                        label={progressiveBookingCopy.contact.phoneLabel}
+                        label={copy.contact.phoneLabel}
                         type="tel"
+                        dir="ltr"
+                        className={isUrdu ? "text-right sm:text-left" : ""}
                         required
                         autoComplete="tel"
-                        placeholder={progressiveBookingCopy.contact.phonePlaceholder}
+                        placeholder={copy.contact.phonePlaceholder}
                         value={contact.phone}
                         error={contactErrors.phone}
                         onChange={(e) => {
@@ -725,11 +1000,13 @@ export function ProgressiveBookingFlow({
                       />
                       <TextField
                         id="contact-email"
-                        label={progressiveBookingCopy.contact.emailLabel}
+                        label={copy.contact.emailLabel}
                         type="email"
+                        dir="ltr"
+                        className={isUrdu ? "text-right sm:text-left" : ""}
                         autoComplete="email"
-                        helpText={progressiveBookingCopy.contact.emailHelpText}
-                        placeholder={progressiveBookingCopy.contact.emailPlaceholder}
+                        helpText={copy.contact.emailHelpText}
+                        placeholder={copy.contact.emailPlaceholder}
                         value={contact.email}
                         error={contactErrors.email}
                         onChange={(e) => {
@@ -754,17 +1031,17 @@ export function ProgressiveBookingFlow({
                           className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
                         />
                         <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 font-medium">
-                          {progressiveBookingCopy.contact.forSomeoneElseLabel}
+                          {copy.contact.forSomeoneElseLabel}
                         </span>
                       </label>
 
                       {contact.isForSomeoneElse && (
-                        <div className="mt-3 pl-7">
+                        <div className={`mt-3 ${isUrdu ? "pr-7" : "pl-7"}`}>
                           <TextField
                             id="patient-other-name"
-                            label={progressiveBookingCopy.contact.dependentNameLabel}
+                            label={copy.contact.dependentNameLabel}
                             required
-                            placeholder={progressiveBookingCopy.contact.dependentNamePlaceholder}
+                            placeholder={copy.contact.dependentNamePlaceholder}
                             value={contact.dependentName}
                             error={contactErrors.dependentName}
                             onChange={(e) => {
@@ -780,10 +1057,10 @@ export function ProgressiveBookingFlow({
 
                     <TextField
                       id="visit-notes"
-                      label={progressiveBookingCopy.contact.notesLabel}
+                      label={copy.contact.notesLabel}
                       multiline
                       rows={2}
-                      placeholder={progressiveBookingCopy.contact.notesPlaceholder}
+                      placeholder={copy.contact.notesPlaceholder}
                       value={contact.visitReason}
                       onChange={(e) => setContact({ ...contact, visitReason: e.target.value })}
                     />
@@ -794,15 +1071,20 @@ export function ProgressiveBookingFlow({
                           {captureNotice}
                         </p>
                       )}
-                      <div className="sm:ml-auto flex justify-end">
+                      <div className={isUrdu ? "sm:mr-auto flex justify-start" : "sm:ml-auto flex justify-end"}>
                         <Button
                           type="submit"
                           size="lg"
                           isLoading={isLeadCapturing}
                           data-testid="contact-continue-btn"
+                          className="gap-2"
                         >
-                          <span>{progressiveBookingCopy.contact.continueButton}</span>
-                          <ChevronRight className="h-4 w-4" />
+                          <span>{copy.contact.continueButton}</span>
+                          {isUrdu ? (
+                            <ChevronLeft className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
                         </Button>
                       </div>
                     </div>
@@ -828,16 +1110,16 @@ export function ProgressiveBookingFlow({
                 <Card shadow="card" className="p-6 sm:p-8 space-y-6" animate={false}>
                   <div className="space-y-1">
                     <span className="text-xs font-mono font-semibold uppercase tracking-wider text-primary">
-                      {progressiveBookingCopy.waterfall.pageLabel}
+                      {copy.waterfall.pageLabel}
                     </span>
                     <h2
                       data-testid="waterfall-heading"
                       className="font-display text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white"
                     >
-                      {progressiveBookingCopy.waterfall.heading}
+                      {copy.waterfall.heading}
                     </h2>
                     <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                      {progressiveBookingCopy.waterfall.subheading}
+                      {copy.waterfall.subheading}
                     </p>
                   </div>
 
@@ -847,7 +1129,7 @@ export function ProgressiveBookingFlow({
                       id="step-2a-heading"
                       className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400"
                     >
-                      {progressiveBookingCopy.waterfall.treatmentHeading}
+                      {copy.waterfall.treatmentHeading}
                     </h3>
 
                     {/* Loading State Skeleton */}
@@ -856,7 +1138,7 @@ export function ProgressiveBookingFlow({
                         data-testid="services-loading"
                         className="grid grid-cols-1 md:grid-cols-2 gap-4"
                         aria-busy="true"
-                        aria-label={progressiveBookingCopy.waterfall.loadingTreatments}
+                        aria-label={copy.waterfall.loadingTreatments}
                       >
                         {[1, 2, 3, 4].map((i) => (
                           <div
@@ -905,11 +1187,11 @@ export function ProgressiveBookingFlow({
                                 setServices(items);
                                 setServicesError(null);
                               })
-                              .catch(() => setServicesError(progressiveBookingCopy.waterfall.errorTreatments))
+                              .catch(() => setServicesError(copy.waterfall.errorTreatments))
                               .finally(() => setServicesLoading(false));
                           }}
                         >
-                          {progressiveBookingCopy.waterfall.retryButton}
+                          {copy.waterfall.retryButton}
                         </Button>
                       </div>
                     )}
@@ -923,10 +1205,14 @@ export function ProgressiveBookingFlow({
                         <AlertCircle className="h-6 w-6 text-amber-600 dark:text-amber-400 mx-auto" />
                         <div>
                           <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
-                            No Online Treatments Currently Available
+                            {isUrdu
+                              ? "فی الوقت آن لائن علاج دستیاب نہیں ہیں"
+                              : "No Online Treatments Currently Available"}
                           </h4>
                           <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 max-w-md mx-auto">
-                            Online scheduling is temporarily updating our procedure catalog. Please check back shortly or call our reception desk directly for immediate assistance.
+                            {isUrdu
+                              ? "آن لائن شیڈولنگ کیٹلاگ کو اپ ڈیٹ کیا جا رہا ہے۔ براہ کرم کچھ دیر بعد چیک کریں یا فوری معاونت کے لیے ریسیپشن پر کال کریں۔"
+                              : "Online scheduling is temporarily updating our procedure catalog. Please check back shortly or call our reception desk directly for immediate assistance."}
                           </p>
                         </div>
                         <div className="pt-2 flex items-center justify-center gap-3">
@@ -940,17 +1226,18 @@ export function ProgressiveBookingFlow({
                                   setServices(items);
                                   setServicesError(null);
                                 })
-                                .catch(() => setServicesError(progressiveBookingCopy.waterfall.errorTreatments))
+                                .catch(() => setServicesError(copy.waterfall.errorTreatments))
                                 .finally(() => setServicesLoading(false));
                             }}
                           >
-                            Refresh Catalog
+                            {isUrdu ? "کیٹلاگ تازہ کریں" : "Refresh Catalog"}
                           </Button>
                           <a
                             href="tel:051-6102977"
+                            dir="ltr"
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-white hover:bg-primary/90 transition"
                           >
-                            Call Reception (051-6102977)
+                            {isUrdu ? "ریسیپشن پر کال کریں (051-6102977)" : "Call Reception (051-6102977)"}
                           </a>
                         </div>
                       </div>
@@ -960,11 +1247,19 @@ export function ProgressiveBookingFlow({
                     {!servicesLoading && !servicesError && services.length > 0 && (
                       <div
                         role="radiogroup"
-                        aria-label={progressiveBookingCopy.waterfall.groupLabels.treatments}
+                        aria-label={copy.waterfall.groupLabels.treatments}
                         className="grid grid-cols-1 md:grid-cols-2 gap-4"
                       >
                         {services.map((svc) => {
                           const isSelected = selectedServiceId === svc.id;
+                          const svcTitle = getServiceTitle(svc);
+                          const svcCategory = getServiceCategory(svc.category);
+                          const svcDesc = getServiceDesc(svc);
+                          const svcDuration = formatDuration(svc.duration, isUrdu);
+                          const priceLabel = isUrdu
+                            ? `${currency.symbol} ${svc.cashPrice.toLocaleString()} سے شروع`
+                            : formatPrice(svc.cashPrice, currency.symbol);
+
                           return (
                             <button
                               key={svc.id}
@@ -973,7 +1268,7 @@ export function ProgressiveBookingFlow({
                               aria-checked={isSelected}
                               data-testid={`service-option-${svc.id}`}
                               onClick={() => handleSelectService(svc.id)}
-                              className={`p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer ${
+                              className={`p-4 rounded-2xl border text-start transition-all duration-200 cursor-pointer ${
                                 isSelected
                                   ? "border-primary bg-primary/5 shadow-md ring-2 ring-primary/20"
                                   : "border-gray-200 dark:border-gray-800 hover:border-primary/40 bg-gray-50/40 dark:bg-gray-950/40 hover:bg-white dark:hover:bg-gray-900"
@@ -982,10 +1277,10 @@ export function ProgressiveBookingFlow({
                               <div className="flex items-start justify-between gap-2">
                                 <div>
                                   <h4 className="font-display text-sm font-semibold text-gray-900 dark:text-white">
-                                    {svc.title}
+                                    {svcTitle}
                                   </h4>
                                   <p className="text-[11px] text-primary font-medium mt-0.5">
-                                    {svc.category}
+                                    {svcCategory}
                                   </p>
                                 </div>
                                 <div className="shrink-0 pt-0.5">
@@ -999,15 +1294,15 @@ export function ProgressiveBookingFlow({
                                 </div>
                               </div>
                               <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
-                                {svc.shortDesc}
+                                {svcDesc}
                               </p>
                               <div className="mt-3 flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-100 dark:border-gray-800">
                                 <span className="inline-flex items-center gap-1">
                                   <Clock className="h-3 w-3" />
-                                  {svc.duration}
+                                  <span>{svcDuration}</span>
                                 </span>
                                 <span className="font-semibold text-gray-900 dark:text-white">
-                                  {formatPrice(svc.cashPrice, currency.symbol)}
+                                  {priceLabel}
                                 </span>
                               </div>
                             </button>
@@ -1024,15 +1319,16 @@ export function ProgressiveBookingFlow({
                         id="step-2b-heading"
                         className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400"
                       >
-                        {progressiveBookingCopy.waterfall.cityHeading}
+                        {copy.waterfall.cityHeading}
                       </h3>
                       <div
                         role="radiogroup"
-                        aria-label={progressiveBookingCopy.waterfall.groupLabels.cities}
+                        aria-label={copy.waterfall.groupLabels.cities}
                         className="flex flex-wrap gap-2"
                       >
                         {availableCities.map((city) => {
                           const isSelected = selectedCity === city;
+                          const localizedCity = getCityName(city);
                           return (
                             <button
                               key={city}
@@ -1048,7 +1344,7 @@ export function ProgressiveBookingFlow({
                               }`}
                             >
                               <MapPin className="h-3 w-3" />
-                              <span>{city}</span>
+                              <span>{localizedCity}</span>
                             </button>
                           );
                         })}
@@ -1063,7 +1359,7 @@ export function ProgressiveBookingFlow({
                         id="step-2c-heading"
                         className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400"
                       >
-                        {progressiveBookingCopy.waterfall.clinicHeading(availableCities.length > 1)}
+                        {copy.waterfall.clinicHeading(availableCities.length > 1)}
                       </h3>
 
                       {clinicsLoading && (
@@ -1073,7 +1369,7 @@ export function ProgressiveBookingFlow({
                         >
                           <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                           <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {progressiveBookingCopy.waterfall.loadingClinics}
+                            {copy.waterfall.loadingClinics}
                           </span>
                         </div>
                       )}
@@ -1092,11 +1388,14 @@ export function ProgressiveBookingFlow({
                       {!clinicsLoading && !clinicsError && (
                         <div
                           role="radiogroup"
-                          aria-label={progressiveBookingCopy.waterfall.groupLabels.clinics}
+                          aria-label={copy.waterfall.groupLabels.clinics}
                           className="grid grid-cols-1 sm:grid-cols-2 gap-3"
                         >
                           {clinicsInChosenCity.map((clinic) => {
                             const isSelected = selectedClinicId === clinic.id;
+                            const clinicName = getClinicName(clinic);
+                            const cityName = clinic.city ? getCityName(clinic.city) : "";
+
                             return (
                               <button
                                 key={clinic.id}
@@ -1105,7 +1404,7 @@ export function ProgressiveBookingFlow({
                                 aria-checked={isSelected}
                                 data-testid={`clinic-option-${clinic.id}`}
                                 onClick={() => handleSelectClinic(clinic.id)}
-                                className={`p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer ${
+                                className={`p-4 rounded-2xl border text-start transition-all duration-200 cursor-pointer ${
                                   isSelected
                                     ? "border-primary bg-primary/5 shadow-md ring-2 ring-primary/20"
                                     : "border-gray-200 dark:border-gray-800 hover:border-primary/40 bg-gray-50/40 dark:bg-gray-950/40 hover:bg-white dark:hover:bg-gray-900"
@@ -1115,13 +1414,18 @@ export function ProgressiveBookingFlow({
                                   <div>
                                     <h4 className="font-display text-sm font-semibold text-gray-900 dark:text-white inline-flex items-center gap-2">
                                       <Building2 className="h-4 w-4 text-primary shrink-0" />
-                                      <span>{clinic.name}</span>
+                                      <span>{clinicName}</span>
                                     </h4>
                                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                      {clinic.addressLine1}, {clinic.city}
-                                      {clinic.phone
-                                        ? `${progressiveBookingCopy.waterfall.clinicTelPrefix}${clinic.phone}`
-                                        : ""}
+                                      {clinic.addressLine1}, {cityName}
+                                      {clinic.phone ? (
+                                        <>
+                                          {copy.waterfall.clinicTelPrefix}
+                                          <span dir="ltr">{clinic.phone}</span>
+                                        </>
+                                      ) : (
+                                        ""
+                                      )}
                                     </p>
                                   </div>
                                   <span
@@ -1136,7 +1440,7 @@ export function ProgressiveBookingFlow({
                                 </div>
                                 {clinic.isPrimary && (
                                   <span className="mt-2 inline-block rounded-full bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] uppercase font-semibold text-primary">
-                                    {progressiveBookingCopy.waterfall.mainBranchBadge}
+                                    {copy.waterfall.mainBranchBadge}
                                   </span>
                                 )}
                               </button>
@@ -1154,7 +1458,7 @@ export function ProgressiveBookingFlow({
                         id="step-2d-heading"
                         className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400"
                       >
-                        {progressiveBookingCopy.waterfall.doctorHeading}
+                        {copy.waterfall.doctorHeading}
                       </h3>
 
                       {doctorsLoading && (
@@ -1164,7 +1468,7 @@ export function ProgressiveBookingFlow({
                         >
                           <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                           <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {progressiveBookingCopy.waterfall.loadingClinicians}
+                            {copy.waterfall.loadingClinicians}
                           </span>
                         </div>
                       )}
@@ -1182,7 +1486,7 @@ export function ProgressiveBookingFlow({
 
                       {!doctorsLoading && !doctorsError && doctors.length === 0 && (
                         <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-950/40 p-5 text-center text-xs text-gray-500 dark:text-gray-400">
-                          {progressiveBookingCopy.waterfall.noCliniciansAtClinic}
+                          {copy.waterfall.noCliniciansAtClinic}
                         </div>
                       )}
 
@@ -1195,7 +1499,7 @@ export function ProgressiveBookingFlow({
                             {Boolean(doctors[0].photoUrl && !doctorImageErrors[doctors[0].id]) ? (
                               <img
                                 src={(resolveMediaUrl(doctors[0].photoUrl) || doctors[0].photoUrl) ?? undefined}
-                                alt={doctors[0].displayName}
+                                alt={getDoctorName(doctors[0])}
                                 className="w-full h-full object-cover"
                                 onError={() => {
                                   setDoctorImageErrors((prev) => ({ ...prev, [doctors[0].id]: true }));
@@ -1211,7 +1515,7 @@ export function ProgressiveBookingFlow({
                           </div>
                           <div className="space-y-1.5 flex-1 min-w-0">
                             <h4 className="font-display text-base font-bold text-gray-900 dark:text-white">
-                              {doctors[0].displayName}
+                              {getDoctorName(doctors[0])}
                             </h4>
                             <div className="flex flex-wrap items-center gap-1.5 text-xs">
                               {doctors[0].professionalTitle && (
@@ -1219,33 +1523,43 @@ export function ProgressiveBookingFlow({
                                   {doctors[0].professionalTitle}
                                 </span>
                               )}
-                              {doctors[0].professionalTitle && (doctors[0].role || (Array.isArray(doctors[0].specialties) && doctors[0].specialties.length > 0)) && (
-                                <span className="text-gray-300 dark:text-gray-600" aria-hidden="true">•</span>
+                              {doctors[0].professionalTitle && (
+                                <span className="text-gray-300 dark:text-gray-600" aria-hidden="true">
+                                  •
+                                </span>
                               )}
                               <span className="text-primary font-medium">
-                                {(Array.isArray(doctors[0].specialties) && doctors[0].specialties.length > 0
-                                  ? doctors[0].specialties.join(", ")
-                                  : doctors[0].role) || "Dentist"}
+                                {getDoctorSpecialties(doctors[0])}
                               </span>
                             </div>
                             {(doctors[0].biography || doctors[0].bio) && (
                               <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2">
-                                {doctors[0].biography || doctors[0].bio}
+                                {isUrdu
+                                  ? translations[doctors[0].biography || doctors[0].bio || ""] ||
+                                    doctors[0].biography ||
+                                    doctors[0].bio
+                                  : doctors[0].biography || doctors[0].bio}
                               </p>
                             )}
                             <div className="flex flex-wrap items-center gap-3 text-[11px] text-gray-500 dark:text-gray-400 pt-1">
-                              {typeof doctors[0].patientsTreated === "number" && doctors[0].patientsTreated > 0 && (
-                                <span
-                                  data-testid="patients-treated-badge"
-                                  className="inline-flex items-center gap-1 rounded-full bg-white dark:bg-gray-900 border border-primary/20 px-2 py-0.5 font-semibold text-primary"
-                                >
-                                  <Star className="h-3 w-3 fill-primary text-primary" />
-                                  {progressiveBookingCopy.waterfall.patientsTreatedBadge(doctors[0].patientsTreated)}
-                                </span>
-                              )}
+                              {typeof doctors[0].patientsTreated === "number" &&
+                                doctors[0].patientsTreated > 0 && (
+                                  <span
+                                    data-testid="patients-treated-badge"
+                                    className="inline-flex items-center gap-1 rounded-full bg-white dark:bg-gray-900 border border-primary/20 px-2 py-0.5 font-semibold text-primary"
+                                  >
+                                    <Star className="h-3 w-3 fill-primary text-primary" />
+                                    {copy.waterfall.patientsTreatedBadge(doctors[0].patientsTreated)}
+                                  </span>
+                                )}
                               <span className="inline-flex items-center gap-1 font-medium">
                                 <Calendar className="h-3 w-3 text-primary" />
-                                {doctors[0].weeklyScheduleSummary || doctors[0].workingDaysHours}
+                                <span>
+                                  {formatScheduleText(
+                                    doctors[0].weeklyScheduleSummary || doctors[0].workingDaysHours,
+                                    isUrdu
+                                  )}
+                                </span>
                               </span>
                             </div>
                           </div>
@@ -1256,7 +1570,7 @@ export function ProgressiveBookingFlow({
                         <div className="space-y-3">
                           <motion.div
                             role="radiogroup"
-                            aria-label={progressiveBookingCopy.waterfall.groupLabels.clinicians}
+                            aria-label={copy.waterfall.groupLabels.clinicians}
                             variants={shouldReduceMotion ? undefined : staggerContainer}
                             initial={shouldReduceMotion ? undefined : "hidden"}
                             animate={shouldReduceMotion ? undefined : "visible"}
@@ -1266,10 +1580,8 @@ export function ProgressiveBookingFlow({
                               const isSelected = selectedDoctorId === doc.id;
                               const initials = getDoctorInitials(doc.displayName);
                               const credentials = doc.professionalTitle || "DMD";
-                              const specialty =
-                                (Array.isArray(doc.specialties) && doc.specialties.length > 0
-                                  ? doc.specialties.join(", ")
-                                  : doc.role) || "General Dentistry";
+                              const specialty = getDoctorSpecialties(doc);
+                              const docName = getDoctorName(doc);
 
                               return (
                                 <motion.button
@@ -1281,16 +1593,22 @@ export function ProgressiveBookingFlow({
                                   data-testid={`doctor-card-${doc.id}`}
                                   onClick={() => handleSelectDoctor(doc.id)}
                                   variants={shouldReduceMotion ? undefined : fadeUp}
-                                  whileHover={shouldReduceMotion ? undefined : { y: -4, transition: { duration: 0.2 } }}
-                                  className={`group relative rounded-2xl border p-2.5 sm:p-3 flex flex-col text-left transition-all duration-200 cursor-pointer focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+                                  whileHover={
+                                    shouldReduceMotion
+                                      ? undefined
+                                      : { y: -4, transition: { duration: 0.2 } }
+                                  }
+                                  className={`group relative rounded-2xl border p-2.5 sm:p-3 flex flex-col text-start transition-all duration-200 cursor-pointer focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
                                     isSelected
                                       ? "border-primary bg-primary/5 shadow-md ring-2 ring-primary/20"
                                       : "border-stone-200/80 dark:border-gray-800 bg-[#FAF9F6] dark:bg-gray-900/90 hover:bg-white dark:hover:bg-gray-850 hover:shadow-lg hover:border-primary/40"
                                   }`}
                                 >
-                                  {/* Top Right Selected Check Badge */}
+                                  {/* Selected Check Badge */}
                                   <span
-                                    className={`absolute top-2.5 right-2.5 sm:top-3 sm:right-3 h-5 w-5 rounded-full border flex items-center justify-center transition-all duration-200 z-10 ${
+                                    className={`absolute top-2.5 ${
+                                      isUrdu ? "left-2.5 sm:left-3" : "right-2.5 sm:right-3"
+                                    } h-5 w-5 rounded-full border flex items-center justify-center transition-all duration-200 z-10 ${
                                       isSelected
                                         ? "border-primary bg-primary text-white scale-100 shadow-xs"
                                         : "border-gray-300 dark:border-gray-600 bg-white/90 dark:bg-gray-850/90 text-transparent opacity-0 group-hover:opacity-100"
@@ -1304,7 +1622,7 @@ export function ProgressiveBookingFlow({
                                     {Boolean(doc.photoUrl && !doctorImageErrors[doc.id]) ? (
                                       <img
                                         src={(resolveMediaUrl(doc.photoUrl) || doc.photoUrl) ?? undefined}
-                                        alt={doc.displayName}
+                                        alt={docName}
                                         loading="lazy"
                                         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                                         onError={() => {
@@ -1317,7 +1635,7 @@ export function ProgressiveBookingFlow({
                                           {initials}
                                         </span>
                                         <span className="text-[10px] font-mono uppercase tracking-wider text-gray-400 dark:text-gray-500 mt-1 line-clamp-1">
-                                          {doc.role || "Clinician"}
+                                          {getDoctorRole(doc.role)}
                                         </span>
                                       </div>
                                     )}
@@ -1327,7 +1645,7 @@ export function ProgressiveBookingFlow({
                                   <div className="flex-1 flex flex-col justify-between">
                                     <div>
                                       <h4 className="font-display font-bold text-xs sm:text-sm text-gray-900 dark:text-white line-clamp-1 leading-snug">
-                                        {doc.displayName}
+                                        {docName}
                                       </h4>
                                       <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px] leading-tight">
                                         {credentials && (
@@ -1364,18 +1682,25 @@ export function ProgressiveBookingFlow({
                               <div className="inline-flex items-center gap-1.5 font-medium">
                                 <Calendar className="h-3.5 w-3.5 text-primary shrink-0" />
                                 <span>
-                                  Available {selectedDoctor.weeklyScheduleSummary || selectedDoctor.workingDaysHours || "Mon-Fri"}
+                                  {formatScheduleText(
+                                    selectedDoctor.weeklyScheduleSummary ||
+                                      selectedDoctor.workingDaysHours,
+                                    isUrdu
+                                  )}
                                 </span>
                               </div>
-                              {typeof selectedDoctor.patientsTreated === "number" && selectedDoctor.patientsTreated > 0 && (
-                                <span
-                                  data-testid="patients-treated-badge"
-                                  className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-[11px] font-semibold text-primary"
-                                >
-                                  <Star className="h-3 w-3 fill-primary text-primary" />
-                                  {progressiveBookingCopy.waterfall.patientsTreatedShortBadge(selectedDoctor.patientsTreated)}
-                                </span>
-                              )}
+                              {typeof selectedDoctor.patientsTreated === "number" &&
+                                selectedDoctor.patientsTreated > 0 && (
+                                  <span
+                                    data-testid="patients-treated-badge"
+                                    className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-[11px] font-semibold text-primary"
+                                  >
+                                    <Star className="h-3 w-3 fill-primary text-primary" />
+                                    {copy.waterfall.patientsTreatedShortBadge(
+                                      selectedDoctor.patientsTreated
+                                    )}
+                                  </span>
+                                )}
                             </motion.div>
                           )}
                         </div>
@@ -1386,7 +1711,7 @@ export function ProgressiveBookingFlow({
                   {/* Step 2E: Real Appointment Days & Slots (hidden fully booked days) */}
                   {selectedDoctorId && openDays.length === 0 && !doctorsLoading && (
                     <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-950/40 p-5 text-center text-xs text-gray-500 dark:text-gray-400">
-                      {progressiveBookingCopy.waterfall.noOpenDays}
+                      {copy.waterfall.noOpenDays}
                     </div>
                   )}
 
@@ -1396,12 +1721,12 @@ export function ProgressiveBookingFlow({
                         id="step-2e-heading"
                         className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400"
                       >
-                        {progressiveBookingCopy.waterfall.dateTimeHeading}
+                        {copy.waterfall.dateTimeHeading}
                       </h3>
 
                       <div
                         role="radiogroup"
-                        aria-label={progressiveBookingCopy.waterfall.groupLabels.appointmentDays}
+                        aria-label={copy.waterfall.groupLabels.appointmentDays}
                         className="space-y-3"
                       >
                         {visibleDays.map((day) => {
@@ -1422,7 +1747,7 @@ export function ProgressiveBookingFlow({
                               >
                                 <span className="inline-flex items-center gap-2">
                                   <Calendar className="h-3.5 w-3.5 text-primary" />
-                                  {formatDayLabel(day.date)}
+                                  <span>{formatDayLabel(day.date, isUrdu)}</span>
                                 </span>
                                 <span
                                   className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
@@ -1431,7 +1756,7 @@ export function ProgressiveBookingFlow({
                                       : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
                                   }`}
                                 >
-                                  {progressiveBookingCopy.waterfall.slotsCountLabel(day.slots.length)}
+                                  {copy.waterfall.slotsCountLabel(day.slots.length)}
                                 </span>
                               </button>
 
@@ -1454,14 +1779,16 @@ export function ProgressiveBookingFlow({
                                             aria-pressed={isSlotSelected}
                                             data-testid={`slot-chip-${sanitizeTestId(slot)}`}
                                             onClick={() => handleSelectSlot(slot)}
-                                            className={`py-2.5 px-3 rounded-xl border text-xs font-mono font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                                            className={`py-2.5 px-3 rounded-xl border text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                                               isSlotSelected
                                                 ? "border-primary bg-primary text-white shadow-sm ring-2 ring-primary/20"
                                                 : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-900 dark:text-white hover:border-primary/40 hover:bg-primary/5"
                                             }`}
                                           >
                                             <Clock className="h-3.5 w-3.5" />
-                                            <span>{slot}</span>
+                                            <span dir="ltr" className="inline-block font-mono">
+                                              {slot}
+                                            </span>
                                           </button>
                                         );
                                       })}
@@ -1476,7 +1803,7 @@ export function ProgressiveBookingFlow({
 
                       {openDays.length > daysShownLimit && !showAllDays && (
                         <Button variant="ghost" size="sm" onClick={() => setShowAllDays(true)}>
-                          {progressiveBookingCopy.waterfall.showAllDays(openDays.length)}
+                          {copy.waterfall.showAllDays(openDays.length)}
                         </Button>
                       )}
                     </section>
@@ -1491,11 +1818,11 @@ export function ProgressiveBookingFlow({
                     >
                       <span className="flex items-center gap-2 font-medium">
                         <AlertCircle className="h-4 w-4 shrink-0" />
-                        {submitError}
+                        <span>{submitError}</span>
                       </span>
                       {slotConflict && (
                         <Button variant="outline" size="sm" onClick={handleChooseDifferentTime}>
-                          {progressiveBookingCopy.waterfall.chooseDifferentTime}
+                          {copy.waterfall.chooseDifferentTime}
                         </Button>
                       )}
                     </div>
@@ -1503,9 +1830,17 @@ export function ProgressiveBookingFlow({
 
                   {/* Waterfall footer: back + continue once a slot is chosen */}
                   <div className="pt-4 flex items-center justify-between border-t border-gray-100 dark:border-gray-800">
-                    <Button variant="ghost" onClick={() => setCurrentPage(1)}>
-                      <ArrowLeft className="h-4 w-4" />
-                      <span>{progressiveBookingCopy.waterfall.backToContact}</span>
+                    <Button
+                      variant="ghost"
+                      onClick={() => setCurrentPage(1)}
+                      className="gap-2"
+                    >
+                      {isUrdu ? (
+                        <ArrowRight className="h-4 w-4" />
+                      ) : (
+                        <ArrowLeft className="h-4 w-4" />
+                      )}
+                      <span>{copy.waterfall.backToContact}</span>
                     </Button>
 
                     <AnimatePresence>
@@ -1520,9 +1855,14 @@ export function ProgressiveBookingFlow({
                             size="lg"
                             onClick={handleProceedToPage3}
                             data-testid="continue-to-summary-btn"
+                            className="gap-2"
                           >
-                            <span>{progressiveBookingCopy.waterfall.continueToSummary}</span>
-                            <ChevronRight className="h-4 w-4" />
+                            <span>{copy.waterfall.continueToSummary}</span>
+                            {isUrdu ? (
+                              <ChevronLeft className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
+                            )}
                           </Button>
                         </motion.div>
                       )}
@@ -1548,13 +1888,13 @@ export function ProgressiveBookingFlow({
                 <Card shadow="card" className="p-6 sm:p-8 md:p-10 space-y-8" animate={false}>
                   <div className="space-y-1 pb-4 border-b border-gray-100 dark:border-gray-800">
                     <span className="text-xs font-mono font-semibold uppercase tracking-wider text-primary">
-                      {progressiveBookingCopy.review.pageLabel}
+                      {copy.review.pageLabel}
                     </span>
                     <h2 className="font-display text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">
-                      {progressiveBookingCopy.review.heading}
+                      {copy.review.heading}
                     </h2>
                     <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                      {progressiveBookingCopy.review.subheading}
+                      {copy.review.subheading}
                     </p>
                   </div>
 
@@ -1562,7 +1902,7 @@ export function ProgressiveBookingFlow({
                     <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-800">
                       <dt className="text-gray-400 inline-flex items-center gap-1.5">
                         <User className="h-3.5 w-3.5" />
-                        {progressiveBookingCopy.review.patientLabel}
+                        <span>{copy.review.patientLabel}</span>
                       </dt>
                       <dd className="font-semibold text-gray-900 dark:text-white">
                         {finalPatientName}
@@ -1571,55 +1911,56 @@ export function ProgressiveBookingFlow({
                     <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-800">
                       <dt className="text-gray-400 inline-flex items-center gap-1.5">
                         <Phone className="h-3.5 w-3.5" />
-                        {progressiveBookingCopy.review.contactLabel}
+                        <span>{copy.review.contactLabel}</span>
                       </dt>
-                      <dd className="font-semibold text-gray-900 dark:text-white text-right">
+                      <dd className={`font-semibold text-gray-900 dark:text-white ${isUrdu ? "text-start" : "text-end"}`}>
                         {contact.isForSomeoneElse && contact.fullName && (
                           <span className="block text-gray-900 dark:text-white">{contact.fullName}</span>
                         )}
-                        <span>{contact.phone}</span>
+                        <span dir="ltr">{contact.phone}</span>
                         {contact.email && (
-                          <span className="block text-[11px] font-normal text-gray-500 dark:text-gray-400">
+                          <span dir="ltr" className="block text-[11px] font-normal text-gray-500 dark:text-gray-400">
                             {contact.email}
                           </span>
                         )}
                       </dd>
                     </div>
                     <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-800">
-                      <dt className="text-gray-400">{progressiveBookingCopy.review.treatmentLabel}</dt>
-                      <dd className="font-semibold text-gray-900 dark:text-white text-right">
-                        {selectedService?.title}
+                      <dt className="text-gray-400">{copy.review.treatmentLabel}</dt>
+                      <dd className={`font-semibold text-gray-900 dark:text-white ${isUrdu ? "text-start" : "text-end"}`}>
+                        {getServiceTitle(selectedService)}
                         <span className="block text-[11px] font-normal text-gray-500 dark:text-gray-400">
-                          {formatPrice(selectedService?.cashPrice, currency.symbol)} ·{" "}
-                          {selectedService?.duration}
+                          {isUrdu
+                            ? `${currency.symbol} ${selectedService?.cashPrice.toLocaleString()} سے · ${formatDuration(selectedService?.duration, isUrdu)}`
+                            : `${formatPrice(selectedService?.cashPrice, currency.symbol)} · ${selectedService?.duration}`}
                         </span>
                       </dd>
                     </div>
                     <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-800">
                       <dt className="text-gray-400 inline-flex items-center gap-1.5">
                         <MapPin className="h-3.5 w-3.5" />
-                        {progressiveBookingCopy.review.clinicLabel}
+                        <span>{copy.review.clinicLabel}</span>
                       </dt>
-                      <dd className="font-semibold text-gray-900 dark:text-white text-right">
-                        {selectedClinic?.name}
+                      <dd className={`font-semibold text-gray-900 dark:text-white ${isUrdu ? "text-start" : "text-end"}`}>
+                        {getClinicName(selectedClinic)}
                         <span className="block text-[11px] font-normal text-gray-500 dark:text-gray-400">
-                          {selectedClinic?.addressLine1}, {selectedClinic?.city}
+                          {selectedClinic?.addressLine1}, {selectedClinic?.city ? getCityName(selectedClinic.city) : ""}
                         </span>
                       </dd>
                     </div>
                     <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-800">
-                      <dt className="text-gray-400">{progressiveBookingCopy.review.clinicianLabel}</dt>
+                      <dt className="text-gray-400">{copy.review.clinicianLabel}</dt>
                       <dd className="font-semibold text-gray-900 dark:text-white">
-                        {selectedDoctor?.displayName}
+                        {getDoctorName(selectedDoctor)}
                       </dd>
                     </div>
-                    <div className="flex justify-between py-2">
+                    <div className="flex justify-between py-1.5">
                       <dt className="text-gray-400 inline-flex items-center gap-1.5">
                         <Calendar className="h-3.5 w-3.5" />
-                        {progressiveBookingCopy.review.scheduleLabel}
+                        <span>{copy.review.scheduleLabel}</span>
                       </dt>
                       <dd className="font-semibold text-primary">
-                        {progressiveBookingCopy.scheduleAt(formatDayLabel(selectedDate), selectedTime)}
+                        {copy.scheduleAt(formatDayLabel(selectedDate, isUrdu), selectedTime)}
                       </dd>
                     </div>
                   </dl>
@@ -1627,7 +1968,7 @@ export function ProgressiveBookingFlow({
                   {contact.visitReason.trim() && (
                     <p className="text-xs text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-800 pt-4">
                       <span className="font-semibold text-gray-900 dark:text-white">
-                        {progressiveBookingCopy.review.notesLabel}
+                        {copy.review.notesLabel}
                       </span>{" "}
                       {contact.visitReason.trim()}
                     </p>
@@ -1635,7 +1976,7 @@ export function ProgressiveBookingFlow({
 
                   <p className="inline-flex items-center gap-2 text-[11px] text-gray-500 dark:text-gray-400">
                     <Lock className="h-3.5 w-3.5 text-primary" />
-                    {progressiveBookingCopy.review.privacyNotice}
+                    <span>{copy.review.privacyNotice}</span>
                   </p>
 
                   {submitError && (
@@ -1645,23 +1986,32 @@ export function ProgressiveBookingFlow({
                       className="rounded-2xl border border-rose-200 bg-rose-50 dark:bg-rose-950/30 p-4 text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2 font-medium"
                     >
                       <AlertCircle className="h-4 w-4 shrink-0" />
-                      {submitError}
+                      <span>{submitError}</span>
                     </div>
                   )}
 
                   <div className="pt-2 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-gray-100 dark:border-gray-800 pt-5">
-                    <Button variant="ghost" onClick={() => setCurrentPage(2)}>
-                      <ArrowLeft className="h-4 w-4" />
-                      <span>{progressiveBookingCopy.review.backToEdit}</span>
+                    <Button
+                      variant="ghost"
+                      onClick={() => setCurrentPage(2)}
+                      className="gap-2"
+                    >
+                      {isUrdu ? (
+                        <ArrowRight className="h-4 w-4" />
+                      ) : (
+                        <ArrowLeft className="h-4 w-4" />
+                      )}
+                      <span>{copy.review.backToEdit}</span>
                     </Button>
                     <Button
                       size="lg"
                       isLoading={isSubmitting}
                       onClick={handleFinalConfirm}
                       data-testid="booking-confirm-btn"
+                      className="gap-2"
                     >
                       <CheckCircle2 className="h-4 w-4" />
-                      <span>{progressiveBookingCopy.review.confirmButton}</span>
+                      <span>{copy.review.confirmButton}</span>
                     </Button>
                   </div>
                 </Card>

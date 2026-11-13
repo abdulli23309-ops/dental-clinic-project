@@ -148,15 +148,36 @@ class RoleService:
             updatedAt=saved.updated_at,
         )
 
-    async def delete_role(self, role_id: UUID) -> bool:
+    async def delete_role(self, role_id: UUID, hard: bool = True) -> bool:
         role = await self.role_repo.get_by_id(role_id)
         if not role:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Role not found.",
             )
-        # Soft delete: set is_active = False
-        return await self.role_repo.delete(role_id, soft=True)
+        if role.is_system:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="System roles cannot be deleted.",
+            )
+
+        # Check if any active user holds this role
+        session = getattr(self.role_repo, "_session", None)
+        if session:
+            from app.infrastructure.database.orm_models import UserORM
+            from sqlalchemy import select, func
+            stmt = select(func.count()).select_from(UserORM).where(
+                func.lower(UserORM.role) == role.name.lower(),
+                UserORM.is_active.is_(True),
+            )
+            count = (await session.execute(stmt)).scalar() or 0
+            if count > 0:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Cannot delete role '{role.name}' because {count} active staff account(s) are assigned to it.",
+                )
+
+        return await self.role_repo.delete(role_id, soft=not hard)
 
     async def validate_role_active(self, role_name: str) -> bool:
         if not role_name or not role_name.strip():

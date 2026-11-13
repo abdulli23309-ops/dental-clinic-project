@@ -146,6 +146,16 @@ async def update_service(
     return await _to_response(s, service_service)
 
 
+@router.delete("/{service_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_admin)])
+async def delete_service(
+    service_id: UUID,
+    service_service: ServiceService = Depends(get_service_service),
+) -> None:
+    """Permanently deletes a service if no clinical encounter procedures reference it."""
+    await service_service.delete_service(service_id)
+    return None
+
+
 @router.patch("/{service_id}/status", response_model=ServiceResponse, dependencies=[Depends(require_admin)])
 async def toggle_service_status(
     service_id: UUID,

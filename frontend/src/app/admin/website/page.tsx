@@ -29,6 +29,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import {
   adminCreateFaq,
+  adminDeleteFaq,
   adminGetCmsSection,
   adminGetFaqs,
   adminReorderFaqs,
@@ -435,6 +436,17 @@ export default function AdminWebsitePage() {
       setSaveSuccess(`FAQ item ${currentStatus ? "deactivated" : "reactivated"}.`);
     } catch (err: any) {
       setSaveError(err.message || "Failed to toggle FAQ status.");
+    }
+  };
+
+  const handleDeleteFaq = async (faqId: string) => {
+    if (!accessToken) return;
+    try {
+      await adminDeleteFaq(faqId, accessToken);
+      setFaqs((prev) => prev.filter((f) => f.id !== faqId));
+      toast.success("FAQ item permanently deleted.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete FAQ.");
     }
   };
 
@@ -1447,13 +1459,24 @@ export default function AdminWebsitePage() {
                         </button>
                       </div>
 
-                      <Button
-                        onClick={() => handleToggleFaq(faq.id, faq.isActive !== false)}
-                        variant="secondary"
-                        size="sm"
-                      >
-                        {faq.isActive === false ? "Reactivate" : "Deactivate"}
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          onClick={() => handleToggleFaq(faq.id, faq.isActive !== false)}
+                          variant="secondary"
+                          size="sm"
+                        >
+                          {faq.isActive === false ? "Reactivate" : "Deactivate"}
+                        </Button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteFaq(faq.id)}
+                          className="p-1.5 rounded-lg border border-line text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                          title="Delete FAQ permanently"
+                          aria-label={`Delete FAQ: ${faq.question}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </Card>
                 ))}

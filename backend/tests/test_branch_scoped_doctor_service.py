@@ -107,6 +107,8 @@ async def setup_test_environment(test_session):
 
     tz = ZoneInfo("Asia/Karachi")
     target_date = datetime.now(tz).date() + timedelta(days=2)
+    if target_date.weekday() == 6:
+        target_date += timedelta(days=1)
     dow = target_date.weekday()
 
     # Working hours for both clinics
@@ -457,6 +459,16 @@ async def test_negative_inactive_branch_and_inactive_service(
     # Inactive clinic
     inactive_clinic = make_test_clinic(data["org"].id, name="Inactive Branch", is_active=False)
     test_session.add(inactive_clinic)
+    test_session.add(
+        ClinicWorkingHoursORM(
+            id=uuid4(),
+            clinic_id=inactive_clinic.id,
+            day_of_week=target_date.weekday(),
+            open_time="09:00",
+            close_time="18:00",
+            is_closed=False,
+        )
+    )
 
     # Inactive service
     inactive_svc = ServiceORM(

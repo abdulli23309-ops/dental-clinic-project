@@ -151,3 +151,11 @@ class PostgresServiceRepository(ServiceRepository):
             if svc:
                 svc.display_order = order
         await self._session.flush()
+
+    async def delete(self, service_id: UUID) -> bool:
+        orm = await self._session.get(ServiceORM, service_id)
+        if not orm:
+            return False
+        await self._session.delete(orm)
+        await self._session.flush()
+        return True

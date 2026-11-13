@@ -158,3 +158,52 @@ class TeamService:
 
     async def reorder_members(self, ordered_ids: List[UUID]) -> None:
         await self.team_repo.reorder(ordered_ids)
+
+    async def delete_member(self, member_id: UUID) -> None:
+        member = await self.team_repo.get_by_id(member_id)
+        if not member:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Team member not found.",
+            )
+        # Pre-flight check: Query RESTRICT clinical tables
+        from app.infrastructure.database.orm_models import (
+            ClinicalEncounterORM,
+            ClinicalNoteORM,
+            DentalChartFindingORM,
+            DentalProcedureORM,
+            UserORM,
+            BookingORM,
+            LeadORM,
+        )
+        from sqlalchemy import update
+
+        # Pre-flight check: Medico-legal clinical records guard
+        checks = [
+            (ClinicalEncounterORM, ClinicalEncounterORM.clinician_id == member_id, "clinical encounters"),
+            (ClinicalNoteORM, (ClinicalNoteORM.author_id == member_id) | (ClinicalNoteORM.signed_by_id == member_id), "clinical notes"),
+            (DentalChartFindingORM, (DentalChartFindingORM.author_id == member_id) | (DentalChartFindingORM.corrected_by_id == member_id) | (DentalChartFindingORM.resolved_by_id == member_id), "dental chart findings"),
+            (DentalProcedureORM, (DentalProcedureORM.completed_by_id == member_id) | (DentalProcedureORM.recorded_by_id == member_id), "dental procedures"),
+        ]
+
+        for model_cls, condition, label in checks:
+            stmt = select(func.count()).select_from(model_cls).where(condition)
+            count = (await self.session.execute(stmt)).scalar() or 0
+            if count > 0:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Cannot permanently delete a clinician with signed patient {label}. Please Deactivate them instead.",
+                )
+
+        # Nullify any soft references before delete
+        await self.session.execute(
+            update(UserORM).where(UserORM.team_member_id == member_id).values(team_member_id=None)
+        )
+        await self.session.execute(
+            update(BookingORM).where(BookingORM.team_member_id == member_id).values(team_member_id=None)
+        )
+        await self.session.execute(
+            update(LeadORM).where(LeadORM.team_member_id == member_id).values(team_member_id=None)
+        )
+
+        await self.team_repo.delete(member_id)

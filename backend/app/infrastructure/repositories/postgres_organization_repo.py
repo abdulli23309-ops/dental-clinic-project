@@ -283,5 +283,27 @@ class PostgresLocationRepository(LocationRepository):
     async def delete(self, location_id: UUID) -> None:
         orm = await self._session.get(LocationORM, location_id)
         if orm is not None:
+            # Check matching ClinicORM
+            from app.infrastructure.database.orm_models import ClinicORM, ClinicalEncounterORM
+            from sqlalchemy import select, func
+            from fastapi import HTTPException, status
+
+            c_orm = await self._session.get(ClinicORM, location_id)
+            if not c_orm:
+                # check by normalized name
+                stmt = select(ClinicORM).where(func.lower(ClinicORM.name) == orm.name.strip().lower())
+                c_orm = (await self._session.execute(stmt)).scalars().first()
+
+            if c_orm:
+                # Check for clinical encounters
+                stmt_enc = select(func.count()).select_from(ClinicalEncounterORM).where(ClinicalEncounterORM.clinic_id == c_orm.id)
+                count = (await self._session.execute(stmt_enc)).scalar() or 0
+                if count > 0:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="Cannot permanently delete a branch with recorded clinical encounters. Please Deactivate it instead.",
+                    )
+                await self._session.delete(c_orm)
+
             await self._session.delete(orm)
             await self._session.flush()

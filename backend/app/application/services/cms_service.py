@@ -235,3 +235,7 @@ class CmsService:
 
     async def reorder_faqs(self, ordered_ids: List[UUID]) -> None:
         await self.cms_repo.reorder_faqs(ordered_ids)
+
+    async def delete_faq(self, faq_id: UUID) -> None:
+        faq = await self.get_faq(faq_id)
+        await self.cms_repo.delete_faq(faq.id)

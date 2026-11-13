@@ -29,3 +29,8 @@ class ClinicalNoteTemplateRepository(ABC):
     async def list_templates(self, active_only: bool = True) -> List[ClinicalNoteTemplate]:
         """Lists note templates."""
         pass
+
+    @abstractmethod
+    async def delete(self, template_id: UUID) -> bool:
+        """Deletes a note template permanently."""
+        pass

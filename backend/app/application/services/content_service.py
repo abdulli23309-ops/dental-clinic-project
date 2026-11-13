@@ -256,8 +256,9 @@ class SocialLinkService:
 class GalleryService:
     """Orchestrates clinic gallery photo CRUD."""
 
-    def __init__(self, repo: PostgresGalleryRepository) -> None:
+    def __init__(self, repo: PostgresGalleryRepository, storage_service: Optional[Any] = None) -> None:
         self._repo = repo
+        self._storage_service = storage_service
 
     async def list_all(self) -> List[GalleryImageORM]:
         return await self._repo.list_all()
@@ -296,6 +297,12 @@ class GalleryService:
 
     async def delete(self, image_id: UUID) -> None:
         orm = await self.get_or_404(image_id)
+        # Attempt to delete file from local storage if applicable
+        if self._storage_service and orm.image_url:
+            try:
+                await self._storage_service.delete(orm.image_url)
+            except Exception:
+                pass
         await self._repo.delete(orm)
 
 

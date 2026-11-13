@@ -189,6 +189,14 @@ class PostgresUserRepository(UserRepository):
         await self._session.flush()
         return self._to_domain(existing)
 
+    async def delete(self, user_id: UUID) -> bool:
+        orm = await self._session.get(UserORM, user_id)
+        if not orm:
+            return False
+        await self._session.delete(orm)
+        await self._session.flush()
+        return True
+
 
 class PostgresUserSessionRepository(UserSessionRepository):
     """PostgreSQL implementation of the UserSessionRepository abstraction."""

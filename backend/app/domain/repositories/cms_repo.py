@@ -25,6 +25,10 @@ class CmsRepository(ABC):
         pass
 
     @abstractmethod
+    async def delete_faq(self, faq_id: UUID) -> bool:
+        pass
+
+    @abstractmethod
     async def get_section(self, section_key: str) -> Optional[SiteSection]:
         pass
 

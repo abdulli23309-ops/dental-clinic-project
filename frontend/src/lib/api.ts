@@ -1369,9 +1369,9 @@ export async function adminUpdateRole(
   return res.json();
 }
 
-export async function adminDeleteRole(id: string, token?: string): Promise<void> {
+export async function adminDeleteRole(id: string, token?: string, hard: boolean = true): Promise<void> {
   const res = await authorizedFetch(
-    `/api/v1/admin/roles/${id}`,
+    `/api/v1/admin/roles/${id}?hard=${hard}`,
     {
       method: "DELETE",
     },
@@ -1380,6 +1380,124 @@ export async function adminDeleteRole(id: string, token?: string): Promise<void>
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Failed to delete role.");
+  }
+}
+
+export async function adminDeleteLocation(id: string, token?: string | null): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/locations/${id}`,
+    {
+      method: "DELETE",
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to delete location.");
+  }
+}
+
+export async function adminDeleteService(id: string, token?: string | null): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/services/${id}`,
+    {
+      method: "DELETE",
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to delete service.");
+  }
+}
+
+export async function adminDeleteTeamMember(id: string, token?: string | null): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/team/${id}`,
+    {
+      method: "DELETE",
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to delete team member.");
+  }
+}
+
+export async function adminDeleteUser(id: string, token?: string | null): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/users/${id}`,
+    {
+      method: "DELETE",
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to delete staff account.");
+  }
+}
+
+export async function adminBulkDeleteUsers(
+  userIds: string[],
+  token?: string | null
+): Promise<{ deleted: number; errors?: string[] }> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/users/bulk-delete`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userIds }),
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to bulk delete staff accounts.");
+  }
+  return res.json();
+}
+
+export async function deleteClinicalNoteTemplate(id: string, token?: string | null): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/clinical-note-templates/${id}`,
+    {
+      method: "DELETE",
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to delete clinical note template.");
+  }
+}
+
+export async function adminDeleteFaq(id: string, token?: string | null): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/admin/faq/${id}`,
+    {
+      method: "DELETE",
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to delete FAQ item.");
+  }
+}
+
+export async function adminDeleteAppointment(id: string, token?: string | null): Promise<void> {
+  const res = await authorizedFetch(
+    `/api/v1/appointments/${id}`,
+    {
+      method: "DELETE",
+    },
+    token
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to delete appointment.");
   }
 }
 

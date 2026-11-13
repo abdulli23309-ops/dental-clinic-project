@@ -42,9 +42,11 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { Pagination } from "@/components/ui/pagination";
 import { EntityDetailsModal, SelectedEntity } from "@/components/modals/entity-details-modal";
+import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import { ServiceItem, adminGetServices } from "@/lib/api";
 import {
   adminCreateLocation,
+  adminDeleteLocation,
   adminGetLocations,
   adminGetPaginatedLocations,
   adminToggleLocationStatus,
@@ -96,6 +98,10 @@ export default function AdminLocationsPage() {
   // Selected Branch for Detailed 5-Tab Management View
   const [selectedBranch, setSelectedBranch] = useState<LocationItem | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "services" | "team" | "hours" | "booking">("overview");
+
+  // Delete confirmation state
+  const [branchToDelete, setBranchToDelete] = useState<LocationItem | null>(null);
+  const [isDeletingBranch, setIsDeletingBranch] = useState(false);
 
   // Create Modal
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -549,6 +555,26 @@ export default function AdminLocationsPage() {
       setLocations(previousLocations);
       setSelectedBranch(previousBranch);
       toast.error(err.message || "Failed to toggle branch status.");
+    }
+  };
+
+  const handleConfirmDeleteBranch = async () => {
+    if (!branchToDelete || !accessToken) return;
+    setIsDeletingBranch(true);
+    const targetId = branchToDelete.id;
+    const targetName = branchToDelete.name;
+    try {
+      await adminDeleteLocation(targetId, accessToken);
+      toast.success(`Branch "${targetName}" permanently deleted.`);
+      setLocations((prev) => prev.filter((l) => l.id !== targetId));
+      if (selectedBranch?.id === targetId) {
+        setSelectedBranch(null);
+      }
+      setBranchToDelete(null);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete branch.");
+    } finally {
+      setIsDeletingBranch(false);
     }
   };
 
@@ -1010,15 +1036,26 @@ export default function AdminLocationsPage() {
 
                       {/* Actions */}
                       <div onClick={(e) => e.stopPropagation()} className="p-4 border-t border-border/40 bg-muted/10 flex items-center justify-between gap-2">
-                        <button
-                          onClick={() => handleToggleLocationStatus(loc.id, loc.isActive)}
-                          className={`text-xs px-2.5 py-1.5 rounded-lg font-medium transition-colors ${loc.isActive
-                              ? "text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10"
-                              : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
-                            }`}
-                        >
-                          {loc.isActive ? "Deactivate" : "Activate"}
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleToggleLocationStatus(loc.id, loc.isActive)}
+                            className={`text-xs px-2.5 py-1.5 rounded-lg font-medium transition-colors ${loc.isActive
+                                ? "text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10"
+                                : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                              }`}
+                          >
+                            {loc.isActive ? "Deactivate" : "Activate"}
+                          </button>
+
+                          <button
+                            onClick={() => setBranchToDelete(loc)}
+                            title="Delete branch permanently"
+                            className="p-1.5 text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 rounded-lg transition-colors min-w-[32px] min-h-[32px] flex items-center justify-center"
+                            aria-label={`Delete ${loc.name}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
 
                         <Button
                           size="sm"
@@ -1278,7 +1315,17 @@ export default function AdminLocationsPage() {
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-border flex justify-end">
+                  <div className="pt-4 border-t border-border flex items-center justify-between">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setBranchToDelete(selectedBranch)}
+                      className="gap-1.5 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-500/10 border-rose-200 dark:border-rose-900/50"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Delete Branch Permanently
+                    </Button>
+
                     <Button type="submit" disabled={isSaving} className="gap-2 font-semibold">
                       {isSaving ? "Saving..." : "Save Overview Changes"}
                     </Button>
@@ -2001,6 +2048,18 @@ export default function AdminLocationsPage() {
         allTeamMembers={allTeam}
         allLocations={locations}
         accessToken={accessToken}
+      />
+
+      {/* Permanent Delete Confirmation Dialog */}
+      <DestructiveConfirmDialog
+        isOpen={Boolean(branchToDelete)}
+        title={branchToDelete ? `Delete Branch "${branchToDelete.name}"?` : "Delete Branch"}
+        description="This action permanently deletes this clinic branch from the database. Any associated team member location links will be unassigned. Historical clinical encounter records will prevent deletion."
+        confirmText="Delete Branch"
+        variant="danger"
+        isSubmitting={isDeletingBranch}
+        onConfirm={handleConfirmDeleteBranch}
+        onClose={() => setBranchToDelete(null)}
       />
     </AnimatedPage>
   );

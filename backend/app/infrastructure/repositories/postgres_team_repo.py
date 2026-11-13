@@ -132,3 +132,11 @@ class PostgresTeamMemberRepository(TeamMemberRepository):
             if member:
                 member.display_order = order
         await self._session.flush()
+
+    async def delete(self, member_id: UUID) -> bool:
+        orm = await self._session.get(TeamMemberORM, member_id)
+        if not orm:
+            return False
+        await self._session.delete(orm)
+        await self._session.flush()
+        return True

@@ -23,3 +23,7 @@ class TeamMemberRepository(ABC):
     @abstractmethod
     async def reorder(self, ordered_ids: List[UUID]) -> None:
         pass
+
+    @abstractmethod
+    async def delete(self, member_id: UUID) -> bool:
+        pass

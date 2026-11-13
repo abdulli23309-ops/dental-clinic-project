@@ -364,6 +364,18 @@ async def update_faq(
     )
 
 
+@router.delete("/faq/{faq_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/cms/faqs/{faq_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/faqs/{faq_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_faq(
+    faq_id: UUID,
+    cms_service: CmsService = Depends(get_cms_service),
+) -> None:
+    """Permanently deletes an FAQ item."""
+    await cms_service.delete_faq(faq_id)
+    return None
+
+
 @router.patch("/faq/{faq_id}/status", response_model=FaqResponse)
 async def toggle_faq_status(
     faq_id: UUID,

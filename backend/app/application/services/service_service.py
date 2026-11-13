@@ -194,3 +194,24 @@ class ServiceService:
 
     async def reorder_services(self, ordered_ids: List[UUID]) -> None:
         await self.service_repo.reorder(ordered_ids)
+
+    async def delete_service(self, service_id: UUID) -> None:
+        svc = await self.service_repo.get_by_id(service_id)
+        if not svc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Service not found.",
+            )
+        # Pre-flight check: query dental_procedures for references to this service
+        from app.infrastructure.database.orm_models import DentalProcedureORM
+        from sqlalchemy import select, func
+        session = getattr(self.service_repo, "_session", None)
+        if session:
+            stmt = select(func.count()).select_from(DentalProcedureORM).where(DentalProcedureORM.service_id == service_id)
+            count = (await session.execute(stmt)).scalar() or 0
+            if count > 0:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Cannot permanently delete this service because it is referenced in patient clinical procedures. Please Archive it instead.",
+                )
+        await self.service_repo.delete(service_id)

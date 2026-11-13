@@ -1,7 +1,8 @@
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status as http_status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+http_status = status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -134,6 +135,24 @@ async def update_note_template(
         "plan": saved.plan,
         "active": saved.active,
     }
+
+
+@router.delete(
+    "/clinical-note-templates/{template_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Permanently delete a clinical note template",
+    dependencies=[Depends(require_roles([UserRole.ADMIN]))],
+)
+async def delete_note_template(
+    template_id: UUID,
+    db: AsyncSession = Depends(get_db_session),
+) -> None:
+    template_repo = PostgresClinicalNoteTemplateRepository(db)
+    existing = await template_repo.get_by_id(template_id)
+    if not existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+    await template_repo.delete(template_id)
+    return None
 
 
 @router.post(

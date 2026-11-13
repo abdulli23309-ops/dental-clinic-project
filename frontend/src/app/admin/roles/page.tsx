@@ -203,7 +203,7 @@ function RolesContent() {
     setRoleToDelete(role);
   };
 
-  // Pattern #1: Optimistic UI for role deactivation with automatic rollback on error
+  // Pattern #1: Optimistic UI for permanent role deletion with automatic rollback on error
   const confirmDeleteRole = async () => {
     if (!roleToDelete || !accessToken) return;
     setIsSubmitting(true);
@@ -211,14 +211,12 @@ function RolesContent() {
     const targetId = roleToDelete.id;
     const targetName = roleToDelete.displayName;
 
-    // Optimistically update list state immediately
-    setRoles((prev) =>
-      prev.map((r) => (r.id === targetId ? { ...r, isActive: false } : r))
-    );
+    // Optimistically remove from list state immediately
+    setRoles((prev) => prev.filter((r) => r.id !== targetId));
 
     try {
-      await adminDeleteRole(targetId, accessToken);
-      toast.success(`Role "${targetName}" deactivated.`);
+      await adminDeleteRole(targetId, accessToken, true);
+      toast.success(`Role "${targetName}" permanently deleted.`);
 
       const remainingOnPage = roles.length - 1;
       const targetPage = remainingOnPage === 0 && currentPage > 1 ? currentPage - 1 : currentPage;
@@ -231,7 +229,7 @@ function RolesContent() {
     } catch (err: unknown) {
       // Rollback on failure
       setRoles(previousRoles);
-      const msg = err instanceof Error ? err.message : "Failed to deactivate role.";
+      const msg = err instanceof Error ? err.message : "Failed to delete role.";
       toast.error(msg);
     } finally {
       setIsSubmitting(false);
@@ -598,9 +596,10 @@ function RolesContent() {
         {/* Pattern #19: Destructive Action Protection Dialog */}
         <DestructiveConfirmDialog
           isOpen={Boolean(roleToDelete)}
-          title={`Deactivate Role "${roleToDelete?.displayName}"?`}
-          description="This will deactivate the role for clinical staff and system assignment. Existing assignments will be archived."
-          confirmText="Deactivate Role"
+          title={`Delete Role "${roleToDelete?.displayName}"?`}
+          description="This action will permanently delete the role from the database. System roles and roles with active staff accounts assigned cannot be deleted."
+          confirmText="Delete Role Permanently"
+          variant="danger"
           isSubmitting={isSubmitting}
           onConfirm={confirmDeleteRole}
           onClose={() => setRoleToDelete(null)}

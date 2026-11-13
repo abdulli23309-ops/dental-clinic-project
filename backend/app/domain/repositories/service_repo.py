@@ -27,3 +27,7 @@ class ServiceRepository(ABC):
     @abstractmethod
     async def reorder(self, ordered_ids: List[UUID]) -> None:
         pass
+
+    @abstractmethod
+    async def delete(self, service_id: UUID) -> bool:
+        pass

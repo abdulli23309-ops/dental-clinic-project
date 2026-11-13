@@ -79,3 +79,11 @@ class PostgresClinicalNoteTemplateRepository(ClinicalNoteTemplateRepository):
         stmt = stmt.order_by(ClinicalNoteTemplateORM.name.asc())
         res = await self._session.execute(stmt)
         return [self._to_domain(r) for r in res.scalars().all()]
+
+    async def delete(self, template_id: UUID) -> bool:
+        orm = await self._session.get(ClinicalNoteTemplateORM, template_id)
+        if not orm:
+            return False
+        await self._session.delete(orm)
+        await self._session.flush()
+        return True

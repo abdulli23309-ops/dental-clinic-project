@@ -79,6 +79,14 @@ class PostgresCmsRepository(CmsRepository):
                 item.display_order = order
         await self._session.flush()
 
+    async def delete_faq(self, faq_id: UUID) -> bool:
+        orm = await self._session.get(FaqItemORM, faq_id)
+        if not orm:
+            return False
+        await self._session.delete(orm)
+        await self._session.flush()
+        return True
+
     async def get_section(self, section_key: str) -> Optional[SiteSection]:
         orm = await self._session.get(SiteSectionORM, section_key)
         if not orm:

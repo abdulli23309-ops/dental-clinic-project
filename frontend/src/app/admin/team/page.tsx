@@ -42,10 +42,12 @@ import { AnimatedPage } from "@/components/ui/animated-page";
 import { Pagination } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EntityDetailsModal, SelectedEntity } from "@/components/modals/entity-details-modal";
+import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import { SuccessAlert } from "@/components/ui/success-draw";
 import { ServiceItem, adminGetServices } from "@/lib/api";
 import {
   adminCreateTeamMember,
+  adminDeleteTeamMember,
   adminGetLocations,
   adminGetRoles,
   adminGetTeam,
@@ -117,6 +119,10 @@ export default function AdminTeamPage() {
   // Selected Clinician for Detailed 5-Tab Management View
   const [selectedClinician, setSelectedClinician] = useState<TeamMember | null>(null);
   const [activeTab, setActiveTab] = useState<"profile" | "locations" | "services" | "schedule" | "availability">("profile");
+
+  // Clinician Delete State
+  const [clinicianToDelete, setClinicianToDelete] = useState<TeamMember | null>(null);
+  const [isDeletingClinician, setIsDeletingClinician] = useState(false);
 
   // Create Modal State
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -470,6 +476,26 @@ export default function AdminTeamPage() {
       setErrorMessage(err.message || "Failed to update service authorization.");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleConfirmDeleteClinician = async () => {
+    if (!clinicianToDelete || !accessToken) return;
+    setIsDeletingClinician(true);
+    const targetId = clinicianToDelete.id;
+    const targetName = clinicianToDelete.displayName || `${clinicianToDelete.firstName} ${clinicianToDelete.lastName}`;
+    try {
+      await adminDeleteTeamMember(targetId, accessToken);
+      toast.success(`Clinician "${targetName}" permanently deleted.`);
+      setTeamMembers((prev) => prev.filter((m) => m.id !== targetId));
+      if (selectedClinician?.id === targetId) {
+        setSelectedClinician(null);
+      }
+      setClinicianToDelete(null);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete clinician.");
+    } finally {
+      setIsDeletingClinician(false);
     }
   };
 
@@ -1186,21 +1212,31 @@ export default function AdminTeamPage() {
 
                     {/* Actions */}
                     <div onClick={(e) => e.stopPropagation()} className="p-4 border-t border-border/40 bg-muted/10 flex items-center justify-between gap-2">
-                      <button
-                        onClick={async () => {
-                          if (!accessToken) return;
-                          await adminToggleTeamMemberStatus(member.id, !member.isActive, accessToken);
-                          setSuccessMessage(`Clinician status updated.`);
-                          setTimeout(() => setSuccessMessage(null), 2500);
-                          loadInitialData();
-                        }}
-                        className={`text-xs px-2.5 py-1 rounded-md font-medium transition-colors ${member.isActive
-                            ? "text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10"
-                            : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
-                          }`}
-                      >
-                        {member.isActive ? "Deactivate" : "Activate"}
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={async () => {
+                            if (!accessToken) return;
+                            await adminToggleTeamMemberStatus(member.id, !member.isActive, accessToken);
+                            setSuccessMessage(`Clinician status updated.`);
+                            setTimeout(() => setSuccessMessage(null), 2500);
+                            loadInitialData();
+                          }}
+                          className={`text-xs px-2.5 py-1 rounded-md font-medium transition-colors ${member.isActive
+                              ? "text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10"
+                              : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                            }`}
+                        >
+                          {member.isActive ? "Deactivate" : "Activate"}
+                        </button>
+                        <button
+                          onClick={() => setClinicianToDelete(member)}
+                          title="Delete clinician permanently"
+                          className="p-1.5 text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 rounded-md transition-colors min-w-[32px] min-h-[32px] flex items-center justify-center"
+                          aria-label={`Delete ${member.displayName || member.firstName}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
 
                       <Button
                         size="sm"
@@ -1435,7 +1471,17 @@ export default function AdminTeamPage() {
                       </div>
                     </div>
 
-                    <div className="pt-4 border-t border-border flex justify-end">
+                    <div className="pt-4 border-t border-border flex items-center justify-between">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setClinicianToDelete(selectedClinician)}
+                        className="gap-1.5 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-500/10 border-rose-200 dark:border-rose-900/50"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Delete Clinician Permanently
+                      </Button>
+
                       <Button type="submit" disabled={isSaving} className="gap-2 font-semibold">
                         {isSaving ? "Saving..." : "Save Profile Details"}
                       </Button>
@@ -2488,6 +2534,18 @@ export default function AdminTeamPage() {
         allTeamMembers={teamMembers}
         allLocations={locations}
         accessToken={accessToken}
+      />
+
+      {/* Permanent Delete Confirmation Dialog */}
+      <DestructiveConfirmDialog
+        isOpen={Boolean(clinicianToDelete)}
+        title={clinicianToDelete ? `Delete Clinician "${clinicianToDelete.displayName || clinicianToDelete.firstName}"?` : "Delete Clinician"}
+        description="This action permanently deletes this clinician and their shift configurations from the database. Any user account or booking links will be safely unlinked. If the doctor has signed medical charts, deletion will be blocked and you should Deactivate them instead."
+        confirmText="Delete Clinician"
+        variant="danger"
+        isSubmitting={isDeletingClinician}
+        onConfirm={handleConfirmDeleteClinician}
+        onClose={() => setClinicianToDelete(null)}
       />
     </AnimatedPage>
   );

@@ -19,6 +19,7 @@ import {
 import {
   ClinicalNoteTemplate,
   createClinicalNoteTemplate,
+  deleteClinicalNoteTemplate,
   getClinicalNoteTemplates,
   updateClinicalNoteTemplate,
 } from "@/lib/api";
@@ -28,6 +29,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { Card } from "@/components/ui/card";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import {
   modalOverlay,
   modalContent,
@@ -65,6 +67,10 @@ export default function AdminNoteTemplatesPage() {
   const [attachments, setAttachments] = useState<AttachedImage[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Delete State
+  const [templateToDelete, setTemplateToDelete] = useState<ClinicalNoteTemplate | null>(null);
+  const [isDeletingTemplate, setIsDeletingTemplate] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -252,6 +258,26 @@ export default function AdminNoteTemplatesPage() {
     }
   };
 
+  const handleConfirmDeleteTemplate = async () => {
+    if (!templateToDelete || !accessToken) return;
+    setIsDeletingTemplate(true);
+    const targetId = templateToDelete.id;
+    const targetName = templateToDelete.name;
+    try {
+      await deleteClinicalNoteTemplate(targetId, accessToken);
+      toast.success(`Note template "${targetName}" permanently deleted.`);
+      setTemplates((prev) => prev.filter((t) => t.id !== targetId));
+      if (isModalOpen && editingTemplate?.id === targetId) {
+        setIsModalOpen(false);
+      }
+      setTemplateToDelete(null);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete note template.");
+    } finally {
+      setIsDeletingTemplate(false);
+    }
+  };
+
   const totalPages = Math.max(1, Math.ceil(templates.length / pageSize));
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
@@ -371,6 +397,15 @@ export default function AdminNoteTemplatesPage() {
                           }`}
                         >
                           {tmpl.active ? <PowerOff className="h-3.5 w-3.5" /> : <Power className="h-3.5 w-3.5" />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setTemplateToDelete(tmpl)}
+                          title="Delete template permanently"
+                          className="p-1.5 rounded-lg border border-border text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                          aria-label={`Delete ${tmpl.name}`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
                         </button>
                         <button
                           type="button"
@@ -767,31 +802,58 @@ export default function AdminNoteTemplatesPage() {
                 </div>
 
                 {/* Modal Footer */}
-                <div className="p-4 sm:p-5 border-t border-slate-100 bg-slate-50/70 flex items-center justify-end gap-2.5">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsModalOpen(false)}
-                    disabled={isSubmitting}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    form="note-template-form"
-                    variant="primary"
-                    size="sm"
-                    disabled={isSubmitting}
-                    className="shadow-xs font-semibold px-5"
-                  >
-                    {isSubmitting ? "Saving..." : "Save Template"}
-                  </Button>
+                <div className="p-4 sm:p-5 border-t border-slate-100 bg-slate-50/70 flex items-center justify-between gap-2.5">
+                  {editingTemplate ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setTemplateToDelete(editingTemplate)}
+                      className="gap-1.5 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-500/10 border-rose-200 dark:border-rose-900/50"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Delete Template
+                    </Button>
+                  ) : <div />}
+
+                  <div className="flex items-center gap-2.5">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsModalOpen(false)}
+                      disabled={isSubmitting}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      form="note-template-form"
+                      variant="primary"
+                      size="sm"
+                      disabled={isSubmitting}
+                      className="shadow-xs font-semibold px-5"
+                    >
+                      {isSubmitting ? "Saving..." : "Save Template"}
+                    </Button>
+                  </div>
                 </div>
               </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Permanent Delete Confirmation Dialog */}
+        <DestructiveConfirmDialog
+          isOpen={Boolean(templateToDelete)}
+          title={templateToDelete ? `Delete Note Template "${templateToDelete.name}"?` : "Delete Template"}
+          description="This action will permanently delete this clinical note template from the database. Existing completed or draft notes created using this template will retain their contents."
+          confirmText="Delete Template"
+          variant="danger"
+          isSubmitting={isDeletingTemplate}
+          onConfirm={handleConfirmDeleteTemplate}
+          onClose={() => setTemplateToDelete(null)}
+        />
       </div>
     </AnimatedPage>
   );

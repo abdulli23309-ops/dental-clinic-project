@@ -4,12 +4,24 @@ from pydantic import BaseModel, Field
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from sqlalchemy import func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.deps import (
     get_activity_log_repository,
+    get_db_session,
     get_refresh_token_repository,
     get_session_repository,
     get_user_repository,
     require_admin,
+)
+from app.infrastructure.database.orm_models import (
+    ClinicalNoteORM,
+    PatientAttachmentORM,
+    PatientConsentORM,
+    PrescriptionORM,
+    ReferralLetterORM,
+    UserORM,
 )
 from app.application.dtos.admin_user_dto import (
     AdminUserCreateRequest,
@@ -379,3 +391,137 @@ async def reset_staff_password(
     )
 
     return {"message": "Password reset successfully. Active sessions revoked."}
+
+
+async def _check_user_delete_eligibility(user_id: UUID, current_admin_id: UUID, session: AsyncSession) -> None:
+    if user_id == current_admin_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot delete your own active account.",
+        )
+
+    # Check if target is last active admin
+    target_user = await session.get(UserORM, user_id)
+    if not target_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Staff account not found.")
+
+    if target_user.role == "admin" and target_user.is_active:
+        admin_count_stmt = select(func.count()).select_from(UserORM).where(
+            UserORM.role == "admin",
+            UserORM.is_active.is_(True),
+        )
+        active_admins = (await session.execute(admin_count_stmt)).scalar() or 0
+        if active_admins <= 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot delete the last remaining active Administrator.",
+            )
+
+    # Pre-flight check on RESTRICT clinical tables
+    checks = [
+        (ClinicalNoteORM, (ClinicalNoteORM.author_id == user_id) | (ClinicalNoteORM.signed_by_id == user_id), "clinical notes"),
+        (PrescriptionORM, (PrescriptionORM.doctor_id == user_id) | (PrescriptionORM.signed_by_user_id == user_id), "prescriptions"),
+        (PatientConsentORM, (PatientConsentORM.obtained_by == user_id) | (PatientConsentORM.voided_by == user_id), "patient consents"),
+        (PatientAttachmentORM, (PatientAttachmentORM.uploaded_by == user_id) | (PatientAttachmentORM.voided_by == user_id), "patient attachments"),
+        (ReferralLetterORM, (ReferralLetterORM.doctor_id == user_id) | (ReferralLetterORM.signed_by_user_id == user_id), "referral letters"),
+    ]
+    for model_cls, condition, label in checks:
+        stmt = select(func.count()).select_from(model_cls).where(condition)
+        count = (await session.execute(stmt)).scalar() or 0
+        if count > 0:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Cannot delete staff account with associated legal {label}. Please Deactivate it instead.",
+            )
+
+
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_admin)])
+async def delete_staff_account(
+    id: UUID,
+    current_admin: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_db_session),
+    user_repo: UserRepository = Depends(get_user_repository),
+    session_repo: UserSessionRepository = Depends(get_session_repository),
+    refresh_token_repo: RefreshTokenRepository = Depends(get_refresh_token_repository),
+    activity_repo: PostgresActivityLogRepository = Depends(get_activity_log_repository),
+) -> None:
+    """Permanently deletes a staff account after foreign key and safety checks."""
+    await _check_user_delete_eligibility(id, current_admin.id, session)
+
+    # Revoke sessions and refresh tokens first
+    await session_repo.revoke_all_for_user(id)
+    await refresh_token_repo.revoke_all_for_user(id)
+
+    # Nullify soft FKs: ActivityLogORM, TaskORM, MessageORM
+    from app.infrastructure.database.orm_models import ActivityLogORM, TaskORM, MessageORM
+    from sqlalchemy import update
+    await session.execute(update(ActivityLogORM).where(ActivityLogORM.user_id == id).values(user_id=None))
+    await session.execute(update(TaskORM).where(TaskORM.assigned_to_user_id == id).values(assigned_to_user_id=None))
+    await session.execute(update(TaskORM).where(TaskORM.created_by_user_id == id).values(created_by_user_id=None))
+    await session.execute(update(MessageORM).where(MessageORM.sender_id == id).values(sender_id=None))
+
+    await user_repo.delete(id)
+    await record_activity(
+        activity_repo,
+        action="user_deleted",
+        entity_type="user",
+        entity_id=id,
+        user_id=current_admin.id,
+        details={"deleted_user_id": str(id)},
+    )
+    return None
+
+
+class BulkDeleteUsersRequest(BaseModel):
+    userIds: List[UUID]
+
+
+class BulkDeleteUsersResponse(BaseModel):
+    deleted: int
+    errors: List[str] = []
+
+
+@router.post("/bulk-delete", response_model=BulkDeleteUsersResponse, dependencies=[Depends(require_admin)])
+async def bulk_delete_staff_accounts(
+    req: BulkDeleteUsersRequest,
+    current_admin: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_db_session),
+    user_repo: UserRepository = Depends(get_user_repository),
+    session_repo: UserSessionRepository = Depends(get_session_repository),
+    refresh_token_repo: RefreshTokenRepository = Depends(get_refresh_token_repository),
+    activity_repo: PostgresActivityLogRepository = Depends(get_activity_log_repository),
+) -> BulkDeleteUsersResponse:
+    """Bulk deletes staff accounts with individual guard evaluations."""
+    deleted_count = 0
+    errors: List[str] = []
+
+    for uid in req.userIds:
+        try:
+            await _check_user_delete_eligibility(uid, current_admin.id, session)
+            await session_repo.revoke_all_for_user(uid)
+            await refresh_token_repo.revoke_all_for_user(uid)
+
+            from app.infrastructure.database.orm_models import ActivityLogORM, TaskORM, MessageORM
+            from sqlalchemy import update
+            await session.execute(update(ActivityLogORM).where(ActivityLogORM.user_id == uid).values(user_id=None))
+            await session.execute(update(TaskORM).where(TaskORM.assigned_to_user_id == uid).values(assigned_to_user_id=None))
+            await session.execute(update(TaskORM).where(TaskORM.created_by_user_id == uid).values(created_by_user_id=None))
+            await session.execute(update(MessageORM).where(MessageORM.sender_id == uid).values(sender_id=None))
+
+            success = await user_repo.delete(uid)
+            if success:
+                deleted_count += 1
+                await record_activity(
+                    activity_repo,
+                    action="user_bulk_deleted",
+                    entity_type="user",
+                    entity_id=uid,
+                    user_id=current_admin.id,
+                    details={"deleted_user_id": str(uid)},
+                )
+        except HTTPException as e:
+            errors.append(f"User {uid}: {e.detail}")
+        except Exception as e:
+            errors.append(f"User {uid}: {str(e)}")
+
+    return BulkDeleteUsersResponse(deleted=deleted_count, errors=errors)

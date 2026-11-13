@@ -25,6 +25,7 @@ import {
   Sparkles,
   Stethoscope,
   Tag,
+  Trash2,
   Upload,
   UserCheck,
   Users,
@@ -40,9 +41,12 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { Pagination } from "@/components/ui/pagination";
 import { EntityDetailsModal, SelectedEntity } from "@/components/modals/entity-details-modal";
+import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
+import { toast } from "sonner";
 import { TeamMember, LocationItem, adminGetLocations, adminGetTeam } from "@/lib/api";
 import {
   adminCreateService,
+  adminDeleteService,
   adminGetServices,
   adminReorderServices,
   adminToggleServiceStatus,
@@ -92,6 +96,10 @@ export default function AdminServicesPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  // Delete service state
+  const [serviceToDelete, setServiceToDelete] = useState<any | null>(null);
+  const [isDeletingService, setIsDeletingService] = useState(false);
 
   // Drawer keyboard accessibility (Escape to close)
   useEffect(() => {
@@ -300,6 +308,26 @@ export default function AdminServicesPage() {
       loadData();
     } catch (err: any) {
       setErrorMessage(err.message || "Failed to toggle status.");
+    }
+  };
+
+  const handleConfirmDeleteService = async () => {
+    if (!serviceToDelete || !accessToken) return;
+    setIsDeletingService(true);
+    const targetId = serviceToDelete.id;
+    const targetTitle = serviceToDelete.title;
+    try {
+      await adminDeleteService(targetId, accessToken);
+      toast.success(`Service "${targetTitle}" permanently deleted.`);
+      setServices((prev) => prev.filter((s) => s.id !== targetId));
+      if (drawerOpen && editingId === targetId) {
+        setDrawerOpen(false);
+      }
+      setServiceToDelete(null);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete service.");
+    } finally {
+      setIsDeletingService(false);
     }
   };
 
@@ -731,6 +759,14 @@ export default function AdminServicesPage() {
                       >
                         {service.isActive !== false ? "Archive" : "Activate"}
                       </button>
+                      <button
+                        onClick={() => setServiceToDelete(service)}
+                        title="Delete service permanently"
+                        className="p-1.5 text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 rounded-md transition-colors min-w-[32px] min-h-[32px] flex items-center justify-center"
+                        aria-label={`Delete ${service.title}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                       <Button
                         size="sm"
                         variant="outline"
@@ -1113,24 +1149,41 @@ export default function AdminServicesPage() {
             </form>
 
             {/* Drawer Footer - Frosted Glass Bar */}
-            <div className="p-5 border-t border-border bg-card flex items-center justify-end gap-3 rounded-bl-3xl shrink-0">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setDrawerOpen(false)}
-                disabled={isSaving}
-                className="rounded-xl px-5 py-2.5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                form="service-form"
-                disabled={isSaving}
-                className="rounded-xl px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-xs transition-all"
-              >
-                {isSaving ? "Saving..." : editingId ? "Save Changes" : "Create Procedure"}
-              </Button>
+            <div className="p-5 border-t border-border bg-card flex items-center justify-between gap-3 rounded-bl-3xl shrink-0">
+              {editingId ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const currentSvc = services.find((s) => s.id === editingId);
+                    if (currentSvc) setServiceToDelete(currentSvc);
+                  }}
+                  className="gap-1.5 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-500/10 border-rose-200 dark:border-rose-900/50 rounded-xl px-4 py-2.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete Permanently
+                </Button>
+              ) : <div />}
+
+              <div className="flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setDrawerOpen(false)}
+                  disabled={isSaving}
+                  className="rounded-xl px-5 py-2.5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  form="service-form"
+                  disabled={isSaving}
+                  className="rounded-xl px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-xs transition-all"
+                >
+                  {isSaving ? "Saving..." : editingId ? "Save Changes" : "Create Procedure"}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -1144,6 +1197,18 @@ export default function AdminServicesPage() {
         allTeamMembers={allTeamMembers}
         allLocations={allLocations}
         accessToken={accessToken}
+      />
+
+      {/* Permanent Delete Confirmation Dialog */}
+      <DestructiveConfirmDialog
+        isOpen={Boolean(serviceToDelete)}
+        title={serviceToDelete ? `Delete Service "${serviceToDelete.title}"?` : "Delete Service"}
+        description="This action permanently deletes this clinical procedure from the database along with its clinic and doctor assignments. If this service is referenced in past patient clinical charts, deletion will be blocked and you should Archive it instead."
+        confirmText="Delete Service"
+        variant="danger"
+        isSubmitting={isDeletingService}
+        onConfirm={handleConfirmDeleteService}
+        onClose={() => setServiceToDelete(null)}
       />
     </AnimatedPage>
   );

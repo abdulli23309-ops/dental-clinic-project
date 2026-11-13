@@ -36,6 +36,10 @@ class UserRepository(ABC):
     ) -> Optional[User]:
         pass
 
+    @abstractmethod
+    async def delete(self, user_id: UUID) -> bool:
+        pass
+
 
 class UserSessionRepository(ABC):
     """Abstract interface defining persistence operations for UserSession entities."""

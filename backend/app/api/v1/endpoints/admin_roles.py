@@ -82,7 +82,8 @@ async def update_role(
 @router.delete("/{role_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_role(
     role_id: UUID,
+    hard: bool = Query(False, description="Perform permanent SQL deletion if True, or soft-deactivate if False"),
     role_service: RoleService = Depends(get_role_service),
 ) -> None:
-    """Soft deletes a role by setting is_active = False."""
-    await role_service.delete_role(role_id)
+    """Deletes a role permanently if hard=True, or deactivates it if hard=False."""
+    await role_service.delete_role(role_id, hard=hard)

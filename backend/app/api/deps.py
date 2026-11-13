@@ -780,7 +780,10 @@ def get_social_link_service(session: AsyncSession = Depends(get_db_session)) -> 
     return SocialLinkService(PostgresSocialLinkRepository(session))
 
 
-def get_gallery_service(session: AsyncSession = Depends(get_db_session)) -> GalleryService:
-    """Provides a GalleryService bound to the current database session."""
-    return GalleryService(PostgresGalleryRepository(session))
+def get_gallery_service(
+    session: AsyncSession = Depends(get_db_session),
+    storage_service: StorageService = Depends(get_storage_service),
+) -> GalleryService:
+    """Provides a GalleryService bound to the current database session and storage service."""
+    return GalleryService(PostgresGalleryRepository(session), storage_service=storage_service)
 

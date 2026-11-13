@@ -229,3 +229,11 @@ class PostgresBookingRepository(BookingRepository):
         )
         res = await self._session.execute(stmt)
         return [self._to_domain(r) for r in res.scalars().all()]
+
+    async def delete(self, booking_id: UUID) -> bool:
+        orm = await self._session.get(BookingORM, booking_id)
+        if not orm:
+            return False
+        await self._session.delete(orm)
+        await self._session.flush()
+        return True

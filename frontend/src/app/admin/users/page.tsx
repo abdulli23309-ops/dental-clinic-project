@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Sparkles,
   Stethoscope,
+  Trash2,
   User,
   UserCheck,
   UserCog,
@@ -42,9 +43,12 @@ import {
   modalContent,
   reducedVariant,
 } from "@/animations/variants";
+import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
 import {
+  adminBulkDeleteUsers,
   adminBulkUpdateUserStatus,
   adminCreateUser,
+  adminDeleteUser,
   adminGetTeam,
   adminGetUsers,
   adminResetUserPassword,
@@ -72,7 +76,7 @@ const ROLES = [
 ];
 
 export default function AdminUsersPage() {
-  const { accessToken } = useAuth();
+  const { user, accessToken } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -107,6 +111,12 @@ export default function AdminUsersPage() {
 
   // Status Confirmation Modal (Deactivate / Reactivate)
   const [confirmStatusUser, setConfirmStatusUser] = useState<AdminUser | null>(null);
+
+  // Single & Bulk Delete Confirmation State
+  const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   // Reset Password Modal
   const [showResetModal, setShowResetModal] = useState(false);
@@ -399,6 +409,44 @@ export default function AdminUsersPage() {
     } catch (err: any) {
       sonnerToast.error(err.message || "Bulk update failed");
       loadData();
+    }
+  };
+
+  const handleConfirmDeleteUser = async () => {
+    if (!userToDelete || !accessToken) return;
+    setIsDeletingUser(true);
+    const targetId = userToDelete.id;
+    const targetName = userToDelete.fullName;
+    try {
+      await adminDeleteUser(targetId, accessToken);
+      sonnerToast.success(`Staff account for ${targetName} permanently deleted.`);
+      setUsers((prev) => prev.filter((u) => u.id !== targetId));
+      setUserToDelete(null);
+    } catch (err: any) {
+      sonnerToast.error(err.message || "Failed to delete staff account.");
+    } finally {
+      setIsDeletingUser(false);
+    }
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    if (selectedIds.length === 0 || !accessToken) return;
+    setIsBulkDeleting(true);
+    try {
+      const res = await adminBulkDeleteUsers(selectedIds as string[], accessToken);
+      if (res.deleted > 0) {
+        sonnerToast.success(`${res.deleted} staff account(s) permanently deleted.`);
+        setUsers((prev) => prev.filter((u) => !selectedIds.includes(u.id)));
+      }
+      if (res.errors && res.errors.length > 0) {
+        sonnerToast.error(`Could not delete ${res.errors.length} account(s): ${res.errors[0]}`);
+      }
+      clearSelection();
+      setShowBulkDeleteConfirm(false);
+    } catch (err: any) {
+      sonnerToast.error(err.message || "Bulk deletion failed.");
+    } finally {
+      setIsBulkDeleting(false);
     }
   };
 
@@ -757,6 +805,15 @@ export default function AdminUsersPage() {
                             >
                               {u.isActive ? "Deactivate" : "Reactivate"}
                             </Button>
+                            <button
+                              onClick={() => setUserToDelete(u)}
+                              disabled={u.id === user?.id}
+                              title={u.id === user?.id ? "You cannot delete your own active account" : "Delete staff account permanently"}
+                              className="p-1.5 text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 rounded-lg transition-colors min-w-[28px] min-h-[28px] flex items-center justify-center disabled:opacity-30 disabled:pointer-events-none"
+                              aria-label={`Delete ${u.fullName}`}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </td>
                       </motion.tr>
@@ -807,6 +864,12 @@ export default function AdminUsersPage() {
               icon: <UserX className="w-3.5 h-3.5" />,
               variant: "danger",
               onClick: () => handleBulkStatus(false),
+            },
+            {
+              label: "Delete Selected",
+              icon: <Trash2 className="w-3.5 h-3.5" />,
+              variant: "danger",
+              onClick: () => setShowBulkDeleteConfirm(true),
             },
           ]}
         />
@@ -1291,6 +1354,30 @@ export default function AdminUsersPage() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Single User Permanent Delete Dialog */}
+        <DestructiveConfirmDialog
+          isOpen={Boolean(userToDelete)}
+          title={userToDelete ? `Delete Staff Account for "${userToDelete.fullName}"?` : "Delete Account"}
+          description="This action will permanently delete this staff account, revoke all their active sessions and tokens, and unassign any task or activity links. Staff members with signed legal clinical documents cannot be deleted and must be Deactivated instead."
+          confirmText="Delete Staff Account"
+          variant="danger"
+          isSubmitting={isDeletingUser}
+          onConfirm={handleConfirmDeleteUser}
+          onClose={() => setUserToDelete(null)}
+        />
+
+        {/* Bulk Users Permanent Delete Dialog */}
+        <DestructiveConfirmDialog
+          isOpen={showBulkDeleteConfirm}
+          title={`Permanently Delete ${selectedCount} Staff Account(s)?`}
+          description="This will permanently delete the selected staff accounts and revoke their login credentials. Accounts with associated legal clinical records or the last remaining Administrator will be skipped with an error."
+          confirmText={`Delete ${selectedCount} Account(s)`}
+          variant="danger"
+          isSubmitting={isBulkDeleting}
+          onConfirm={handleConfirmBulkDelete}
+          onClose={() => setShowBulkDeleteConfirm(false)}
+        />
       </div>
     </AnimatedPage>
   );

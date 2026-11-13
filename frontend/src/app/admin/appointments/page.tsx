@@ -19,11 +19,13 @@ import {
   ArrowRight,
   ChevronDown,
   ShieldAlert,
+  Trash2,
   Info,
 } from "lucide-react";
 
 import { useAuth } from "@/components/providers/auth-provider";
 import {
+  adminDeleteAppointment,
   getReceptionBookings,
   rescheduleReceptionBooking,
   cancelReceptionBooking,
@@ -34,6 +36,8 @@ import {
   ServiceItem,
   TeamMember,
 } from "@/lib/api";
+import { DestructiveConfirmDialog } from "@/components/ui/destructive-confirm-dialog";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/ui/pagination";
 import { Card } from "@/components/ui/card";
@@ -90,6 +94,25 @@ export default function AdminAppointmentsPage() {
   const [conflictWarning, setConflictWarning] = useState<string | null>(null);
   const [overrideDoubleBooking, setOverrideDoubleBooking] = useState(false);
   const [overrideReason, setOverrideReason] = useState("");
+
+  // Hard delete confirmation state
+  const [appointmentToDelete, setAppointmentToDelete] = useState<ReceptionBooking | null>(null);
+  const [isDeletingAppointment, setIsDeletingAppointment] = useState(false);
+
+  const handleConfirmDeleteAppointment = async () => {
+    if (!appointmentToDelete) return;
+    setIsDeletingAppointment(true);
+    try {
+      await adminDeleteAppointment(appointmentToDelete.id, accessToken || undefined);
+      toast.success("Appointment permanently deleted");
+      setBookings((prev) => prev.filter((b) => b.id !== appointmentToDelete.id));
+      setAppointmentToDelete(null);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to delete appointment");
+    } finally {
+      setIsDeletingAppointment(false);
+    }
+  };
 
   // Fetch data
   const loadData = async () => {
@@ -635,6 +658,17 @@ export default function AdminAppointmentsPage() {
                                 No-Show
                               </Button>
                             )}
+
+                            {/* Permanently Delete */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-[11px] text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
+                              onClick={() => setAppointmentToDelete(booking)}
+                              title="Delete appointment permanently"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
                           </div>
                         </td>
                       </motion.tr>
@@ -919,6 +953,16 @@ export default function AdminAppointmentsPage() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        <DestructiveConfirmDialog
+          isOpen={Boolean(appointmentToDelete)}
+          onClose={() => setAppointmentToDelete(null)}
+          onConfirm={handleConfirmDeleteAppointment}
+          title="Permanently Delete Appointment"
+          description={`Are you sure you want to permanently delete appointment #${appointmentToDelete?.bookingNumber || appointmentToDelete?.id?.slice(0, 8)} for ${appointmentToDelete?.patientName}? This action cannot be undone. Appointments with clinical encounters attached cannot be deleted.`}
+          confirmText="Delete Appointment"
+          isSubmitting={isDeletingAppointment}
+        />
       </div>
     </AnimatedPage>
   );

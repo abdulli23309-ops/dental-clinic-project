@@ -53,3 +53,8 @@ class BookingRepository(ABC):
     async def get_patient_bookings(self, patient_id: UUID) -> List[Booking]:
         """Returns all bookings associated with a specific patient."""
         pass
+
+    @abstractmethod
+    async def delete(self, booking_id: UUID) -> bool:
+        """Permanently deletes a booking."""
+        pass

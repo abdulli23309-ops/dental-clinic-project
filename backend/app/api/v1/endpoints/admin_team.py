@@ -185,6 +185,16 @@ async def update_team_member(
     )
 
 
+@router.delete("/{member_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_admin)])
+async def delete_team_member(
+    member_id: UUID,
+    team_service: TeamService = Depends(get_team_service),
+) -> None:
+    """Permanently deletes a team member if no clinical encounter records exist."""
+    await team_service.delete_member(member_id)
+    return None
+
+
 @router.patch("/{member_id}/status", response_model=TeamMemberResponse, dependencies=[Depends(require_admin)])
 async def toggle_team_member_status(
     member_id: UUID,
